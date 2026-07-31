@@ -1,7 +1,7 @@
 import type { AutomationJob } from '@pellux/goodvibes-sdk/platform/automation';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../agent-workspace-snapshot.ts';
-import { WORK_PLAN_STATUSES, type WorkPlanItemStatus } from '../../work-plans/work-plan-store.ts';
+import { WORK_PLAN_STATUSES, type WorkPlanItemStatus } from '@pellux/goodvibes-sdk/platform/workflow';
 
 type StatusCounts = Record<WorkPlanItemStatus, number>;
 

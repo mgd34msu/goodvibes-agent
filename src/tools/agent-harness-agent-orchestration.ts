@@ -1,7 +1,7 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { CommandContext } from '../input/command-registry.ts';
-import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
+import type { WorkPlanItem } from '@pellux/goodvibes-sdk/platform/workflow';
 import { AGENT_TEMPLATES, AGENT_TOOL_MODES, agentOrchestrationDecisionCards } from './agent-harness-agent-orchestration-policy.ts';
 import { remoteReadModelSnapshot, type RemoteCaptureOutcomeRecord, type RemoteWorkspaceEvidenceRecord } from './agent-harness-remote-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';

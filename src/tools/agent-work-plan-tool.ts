@@ -6,7 +6,7 @@ import {
   type WorkPlanItem,
   type WorkPlanItemStatus,
   type WorkPlanStore,
-} from '../work-plans/work-plan-store.ts';
+} from '@pellux/goodvibes-sdk/platform/workflow';
 
 export type AgentWorkPlanAction =
   | 'list'

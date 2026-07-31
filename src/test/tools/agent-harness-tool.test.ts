@@ -42,7 +42,7 @@ import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
-import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import { WorkPlanStore } from '@pellux/goodvibes-sdk/platform/workflow';
 import { listGoodVibesCliCommands } from '../../cli/parser.ts';
 import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
 import type { AgentExecutionRecord } from '../../runtime/execution-ledger.ts';
@@ -152,7 +152,7 @@ function makeFixture(options: {
   const toolRegistry = new ToolRegistry();
   const processManager = new ProcessManager();
   const fileUndoManager = new FileUndoManager();
-  const workPlanStore = new WorkPlanStore({ homeDirectory: root, projectId: 'harness-test', projectRoot: root });
+  const workPlanStore = new WorkPlanStore({ homeDirectory: root, surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT, projectId: 'harness-test', projectRoot: root });
   const printed: string[] = [];
   const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
   const openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }> = [];

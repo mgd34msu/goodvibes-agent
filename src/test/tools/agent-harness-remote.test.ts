@@ -27,7 +27,7 @@ import { createShellPathService } from '@/runtime/index.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { AGENT_HARNESS_MODES } from '../../tools/agent-harness-tool-schema.ts';
 import { HARNESS_MODE_DESCRIPTORS } from '../../tools/agent-harness-mode-catalog.ts';
-import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import { WorkPlanStore } from '@pellux/goodvibes-sdk/platform/workflow';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const REMOTE_READ_MODES = ['remote_snapshot', 'remote_peers', 'remote_work', 'remote_pair_requests'] as const;
@@ -48,7 +48,7 @@ function makeRemoteFixture() {
   const toolRegistry = new ToolRegistry();
   const processManager = new ProcessManager();
   const fileUndoManager = new FileUndoManager();
-  const workPlanStore = new WorkPlanStore({ homeDirectory: root, projectId: 'remote-test', projectRoot: root });
+  const workPlanStore = new WorkPlanStore({ homeDirectory: root, surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT, projectId: 'remote-test', projectRoot: root });
 
   const context = {
     print: (_text: string) => {},

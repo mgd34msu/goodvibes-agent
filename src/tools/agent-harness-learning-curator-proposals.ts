@@ -2,7 +2,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { AgentResearchRunRegistry, type AgentResearchRunRecord } from '../agent/research-run-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-types.ts';
-import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
+import type { WorkPlanItem } from '@pellux/goodvibes-sdk/platform/workflow';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { agentHarnessVibeHealth } from './agent-harness-vibe-health.ts';
 import type { LearningCandidate, LearningProposalTarget, SessionInfoLike, SessionManagerLike, VibeCandidateKind, LocalLearningCandidateDomain } from './agent-harness-learning-curator-types.ts';

@@ -1,8 +1,23 @@
+/**
+ * Recovery and bounding for the Agent's work plan.
+ *
+ * The store is the SDK's (@pellux/goodvibes-sdk/platform/workflow), constructed
+ * with this product's surface root so the plan file lands at
+ * <home>/.goodvibes/agent/work-plans/<projectId>.json. What is pinned here is
+ * what the Agent depends on: /work-plan stays usable when the file on disk is
+ * torn, a user's open work is never garbage-collected, and anything reclaimed
+ * is disclosed on the plan rather than disappearing quietly.
+ */
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
-import { WorkPlanStore, type WorkPlanItemStatus } from '../../work-plans/work-plan-store.ts';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, dirname } from 'node:path';
+import {
+  WorkPlanStore,
+  WORK_PLAN_TERMINAL_ITEM_CAP,
+  type WorkPlanItemStatus,
+} from '@pellux/goodvibes-sdk/platform/workflow';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -20,6 +35,7 @@ function withStore<T>(fn: (make: () => WorkPlanStore) => T): T {
   try {
     return fn(() => new WorkPlanStore({
       homeDirectory,
+      surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
       projectId: 'project:housekeeping',
       projectRoot: '/tmp/housekeeping',
     }));
@@ -45,7 +61,7 @@ function storedItem(id: string, status: WorkPlanItemStatus, ageMs: number): Stor
   };
 }
 
-function writePlanWithItems(filePath: string, items: readonly StoredItem[]): void {
+function writePlanWithItems(filePath: string, items: readonly StoredItem[], extra: Record<string, unknown> = {}): void {
   const time = Date.now();
   writePlanFile(filePath, `${JSON.stringify({
     id: 'wp-housekeeping',
@@ -55,11 +71,18 @@ function writePlanWithItems(filePath: string, items: readonly StoredItem[]): voi
     items,
     createdAt: time,
     updatedAt: time,
+    ...extra,
   }, null, 2)}\n`);
 }
 
-describe('WorkPlanStore housekeeping', () => {
-  test('degrades a zero-byte plan file to an empty plan instead of throwing', () => {
+/** The preserved copies of unreadable plan files sitting beside the plan. */
+function quarantineFiles(filePath: string): string[] {
+  const marker = `${basename(filePath)}.corrupt-`;
+  return readdirSync(dirname(filePath)).filter((name) => name.startsWith(marker));
+}
+
+describe('the Agent work plan recovers from a bad file', () => {
+  test('a zero-byte plan file degrades to an empty plan instead of throwing', () => {
     withStore((make) => {
       const seed = make();
       writePlanFile(seed.filePath, '');
@@ -67,24 +90,31 @@ describe('WorkPlanStore housekeeping', () => {
       const store = make();
       expect(() => store.getActivePlan()).not.toThrow();
       expect(store.listItems()).toHaveLength(0);
-      expect(store.lastMaintenance()?.recovered).toBe('empty-file');
+      expect(store.getActivePlan().housekeeping?.resetFromUnreadableFile).toBe(true);
+      // Nothing was worth preserving, so no recovery copy was made.
+      expect(quarantineFiles(store.filePath)).toHaveLength(0);
       // Every public method stays usable rather than throwing out of readPlan.
       expect(store.clearCompleted()).toBe(0);
       expect(store.toMarkdown()).toContain('No work plan items recorded.');
     });
   });
 
-  test('degrades a crash-truncated plan file to an empty plan, preserving the bad file aside', () => {
+  test('a crash-truncated plan file degrades to an empty plan, and the bad file is preserved', () => {
     withStore((make) => {
       const seed = make();
       writePlanFile(seed.filePath, '{"id":"wp-housekeeping","items":[{"id":"wpi-1","title":"Half w');
 
       const store = make();
       expect(store.listItems()).toHaveLength(0);
-      expect(store.lastMaintenance()?.recovered).toBe('quarantined');
-      expect(store.lastMaintenance()?.quarantinedBytes).toBeGreaterThan(0);
-      expect(existsSync(`${store.filePath}.corrupt`)).toBe(true);
-      expect(existsSync(store.filePath)).toBe(false);
+      const housekeeping = store.getActivePlan().housekeeping;
+      expect(housekeeping?.resetFromUnreadableFile).toBe(true);
+      // The user's unreadable list is kept where they can still get at it, and
+      // the plan says where.
+      expect(housekeeping?.quarantinePath).toBeTruthy();
+      expect(existsSync(housekeeping!.quarantinePath!)).toBe(true);
+      expect(readFileSync(housekeeping!.quarantinePath!, 'utf8')).toContain('Half w');
+      // The reset is disclosed to the person reading the plan, not only to code.
+      expect(store.toMarkdown()).toContain('Housekeeping');
 
       // Still writable afterwards.
       const item = store.addItem('Recovered work');
@@ -92,18 +122,21 @@ describe('WorkPlanStore housekeeping', () => {
     });
   });
 
-  test('degrades a plan file that is valid JSON but not an object', () => {
+  test('a plan file that is valid JSON but not a plan is treated the same way', () => {
     withStore((make) => {
       const seed = make();
       writePlanFile(seed.filePath, '[1,2,3]\n');
 
       const store = make();
       expect(store.listItems()).toHaveLength(0);
-      expect(store.lastMaintenance()?.recovered).toBe('quarantined');
+      expect(store.getActivePlan().housekeeping?.resetFromUnreadableFile).toBe(true);
+      expect(quarantineFiles(store.filePath)).toHaveLength(1);
     });
   });
+});
 
-  test('ages out terminal items while open work of the same age survives', () => {
+describe('the Agent work plan stays bounded without touching open work', () => {
+  test('finished items age out while open work of the same age survives', () => {
     withStore((make) => {
       const seed = make();
       writePlanWithItems(seed.filePath, [
@@ -119,6 +152,8 @@ describe('WorkPlanStore housekeeping', () => {
       const store = make();
       const items = store.listItems().map((item) => item.id);
 
+      // pending / in_progress / blocked / failed are work the user still has
+      // open at any age; only done and cancelled are ever reclaimed.
       expect(items).toEqual([
         'wpi-old-pending',
         'wpi-old-in-progress',
@@ -126,18 +161,19 @@ describe('WorkPlanStore housekeeping', () => {
         'wpi-old-failed',
         'wpi-recent-done',
       ]);
-      expect(store.lastMaintenance()?.expiredItems).toBe(2);
-      expect(store.lastMaintenance()?.keptItems).toBe(5);
+      expect(store.getActivePlan().housekeeping?.expiredItems).toBe(2);
 
       const persisted = JSON.parse(readFileSync(store.filePath, 'utf8')) as { readonly items: readonly { readonly id: string }[] };
       expect(persisted.items.map((item) => item.id)).toEqual(items);
     });
   });
 
-  test('caps the number of terminal items kept, newest first, and leaves open items uncapped', () => {
+  test('finished items are capped newest-first, and open items are not counted against the cap', () => {
     withStore((make) => {
       const seed = make();
-      const done = Array.from({ length: 130 }, (_, index) => storedItem(`wpi-done-${index}`, 'done', (130 - index) * 60_000));
+      const overflow = 30;
+      const total = WORK_PLAN_TERMINAL_ITEM_CAP + overflow;
+      const done = Array.from({ length: total }, (_, index) => storedItem(`wpi-done-${index}`, 'done', (total - index) * 60_000));
       const open = Array.from({ length: 5 }, (_, index) => storedItem(`wpi-open-${index}`, 'pending', 5 * DAY_MS));
       writePlanWithItems(seed.filePath, [...done, ...open]);
 
@@ -145,12 +181,12 @@ describe('WorkPlanStore housekeeping', () => {
       const items = store.listItems();
       const keptDone = items.filter((item) => item.status === 'done');
 
-      expect(keptDone).toHaveLength(100);
+      expect(keptDone).toHaveLength(WORK_PLAN_TERMINAL_ITEM_CAP);
       expect(items.filter((item) => item.status === 'pending')).toHaveLength(5);
-      expect(store.lastMaintenance()?.overflowItems).toBe(30);
-      // The oldest 30 finished items are the ones dropped.
+      expect(store.getActivePlan().housekeeping?.cappedItems).toBe(overflow);
+      // The oldest finished items are the ones dropped.
       expect(keptDone.some((item) => item.id === 'wpi-done-0')).toBe(false);
-      expect(keptDone.some((item) => item.id === 'wpi-done-129')).toBe(true);
+      expect(keptDone.some((item) => item.id === `wpi-done-${total - 1}`)).toBe(true);
     });
   });
 
@@ -164,34 +200,32 @@ describe('WorkPlanStore housekeeping', () => {
 
       const first = make();
       expect(first.listItems().map((item) => item.id)).toEqual(['wpi-open']);
-      expect(first.lastMaintenance()?.expiredItems).toBe(1);
+      expect(first.getActivePlan().housekeeping?.expiredItems).toBe(1);
       const afterFirst = readFileSync(first.filePath, 'utf8');
 
       const second = make();
       expect(second.listItems().map((item) => item.id)).toEqual(['wpi-open']);
-      expect(second.lastMaintenance()?.expiredItems).toBe(0);
-      expect(second.lastMaintenance()?.overflowItems).toBe(0);
+      // The disclosure from the first sweep is carried forward untouched: the
+      // second sweep found nothing, so it neither reclaims nor rewrites.
       expect(readFileSync(second.filePath, 'utf8')).toBe(afterFirst);
     });
   });
 
-  test('clears an active item pointer that pointed at a reaped item', () => {
+  test('an active-item pointer aimed at a reclaimed item is cleared, not moved to another item', () => {
     withStore((make) => {
       const seed = make();
-      const time = Date.now();
-      writePlanFile(seed.filePath, `${JSON.stringify({
-        id: 'wp-housekeeping',
-        projectId: 'project:housekeeping',
-        projectRoot: '/tmp/housekeeping',
-        title: 'Work Plan',
-        items: [storedItem('wpi-old-done', 'done', 60 * DAY_MS), storedItem('wpi-open', 'pending', DAY_MS)],
-        activeItemId: 'wpi-old-done',
-        createdAt: time,
-        updatedAt: time,
-      }, null, 2)}\n`);
+      writePlanWithItems(
+        seed.filePath,
+        [storedItem('wpi-old-done', 'done', 60 * DAY_MS), storedItem('wpi-open', 'pending', DAY_MS)],
+        { activeItemId: 'wpi-old-done' },
+      );
 
       const store = make();
-      expect(store.getActivePlan().activeItemId).toBe('wpi-open');
+      const plan = store.getActivePlan();
+      // Nothing is active. Repointing at whatever item happened to survive
+      // would claim the user is working on something they never selected.
+      expect(plan.activeItemId).toBeUndefined();
+      expect(plan.items.map((item) => item.id)).toEqual(['wpi-open']);
     });
   });
 });

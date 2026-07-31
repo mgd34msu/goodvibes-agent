@@ -89,7 +89,7 @@ export type CreateBootstrapCommandContextOptions = {
   knowledgeService?: KnowledgeService;
   projectPlanningService?: import('@pellux/goodvibes-sdk/platform/knowledge').ProjectPlanningService;
   projectPlanningProjectId?: string;
-  workPlanStore?: import('../work-plans/work-plan-store.ts').WorkPlanStore;
+  workPlanStore?: import('@pellux/goodvibes-sdk/platform/workflow').WorkPlanStore;
   providerOptimizer?: import('@pellux/goodvibes-sdk/platform/providers').ProviderOptimizer;
   pluginManager?: PluginManager;
   hookWorkbench?: HookWorkbench;

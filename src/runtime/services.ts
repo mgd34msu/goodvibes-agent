@@ -216,7 +216,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/runtime/permissions/localhost-fetch-approval';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import type { WorkflowServices } from '@pellux/goodvibes-sdk/platform/tools';
-import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
+import { WorkPlanStore } from '@pellux/goodvibes-sdk/platform/workflow';
 import { AgentExecutionLedger } from './execution-ledger.ts';
 import { attachAgentSessionWriteLedger, clearAgentSessionWrites } from '../tools/agent-session-write-ledger.ts';
 import { VERSION } from '../version.ts';
@@ -1415,6 +1415,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const workPlanStore = new WorkPlanStore({
     homeDirectory,
+    // This product's storage scope: the plan lands beside the rest of the
+    // Agent's state at <home>/.goodvibes/agent/work-plans/.
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     projectId: projectPlanningProjectId,
     projectRoot: workingDirectory,
   });

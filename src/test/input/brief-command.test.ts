@@ -9,7 +9,7 @@ import type { CommandContext } from '../../input/command-registry.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { formatAgentOperatorBriefing } from '../../input/commands/brief-runtime.ts';
-import type { WorkPlanItem, WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import type { WorkPlanItem, WorkPlanStore } from '@pellux/goodvibes-sdk/platform/workflow';
 import { createShellPathService } from '@/runtime/index.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 

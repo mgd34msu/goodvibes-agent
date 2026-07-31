@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import { WorkPlanStore } from '@pellux/goodvibes-sdk/platform/workflow';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 function makeStore(): WorkPlanStore {
   const homeDirectory = makeProjectTempDir('gv-work-plan');
   return new WorkPlanStore({
     homeDirectory,
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     projectId: 'project:test-workspace',
     projectRoot: '/tmp/test-workspace',
   });
@@ -23,6 +25,7 @@ describe('WorkPlanStore', () => {
 
     const reloaded = new WorkPlanStore({
       homeDirectory: store.filePath.split('/.goodvibes/')[0]!,
+      surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
       projectId: 'project:test-workspace',
       projectRoot: '/tmp/test-workspace',
     });

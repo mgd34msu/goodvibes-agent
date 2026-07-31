@@ -102,7 +102,7 @@ export interface BootstrapCommandSectionOptions {
   readonly knowledgeService?: KnowledgeService;
   readonly projectPlanningService?: import('@pellux/goodvibes-sdk/platform/knowledge').ProjectPlanningService;
   readonly projectPlanningProjectId?: string;
-  readonly workPlanStore?: import('../work-plans/work-plan-store.ts').WorkPlanStore;
+  readonly workPlanStore?: import('@pellux/goodvibes-sdk/platform/workflow').WorkPlanStore;
   readonly pluginManager?: PluginManager;
   readonly hookWorkbench?: HookWorkbench;
   readonly providerOptimizer?: import('@pellux/goodvibes-sdk/platform/providers').ProviderOptimizer;

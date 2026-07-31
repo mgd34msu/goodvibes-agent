@@ -1,16 +1,18 @@
 import { describe, expect, test } from 'bun:test';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import { WorkPlanStore } from '@pellux/goodvibes-sdk/platform/workflow';
 import {
   createAgentWorkPlanTool,
   registerAgentWorkPlanTool,
 } from '../../tools/agent-work-plan-tool.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 function makeStore(): WorkPlanStore {
   return new WorkPlanStore({
     homeDirectory: makeProjectTempDir('goodvibes-agent-work-plan-tool'),
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     projectId: 'project:agent-work-plan-tool',
     projectRoot: '/tmp/agent-work-plan-tool',
   });
