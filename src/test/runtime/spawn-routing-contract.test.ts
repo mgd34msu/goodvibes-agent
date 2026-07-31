@@ -2,7 +2,7 @@
  * Spawn-routing model-reference contract.
  *
  * The shared-session continuation runner (src/runtime/services.ts) builds
- * agent spawn options through buildAgentSpawnRoutingFromSharedSession, whose
+ * agent spawn options through buildSharedSessionAgentSpawnRoutingInput, whose
  * bare-id resolution is the SDK's public resolveModelReference contract:
  *   - provider-qualified ids pass through unchanged,
  *   - a provider-qualified id conflicting with the provider hint throws,
@@ -13,7 +13,7 @@
  *   - without registry candidates a bare id throws (never a silent guess).
  */
 import { describe, expect, test } from 'bun:test';
-import { buildAgentSpawnRoutingFromSharedSession } from '../../runtime/services.ts';
+import { buildSharedSessionAgentSpawnRoutingInput } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { buildTestModelDefinition } from '../helpers/test-managers.ts';
 
 // The live caller passes providerRegistry.listModels() (ModelDefinition[]);
@@ -27,7 +27,7 @@ const candidates = [
 
 describe('spawn routing model-reference contract', () => {
   test('a bare id unique across the registry auto-qualifies to its registryKey', () => {
-    const spawn = buildAgentSpawnRoutingFromSharedSession(
+    const spawn = buildSharedSessionAgentSpawnRoutingInput(
       { modelId: 'compact-1' },
       { modelCandidates: candidates },
     );
@@ -35,7 +35,7 @@ describe('spawn routing model-reference contract', () => {
   });
 
   test('an ambiguous bare id throws the real candidate registryKeys', () => {
-    expect(() => buildAgentSpawnRoutingFromSharedSession(
+    expect(() => buildSharedSessionAgentSpawnRoutingInput(
       { modelId: 'shared-model' },
       { modelCandidates: candidates },
     )).toThrow(/ambiguous.*alpha:shared-model, beta:shared-model/);
@@ -44,7 +44,7 @@ describe('spawn routing model-reference contract', () => {
   test('an unknown bare id throws closest-match suggestions and a concrete example', () => {
     let message = '';
     try {
-      buildAgentSpawnRoutingFromSharedSession(
+      buildSharedSessionAgentSpawnRoutingInput(
         { modelId: 'compakt-1' },
         { modelCandidates: candidates },
       );
@@ -58,7 +58,7 @@ describe('spawn routing model-reference contract', () => {
   });
 
   test('a bare id with a provider hint qualifies to that provider', () => {
-    const spawn = buildAgentSpawnRoutingFromSharedSession(
+    const spawn = buildSharedSessionAgentSpawnRoutingInput(
       { providerId: 'beta', modelId: 'shared-model' },
       { modelCandidates: candidates },
     );
@@ -67,7 +67,7 @@ describe('spawn routing model-reference contract', () => {
   });
 
   test('a provider-qualified id passes through unchanged', () => {
-    const spawn = buildAgentSpawnRoutingFromSharedSession(
+    const spawn = buildSharedSessionAgentSpawnRoutingInput(
       { modelId: 'beta:deep-9' },
       { modelCandidates: candidates },
     );
@@ -75,20 +75,20 @@ describe('spawn routing model-reference contract', () => {
   });
 
   test('a provider-qualified id conflicting with the provider hint throws', () => {
-    expect(() => buildAgentSpawnRoutingFromSharedSession(
+    expect(() => buildSharedSessionAgentSpawnRoutingInput(
       { providerId: 'alpha', modelId: 'beta:deep-9' },
       { modelCandidates: candidates },
     )).toThrow(/conflicts with provider 'alpha'/);
   });
 
   test('a bare id without registry candidates throws instead of guessing', () => {
-    expect(() => buildAgentSpawnRoutingFromSharedSession(
+    expect(() => buildSharedSessionAgentSpawnRoutingInput(
       { modelId: 'compact-1' },
     )).toThrow(/must be provider-qualified/);
   });
 
   test('bare fallback models resolve through the registry too', () => {
-    const spawn = buildAgentSpawnRoutingFromSharedSession(
+    const spawn = buildSharedSessionAgentSpawnRoutingInput(
       { modelId: 'compact-1', providerFailurePolicy: 'ordered-fallbacks', fallbackModels: ['deep-9'] },
       { modelCandidates: candidates },
     );
@@ -96,7 +96,7 @@ describe('spawn routing model-reference contract', () => {
   });
 
   test('an ambiguous bare fallback model throws the candidate registryKeys', () => {
-    expect(() => buildAgentSpawnRoutingFromSharedSession(
+    expect(() => buildSharedSessionAgentSpawnRoutingInput(
       { modelId: 'compact-1', providerFailurePolicy: 'ordered-fallbacks', fallbackModels: ['shared-model'] },
       { modelCandidates: candidates },
     )).toThrow(/Shared-session fallback model:.*ambiguous/);

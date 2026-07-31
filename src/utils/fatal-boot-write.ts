@@ -1,18 +1,20 @@
 /**
  * fatal-boot-write.ts — the two descriptor writes, with nothing else attached.
  *
- * This is the dependency-free half of `fatal-boot-report.ts`. It imports
- * `node:fs` and nothing more, deliberately, because `bin/goodvibes-agent.ts`
- * routes through it and that shim must keep working on a real npm install.
- * This package declares NO runtime dependencies — `@pellux/goodvibes-sdk` is a
- * devDependency and reaches an installed user only inlined inside the bundled
- * `dist/package/main.js` — so any module the shim imports that statically
- * reaches the SDK would fail to resolve on the exact installs the shim exists
- * to explain. Splitting the primitives out is what lets the shim share this
- * code path instead of writing its own.
+ * This file imports `node:fs` and nothing more, deliberately, because
+ * `bin/goodvibes-agent.ts` routes through it and that shim must keep working
+ * on a real npm install. This package declares NO runtime dependencies —
+ * `@pellux/goodvibes-sdk` is a devDependency and reaches an installed user
+ * only inlined inside the bundled `dist/package/main.js` — so any module the
+ * shim imports that statically reaches the SDK would fail to resolve on the
+ * exact installs the shim exists to explain.
  *
- * Everything in `fatal-boot-report.ts` re-exports from here; import from there
- * unless you are in `bin/`.
+ * The SDK-dependent half this file used to back — `reportFatalBootFailure`,
+ * previously mirrored locally in `utils/fatal-boot-report.ts` — is now the
+ * SDK's own `@pellux/goodvibes-sdk/platform/daemon` export (2026-07-30
+ * daemon/TUI split hoist; that export adopted this file's own byte-accepting
+ * write loop as the shared implementation). Every non-`bin/` caller of
+ * `writeFatalLine`/`writeExitingStdoutLine` imports them from here directly.
  */
 
 import { writeSync } from 'node:fs';

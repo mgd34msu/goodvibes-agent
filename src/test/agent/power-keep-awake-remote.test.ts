@@ -5,7 +5,7 @@ import {
   forwardKeepAwakeToAdoptedDaemon,
   postPowerKeepAwakeSet,
   type PowerKeepAwakeRemoteConnection,
-} from '../../agent/power-keep-awake-remote.ts';
+} from '@pellux/goodvibes-sdk/platform/power';
 
 const originalFetch = globalThis.fetch;
 

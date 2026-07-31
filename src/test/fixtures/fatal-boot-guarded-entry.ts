@@ -29,7 +29,7 @@ import { join } from 'node:path';
 import { configureActivityLogger, logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { reportFatalStartupError } from '@/cli/tui-startup.ts';
 import { installTuiTerminalOutputGuard } from '@/runtime/terminal-output-guard.ts';
-import { writeFatalLine } from '@/utils/fatal-boot-report.ts';
+import { writeFatalLine } from '@/utils/fatal-boot-write.ts';
 
 const WORKING_DIR = process.env['GOODVIBES_WORKING_DIR'] ?? process.cwd();
 

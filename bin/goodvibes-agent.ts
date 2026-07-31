@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-// The dependency-free half of utils/fatal-boot-report.ts on purpose: this
+// The dependency-free write primitives, on purpose: this
 // package declares no runtime dependencies, so anything this shim imports must
 // not statically reach @pellux/goodvibes-sdk. Both exits below write the reason
 // straight to descriptor 2, because a stream write issued immediately before

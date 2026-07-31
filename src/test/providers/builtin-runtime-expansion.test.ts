@@ -9,7 +9,7 @@ import { BenchmarkStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
-import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
+import { createLaunchTolerantProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const CLEAN_ENV_KEYS = [

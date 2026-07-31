@@ -7,8 +7,12 @@
  * Every consumed receipt must render exactly once.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { AgentDaemonReceiptFeed, extractDaemonReceipts, type DaemonReceipt } from '../../runtime/daemon-receipts.ts';
-import { createSpineReceiptConsumer, createSpineRestProbe } from '../../runtime/session-spine-rest-transport.ts';
+import { AgentDaemonReceiptFeed, type DaemonReceipt } from '../../runtime/daemon-receipts.ts';
+import {
+  createSessionSpineReceiptConsumer as createSpineReceiptConsumer,
+  createSessionSpineRestProbe as createSpineRestProbe,
+  extractSessionSpineReceipts as extractDaemonReceipts,
+} from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 
 describe('extractDaemonReceipts', () => {
   test('parses the receipts array off a /status body', () => {

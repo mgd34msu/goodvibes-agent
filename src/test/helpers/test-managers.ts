@@ -11,7 +11,7 @@ import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/provi
 import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { LLMProvider, ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
-import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
+import { createLaunchTolerantProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { makeProjectTempDir } from './project-temp.ts';
 
 export interface TestManagers {

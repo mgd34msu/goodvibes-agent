@@ -22,7 +22,7 @@ import type { MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createMemorySpineRestTransport, type MemorySpineRestTransportOptions } from '../../runtime/memory-spine-rest-transport.ts';
-import type { SessionRegistrationConnection } from '../../agent/session-registration.ts';
+import type { SessionRegistrationConnection } from '../../runtime/session-spine-rest-transport.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**

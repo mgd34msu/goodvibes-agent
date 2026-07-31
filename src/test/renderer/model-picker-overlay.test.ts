@@ -13,7 +13,7 @@ import { renderModelPickerOverlay } from '../../renderer/model-picker-overlay.ts
 import { lineToString, linesToText } from '../setup.ts';
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
-import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
+import { createLaunchTolerantProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
