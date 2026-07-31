@@ -1,10 +1,10 @@
 /**
- * Boot-time start of an installed-but-stopped connected host.
+ * Boot-time start of an installed-but-stopped daemon, as the Agent wires it.
  *
  * Three layers, matching the module's seams:
- *   1. The pure decision engine (autostartInstalledConnectedHost) against spy
+ *   1. The SDK's pure decision engine (autostartInstalledDaemon) against spy
  *      control/probe doubles — every outcome branch, no I/O.
- *   2. The detector/starter (createConnectedHostServiceControl) over the real
+ *   2. The SDK's detector/starter (createDaemonServiceControl) over the real
  *      SDK PlatformServiceManager with a tempdir home and an injected
  *      actionRunner, so no test ever touches the host's real service manager.
  *   3. The bootstrap wiring (wireAgentExternalServices) with an injected
@@ -19,13 +19,13 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { HookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { RuntimeEventBus, DeferredStartupCoordinator, ExternalServicesHandle, HostServiceStatus } from '@/runtime/index.ts';
 import {
-  autostartInstalledConnectedHost,
-  createConnectedHostServiceControl,
-  LEGACY_CONNECTED_HOST_SERVICE_NAME,
-  MANAGED_CONNECTED_HOST_SERVICE_NAME,
-  type ConnectedHostServiceControl,
-  type ConnectedHostServiceSnapshot,
-} from '../../runtime/connected-host-autostart.ts';
+  autostartInstalledDaemon,
+  createDaemonServiceControl,
+  LEGACY_DAEMON_SERVICE_NAME,
+  MANAGED_DAEMON_SERVICE_NAME,
+  type DaemonServiceControl,
+  type DaemonServiceSnapshot,
+} from '@pellux/goodvibes-sdk/platform/runtime/client';
 import { wireAgentExternalServices } from '../../runtime/bootstrap-external-services.ts';
 import { AgentDaemonReceiptFeed } from '../../runtime/daemon-receipts.ts';
 import type { SystemMessageRouter } from '../../core/system-message-router.ts';
@@ -35,7 +35,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ── Layer 1: the pure decision engine ──────────────────────────────────────
 
-function snapshotOf(overrides: Partial<ConnectedHostServiceSnapshot> = {}): ConnectedHostServiceSnapshot {
+function snapshotOf(overrides: Partial<DaemonServiceSnapshot> = {}): DaemonServiceSnapshot {
   return {
     serviceName: 'goodvibes-daemon',
     platform: 'systemd',
@@ -48,9 +48,9 @@ function snapshotOf(overrides: Partial<ConnectedHostServiceSnapshot> = {}): Conn
 }
 
 function spyControl(options: {
-  snapshots: readonly ConnectedHostServiceSnapshot[];
+  snapshots: readonly DaemonServiceSnapshot[];
   startResult?: { ok: boolean; error?: string };
-}): ConnectedHostServiceControl & { readonly startCalls: string[]; readonly snapshotCalls: () => number } {
+}): DaemonServiceControl & { readonly startCalls: string[]; readonly snapshotCalls: () => number } {
   const startCalls: string[] = [];
   let snapshotCount = 0;
   return {
@@ -77,15 +77,21 @@ function scriptedProbe(sequence: readonly ('online' | 'offline')[]): () => Promi
   };
 }
 
+/** The same script as the boolean answer the decision engine's seam takes. */
+function scriptedReachable(sequence: readonly ('online' | 'offline')[]): () => Promise<boolean> {
+  const probe = scriptedProbe(sequence);
+  return async () => (await probe()) === 'online';
+}
+
 const NO_SLEEP = async (): Promise<void> => {};
 
-describe('autostartInstalledConnectedHost (decision engine)', () => {
+describe('autostartInstalledDaemon (decision engine)', () => {
   test('a running daemon is never touched: adopted (external) mode skips before any detection', async () => {
     const control = spyControl({ snapshots: [snapshotOf()] });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'external' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'external',
       control,
-      probeReachability: scriptedProbe(['online']),
+      isReachable: scriptedReachable(['online']),
       sleep: NO_SLEEP,
     });
     expect(outcome).toEqual({ action: 'none', reason: 'daemon-active' });
@@ -95,10 +101,10 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
 
   test('an embedded daemon is treated as active too', async () => {
     const control = spyControl({ snapshots: [snapshotOf()] });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'embedded' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'embedded',
       control,
-      probeReachability: scriptedProbe(['online']),
+      isReachable: scriptedReachable(['online']),
       sleep: NO_SLEEP,
     });
     expect(outcome).toEqual({ action: 'none', reason: 'daemon-active' });
@@ -108,10 +114,10 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
   test('a held port (blocked or incompatible) is respected — another owner may be mid-update', async () => {
     for (const mode of ['blocked', 'incompatible'] as const) {
       const control = spyControl({ snapshots: [snapshotOf()] });
-      const outcome = await autostartInstalledConnectedHost({
-        daemonStatus: { mode },
+      const outcome = await autostartInstalledDaemon({
+        daemonMode: mode,
         control,
-        probeReachability: scriptedProbe(['offline']),
+        isReachable: scriptedReachable(['offline']),
         sleep: NO_SLEEP,
       });
       expect(outcome).toEqual({ action: 'none', reason: 'port-held' });
@@ -121,10 +127,10 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
 
   test('a disabled daemon stays disabled', async () => {
     const control = spyControl({ snapshots: [snapshotOf()] });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'disabled' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'disabled',
       control,
-      probeReachability: scriptedProbe(['offline']),
+      isReachable: scriptedReachable(['offline']),
       sleep: NO_SLEEP,
     });
     expect(outcome).toEqual({ action: 'none', reason: 'daemon-disabled' });
@@ -133,10 +139,10 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
 
   test('probe-fail + not installed: guidance path unchanged, no start attempted', async () => {
     const control = spyControl({ snapshots: [snapshotOf({ installed: false })] });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'unavailable' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'unavailable',
       control,
-      probeReachability: scriptedProbe(['offline']),
+      isReachable: scriptedReachable(['offline']),
       sleep: NO_SLEEP,
     });
     expect(outcome).toEqual({ action: 'not-installed' });
@@ -145,11 +151,11 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
 
   test('probe-fail + installed + start succeeds: started once the daemon answers', async () => {
     const control = spyControl({ snapshots: [snapshotOf()] });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'unavailable' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'unavailable',
       control,
       // Answers on the third poll — inside the bounded wait.
-      probeReachability: scriptedProbe(['offline', 'offline', 'online']),
+      isReachable: scriptedReachable(['offline', 'offline', 'online']),
       waitTimeoutMs: 2_000,
       pollIntervalMs: 100,
       sleep: NO_SLEEP,
@@ -163,11 +169,11 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
       snapshots: [snapshotOf()],
       startResult: { ok: false, error: 'Failed to connect to bus: No medium found' },
     });
-    const probe = mock(scriptedProbe(['offline']));
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'unavailable' },
+    const probe = mock(scriptedReachable(['offline']));
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'unavailable',
       control,
-      probeReachability: probe,
+      isReachable: probe,
       sleep: NO_SLEEP,
     });
     expect(outcome).toEqual({
@@ -181,11 +187,11 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
 
   test('start accepted but the daemon never answers: bounded wait ends with an honest reason', async () => {
     const control = spyControl({ snapshots: [snapshotOf()] });
-    const probe = mock(scriptedProbe(['offline']));
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'unavailable' },
+    const probe = mock(scriptedReachable(['offline']));
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'unavailable',
       control,
-      probeReachability: probe,
+      isReachable: probe,
       waitTimeoutMs: 1_000,
       pollIntervalMs: 250,
       sleep: NO_SLEEP,
@@ -201,10 +207,10 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
 
   test('a service unit that is already active gets a bounded wait, never a second start', async () => {
     const control = spyControl({ snapshots: [snapshotOf({ running: true })] });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'unavailable' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'unavailable',
       control,
-      probeReachability: scriptedProbe(['offline', 'online']),
+      isReachable: scriptedReachable(['offline', 'online']),
       waitTimeoutMs: 1_000,
       pollIntervalMs: 250,
       sleep: NO_SLEEP,
@@ -215,10 +221,10 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
 
   test('an active unit whose daemon never answers reports the reason without fighting it', async () => {
     const control = spyControl({ snapshots: [snapshotOf({ running: true })] });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'unavailable' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'unavailable',
       control,
-      probeReachability: scriptedProbe(['offline']),
+      isReachable: scriptedReachable(['offline']),
       waitTimeoutMs: 1_000,
       pollIntervalMs: 500,
       sleep: NO_SLEEP,
@@ -235,16 +241,16 @@ describe('autostartInstalledConnectedHost (decision engine)', () => {
     const control = spyControl({
       snapshots: [snapshotOf({ platform: 'manual', startSupported: false })],
     });
-    const outcome = await autostartInstalledConnectedHost({
-      daemonStatus: { mode: 'unavailable' },
+    const outcome = await autostartInstalledDaemon({
+      daemonMode: 'unavailable',
       control,
-      probeReachability: scriptedProbe(['offline']),
+      isReachable: scriptedReachable(['offline']),
       sleep: NO_SLEEP,
     });
     expect(outcome).toEqual({
       action: 'start-failed',
       serviceName: 'goodvibes-daemon',
-      reason: 'service "goodvibes-daemon" is installed without a service-manager entry this Agent can start',
+      reason: 'service "goodvibes-daemon" is installed without a service-manager entry this surface can start',
     });
     expect(control.startCalls).toEqual([]);
   });
@@ -279,7 +285,7 @@ function makeDetectorFixture(options: {
   installedUnits?: readonly string[];
   serviceNameConfig?: string;
 } = {}) {
-  const root = makeProjectTempDir('connected-host-autostart');
+  const root = makeProjectTempDir('daemon-autostart');
   const home = join(root, 'home');
   const unitDir = join(home, '.config', 'systemd', 'user');
   mkdirSync(unitDir, { recursive: true });
@@ -299,11 +305,11 @@ function makeDetectorFixture(options: {
   return { root, home, configManager };
 }
 
-describe('createConnectedHostServiceControl (detector over PlatformServiceManager)', () => {
+describe('createDaemonServiceControl (detector over PlatformServiceManager)', () => {
   test('detects the older unit name as installed and the managed name as absent', () => {
-    const fixture = makeDetectorFixture({ installedUnits: [LEGACY_CONNECTED_HOST_SERVICE_NAME] });
+    const fixture = makeDetectorFixture({ installedUnits: [LEGACY_DAEMON_SERVICE_NAME] });
     const { runner } = systemdActionRunner({});
-    const control = createConnectedHostServiceControl({
+    const control = createDaemonServiceControl({
       configManager: fixture.configManager,
       workingDirectory: join(fixture.root, 'project'),
       homeDirectory: fixture.home,
@@ -311,56 +317,56 @@ describe('createConnectedHostServiceControl (detector over PlatformServiceManage
     });
     const snapshots = control.snapshot();
     expect(snapshots.map((snapshot) => snapshot.serviceName)).toEqual([
-      MANAGED_CONNECTED_HOST_SERVICE_NAME,
-      LEGACY_CONNECTED_HOST_SERVICE_NAME,
+      MANAGED_DAEMON_SERVICE_NAME,
+      LEGACY_DAEMON_SERVICE_NAME,
     ]);
-    const legacy = snapshots.find((snapshot) => snapshot.serviceName === LEGACY_CONNECTED_HOST_SERVICE_NAME)!;
+    const legacy = snapshots.find((snapshot) => snapshot.serviceName === LEGACY_DAEMON_SERVICE_NAME)!;
     expect(legacy.installed).toBe(true);
     expect(legacy.running).toBe(false);
     expect(legacy.startSupported).toBe(true);
-    const managed = snapshots.find((snapshot) => snapshot.serviceName === MANAGED_CONNECTED_HOST_SERVICE_NAME)!;
+    const managed = snapshots.find((snapshot) => snapshot.serviceName === MANAGED_DAEMON_SERVICE_NAME)!;
     expect(managed.installed).toBe(false);
   });
 
   test('running comes from a live service-manager query, not a guess', () => {
-    const fixture = makeDetectorFixture({ installedUnits: [MANAGED_CONNECTED_HOST_SERVICE_NAME] });
-    const { runner } = systemdActionRunner({ activeServices: [MANAGED_CONNECTED_HOST_SERVICE_NAME] });
-    const control = createConnectedHostServiceControl({
+    const fixture = makeDetectorFixture({ installedUnits: [MANAGED_DAEMON_SERVICE_NAME] });
+    const { runner } = systemdActionRunner({ activeServices: [MANAGED_DAEMON_SERVICE_NAME] });
+    const control = createDaemonServiceControl({
       configManager: fixture.configManager,
       workingDirectory: join(fixture.root, 'project'),
       homeDirectory: fixture.home,
       actionRunner: runner,
     });
-    const managed = control.snapshot().find((snapshot) => snapshot.serviceName === MANAGED_CONNECTED_HOST_SERVICE_NAME)!;
+    const managed = control.snapshot().find((snapshot) => snapshot.serviceName === MANAGED_DAEMON_SERVICE_NAME)!;
     expect(managed.installed).toBe(true);
     expect(managed.running).toBe(true);
   });
 
   test('start goes through the service manager (systemctl --user enable --now <unit>)', () => {
-    const fixture = makeDetectorFixture({ installedUnits: [LEGACY_CONNECTED_HOST_SERVICE_NAME] });
+    const fixture = makeDetectorFixture({ installedUnits: [LEGACY_DAEMON_SERVICE_NAME] });
     const { runner, calls } = systemdActionRunner({});
-    const control = createConnectedHostServiceControl({
+    const control = createDaemonServiceControl({
       configManager: fixture.configManager,
       workingDirectory: join(fixture.root, 'project'),
       homeDirectory: fixture.home,
       actionRunner: runner,
     });
-    const result = control.start(LEGACY_CONNECTED_HOST_SERVICE_NAME);
+    const result = control.start(LEGACY_DAEMON_SERVICE_NAME);
     expect(result.ok).toBe(true);
     const startCall = calls.find((call) => call.command === 'systemctl' && call.args[1] === 'enable');
-    expect(startCall?.args).toEqual(['--user', 'enable', '--now', `${LEGACY_CONNECTED_HOST_SERVICE_NAME}.service`]);
+    expect(startCall?.args).toEqual(['--user', 'enable', '--now', `${LEGACY_DAEMON_SERVICE_NAME}.service`]);
   });
 
   test('a failing start command surfaces the service manager error text', () => {
-    const fixture = makeDetectorFixture({ installedUnits: [LEGACY_CONNECTED_HOST_SERVICE_NAME] });
+    const fixture = makeDetectorFixture({ installedUnits: [LEGACY_DAEMON_SERVICE_NAME] });
     const { runner } = systemdActionRunner({ startExit: 1, startStderr: 'Failed to connect to bus: No medium found' });
-    const control = createConnectedHostServiceControl({
+    const control = createDaemonServiceControl({
       configManager: fixture.configManager,
       workingDirectory: join(fixture.root, 'project'),
       homeDirectory: fixture.home,
       actionRunner: runner,
     });
-    const result = control.start(LEGACY_CONNECTED_HOST_SERVICE_NAME);
+    const result = control.start(LEGACY_DAEMON_SERVICE_NAME);
     expect(result.ok).toBe(false);
     expect(result.error).toContain('Failed to connect to bus');
   });
@@ -368,7 +374,7 @@ describe('createConnectedHostServiceControl (detector over PlatformServiceManage
   test('an unknown service name is refused without touching the service manager', () => {
     const fixture = makeDetectorFixture({});
     const { runner, calls } = systemdActionRunner({});
-    const control = createConnectedHostServiceControl({
+    const control = createDaemonServiceControl({
       configManager: fixture.configManager,
       workingDirectory: join(fixture.root, 'project'),
       homeDirectory: fixture.home,
@@ -383,7 +389,7 @@ describe('createConnectedHostServiceControl (detector over PlatformServiceManage
   test('a configured service.serviceName collapses the candidates to that one name', () => {
     const fixture = makeDetectorFixture({ installedUnits: ['custom-host'], serviceNameConfig: 'custom-host' });
     const { runner } = systemdActionRunner({});
-    const control = createConnectedHostServiceControl({
+    const control = createDaemonServiceControl({
       configManager: fixture.configManager,
       workingDirectory: join(fixture.root, 'project'),
       homeDirectory: fixture.home,
@@ -442,7 +448,7 @@ function spyRouter(): SystemMessageRouter & { readonly highs: string[]; readonly
 
 function wireFixture(options: {
   discoverySequence: readonly HostServiceStatus[];
-  control: ConnectedHostServiceControl;
+  control: DaemonServiceControl;
   probeSequence?: readonly ('online' | 'offline')[];
 }) {
   const router = spyRouter();

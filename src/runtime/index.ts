@@ -87,7 +87,8 @@ export const registerHostRuntimeEvents = bootstrap.registerHostRuntimeEvents;
 // call site (bootstrap-external-services.ts) so it never spawns or embeds a
 // daemon itself. A daemon that is INSTALLED on this machine but stopped is
 // handled separately at boot: one start through the platform service manager,
-// then a fresh adopt-only probe (see runtime/connected-host-autostart.ts).
+// then a fresh adopt-only probe (the SDK's autostartInstalledDaemon, wired in
+// runtime/bootstrap-external-services.ts).
 export const startHostServices = bootstrap.startHostServices;
 export const startExternalServices = bootstrap.startHostServices;
 export const registerBootstrapHookBridge = bootstrap.registerBootstrapHookBridge;

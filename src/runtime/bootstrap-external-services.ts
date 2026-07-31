@@ -14,15 +14,16 @@
  * on the configured port but the host's service entry IS installed on this
  * machine, the Agent issues a single start through the platform service
  * manager, waits a bounded time for the daemon to answer, re-probes, and
- * reports what it did (see connected-host-autostart.ts). A machine with the
- * host installed but stopped must not hand the user homework.
+ * reports what it did (the SDK's autostartInstalledDaemon decides and acts;
+ * the wording below is the Agent's). A machine with the host installed but
+ * stopped must not hand the user homework.
  */
 import { startExternalServices } from '@/runtime/index.ts';
 import {
-  autostartInstalledConnectedHost,
-  createConnectedHostServiceControl,
-  type ConnectedHostServiceControl,
-} from './connected-host-autostart.ts';
+  autostartInstalledDaemon,
+  createDaemonServiceControl,
+  type DaemonServiceControl,
+} from '@pellux/goodvibes-sdk/platform/runtime/client';
 import type { SpineReachability } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import type {
   DeferredStartupCoordinator,
@@ -87,7 +88,7 @@ export interface AgentExternalServicesController {
 
 /** Test seams for the boot-time start of an installed-but-stopped host. */
 export interface ConnectedHostAutostartSeams {
-  readonly control?: ConnectedHostServiceControl;
+  readonly control?: DaemonServiceControl;
   readonly probeReachability?: () => Promise<SpineReachability>;
   readonly waitTimeoutMs?: number;
   readonly pollIntervalMs?: number;
@@ -174,14 +175,16 @@ export function wireAgentExternalServices(options: {
   const maybeStartInstalledConnectedHost = async (): Promise<void> => {
     const seams = options.connectedHostAutostart ?? {};
     try {
-      const outcome = await autostartInstalledConnectedHost({
-        daemonStatus: externalServices.daemonStatus,
-        control: seams.control ?? createConnectedHostServiceControl({
+      const probeReachability = seams.probeReachability
+        ?? (() => services.sessionSpineClient.probeReachability());
+      const outcome = await autostartInstalledDaemon({
+        daemonMode: externalServices.daemonStatus.mode,
+        control: seams.control ?? createDaemonServiceControl({
           configManager: services.configManager,
           workingDirectory: services.workingDirectory,
           homeDirectory: services.homeDirectory,
         }),
-        probeReachability: seams.probeReachability ?? (() => services.sessionSpineClient.probeReachability()),
+        isReachable: async () => (await probeReachability()) === 'online',
         waitTimeoutMs: seams.waitTimeoutMs,
         pollIntervalMs: seams.pollIntervalMs,
         sleep: seams.sleep,
