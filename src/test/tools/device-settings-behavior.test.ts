@@ -38,6 +38,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import {
   DEVICE_CAPABILITY_CONTRACT_VERSION,
   DEVICE_CAPABILITY_IDS,
+  getDeviceCapability,
 } from '@pellux/goodvibes-sdk/platform/devices';
 import type {
   DeviceCapabilityId,
@@ -251,9 +252,32 @@ function harness(configManager: ConfigManager, stateDirectory: string): Harness 
       capture = enabled;
     },
     run(capabilityId: DeviceCapabilityId, reason = 'behaviour test'): Promise<DeviceCapabilityOutcome> {
-      return service.capabilities.request({ nodeId: 'phone-1', capabilityId, reason });
+      return service.capabilities.request({
+        nodeId: 'phone-1',
+        capabilityId,
+        reason,
+        input: minimalCapabilityInput(capabilityId),
+      });
     },
   };
+}
+
+/**
+ * The smallest input a capability's own contract accepts.
+ *
+ * Read from the catalog rather than written out per capability: `notify` needs
+ * a title and `clipboard.write` needs the text, and a hand-written fixture that
+ * omits a field the contract later marks required refuses as invalid-input,
+ * which reads as a settings-behaviour failure and is not one. Deriving it means
+ * a new required field is satisfied here the moment the contract declares it.
+ */
+function minimalCapabilityInput(capabilityId: DeviceCapabilityId): Record<string, unknown> {
+  const input: Record<string, unknown> = {};
+  for (const field of getDeviceCapability(capabilityId)?.inputFields ?? []) {
+    if (!field.required) continue;
+    input[field.name] = field.type === 'number' ? 1 : `behaviour test ${field.name}`;
+  }
+  return input;
 }
 
 /** Readable one-liner for an outcome, so a failure says what actually happened. */

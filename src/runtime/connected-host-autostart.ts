@@ -25,7 +25,7 @@
  * earlier installs used; a `service.serviceName` config value overrides both,
  * through the manager's own name resolution.
  */
-import { PlatformServiceManager, type ManagedServiceStatus } from '@pellux/goodvibes-sdk/platform/daemon';
+import { PlatformServiceManager, type ManagedServiceActionResult, type ManagedServiceStatus } from '@pellux/goodvibes-sdk/platform/daemon';
 import type { SpineReachability } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import type { ConfigManager } from '../config/index.ts';
 
@@ -34,12 +34,13 @@ export const MANAGED_CONNECTED_HOST_SERVICE_NAME = 'goodvibes';
 /** The unit name older connected-host installs registered. */
 export const LEGACY_CONNECTED_HOST_SERVICE_NAME = 'goodvibes-daemon';
 
-/** Structural mirror of the SDK service manager's action-runner result. */
-export interface ConnectedHostServiceActionResult {
-  readonly status: number | null;
-  readonly stdout?: string | undefined;
-  readonly stderr?: string | undefined;
-}
+/**
+ * The SDK service manager's action-runner result, imported rather than
+ * re-declared. This was a structural mirror of the same three fields, kept
+ * because the type was not on the barrel this file already imports from; it is
+ * now, so the alias is the SDK's own type under this module's name.
+ */
+export type ConnectedHostServiceActionResult = ManagedServiceActionResult;
 
 /** One candidate service entry, as the platform service manager sees it. */
 export interface ConnectedHostServiceSnapshot {
