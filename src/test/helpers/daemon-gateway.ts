@@ -9,18 +9,30 @@
  * can reach — it composes no server and starts no listener. Those handlers are
  * gone from the product; the daemon serves them.
  *
- * The CONTRACTS they implement did not go anywhere, and this agent depends on
- * several of them across the wire: what `checkin.run` records, what
- * `principals.create` round-trips, what `rewind.plan` reports for a session it
- * does not hold, what a `profile.*` write does to the owner profile document.
- * A suite that verified one of those was verifying the platform's behaviour
- * through a convenient local composition, not the agent's own code, and the
- * behaviour is still worth pinning — at the owner that now implements it.
+ * ── What this helper is still for, and what it is no longer for ──────────
  *
- * So the tests build the composition the daemon builds, from the same public
- * wrapper, over the same graph. Nothing about the product's catalog changes:
- * `services.gatewayMethods` still has no handler for any of these, which is
- * pinned in daemon/gateway-ws-only-invokable.test.ts.
+ * It is NOT for pinning the platform's verb contracts. That job moved to the
+ * daemon repository, where the suites drive the daemon's OWN composition
+ * (`createRuntimeServices(...).gatewayMethods`) instead of a reconstruction of
+ * it, which is the difference between verifying the contract and verifying that
+ * a copy of the dependency list still agrees with itself:
+ *
+ *   - goodvibes-daemon/src/test/daemon/gateway-verb-family-parity.test.ts
+ *     — every verb family, with the reason each one registers
+ *   - goodvibes-daemon/src/test/daemon/gateway-checkin-round-trip.test.ts
+ *   - goodvibes-daemon/src/test/daemon/gateway-ci-principals-channel-profiles-round-trip.test.ts
+ *   - goodvibes-daemon/src/test/daemon/gateway-catalog-handler-or-route.test.ts
+ *     — the whole-catalog partition, so an unwired verb fails loudly
+ *
+ * What it IS for: the handful of suites in this repository whose subject is an
+ * AGENT seam that only becomes observable through a daemon-shaped catalog —
+ * this process's conversation rewind port, its occasions push/pull, its
+ * `profile` tool, its voice-setup and memory-governance wiring. Those assert
+ * something about this package; they just need a catalog to look through.
+ *
+ * Nothing about the product's catalog changes: `services.gatewayMethods` still
+ * has no handler for any of these, which is pinned in
+ * daemon/gateway-ws-only-invokable.test.ts.
  *
  * ── One caution ───────────────────────────────────────────────────────────
  *
