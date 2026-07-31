@@ -9,7 +9,7 @@
  * channel-scoped or otherwise unrewindable: one process, one live
  * conversation, registered at bootstrap (see bootstrap-core.ts's
  * registerSessionConversation call and services.ts's conversationRewindPort
- * wiring), ported from goodvibes-tui's identical seam
+ * wiring), against the same seam
  * (src/runtime/conversation-rewind-port.ts here mirrors the TUI's file of the
  * same name so rewind truncation semantics cannot drift between the two
  * front-ends).
@@ -21,17 +21,16 @@
  * TURN_COMPLETED handler makes), then rewinding to that anchor and observing
  * the conversation actually truncate.
  *
- * ── Whose composition this drives, as of the client split ────────────────
+ * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
- * over this graph — the agent's own `services.gatewayMethods` carries no handler
- * for any of these any more, and that absence is itself pinned in
+ * over this graph. The Agent's own `services.gatewayMethods` carries no handler
+ * for any of these, which is itself pinned in
  * daemon/gateway-ws-only-invokable.test.ts.
  *
- * The behaviour below did not move or change; its OWNER did. These verbs are
- * served to every surface by one process now, and this suite is where the
- * contract that surface depends on stays honest. Driving it through the
- * daemon's composition is the difference between verifying a contract and
+ * These verbs are served to every surface by one process, and this suite is
+ * where the contract THIS surface depends on stays honest. Driving it through
+ * the daemon's composition is the difference between verifying a contract and
  * asserting that a client answers its own question.
  */
 import { describe, expect, test } from 'bun:test';

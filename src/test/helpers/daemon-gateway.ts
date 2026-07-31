@@ -1,17 +1,17 @@
 /**
- * daemon-gateway.ts — the verb catalog THE DAEMON composes, for tests that need
- * to drive a verb this process no longer serves.
+ * daemon-gateway.ts — the verb catalog THE DAEMON composes over this graph, for
+ * tests whose subject only becomes observable through one.
  *
  * ── Why a test builds one and the product does not ────────────────────────
  *
- * The agent used to call `attachWsOnlyGatewayVerbHandlers` on its own catalog,
- * registering fifteen verb families on a surface nothing outside this process
- * can reach — it composes no server and starts no listener. Those handlers are
- * gone from the product; the daemon serves them.
+ * This process composes no server and starts no listener, so a verb handler
+ * registered here would be reachable by nobody. The daemon serves the fifteen
+ * verb families; the product's own catalog carries only what a loaded plugin
+ * registers into it.
  *
- * ── What this helper is still for, and what it is no longer for ──────────
+ * ── What this helper is for, and what it is not ──────────────────────────
  *
- * It is NOT for pinning the platform's verb contracts. That job moved to the
+ * It is NOT for pinning the platform's verb contracts. That job belongs to the
  * daemon repository, where the suites drive the daemon's OWN composition
  * (`createRuntimeServices(...).gatewayMethods`) instead of a reconstruction of
  * it, which is the difference between verifying the contract and verifying that
@@ -53,9 +53,9 @@ export interface DaemonGatewayCatalogOptions {
 /**
  * Build the catalog a daemon composed from this graph would carry.
  *
- * The dep list is exactly the one the agent's composition root used to pass, so
- * a suite driving this observes what a daemon over this graph does — not a
- * narrower stand-in that happens to answer.
+ * The dep list is the full one the registrar takes, so a suite driving this
+ * observes what a daemon over this graph does — not a narrower stand-in that
+ * happens to answer.
  */
 const cached = new WeakMap<RuntimeServices, GatewayMethodCatalog>();
 
