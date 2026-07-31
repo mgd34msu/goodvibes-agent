@@ -293,6 +293,23 @@ export const consumeRecovery = operations.consumeRecovery;
 // directory that removes what no live session can ever use again, discloses
 // what it removed, and never touches the session in use.
 export const startDurabilityHousekeeping = operations.startDurabilityHousekeeping;
+// "Is this the build you are actually reaching, and is it the current one" —
+// the PATH shadow scan, the install-kind answer it depends on, and the wording
+// it produces. A product supplies its own command/package name and release
+// lookup (runtime/path-shadow-startup.ts) and nothing else.
+export const detectInstallKind = operations.detectInstallKind;
+export const announceReachability = operations.announceReachability;
+export const boundedLatestRelease = operations.boundedLatestRelease;
+export const runReachabilityCheck = operations.runReachabilityCheck;
+export const resolveSelfDirectory = operations.resolveSelfDirectory;
+export const probeVersionLine = operations.probeVersionLine;
+export const buildReachabilityNotices = operations.buildReachabilityNotices;
+export const reachabilityNoticeLines = operations.reachabilityNoticeLines;
+export const INSTALLED_COMMANDS = operations.INSTALLED_COMMANDS;
+export type InstallKind = Operations.InstallKind;
+export type ReachabilityCheckInput = Operations.ReachabilityCheckInput;
+export type ReachabilityCheckResult = Operations.ReachabilityCheckResult;
+export type ReachabilityNotice = Operations.ReachabilityNotice;
 export const removeRecoveryPoint = operations.removeRecoveryPoint;
 export const exportRemoteArtifactForAgent = operations.exportRemoteArtifactForAgent;
 export const importRemoteArtifact = operations.importRemoteArtifact;

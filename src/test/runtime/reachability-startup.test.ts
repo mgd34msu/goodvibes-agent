@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  runReachabilityCheck,
+  buildReachabilityNotices,
+  reachabilityNoticeLines,
   resolveSelfDirectory,
-} from '../../runtime/path-shadow-startup.ts';
-import { buildReachabilityNotices, reachabilityNoticeLines } from '../../runtime/reachability-notice.ts';
+  runReachabilityCheck,
+} from '@/runtime/index.ts';
+import { AGENT_PACKAGE_NAME } from '../../runtime/path-shadow-startup.ts';
 import { scanCommandShadows } from '@pellux/goodvibes-sdk/platform/runtime/path-shadow';
 
 /**
@@ -54,6 +56,7 @@ describe('the startup check fires on an earlier-PATH copy', () => {
       homeDir: HOME,
       runningVersion: '1.25.0',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => '1.25.0',
       ...hostIo(host),
     });
@@ -81,6 +84,7 @@ describe('the startup check fires on an earlier-PATH copy', () => {
       homeDir: HOME,
       runningVersion: '1.21.0',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => 'v1.25.0',
       ...hostIo(host),
     });
@@ -104,6 +108,7 @@ describe('the startup check stays silent when there is nothing to say', () => {
       homeDir: HOME,
       runningVersion: '1.25.0',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => {
         throw new Error('the release lookup must not run for a healthy binary install');
       },
@@ -129,6 +134,7 @@ describe('the startup check stays silent when there is nothing to say', () => {
       homeDir: HOME,
       runningVersion: '1.25.0',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => '1.25.0',
       ...hostIo(host),
     });
@@ -146,6 +152,7 @@ describe('the startup check stays silent when there is nothing to say', () => {
       homeDir: HOME,
       runningVersion: '1.25.0',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => {
         throw new Error('a source checkout must not reach the network');
       },
@@ -165,6 +172,7 @@ describe('the startup check stays silent when there is nothing to say', () => {
       homeDir: HOME,
       runningVersion: '1.18.1',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => '1.25.0',
       ...hostIo(host),
     });
@@ -187,6 +195,7 @@ describe('being behind is stated plainly, and only when it is known', () => {
       homeDir: HOME,
       runningVersion: '1.18.1',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => 'v1.25.0',
       ...hostIo(host),
     });
@@ -244,6 +253,7 @@ describe('an installed binary nobody can reach by name', () => {
       homeDir: HOME,
       runningVersion: '1.25.0',
       commandName: 'goodvibes-agent',
+      packageName: AGENT_PACKAGE_NAME,
       resolveLatest: async () => '1.25.0',
       ...hostIo(host),
     });

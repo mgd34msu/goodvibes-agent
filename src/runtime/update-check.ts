@@ -6,9 +6,11 @@
  * Version comparison and the release-tag lookup are re-exported from the
  * SDK's canonical update policy module (platform/runtime/self-update) — one
  * mechanism everywhere, the same module the TUI and the daemon's hourly loop
- * consume. Install-kind detection stays local: it encodes how THIS package is
- * installed (compiled binary vs bun/npm package vs source run) and what
- * command replaces a swap for each kind.
+ * consume. Install-kind detection comes from the SDK too
+ * (platform/runtime/install-kind): the same three-way answer — compiled
+ * binary, package-managed vendored binary, or a source run — everywhere. What
+ * stays here is this product's own answer to "then what should I run
+ * instead", which names this package.
  *
  * The self-update download/verify/swap orchestration that USES these lives in
  * src/input/commands/update-runtime.ts; this module only decides "is there a
@@ -22,41 +24,18 @@ export {
   type UpdateFetchLike,
 } from '@pellux/goodvibes-sdk/platform/runtime/self-update';
 
-/**
- * How this running process was installed, detected honestly from
- * process.execPath rather than assumed:
- *   - "binary": a standalone `bun build --compile` executable with no
- *     package-manager ancestry — the directly-downloaded release binary
- *     (goodvibes-agent-<os>-<arch>). Swappable in place.
- *   - "bun-global-package": running the vendored binary shipped inside an
- *     npm/bun-managed package install (execPath contains a "node_modules"
- *     path segment — true for both `bun add -g` and a local project
- *     dependency). Managed by the package manager; swapping the vendored file
- *     in place would fight the next `bun add -g` upgrade, so this is never
- *     swapped — the user re-runs their package manager instead.
- *   - "source": running directly via the `bun` interpreter (`bun run
- *     src/main.ts`), not a compiled binary at all — a dev checkout, never
- *     swapped.
- */
-export type InstallKind = 'binary' | 'bun-global-package' | 'source';
+export type { InstallKind } from '@/runtime/index.ts';
+export { detectInstallKind } from '@/runtime/index.ts';
 
-export function detectInstallKind(execPath: string): InstallKind {
-  const segments = execPath.split(/[\\/]/);
-  const execName = (segments[segments.length - 1] ?? '').toLowerCase();
-  if (execName === 'bun' || execName === 'bun.exe') {
-    return 'source';
-  }
-  if (segments.includes('node_modules')) {
-    return 'bun-global-package';
-  }
-  return 'binary';
-}
+import type { InstallKind } from '@/runtime/index.ts';
 
 /**
- * The exact command to tell the user to run instead of a swap, for each
- * non-binary install kind. The agent's supported managed install path is the
- * Bun global package (see README) — there is no curl installer for this repo,
- * so both non-binary kinds point at the package manager.
+ * The exact command to tell the user to run instead of an in-place swap.
+ *
+ * The Agent's supported managed install path is the Bun global package (see
+ * README), and a source checkout is a developer running this repo — both are
+ * moved by the package manager, so both point there rather than at the suite
+ * installer.
  */
 export function fallbackUpdateCommand(kind: Exclude<InstallKind, 'binary'>): string {
   void kind;
