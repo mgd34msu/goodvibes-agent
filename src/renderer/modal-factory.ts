@@ -7,7 +7,7 @@ import {
   createOverlayContentLine,
   putOverlayText,
 } from './overlay-box.ts';
-import { getOverlayMaxWidth } from './overlay-viewport.ts';
+import { getOverlayMaxWidth } from '@pellux/goodvibes-terminal-shell';
 import { GLYPHS } from './ui-primitives.ts';
 import { activeUiTones, registerThemeRefresh } from './theme.ts';
 

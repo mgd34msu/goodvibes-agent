@@ -13,7 +13,7 @@ import type { SessionPickerModal } from '../input/session-picker-modal.ts';
 import { renderSessionPickerStatePackageText } from '../input/session-picker-modal.ts';
 import { formatTimestamp } from './modal-utils.ts';
 import { fitDisplay } from '../utils/terminal-width.ts';
-import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
+import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
 
 // ---------------------------------------------------------------------------
 // Renderer

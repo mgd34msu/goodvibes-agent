@@ -2,7 +2,7 @@ import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { InfiniteBuffer } from '../core/history.ts';
 import type { ConversationManager } from '../core/conversation.ts';
 import type { SelectionResult, SelectionModal } from './selection-modal.ts';
-import type { BookmarkModal } from './bookmark-modal.ts';
+import type { BookmarkModal } from '@pellux/goodvibes-terminal-shell';
 import type { SettingsModal } from './settings-modal.ts';
 import type { SessionPickerModal } from './session-picker-modal.ts';
 import type { ProfilePickerModal } from './profile-picker-modal.ts';

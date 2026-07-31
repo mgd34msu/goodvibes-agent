@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createShellLayout, createSplitPaneLayout } from '../../renderer/layout-engine.ts';
+import { createShellLayout, createSplitPaneLayout } from '@pellux/goodvibes-terminal-shell';
 
 describe('layout engine', () => {
   test('creates a shell layout with stable conversation and panel regions', () => {

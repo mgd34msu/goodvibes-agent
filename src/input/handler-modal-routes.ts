@@ -4,7 +4,7 @@ import type { SelectionResult, SelectionAction } from './selection-modal.ts';
 import type { CommandContext } from './command-registry.ts';
 import { openTtsProviderPicker, openTtsVoicePicker } from './tts-settings-actions.ts';
 import { openDaemonTimezonePicker } from './daemon-settings-actions.ts';
-import { isTextBackspace } from './delete-key-policy.ts';
+import { isTextBackspace } from '@pellux/goodvibes-terminal-shell';
 
 type SelectionRouteState = {
   selectionModal: {

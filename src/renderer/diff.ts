@@ -1,10 +1,6 @@
 import { TerminalBuffer } from './buffer.ts';
 import { type Cell } from '@pellux/goodvibes-sdk/platform/types';
-import {
-  type TermColorCaps,
-  downsampleColor,
-  wrapSynced,
-} from './term-caps.ts';
+import { type TermColorCaps, downsampleColor, wrapSynced } from '@pellux/goodvibes-terminal-shell';
 
 /**
  * DiffEngine - Generates minimal ANSI updates between two buffers.

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { computePromptContentWidth } from '../../renderer/prompt-content-width.ts';
+import { computePromptContentWidth } from '@pellux/goodvibes-terminal-shell';
 
 describe('computePromptContentWidth', () => {
   test('matches the historical formula at ordinary terminal widths', () => {

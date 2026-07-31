@@ -8,7 +8,7 @@ import {
   DEFAULT_OVERLAY_PALETTE,
   putOverlayText,
 } from './overlay-box.ts';
-import { getOverlaySurfaceMetrics } from './overlay-viewport.ts';
+import { getOverlaySurfaceMetrics } from '@pellux/goodvibes-terminal-shell';
 
 const BORDER_FG = DEFAULT_OVERLAY_PALETTE.borderFg;
 const TITLE_FG = DEFAULT_OVERLAY_PALETTE.titleFg;

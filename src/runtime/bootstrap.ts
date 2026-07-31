@@ -9,7 +9,7 @@
  *   - main.ts: terminal setup, render loop, stdin/stdout handlers
  *   - lifecycle.ts: save/shutdown helpers
  */
-import { Orchestrator, type OrchestratorUserInputOptions } from '../core/orchestrator.ts';
+import { Orchestrator, type OrchestratorUserInputOptions } from '@pellux/goodvibes-sdk/platform/core';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { collectStartupAnnouncements } from '@pellux/goodvibes-sdk/platform/runtime/feature-announcements';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
@@ -38,7 +38,7 @@ import { ensureBootModelResolvable } from './provider-boot.ts';
 import { bindOrchestratorContextAccounting } from './context-accounting-source.ts';
 import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
+import { startMcpConfigAutoReload } from '@pellux/goodvibes-terminal-shell';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentTools } from './bootstrap-agent-tools.ts';
 import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';

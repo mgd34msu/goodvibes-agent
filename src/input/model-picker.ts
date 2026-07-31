@@ -6,7 +6,7 @@ import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers'
 import { buildEffortPickerItems, resolveEffortPickerState } from './model-picker-effort.ts';
 import { detectFamily, POPULAR_PROVIDERS, tierToCategoryFilter } from './model-picker-types.ts';
 import type { BenchmarkSort, CapabilityFilter, CategoryFilter, FilteredModelsCache, FilteredProvidersCache, GroupByMode, ModelItemsCache, ModelPickerFocusPane, ModelPickerTarget, ModelPickerTargetInfo, PickerItem, PickerMode, ProviderItemsCache } from './model-picker-types.ts';
-import { filterProviders, groupProviders } from './model-picker-provider-filter.ts';
+import { filterProviders, groupProviders } from '@pellux/goodvibes-terminal-shell';
 
 export { detectFamily, POPULAR_PROVIDERS, tierToCategoryFilter } from './model-picker-types.ts';
 export type { BenchmarkSort, CapabilityFilter, CategoryFilter, GroupByMode, ModelFamily, ModelPickerFocusPane, ModelPickerTarget, ModelPickerTargetInfo, PickerItem, PickerMode } from './model-picker-types.ts';

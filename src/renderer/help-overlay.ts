@@ -8,8 +8,7 @@ import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import type { SlashCommand } from '../input/command-registry.ts';
 import type { KeybindingsManager } from '../input/keybindings.ts';
-import { getOverlaySurfaceMetrics } from './overlay-viewport.ts';
-import { getVisibleWindow } from './surface-layout.ts';
+import { getOverlaySurfaceMetrics, getVisibleWindow } from '@pellux/goodvibes-terminal-shell';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 
 const FEATURED_HELP_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [

@@ -1,7 +1,7 @@
 import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import type { ConversationManager } from '../core/conversation';
-import { getOverlayContentBudget, getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
+import { getOverlayContentBudget, getOverlaySurfaceMetrics, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
 
 const CONTEXT_INSPECTOR_TITLE = 'Context Inspector';
 const CONTEXT_INSPECTOR_EMPTY_MESSAGE = 'No messages in conversation yet.';

@@ -2,8 +2,7 @@ import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import { formatDuration } from './modal-utils.ts';
 import type { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
-import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
-import { getVisibleWindow } from './surface-layout.ts';
+import { getOverlaySurfaceMetrics, getStableOverlayContentRows, getVisibleWindow } from '@pellux/goodvibes-terminal-shell';
 
 export interface ProcessEntry {
   readonly id: string;

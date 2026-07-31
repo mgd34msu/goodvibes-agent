@@ -22,7 +22,7 @@ import {
   SYNC_BEGIN,
   SYNC_END,
   type TermColorCaps,
-} from '../../renderer/term-caps.ts';
+} from '@pellux/goodvibes-terminal-shell';
 import { DiffEngine } from '../../renderer/diff.ts';
 import { TerminalBuffer } from '../../renderer/buffer.ts';
 

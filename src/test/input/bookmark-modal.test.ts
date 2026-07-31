@@ -2,7 +2,7 @@
  * Tests for BookmarkModal state class.
  */
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { BookmarkModal } from '../../input/bookmark-modal.ts';
+import { BookmarkModal } from '@pellux/goodvibes-terminal-shell';
 import { createTestManagers } from '../helpers/test-managers.ts';
 
 // ---------------------------------------------------------------------------
