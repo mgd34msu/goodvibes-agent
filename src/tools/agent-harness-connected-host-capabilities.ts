@@ -13,6 +13,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { resolveAgentConnectedHostConnection } from '../agent/routine-schedule-promotion.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { agentHarnessModes, hostActions, settingsActions } from './agent-harness-route-format.ts';
+import { operatorBriefingRoutes } from './agent-operator-briefing-tool.ts';
 
 export type ConnectedHostCapabilityResolution =
   | { readonly status: 'found'; readonly detail: Record<string, unknown> }
@@ -165,13 +166,10 @@ export function connectedHostRouteFamilies(): readonly Record<string, unknown>[]
     },
     {
       id: 'operator-read',
-      routes: [
-        '/api/projects/planning/work-plan',
-        '/api/approvals',
-        '/api/automation',
-        '/api/automation/schedules',
-        '/api/runtime/scheduler',
-      ],
+      // The briefing tool's own route set, not a second copy of it: this report
+      // exists to tell an operator what that tool reaches, and a hand-kept list
+      // beside it is a claim nothing keeps true.
+      routes: operatorBriefingRoutes().map((route) => route.path),
       modelTools: ['agent_operator_briefing'],
       modelRoute: 'agent_operator_briefing',
       boundary: 'Read-only public operator briefing routes.',

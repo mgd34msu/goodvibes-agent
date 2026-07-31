@@ -1,4 +1,5 @@
 import type { OperatorMethodInput } from '@pellux/goodvibes-sdk/contracts';
+import { requireOperatorHttpBinding } from './operator-contract-routes.ts';
 import { scheduleNextRouteLines } from './schedule-next-routes.ts';
 
 export type JsonRecord = Record<string, unknown>;
@@ -78,85 +79,73 @@ export interface OperatorActionConnection {
   readonly tokenPath?: string;
 }
 
-export const OPERATOR_ACTIONS: Record<OperatorActionId, OperatorActionDescriptor> = {
-  'approvals.approve': {
-    action: 'approvals.approve',
-    label: 'approve approval',
-    pathTemplate: '/api/approvals/{approvalId}/approve',
-    targetField: 'approvalId',
-  },
-  'approvals.deny': {
-    action: 'approvals.deny',
-    label: 'deny approval',
-    pathTemplate: '/api/approvals/{approvalId}/deny',
-    targetField: 'approvalId',
-  },
-  'approvals.cancel': {
-    action: 'approvals.cancel',
-    label: 'cancel approval',
-    pathTemplate: '/api/approvals/{approvalId}/cancel',
-    targetField: 'approvalId',
-  },
-  'automation.jobs.run': {
-    action: 'automation.jobs.run',
-    label: 'run automation job',
-    pathTemplate: '/api/automation/jobs/{jobId}/run',
-    targetField: 'jobId',
-  },
+/**
+ * What this product knows about an action that the contract does not.
+ *
+ * The contract owns the wire: the verb and the path. It does not own the words
+ * this product puts in front of an operator, and it does not know which of an
+ * action's inputs is the one a caller passes as a bare `targetId`. Those two
+ * stay here; everything else is read from the contract at composition time, so
+ * a path that moves in the daemon moves here with it.
+ */
+interface OperatorActionSpec {
+  readonly label: string;
+  readonly targetField: OperatorActionDescriptor['targetField'];
+}
+
+const OPERATOR_ACTION_SPECS: Record<OperatorActionId, OperatorActionSpec> = {
+  'approvals.approve': { label: 'approve approval', targetField: 'approvalId' },
+  'approvals.deny': { label: 'deny approval', targetField: 'approvalId' },
+  'approvals.cancel': { label: 'cancel approval', targetField: 'approvalId' },
+  'automation.jobs.run': { label: 'run automation job', targetField: 'jobId' },
   // automation.jobs.pause/resume were retired (redundant with
   // disable/enable — same {id,enabled} output, same semantics). The
-  // user-facing "pause"/"resume" verb is unchanged; only the wire action +
-  // path moved to the canonical disable/enable methods.
-  'automation.jobs.disable': {
-    action: 'automation.jobs.disable',
-    label: 'pause automation job',
-    pathTemplate: '/api/automation/jobs/{jobId}/disable',
-    targetField: 'jobId',
-  },
-  'automation.jobs.enable': {
-    action: 'automation.jobs.enable',
-    label: 'resume automation job',
-    pathTemplate: '/api/automation/jobs/{jobId}/enable',
-    targetField: 'jobId',
-  },
-  'automation.runs.cancel': {
-    action: 'automation.runs.cancel',
-    label: 'cancel automation run',
-    pathTemplate: '/api/automation/runs/{runId}/cancel',
-    targetField: 'runId',
-  },
-  'automation.runs.retry': {
-    action: 'automation.runs.retry',
-    label: 'retry automation run',
-    pathTemplate: '/api/automation/runs/{runId}/retry',
-    targetField: 'runId',
-  },
-  'automation.schedules.run': {
-    action: 'automation.schedules.run',
-    label: 'run schedule',
-    pathTemplate: '/api/automation/schedules/{scheduleId}/run',
-    targetField: 'scheduleId',
-  },
-  'automation.schedules.enable': {
-    action: 'automation.schedules.enable',
-    label: 'enable schedule',
-    pathTemplate: '/api/automation/schedules/{scheduleId}/enable',
-    targetField: 'scheduleId',
-  },
-  'automation.schedules.disable': {
-    action: 'automation.schedules.disable',
-    label: 'disable schedule',
-    pathTemplate: '/api/automation/schedules/{scheduleId}/disable',
-    targetField: 'scheduleId',
-  },
-  'automation.schedules.delete': {
-    action: 'automation.schedules.delete',
-    label: 'delete schedule',
-    pathTemplate: '/api/automation/schedules/{scheduleId}',
-    targetField: 'scheduleId',
-    httpMethod: 'DELETE',
-  },
+  // user-facing "pause"/"resume" verb is unchanged; only the wire action
+  // moved to the canonical disable/enable methods.
+  'automation.jobs.disable': { label: 'pause automation job', targetField: 'jobId' },
+  'automation.jobs.enable': { label: 'resume automation job', targetField: 'jobId' },
+  'automation.runs.cancel': { label: 'cancel automation run', targetField: 'runId' },
+  'automation.runs.retry': { label: 'retry automation run', targetField: 'runId' },
+  'automation.schedules.run': { label: 'run schedule', targetField: 'scheduleId' },
+  'automation.schedules.enable': { label: 'enable schedule', targetField: 'scheduleId' },
+  'automation.schedules.disable': { label: 'disable schedule', targetField: 'scheduleId' },
+  'automation.schedules.delete': { label: 'delete schedule', targetField: 'scheduleId' },
 };
+
+function assertActionHttpMethod(methodId: string, httpMethod: string): OperatorActionHttpMethod {
+  if (httpMethod === 'POST' || httpMethod === 'DELETE') return httpMethod;
+  throw new Error(
+    `operator action '${methodId}' is served over ${httpMethod}; this product only posts and deletes.`,
+  );
+}
+
+function buildOperatorActions(): Record<OperatorActionId, OperatorActionDescriptor> {
+  const entries = Object.entries(OPERATOR_ACTION_SPECS) as [OperatorActionId, OperatorActionSpec][];
+  const built = {} as Record<OperatorActionId, OperatorActionDescriptor>;
+  for (const [action, spec] of entries) {
+    const binding = requireOperatorHttpBinding(action);
+    built[action] = {
+      action,
+      label: spec.label,
+      targetField: spec.targetField,
+      pathTemplate: binding.pathTemplate,
+      httpMethod: assertActionHttpMethod(action, binding.httpMethod),
+    };
+  }
+  return built;
+}
+
+/**
+ * The actions this product will perform on the connected host, each bound to
+ * the route the contract publishes for it.
+ *
+ * Derived rather than written down: a hand-kept path is a copy of the contract
+ * that nothing re-checks, and the way it fails is a 404 that reads as a broken
+ * feature. `requireOperatorHttpBinding` throws for an id the contract no longer
+ * serves — a build compiled against a contract that dropped one of these is
+ * broken, and the drift test says so before it ships.
+ */
+export const OPERATOR_ACTIONS: Record<OperatorActionId, OperatorActionDescriptor> = buildOperatorActions();
 
 export const OPERATOR_ACTION_IDS = Object.keys(OPERATOR_ACTIONS) as readonly OperatorActionId[];
 

@@ -3,6 +3,7 @@ import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
 import type { AgentConnectedHostConfigReader } from '../agent/routine-schedule-promotion.ts';
 import { resolveAgentConnectedHostConnection } from '../agent/routine-schedule-promotion.ts';
+import { requireOperatorHttpBinding } from '../agent/operator-contract-routes.ts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -26,13 +27,30 @@ interface OperatorRouteFailure {
 
 type OperatorRouteResult = OperatorRouteSuccess | OperatorRouteFailure;
 
-const OPERATOR_BRIEFING_ROUTES: readonly OperatorRouteDescriptor[] = [
-  { id: 'projectPlanning.workPlan.snapshot', path: '/api/projects/planning/work-plan' },
-  { id: 'approvals.list', path: '/api/approvals' },
-  { id: 'automation.integration.snapshot', path: '/api/automation' },
-  { id: 'automation.schedules.list', path: '/api/automation/schedules' },
-  { id: 'scheduler.capacity', path: '/api/runtime/scheduler' },
+/**
+ * The read-only methods a briefing is assembled from.
+ *
+ * Ids only: each one's path comes from the contract that publishes it, so the
+ * briefing cannot end up reading a route the daemon has moved. Exported because
+ * the connected-host capability report describes this same set, and describing
+ * it from a second hand-written list is how the two came to disagree.
+ */
+export const OPERATOR_BRIEFING_METHOD_IDS = [
+  'projectPlanning.workPlan.snapshot',
+  'approvals.list',
+  'automation.integration.snapshot',
+  'automation.schedules.list',
+  'scheduler.capacity',
 ] as const;
+
+export function operatorBriefingRoutes(): readonly OperatorRouteDescriptor[] {
+  return OPERATOR_BRIEFING_METHOD_IDS.map((id) => ({
+    id,
+    path: requireOperatorHttpBinding(id).pathTemplate,
+  }));
+}
+
+const OPERATOR_BRIEFING_ROUTES: readonly OperatorRouteDescriptor[] = operatorBriefingRoutes();
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
