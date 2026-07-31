@@ -273,6 +273,11 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       // last-session pointer through the surface-bound closure so the next
       // launch's "resume last session" reads this session, not a stale one.
       ctx.session.writeLastSessionPointer?.(found.name);
+      // Reload the resumed session's rewind anchors so a message-anchored
+      // /rewind can still reach turns from before this run. The message
+      // boundaries stay valid because the resume above rehydrated the same
+      // history the anchors were recorded against.
+      const restoredAnchorCount = ctx.session.restoreTurnAnchors?.(found.name) ?? 0;
       if (meta.model) {
         try {
           const selected = await providerApi.selectModel(meta.model);
@@ -291,6 +296,9 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
         `  name ${meta.title || '(untitled)'}`,
         `  messages ${messages.length}`,
         `  model ${meta.model || ctx.session.runtime.model}`,
+        ...(restoredAnchorCount > 0
+          ? [`  rewind points ${restoredAnchorCount} restored from before the resume`]
+          : []),
       ].join('\n'));
       printIgnoredPanelsFromReturnContext(ctx, meta.returnContext);
       const returnContextMode = getReturnContextMode(ctx.platform.configManager);

@@ -289,6 +289,10 @@ export const readLastSessionPointer = operations.readLastSessionPointer;
 // and delete-without-load, respectively).
 export const createSessionSurface = operations.createSessionSurface;
 export const consumeRecovery = operations.consumeRecovery;
+// The reclaim half of those same artefacts: one bounded sweep of the sessions
+// directory that removes what no live session can ever use again, discloses
+// what it removed, and never touches the session in use.
+export const startDurabilityHousekeeping = operations.startDurabilityHousekeeping;
 export const removeRecoveryPoint = operations.removeRecoveryPoint;
 export const exportRemoteArtifactForAgent = operations.exportRemoteArtifactForAgent;
 export const importRemoteArtifact = operations.importRemoteArtifact;

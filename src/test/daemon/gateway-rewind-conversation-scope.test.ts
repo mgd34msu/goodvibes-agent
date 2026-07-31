@@ -36,7 +36,7 @@
  */
 import { describe, expect, test } from 'bun:test';
 import { ConversationManager } from '../../core/conversation.ts';
-import { recordTurnAnchor } from '../../core/rewind-turn-anchors.ts';
+import { recordTurnAnchor } from '@pellux/goodvibes-sdk/platform/rewind';
 import { registerSessionConversation, unregisterSessionConversation } from '../../runtime/conversation-rewind-port.ts';
 import { getTestRuntimeServices } from '../helpers/runtime-services.ts';
 import { buildDaemonGatewayCatalog } from '../helpers/daemon-gateway.ts';

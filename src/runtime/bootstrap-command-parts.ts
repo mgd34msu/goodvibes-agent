@@ -122,6 +122,8 @@ export interface BootstrapCommandSectionOptions {
   readonly sessionLineageTracker?: import('@pellux/goodvibes-sdk/platform/core').SessionLineageTracker;
   readonly changeTracker?: import('@pellux/goodvibes-sdk/platform/sessions').SessionChangeTracker;
   readonly writeLastSessionPointer?: (sessionId: string) => void;
+  /** Reload a resumed session's persisted rewind anchors. Bound at bootstrap to the runtime's SessionSurface; returns how many were restored. */
+  readonly restoreTurnAnchors?: (sessionId: string) => number;
   readonly agentManager?: ShellAgentManagerService;
   readonly modeManager?: ShellModeManagerService;
   readonly automationManager?: ShellAutomationManagerRuntimeService;
@@ -297,7 +299,7 @@ export function createBootstrapCommandActions(
 export function createBootstrapCommandSessionSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'conversation' | 'runtime' | 'sessionManager' | 'sessionMemoryStore' | 'sessionLineageTracker' | 'changeTracker' | 'writeLastSessionPointer'
+    'conversation' | 'runtime' | 'sessionManager' | 'sessionMemoryStore' | 'sessionLineageTracker' | 'changeTracker' | 'writeLastSessionPointer' | 'restoreTurnAnchors'
   >,
 ): BootstrapCommandSessionSection {
   return {
@@ -308,6 +310,7 @@ export function createBootstrapCommandSessionSection(
     sessionLineageTracker: options.sessionLineageTracker,
     changeTracker: options.changeTracker,
     writeLastSessionPointer: options.writeLastSessionPointer,
+    restoreTurnAnchors: options.restoreTurnAnchors,
   };
 }
 

@@ -183,6 +183,8 @@ export interface CommandSessionServices {
    * stale pointer.
    */
   readonly writeLastSessionPointer?: (sessionId: string) => void;
+  /** Reload a resumed session's persisted rewind anchors. Bound at bootstrap to the runtime's SessionSurface; returns how many were restored. */
+  readonly restoreTurnAnchors?: (sessionId: string) => number;
 }
 
 export interface CommandProviderServices {

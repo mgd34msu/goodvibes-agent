@@ -8,7 +8,8 @@
 // messages would truncate to a recorded turn boundary, and rewind() performs the
 // truncation and captures the pre-/post-truncation snapshots so the reversal can
 // be undone and re-applied. The truncation boundary is the message count recorded
-// for the anchor's turnId at TURN_COMPLETED (rewind-turn-anchors.ts) — the same
+// for the anchor's turnId at TURN_COMPLETED (the SDK's platform/rewind anchor
+// registry) — the same
 // join key files rewind uses against the workspace checkpoint.
 //
 // Ported from goodvibes-tui's src/runtime/conversation-rewind-port.ts (same
@@ -27,7 +28,7 @@ import type {
   RewindConversationPreview,
 } from '@pellux/goodvibes-sdk/platform/rewind';
 import type { ConversationManager } from '../core/conversation.ts';
-import { resolveTurnAnchor } from '../core/rewind-turn-anchors.ts';
+import { resolveTurnAnchor } from '@pellux/goodvibes-sdk/platform/rewind';
 
 type ConversationJson = Parameters<ConversationManager['fromJSON']>[0];
 

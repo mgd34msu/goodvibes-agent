@@ -130,6 +130,7 @@ export type CreateBootstrapCommandContextOptions = {
   sessionLineageTracker?: import('@pellux/goodvibes-sdk/platform/core').SessionLineageTracker;
   componentHealthMonitor: import('@/runtime/index.ts').ComponentHealthMonitor;
   writeLastSessionPointer?: (sessionId: string) => void;
+  restoreTurnAnchors?: (sessionId: string) => number;
 };
 
 export function createBootstrapCommandContext(
@@ -209,6 +210,7 @@ export function createBootstrapCommandContext(
     componentHealthMonitor,
     memoryConsolidationScheduler,
     writeLastSessionPointer,
+    restoreTurnAnchors,
   } = options;
 
   const shellServices = createBootstrapCommandShellServices({
@@ -248,6 +250,7 @@ export function createBootstrapCommandContext(
     sessionLineageTracker,
     changeTracker,
     writeLastSessionPointer,
+    restoreTurnAnchors,
   });
   const provider = createBootstrapCommandProviderSection({
     providerRegistry,
