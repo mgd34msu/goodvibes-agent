@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { getOverlayContentBudget, getOverlayMaxWidth, getOverlaySurfaceMetrics, getOverlayWidthClass, getStableOverlayContentRows } from '../../renderer/overlay-viewport.ts';
+import { getOverlayContentBudget, getOverlayMaxWidth, getOverlaySurfaceMetrics, getOverlayWidthClass, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
 
 describe('overlay viewport policy', () => {
   test('keeps content budgets within a stable half-screen band', () => {

@@ -12,7 +12,7 @@
  */
 import { WebhookNotifier } from '@pellux/goodvibes-sdk/platform/integrations';
 import type { PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
-import type { OrchestratorUserInputOptions } from '../core/orchestrator.ts';
+import type { OrchestratorUserInputOptions } from '@pellux/goodvibes-sdk/platform/core';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import type { SessionEvent } from '@/runtime/index.ts';
 

@@ -1,7 +1,7 @@
 import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { createEmptyLine, createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
-import { getSurfaceContentRows, getTrackedVisibleWindow, getVisibleWindow, type VisibleWindow } from './surface-layout.ts';
+import { getSurfaceContentRows, getTrackedVisibleWindow, getVisibleWindow, type VisibleWindow } from '@pellux/goodvibes-terminal-shell';
 import { GLYPHS, UI_TONES } from './ui-primitives.ts';
 import { type StatusState, STATE_GLYPHS } from './status-glyphs.ts';
 

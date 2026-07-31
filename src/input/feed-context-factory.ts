@@ -26,7 +26,7 @@ import type { ProcessModal } from '../renderer/process-modal.ts';
 import type { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import type { BlockActionsMenu } from '../renderer/block-actions.ts';
 import type { ContextInspectorModal } from '../renderer/context-inspector.ts';
-import type { BookmarkModal } from './bookmark-modal.ts';
+import type { BookmarkModal } from '@pellux/goodvibes-terminal-shell';
 import type { SettingsModal } from './settings-modal.ts';
 import type { McpWorkspace } from './mcp-workspace.ts';
 import type { AgentWorkspace } from './agent-workspace.ts';

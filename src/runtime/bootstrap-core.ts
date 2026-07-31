@@ -15,7 +15,7 @@ import { Compositor } from '../renderer/compositor.ts';
 import type { PermissionRequestHandler, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import type { ConversationFollowUpItem } from '@pellux/goodvibes-sdk/platform/core';
-import type { OrchestratorUserInputOptions } from '../core/orchestrator.ts';
+import type { OrchestratorUserInputOptions } from '@pellux/goodvibes-sdk/platform/core';
 import type { ControlPlaneRecentEvent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { BootstrapOptions } from './context.ts';

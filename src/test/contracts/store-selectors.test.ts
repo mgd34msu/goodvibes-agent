@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { createInitialRuntimeState } from '../../runtime/store/state.ts';
-import type { PanelDomainState } from '../../runtime/store/domains/panels.ts';
+import type { PanelDomainState } from '@pellux/goodvibes-sdk/platform/runtime/store';
 import {
   // Primary domain selectors
   selectSession,

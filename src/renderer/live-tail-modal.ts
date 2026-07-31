@@ -2,7 +2,7 @@ import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import type { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ProcessEntry } from './process-modal.ts';
-import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from './overlay-viewport.ts';
+import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
 
 const LIVE_TAIL_PROCESS_TAG = '[exec]';
 const LIVE_TAIL_EMPTY_OUTPUT = '(no output yet)';

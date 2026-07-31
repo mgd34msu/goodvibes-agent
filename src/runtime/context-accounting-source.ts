@@ -27,7 +27,7 @@
  *     session — the SDK does not track a running count itself.
  */
 import type { ContextAccountingHolder, ContextAccountingSource } from '@pellux/goodvibes-sdk/platform/tools';
-import type { Orchestrator } from '../core/orchestrator.ts';
+import type { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import type { CompactionEvent, RuntimeEventBus } from '@/runtime/index.ts';
 import type { RuntimeStore } from './store/index.ts';
 

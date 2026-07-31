@@ -9,7 +9,7 @@ import {
   OVERLAY_GLYPHS,
   putOverlayText,
 } from './overlay-box.ts';
-import { getOverlaySurfaceMetrics } from './overlay-viewport.ts';
+import { getOverlaySurfaceMetrics } from '@pellux/goodvibes-terminal-shell';
 
 const FILE_PICKER_TITLE = 'Select File';
 const FILE_PICKER_SEARCH_PREFIX = '@ ';

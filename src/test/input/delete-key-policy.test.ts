@@ -1,9 +1,5 @@
 /**
- * Delete-key policy unit tests — ported from goodvibes-tui (commit 33033717,
- * 2026-06-11; TUI anchor: src/input/delete-key-policy.ts). Its TUI commit
- * predates this repo's Jun 13 renderer/input file-stamp freeze, yet the file
- * was absent here — it simply never reached this fork (see the porting parity
- * matrix's "divergences from the brief" note #3). This port stands.
+ * Delete-key policy unit tests.
  *
  * Covers:
  *   1. Policy predicate contracts (isTextBackspace, isTextForwardDelete) —
@@ -16,7 +12,7 @@
  *      groups have no equivalent surface here and are not ported.
  */
 import { describe, expect, test } from 'bun:test';
-import { isTextBackspace, isTextForwardDelete } from '../../input/delete-key-policy.ts';
+import { isTextBackspace, isTextForwardDelete } from '@pellux/goodvibes-terminal-shell';
 import { handleSelectionModalToken } from '../../input/handler-modal-routes.ts';
 import { SelectionModal } from '../../input/selection-modal.ts';
 

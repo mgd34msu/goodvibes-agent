@@ -9,10 +9,8 @@
 
 import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
-import { BookmarkModal } from '../input/bookmark-modal.ts';
+import { BookmarkModal, getOverlayContentBudget, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
 import type { BookmarkEntry } from '@pellux/goodvibes-sdk/platform/bookmarks';
-import { getOverlayContentBudget, getStableOverlayContentRows } from './overlay-viewport.ts';
-
 const BOOKMARK_MODAL_TITLE = 'Bookmarks';
 const BOOKMARK_MODAL_EMPTY_MESSAGE = 'No bookmarks - use Ctrl+B to bookmark a block';
 const BOOKMARK_MODAL_COLUMNS = '  Key                            Label                           Time';

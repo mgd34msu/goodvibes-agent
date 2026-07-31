@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { getSurfaceContentRows, getTrackedVisibleWindow, getVisibleWindow, sliceVisibleWindow } from '../../renderer/surface-layout.ts';
+import { getSurfaceContentRows, getTrackedVisibleWindow, getVisibleWindow, sliceVisibleWindow } from '@pellux/goodvibes-terminal-shell';
 
 describe('surface layout', () => {
   test('keeps framed content within a stable viewport budget', () => {

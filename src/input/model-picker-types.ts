@@ -1,4 +1,5 @@
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
+export { POPULAR_PROVIDERS } from '@pellux/goodvibes-terminal-shell';
 
 export type PickerMode = 'model' | 'provider' | 'effort' | 'contextCap';
 
@@ -89,18 +90,6 @@ export interface PickerItem {
   isConfigured?: boolean;
   configuredVia?: 'env' | 'secrets' | 'subscription' | 'anonymous';
 }
-
-export const POPULAR_PROVIDERS: ReadonlySet<string> = new Set([
-  'anthropic',
-  'google',
-  'groq',
-  'mistral',
-  'nvidia',
-  'ollama',
-  'openai',
-  'openrouter',
-  'synthetic',
-]);
 
 export interface FilteredModelsCache {
   readonly modelsRef: ModelDefinition[];

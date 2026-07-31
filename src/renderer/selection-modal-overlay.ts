@@ -1,6 +1,7 @@
 import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { fitDisplay, getDisplayWidth, truncateDisplay } from '../utils/terminal-width.ts';
 import type { SelectionAction, SelectionModal } from '../input/selection-modal.ts';
+import { getOverlaySurfaceMetrics, fitLabelDetailColumns, wrapWithHangingIndent } from '@pellux/goodvibes-terminal-shell';
 import {
   createOverlayBoxLayout,
   createOverlayContentLine,
@@ -9,8 +10,6 @@ import {
   OVERLAY_GLYPHS,
   putOverlayText,
 } from './overlay-box.ts';
-import { getOverlaySurfaceMetrics } from './overlay-viewport.ts';
-import { fitLabelDetailColumns, wrapWithHangingIndent } from './text-layout.ts';
 
 const BORDER_FG = DEFAULT_OVERLAY_PALETTE.borderFg;
 const TITLE_FG = DEFAULT_OVERLAY_PALETTE.titleFg;

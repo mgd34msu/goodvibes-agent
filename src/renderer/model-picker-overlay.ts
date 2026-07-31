@@ -11,7 +11,7 @@ import {
   OVERLAY_GLYPHS,
   putOverlayText,
 } from './overlay-box.ts';
-import { getOverlaySurfaceMetrics } from './overlay-viewport.ts';
+import { getOverlaySurfaceMetrics } from '@pellux/goodvibes-terminal-shell';
 
 /** Format a context window number into a short human-readable string. */
 function fmtContext(n: number): string {

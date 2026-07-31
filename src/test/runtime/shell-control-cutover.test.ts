@@ -83,11 +83,13 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
     expect(present).toEqual([]);
   });
 
-  test('bootstrap and orchestrator do not use render:request for local invalidation', () => {
+  // Orchestrator's implementation lives in @pellux/goodvibes-sdk/platform/core;
+  // this repo holds no local file to scan for it, so these checks cover only
+  // the files this repo still owns.
+  test('bootstrap does not use render:request for local invalidation', () => {
     const violations: string[] = [];
     const restrictedFiles: string[] = [
       'src/runtime/bootstrap.ts',
-      'src/core/orchestrator.ts',
     ];
 
     for (const relPath of restrictedFiles) {
@@ -105,7 +107,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
     if (violations.length > 0) {
       throw new Error(
         [
-          'GC-ARCH-004 violation: bootstrap/orchestrator reintroduced render:request local invalidation.',
+          'GC-ARCH-004 violation: bootstrap reintroduced render:request local invalidation.',
           'Use injected requestRender() callbacks instead.',
           '',
           'Violations:',
@@ -366,52 +368,9 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
     expect(violations).toHaveLength(0);
   });
 
-  test('orchestrator no longer emits legacy turn/tool lifecycle events for runtime-owned flow', () => {
-    const relPath = 'src/core/orchestrator.ts';
-    const absPath = join(projectRoot, relPath);
-    const content = readFileSync(absPath, 'utf8');
-    const lines = content.split('\n');
-    const violations: string[] = [];
-    const forbiddenTokens = [
-      'turn:start',
-      'turn:llm-response',
-      'turn:tool-executing',
-      'turn:tool-result',
-      'turn:tool-reconciliation',
-      'turn:complete',
-      'turn:error',
-      'turn:stream-start',
-      'turn:stream-delta',
-      'turn:stream-end',
-    ];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.includes('this.bus.emit(')) continue;
-      if (forbiddenTokens.find((token) => line.includes(token)) !== undefined) {
-        violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
-      }
-    }
-
-    if (violations.length > 0) {
-      throw new Error(
-        [
-          'GC-ARCH-004 violation: orchestrator reintroduced legacy turn/tool lifecycle emits.',
-          'Use RuntimeEventBus turn/tool emitters for runtime-owned flow instead.',
-          '',
-          'Violations:',
-          ...violations.map((v) => `  - ${v}`),
-        ].join('\n'),
-      );
-    }
-
-    expect(violations).toHaveLength(0);
-  });
-
-  test('orchestrator and bootstrap do not use legacy context/cache/helper telemetry events for active runtime flow', () => {
+  test('bootstrap does not use legacy context/cache/helper telemetry events for active runtime flow', () => {
     const violations: string[] = [];
     const restrictedFiles = [
-      'src/core/orchestrator.ts',
       'src/runtime/bootstrap.ts',
     ];
     const legacyTokens = [
@@ -426,9 +385,8 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
       const lines = content.split('\n');
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        const isLegacyEmit = relPath === 'src/core/orchestrator.ts' && line.includes('this.bus.emit(');
         const isLegacyListener = relPath === 'src/runtime/bootstrap.ts' && line.includes('bus.on(');
-        if (!(isLegacyEmit || isLegacyListener)) continue;
+        if (!isLegacyListener) continue;
         if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
           violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
         }

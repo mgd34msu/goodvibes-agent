@@ -5,7 +5,7 @@ import { resolveDaemonEnabled } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigKey, ConfigManager } from '../config/index.ts';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { RuntimeEndpointBinding, RuntimeEndpointId } from './endpoints.ts';
-import { classifyBindPosture, isNetworkFacing } from './network-posture.ts';
+import { classifyBindPosture, isNetworkFacing } from '@pellux/goodvibes-terminal-shell';
 import { redactText } from './redaction.ts';
 
 export interface CliServiceRuntime {

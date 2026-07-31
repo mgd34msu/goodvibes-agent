@@ -3,10 +3,10 @@
  *
  * Capability-advertisement honesty, agent side: proves the two
  * capability-surfacing seams degrade honestly for a method the SDK's
- * operator contract marks `invokable: false` (email.inbox.list / read,
- * email.draft.create, email.send — advertised /api/email/* paths with no
- * daemon route behind them; see @pellux/goodvibes-sdk's
- * method-catalog-route-reconcile and method-catalog-email.ts).
+ * operator contract marks `invokable: false`. channels.inbox.list is the
+ * current example: it is advertised but not backed by a served route,
+ * since serving it means building a provider-inbound aggregator, not
+ * wiring an existing one (see @pellux/goodvibes-sdk's method-catalog-channels.ts).
  *
  * 1. Discovery (agent-harness-operator-methods.ts): operator_methods /
  *    operator_method must render the capability DEGRADED — label says
@@ -16,9 +16,10 @@
  *    refuse to call an unavailable method with an honest error, before ever
  *    attempting a network request — the model must not be handed a tool it
  *    cannot call as if it were live.
- * 3. Regression guard: a genuinely-served method (automation.schedules.create) must
- *    still render as available and stay callable through the same paths —
- *    the degradation must not cry wolf on live capabilities.
+ * 3. Regression guard: genuinely-served methods (automation.schedules.create,
+ *    channels.drafts.save, the email.* family) must still render as available
+ *    and stay callable through the same paths — the degradation must not cry
+ *    wolf on live capabilities.
  *
  * No real daemon runs here — the execution test proves the refusal happens
  * before any fetch is attempted, so it never touches a control-plane port.
@@ -121,6 +122,23 @@ describe('capability-advertisement honesty (agent side)', () => {
    */
   test('discovery: the email methods the daemon now serves render as live, not degraded', () => {
     for (const methodId of ['email.inbox.list', 'email.inbox.read', 'email.send', 'email.draft.create']) {
+      const resolution = describeHarnessOperatorMethod({ methodId });
+      expect(resolution.status, `${methodId} should be catalogued`).toBe('found');
+      if (resolution.status !== 'found') throw new Error('expected found');
+      expect(resolution.method.available, `${methodId} is served by the daemon now`).toBe(true);
+      expect(String(resolution.method.label)).not.toContain('unavailable');
+    }
+  });
+
+  /**
+   * channels.drafts.save (and the rest of the channels.drafts.* family) was
+   * this test's other unavailable example until the daemon attached a real
+   * route behind it. channels.inbox.list is the one channels.* method still
+   * without a served route (see the file header), so it carries that role now.
+   * Asserting the drafts family here catches the same staleness if it recurs.
+   */
+  test('discovery: the channels drafts methods the daemon now serves render as live, not degraded', () => {
+    for (const methodId of ['channels.drafts.save', 'channels.drafts.get', 'channels.drafts.list', 'channels.drafts.delete']) {
       const resolution = describeHarnessOperatorMethod({ methodId });
       expect(resolution.status, `${methodId} should be catalogued`).toBe('found');
       if (resolution.status !== 'found') throw new Error('expected found');

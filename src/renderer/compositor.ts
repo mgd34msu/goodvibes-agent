@@ -3,8 +3,7 @@ import { DiffEngine } from './diff.ts';
 import { type Line, createEmptyCell, createEmptyLine, createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import type { SearchManager } from '../input/search.ts';
-import { allowTerminalWrite } from '@pellux/goodvibes-terminal-shell';
-import { probeTermCaps, type TermColorCaps } from './term-caps.ts';
+import { allowTerminalWrite, probeTermCaps, type TermColorCaps } from '@pellux/goodvibes-terminal-shell';
 import { activeTheme } from './theme.ts';
 
 export interface SelectionInfo {

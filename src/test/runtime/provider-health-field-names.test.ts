@@ -6,7 +6,7 @@
  * when the underlying value is actually a maximum.
  */
 import { describe, expect, test } from 'bun:test';
-import { ProviderHealthDataProvider } from '../../runtime/ui/provider-health/data-provider.ts';
+import { ProviderHealthDataProvider } from '@/runtime/index.ts';
 import type { ProviderHealthDomainState, ModelDomainState } from '@/runtime/index.ts';
 
 function makeHealthState(maxLatencyMs = 500): ProviderHealthDomainState {
@@ -78,7 +78,7 @@ describe('ProviderHealthDataProvider — D1 field name accuracy', () => {
   });
 });
 
-import { enrichModelEntries } from '../../runtime/ui/model-picker/health-enrichment.ts';
+import { enrichModelEntries } from '@/runtime/index.ts';
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 
 function makeModel(): ModelDefinition {

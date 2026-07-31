@@ -41,8 +41,8 @@ export type {
   PanelPosition,
   PanelState,
   PanelDomainState,
-} from './panels.ts';
-export { createInitialPanelsState } from './panels.ts';
+} from '@/runtime/index.ts';
+export { createInitialPanelsState } from '@/runtime/index.ts';
 
 export type {
   PermissionMode,
@@ -218,5 +218,5 @@ export type {
   RenderCycleRecord,
   InputLatencySample,
   UiPerfDomainState,
-} from './ui-perf.ts';
-export { createInitialUiPerfState } from './ui-perf.ts';
+} from '@/runtime/index.ts';
+export { createInitialUiPerfState } from '@/runtime/index.ts';

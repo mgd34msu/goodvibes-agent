@@ -1,5 +1,5 @@
 import { createStyledCell, type Line } from '@pellux/goodvibes-sdk/platform/types';
-import { getOverlayMaxWidth } from './overlay-viewport.ts';
+import { getOverlayMaxWidth } from '@pellux/goodvibes-terminal-shell';
 import { GLYPHS } from './ui-primitives.ts';
 import { activeUiTones, registerThemeRefresh } from './theme.ts';
 import { fillWidth, makeLine, writeText } from './fullscreen-primitives.ts';

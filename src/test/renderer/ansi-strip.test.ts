@@ -12,7 +12,7 @@
  * intentional sanitization as the authoritative defence.
  */
 import { describe, expect, test } from 'bun:test';
-import { stripDangerousAnsi } from '../../renderer/ansi-sanitize.ts';
+import { stripDangerousAnsi } from '@pellux/goodvibes-terminal-shell';
 import { renderToolCallBlock } from '../../renderer/tool-call.ts';
 import type { ToolCall } from '@pellux/goodvibes-sdk/platform/types';
 import { lineToString } from '../setup.ts';

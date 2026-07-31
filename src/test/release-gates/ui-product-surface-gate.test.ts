@@ -11,7 +11,7 @@ import { DEFAULT_CONFIG } from '../../config/index.ts';
 import { ConversationManager } from '../../core/conversation';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { GLYPHS } from '../../renderer/ui-primitives.ts';
-import { getOverlayWidthClass } from '../../renderer/overlay-viewport.ts';
+import { getOverlayWidthClass } from '@pellux/goodvibes-terminal-shell';
 import { wireShellUiOpeners } from '../../shell/ui-openers.ts';
 import { createTestManagers } from '../helpers/test-managers.ts';
 import { listHarnessKeybindings } from '../../tools/agent-harness-keybinding-metadata.ts';
