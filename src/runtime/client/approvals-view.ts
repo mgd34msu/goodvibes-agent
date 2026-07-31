@@ -354,6 +354,14 @@ export function createApprovalsView(options: ApprovalsViewOptions): ApprovalsVie
       },
     })
       .then((opened) => {
+        // A stop() that landed while the stream was still opening must still
+        // close it: the subscription exists on the daemon by then, and dropping
+        // the handle would leave this process holding an event stream nothing
+        // reads until the process exits.
+        if (!started) {
+          opened?.close();
+          return;
+        }
         subscription = opened;
         if (opened === null || liveUpdates) return;
         liveUpdates = true;

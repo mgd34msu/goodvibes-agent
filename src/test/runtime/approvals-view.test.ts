@@ -353,3 +353,24 @@ describe('approvals view: transitions arrive on the push channel, with the poll 
     expect(updated[0]?.status).toBe('claimed');
   });
 });
+
+describe('approvals view: a stream opened after stop() is not left holding the daemon', () => {
+  test('stop() during the open closes the subscription when it lands', async () => {
+    let release: ((subscription: { close: () => void }) => void) | null = null;
+    let closes = 0;
+    const view = createApprovalsView({
+      verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [] }) }),
+      localBroker: { listApprovals: () => [] },
+      subscribe: async () => await new Promise<{ close: () => void }>((resolve) => { release = resolve; }),
+    });
+
+    view.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    view.stop();
+    release?.({ close: () => { closes += 1; } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(closes).toBe(1);
+    expect(view.snapshot().liveUpdates).toBe(false);
+  });
+});
