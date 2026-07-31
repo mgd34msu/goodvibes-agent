@@ -133,12 +133,12 @@ describe('tasks command', () => {
     });
 
     await tasksCommand!.handler(['list'], ctx);
-    expect(out.join('\n')).toContain('Connected-host Tasks');
+    expect(out.join('\n')).toContain('Tasks (1)');
     expect(out.join('\n')).toContain('Publish release evidence');
 
     out.length = 0;
     await tasksCommand!.handler([], ctx);
-    expect(out.join('\n')).toContain('Connected-host Tasks');
+    expect(out.join('\n')).toContain('Tasks (1)');
     expect(out.join('\n')).toContain('Publish release evidence');
 
     out.length = 0;
@@ -149,6 +149,45 @@ describe('tasks command', () => {
     out.length = 0;
     await tasksCommand!.handler(['output', task.id], ctx);
     expect(out.join('\n')).toContain('artifact-1');
+  });
+
+  test('a task list the daemon cannot answer still shows the local half, and says why', async () => {
+    // The context above carries `configManager = {} as never`, which is exactly
+    // the shape the verb caller reports as "no host can be resolved" — the same
+    // path a real install takes with daemon.enabled=false or no operator token.
+    const registry = new CommandRegistry();
+    registerBuiltinCommands(registry);
+    const tasksCommand = registry.get('tasks');
+
+    const store = createRuntimeStore();
+    const bus = new RuntimeEventBus();
+    const taskManager = createTaskManager(store, bus, 'sess-tasks-degraded');
+    const task = taskManager.createTask({ kind: 'exec', title: 'Local work in flight', owner: 'shell' });
+    taskManager.startTask(task.id);
+
+    const out: string[] = [];
+    const readModels = { tasks: createTasksReadModel(store) } as never;
+    const ctx = makeTaskCommandContext(out, readModels, {}, {
+      operator: createOperatorTaskClient(readModels),
+    });
+
+    await tasksCommand!.handler(['list'], ctx);
+    const listed = out.join('\n');
+    // The local half is real work and is shown, tagged as this Agent's own...
+    expect(listed).toContain('Local work in flight');
+    expect(listed).toContain('local');
+    // ...and the missing daemon half is stated rather than swallowed.
+    expect(listed).toContain("the daemon's tasks are not included");
+
+    // A daemon-side id the local registry does not know reads as unknown here
+    // rather than as an error, and `show` names where a task runs.
+    out.length = 0;
+    await tasksCommand!.handler(['show', 'task-that-lives-on-the-daemon'], ctx);
+    expect(out.join('\n')).toContain('Unknown task task-that-lives-on-the-daemon');
+
+    out.length = 0;
+    await tasksCommand!.handler(['show', task.id], ctx);
+    expect(out.join('\n')).toContain('runs on this Agent');
   });
 
   test('the agent-shaped ops api refuses intervention verbs with the honest unavailability reason', () => {

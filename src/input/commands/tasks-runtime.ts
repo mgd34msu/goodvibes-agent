@@ -1,6 +1,22 @@
-import type { CommandRegistry } from '../command-registry.ts';
+/**
+ * `/tasks` — the Agent's read-only view of runtime tasks.
+ *
+ * The rows come from two places. This process's own registry holds the exec,
+ * agent and ACP tasks the loop here spawned; the daemon holds the rest —
+ * scheduled work, channel-driven runs, tasks other surfaces submitted. The
+ * SDK's tasks client unions them, local rows winning on a shared id because
+ * they are the live copy, and reports the daemon's half as missing rather than
+ * failing the whole list when it cannot be reached.
+ *
+ * Every mutation stays blocked here, which is the Agent's own policy and not a
+ * limit of the client: normal work belongs in the conversation, durable work in
+ * /workplan, and implementation work goes to the terminal through /delegate.
+ */
+import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import type { RuntimeTask, TaskLifecycleState } from '@/runtime/index.ts';
-import { requireOperatorClient } from './runtime-services.ts';
+import { createTasksClient, type TasksClient, type UnionTask } from '@pellux/goodvibes-sdk/platform/runtime/client';
+import { createAgentDaemonVerbCaller } from '../../runtime/client/daemon-verbs.ts';
+import { requireOperatorClient, requireShellPaths } from './runtime-services.ts';
 
 const BLOCKED_TASK_MUTATIONS: ReadonlySet<string> = new Set([
   'create',
@@ -23,14 +39,31 @@ function printTaskMutationBlocked(print: (text: string) => void, subcommand: str
   ].join('\n'));
 }
 
-function sortRuntimeTasks(tasks: RuntimeTask[]): RuntimeTask[] {
+/** The union reader: this process's own registry plus the connected daemon. */
+function tasksClientFor(ctx: CommandContext): TasksClient {
+  const operatorClient = requireOperatorClient(ctx);
+  return createTasksClient({
+    local: {
+      list: (limit) => operatorClient.tasks.list(limit),
+      get: (taskId) => operatorClient.tasks.get(taskId),
+    },
+    verbs: createAgentDaemonVerbCaller({
+      configManager: ctx.platform.configManager,
+      // Lazy: a disabled-daemon context with no shell paths wired still gets
+      // the honest reason from probe() instead of throwing on the way in.
+      homeDirectory: () => requireShellPaths(ctx).homeDirectory,
+    }),
+  });
+}
+
+function sortUnionTasks(tasks: readonly UnionTask[]): UnionTask[] {
   const statusOrder: TaskLifecycleState[] = ['running', 'queued', 'blocked', 'failed', 'completed', 'cancelled'];
   const ranking = new Map(statusOrder.map((status, index) => [status, index] as const));
   return [...tasks].sort((a, b) => {
-    const rankDelta = (ranking.get(a.status) ?? 99) - (ranking.get(b.status) ?? 99);
+    const rankDelta = (ranking.get(a.task.status) ?? 99) - (ranking.get(b.task.status) ?? 99);
     if (rankDelta !== 0) return rankDelta;
-    const aWhen = a.startedAt ?? a.queuedAt;
-    const bWhen = b.startedAt ?? b.queuedAt;
+    const aWhen = a.task.startedAt ?? a.task.queuedAt;
+    const bWhen = b.task.startedAt ?? b.task.queuedAt;
     return bWhen - aWhen;
   });
 }
@@ -54,7 +87,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
     description: 'Inspect connected-host tasks without starting or mutating local background work',
     hidden: true,
     usage: '[list [status|kind] | show <taskId> | output <taskId>]',
-    handler(args, ctx) {
+    async handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'list';
       if (subcommand === 'open' || subcommand === 'panel') {
         ctx.print('Open Agent Workspace -> Work -> Host tasks for the workspace view, or run /tasks list for compact command output.');
@@ -66,19 +99,30 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
-      const operatorClient = requireOperatorClient(ctx);
-      const tasks = sortRuntimeTasks([...operatorClient.tasks.list(500)]);
+      const tasksClient = tasksClientFor(ctx);
 
       if (subcommand === 'list') {
+        const { tasks: union, daemonUnavailable } = await tasksClient.list(500);
+        const tasks = sortUnionTasks(union);
         const filter = args[1]?.toLowerCase();
-        const filtered = tasks.filter((task) => !filter || task.status === filter || task.kind === filter);
+        const filtered = tasks.filter((entry) => !filter || entry.task.status === filter || entry.task.kind === filter);
+        // The daemon note rides ALONGSIDE whatever was found rather than
+        // replacing it: the local half is real work, and hiding it behind an
+        // error would lose tasks that are genuinely running here.
+        const daemonNote = daemonUnavailable
+          ? [`  (the daemon's tasks are not included: ${daemonUnavailable})`]
+          : [];
         if (filtered.length === 0) {
-          ctx.print(filter ? `No tasks matched "${filter}".` : 'No tasks recorded yet.');
+          ctx.print([
+            filter ? `No tasks matched "${filter}".` : 'No tasks recorded yet.',
+            ...daemonNote,
+          ].join('\n'));
           return;
         }
         ctx.print([
-          `Connected-host Tasks (${filtered.length})`,
-          ...filtered.slice(0, 20).map((task) => `  ${task.id}  ${task.status.padEnd(9)} ${task.kind.padEnd(11)} ${task.owner}  ${task.title}`),
+          `Tasks (${filtered.length})`,
+          ...filtered.slice(0, 20).map(({ task, origin }) => `  ${task.id}  ${task.status.padEnd(9)} ${task.kind.padEnd(11)} ${task.owner.padEnd(10)} ${origin.padEnd(6)} ${task.title}`),
+          ...daemonNote,
         ].join('\n'));
         return;
       }
@@ -89,17 +133,19 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
           ctx.print('Usage: /tasks show <taskId>');
           return;
         }
-        const task = operatorClient.tasks.get(taskId);
-        if (!task) {
+        const found = await tasksClient.get(taskId);
+        if (!found) {
           ctx.print(`Unknown task ${taskId}`);
           return;
         }
+        const { task, origin } = found;
         ctx.print([
           `Task ${task.id}`,
           `  title ${task.title}`,
           `  kind: ${task.kind}`,
           `  status ${task.status}`,
           `  owner ${task.owner}`,
+          `  runs on ${origin === 'local' ? 'this Agent' : 'the daemon'}`,
           `  cancellable ${task.cancellable ? 'yes' : 'no'}`,
           `  queued at ${new Date(task.queuedAt).toISOString()}`,
           `  started at ${task.startedAt ? new Date(task.startedAt).toISOString() : 'n/a'}`,
@@ -118,11 +164,12 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
           ctx.print('Usage: /tasks output <taskId>');
           return;
         }
-        const task = operatorClient.tasks.get(taskId);
-        if (!task) {
+        const found = await tasksClient.get(taskId);
+        if (!found) {
           ctx.print(`Unknown task ${taskId}`);
           return;
         }
+        const { task } = found;
         const payload = typeof task.result === 'string'
           ? task.result
           : task.result !== undefined
