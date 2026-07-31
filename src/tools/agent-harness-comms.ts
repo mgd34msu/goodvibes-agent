@@ -1,6 +1,7 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import {
   aggregateUnifiedInbox,
+  fetchInboundChannelFeed,
   formatUnifiedInbox,
 } from '../agent/unified-inbox.ts';
 import {
@@ -10,6 +11,8 @@ import {
   queueDraftToSend,
   markDraftSent,
   markDraftFailed,
+  fetchDaemonDrafts,
+  mergeDraftViews,
   formatChannelDraftList,
   formatChannelDraft,
 } from '../agent/channel-draft.ts';
@@ -19,10 +22,32 @@ import {
   assignChannelToProfile,
   removeChannelProfileRoute,
   formatChannelProfileRoutes,
+  CHANNEL_ROUTING_ASSIGN_METHOD,
 } from '../agent/channel-profile-routing.ts';
 import { buildAgentWorkspaceChannelTriage } from '../input/agent-workspace-channel-triage.ts';
 import { deliverAgentChannelMessage } from '../agent/channel-delivery.ts';
 import { requireConfirmedAction } from './agent-harness-tool-utils.ts';
+import {
+  createDaemonOperatorInvoke,
+  resolveDaemonOperatorConnection,
+  type DaemonOperatorInvoke,
+} from '../agent/daemon-operator-client.ts';
+
+/**
+ * The connected-host caller for the comms modes, or null when this shell has
+ * no platform to resolve one from.
+ *
+ * Null is not a failure state — it is a shell (a test harness, an early boot)
+ * with no daemon address to call. The stores treat it as "not offered" rather
+ * than as a daemon that refused, because those are different facts.
+ */
+function commsDaemonInvoke(context: CommandContext): DaemonOperatorInvoke | null {
+  const configManager = context.platform?.configManager;
+  const homeDirectory = context.workspace?.shellPaths?.homeDirectory;
+  if (!configManager || !homeDirectory) return null;
+  return createDaemonOperatorInvoke(() =>
+    resolveDaemonOperatorConnection(configManager, homeDirectory));
+}
 
 /** Redact a draft's webhook (which can embed a token) in any structured display payload. */
 function redactDraftWebhook<T extends { readonly webhook?: string }>(draft: T): T {
@@ -80,7 +105,14 @@ export async function unifiedInboxSummary(
 ): Promise<Record<string, unknown>> {
   const triage = await buildAgentWorkspaceChannelTriage(context, {});
   const limit = readLimit(args.limit, 50);
-  const inbox = aggregateUnifiedInbox(triage, { limit });
+  const invoke = commsDaemonInvoke(context);
+  const inboundChannelFeed = invoke
+    ? await fetchInboundChannelFeed(invoke, { limit })
+    : undefined;
+  const inbox = aggregateUnifiedInbox(triage, {
+    limit,
+    ...(inboundChannelFeed ? { inboundChannelFeed } : {}),
+  });
   return {
     mode: 'unified_inbox',
     status: inbox.status,
@@ -90,6 +122,7 @@ export async function unifiedInboxSummary(
     deliveryItems: inbox.deliveryItems,
     surfaceMessageItems: inbox.surfaceMessageItems,
     routeBindingItems: inbox.routeBindingItems,
+    inboundMessageItems: inbox.inboundMessageItems,
     inboundChannelFeed: inbox.inboundChannelFeed,
     formatted: formatUnifiedInbox(inbox),
     policy: inbox.policy,
@@ -100,10 +133,10 @@ export async function unifiedInboxSummary(
 // DRAFTS — channel_drafts (read)
 // ---------------------------------------------------------------------------
 
-export function channelDraftsSummary(
+export async function channelDraftsSummary(
   context: CommandContext,
   args: AgentHarnessCommsArgs,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   const shellPaths = context.workspace?.shellPaths;
   if (!shellPaths) {
     return {
@@ -138,19 +171,37 @@ export function channelDraftsSummary(
   const statusFilter = readOptString(args.draftStatus) as 'draft' | 'queued' | 'sent' | 'failed' | undefined;
   const limit = readLimit(args.limit, 50);
   const snapshot = listDrafts(shellPaths, { status: statusFilter, limit });
+
+  // The daemon's store is what the other surfaces are looking at, so the list
+  // an operator sees here is both stores merged. A daemon that will not serve
+  // them is reported rather than silently reducing this to the local view.
+  const invoke = commsDaemonInvoke(context);
+  const daemonResult = invoke
+    ? await fetchDaemonDrafts(invoke, { ...(statusFilter ? { status: statusFilter } : {}), limit })
+    : null;
+  const daemonDrafts = daemonResult && 'drafts' in daemonResult ? daemonResult.drafts : [];
+  const merged = mergeDraftViews(daemonDrafts, snapshot.drafts).slice(0, limit);
+
   return {
     mode: 'channel_drafts',
-    status: snapshot.exists ? 'ready' : 'empty',
+    status: merged.length > 0 ? 'ready' : 'empty',
     path: snapshot.path,
-    total: snapshot.drafts.length,
-    drafts: snapshot.drafts.map(redactDraftWebhook),
-    formatted: formatChannelDraftList(snapshot),
+    total: merged.length,
+    drafts: merged.map(redactDraftWebhook),
+    formatted: formatChannelDraftList({ ...snapshot, drafts: merged }),
+    daemon: daemonResult === null
+      ? { available: false, reason: 'not_attempted' }
+      : 'drafts' in daemonResult
+        ? { available: true, count: daemonResult.drafts.length }
+        : { available: false, reason: daemonResult.kind, detail: daemonResult.error },
     routes: {
       save: 'agent_harness mode:"channel_draft_save"',
       send: 'agent_harness mode:"channel_draft_send" draftId:"<id>"',
     },
     ...(snapshot.parseError ? { parseError: snapshot.parseError } : {}),
-    policy: 'Read-only draft list. Drafts are local-only. Use channel_draft_save to create or update. Use channel_draft_send to deliver.',
+    policy: daemonResult !== null && 'drafts' in daemonResult
+      ? 'Read-only draft list, merged from the daemon store and the local mirror. Use channel_draft_save to create or update. Use channel_draft_send to deliver.'
+      : 'Read-only draft list from the local mirror; the daemon store could not be read, so drafts composed on other surfaces are not shown. Use channel_draft_save to create or update. Use channel_draft_send to deliver.',
   };
 }
 
@@ -158,10 +209,10 @@ export function channelDraftsSummary(
 // DRAFTS — channel_draft_save (effect)
 // ---------------------------------------------------------------------------
 
-export function channelDraftSaveHandoff(
+export async function channelDraftSaveHandoff(
   context: CommandContext,
   args: AgentHarnessCommsArgs,
-): Record<string, unknown> | string {
+): Promise<Record<string, unknown> | string> {
   const confirmationError = requireConfirmedAction(args, 'Channel draft save');
   if (confirmationError) return confirmationError;
 
@@ -171,26 +222,34 @@ export function channelDraftSaveHandoff(
   const message = readString(args.draftMessage);
   if (!message) return 'channel_draft_save requires draftMessage.';
 
-  const result = saveDraft(shellPaths, {
-    id: readOptString(args.draftId),
-    message,
-    title: readOptString(args.draftTitle),
-    channel: readOptString(args.draftChannel),
-    route: readOptString(args.draftRoute),
-    webhook: readOptString(args.draftWebhook),
-    link: readOptString(args.draftLink),
-    tags: readStringArray(args.draftTags),
-  });
+  const invoke = commsDaemonInvoke(context);
+  const result = await saveDraft(
+    shellPaths,
+    {
+      id: readOptString(args.draftId),
+      message,
+      title: readOptString(args.draftTitle),
+      channel: readOptString(args.draftChannel),
+      route: readOptString(args.draftRoute),
+      webhook: readOptString(args.draftWebhook),
+      link: readOptString(args.draftLink),
+      tags: readStringArray(args.draftTags),
+    },
+    invoke ? { invoke } : {},
+  );
 
   return {
     mode: 'channel_draft_save',
     draft: redactDraftWebhook(result.draft),
     path: result.path,
+    daemon: result.daemon,
     routes: {
       send: 'agent_harness mode:"channel_draft_send" draftId:"' + result.draft.id + '"',
       list: 'agent_harness mode:"channel_drafts"',
     },
-    policy: 'Draft saved locally. Use channel_draft_send with confirm:true and explicitUserRequest to deliver.',
+    policy: result.daemon.synced
+      ? 'Draft held by the daemon and mirrored locally, so it is visible on every surface. Use channel_draft_send with confirm:true and explicitUserRequest to deliver.'
+      : `Draft saved locally; the daemon does not hold it yet (${result.daemon.error}), so other surfaces cannot see it. Use channel_draft_send with confirm:true and explicitUserRequest to deliver.`,
   };
 }
 
@@ -216,9 +275,10 @@ export async function channelDraftSendHandoff(
     return 'Channel delivery router is not available. Ensure the Agent is connected to a channel delivery service.';
   }
 
-  let queueResult: ReturnType<typeof queueDraftToSend>;
+  const invoke = commsDaemonInvoke(context);
+  let queueResult: Awaited<ReturnType<typeof queueDraftToSend>>;
   try {
-    queueResult = queueDraftToSend(shellPaths, draftId);
+    queueResult = await queueDraftToSend(shellPaths, draftId, invoke ? { invoke } : {});
   } catch (err) {
     return err instanceof Error ? err.message : String(err);
   }
@@ -310,10 +370,10 @@ export function channelRoutingSummary(
 // ROUTING — channel_routing_assign (effect)
 // ---------------------------------------------------------------------------
 
-export function channelRoutingAssignHandoff(
+export async function channelRoutingAssignHandoff(
   context: CommandContext,
   args: AgentHarnessCommsArgs,
-): Record<string, unknown> | string {
+): Promise<Record<string, unknown> | string> {
   const confirmationError = requireConfirmedAction(args, 'Channel routing assignment');
   if (confirmationError) return confirmationError;
 
@@ -325,24 +385,31 @@ export function channelRoutingAssignHandoff(
   const profileId = readString(args.profileId);
   if (!profileId) return 'channel_routing_assign requires profileId.';
 
-  const result = assignChannelToProfile(shellPaths, {
-    surfaceKind,
-    routeId: readOptString(args.draftRoute),
-    profileId,
-    label: readOptString(args.routeLabel),
-  });
+  const invoke = commsDaemonInvoke(context);
+  const result = await assignChannelToProfile(
+    shellPaths,
+    {
+      surfaceKind,
+      routeId: readOptString(args.draftRoute),
+      profileId,
+      label: readOptString(args.routeLabel),
+    },
+    invoke ? { invoke } : {},
+  );
 
   return {
     mode: 'channel_routing_assign',
     created: result.created,
     route: result.route,
     path: result.path,
-    daemonMethodNeeded: result.route.daemonMethodNeeded,
+    daemon: result.daemon,
     routes: {
       list: 'agent_harness mode:"channel_routing"',
       remove: 'agent_harness mode:"channel_routing_remove" draftRoute:"' + (result.route.routeId ?? '') + '" surfaceKind:"' + surfaceKind + '"',
     },
-    policy: 'Assignment saved locally (daemonSyncState: local_only). Daemon sync pending channels.routing.assign method publication.',
+    policy: result.daemon.synced
+      ? 'Assignment held by the daemon and mirrored locally, so every surface routes the same way.'
+      : `Assignment saved locally and awaiting the daemon (${CHANNEL_ROUTING_ASSIGN_METHOD}): ${result.daemon.error}`,
   };
 }
 

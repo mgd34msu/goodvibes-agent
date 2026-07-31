@@ -205,12 +205,16 @@ describe('aggregateUnifiedInbox', () => {
     expect(inbox.deliveryItems).toHaveLength(3);
   });
 
-  test('inbound channel feed is always not-available with correct seam metadata', () => {
+  test('a caller that supplied no feed is reported as not having asked for one', () => {
+    // The aggregate is a pure transformation and performs no I/O, so with no
+    // feed handed to it the only honest thing it can say is that nothing was
+    // asked. Naming a cause it did not observe — an unpublished contract, an
+    // unreachable daemon — would send a reader to fix the wrong thing.
     const inbox = aggregateUnifiedInbox(makeTriage());
     expect(inbox.inboundChannelFeed.available).toBe(false);
     if (!inbox.inboundChannelFeed.available) {
-      expect(inbox.inboundChannelFeed.reason).toBe('contract_not_published');
-      expect(inbox.inboundChannelFeed.daemonMethodNeeded).toBe('channels.inbox.list');
+      expect(inbox.inboundChannelFeed.reason).toBe('not_attempted');
+      expect(inbox.inboundChannelFeed.methodId).toBe('channels.inbox.list');
     }
   });
 

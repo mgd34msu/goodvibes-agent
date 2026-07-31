@@ -50,7 +50,7 @@ import { AgentAccountRegistry } from '@pellux/goodvibes-sdk/platform/google';
 import { ACCOUNT_REGISTRY_PATH_SEGMENTS } from '@pellux/goodvibes-sdk/platform/google';
 import { containsSecretLikeText } from '../agent/memory-safety.ts';
 import { ensureGoogleConfigDefaults } from '@pellux/goodvibes-sdk/platform/google';
-import { ensureCalendarConfigDefaults } from '../agent/calendar/calendar-oauth-service.ts';
+import { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLearningConsolidationTool } from '../tools/agent-learning-consolidation-tool.ts';

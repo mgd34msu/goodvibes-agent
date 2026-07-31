@@ -30,7 +30,7 @@ function makeShellPaths(root: string) {
 // ---------------------------------------------------------------------------
 
 describe('channel-draft', () => {
-  test('readChannelDrafts returns empty when file does not exist', () => {
+  test('readChannelDrafts returns empty when file does not exist', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const snapshot = readChannelDrafts(makeShellPaths(root));
@@ -41,11 +41,11 @@ describe('channel-draft', () => {
     }
   });
 
-  test('saveDraft creates a new draft and persists it', () => {
+  test('saveDraft creates a new draft and persists it', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const result = saveDraft(shellPaths, {
+      const result = await saveDraft(shellPaths, {
         message: 'Hello Slack',
         channel: 'slack:ops',
         title: 'Ops message',
@@ -66,14 +66,14 @@ describe('channel-draft', () => {
     }
   });
 
-  test('saveDraft with existing id updates in-place', () => {
+  test('saveDraft with existing id updates in-place', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const first = saveDraft(shellPaths, { message: 'Original text', channel: 'slack:ops' });
+      const first = await saveDraft(shellPaths, { message: 'Original text', channel: 'slack:ops' });
       const draftId = first.draft.id;
 
-      const updated = saveDraft(shellPaths, { id: draftId, message: 'Updated text', channel: 'slack:ops' });
+      const updated = await saveDraft(shellPaths, { id: draftId, message: 'Updated text', channel: 'slack:ops' });
       expect(updated.draft.id).toBe(draftId);
       expect(updated.draft.message).toBe('Updated text');
       expect(updated.draft.createdAt).toBe(first.draft.createdAt);
@@ -85,20 +85,20 @@ describe('channel-draft', () => {
     }
   });
 
-  test('saveDraft rejects empty message', () => {
+  test('saveDraft rejects empty message', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
-      expect(() => saveDraft(makeShellPaths(root), { message: '  ' })).toThrow('Draft message is required.');
+      await expect(saveDraft(makeShellPaths(root), { message: '  ' })).rejects.toThrow('Draft message is required.');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test('getDraft returns draft by id, null when not found', () => {
+  test('getDraft returns draft by id, null when not found', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const result = saveDraft(shellPaths, { message: 'Check this', route: 'my-route' });
+      const result = await saveDraft(shellPaths, { message: 'Check this', route: 'my-route' });
       const found = getDraft(shellPaths, result.draft.id);
       expect(found).not.toBeNull();
       expect(found?.route).toBe('my-route');
@@ -110,28 +110,28 @@ describe('channel-draft', () => {
     }
   });
 
-  test('deleteDraft removes the draft', () => {
+  test('deleteDraft removes the draft', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const result = saveDraft(shellPaths, { message: 'To be deleted', channel: 'discord:general' });
+      const result = await saveDraft(shellPaths, { message: 'To be deleted', channel: 'discord:general' });
       const draftId = result.draft.id;
 
-      expect(deleteDraft(shellPaths, draftId)).toBe(true);
+      expect((await deleteDraft(shellPaths, draftId)).deleted).toBe(true);
       expect(getDraft(shellPaths, draftId)).toBeNull();
-      expect(deleteDraft(shellPaths, draftId)).toBe(false);
+      expect((await deleteDraft(shellPaths, draftId)).deleted).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test('listDrafts filters by status', () => {
+  test('listDrafts filters by status', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      saveDraft(shellPaths, { message: 'Draft one', channel: 'slack:a', status: 'draft' });
-      saveDraft(shellPaths, { message: 'Queued one', channel: 'slack:b', status: 'queued' });
-      saveDraft(shellPaths, { message: 'Sent one', channel: 'slack:c', status: 'sent' });
+      await saveDraft(shellPaths, { message: 'Draft one', channel: 'slack:a', status: 'draft' });
+      await saveDraft(shellPaths, { message: 'Queued one', channel: 'slack:b', status: 'queued' });
+      await saveDraft(shellPaths, { message: 'Sent one', channel: 'slack:c', status: 'sent' });
 
       const drafts = listDrafts(shellPaths, { status: 'draft' });
       expect(drafts.drafts).toHaveLength(1);
@@ -144,12 +144,12 @@ describe('channel-draft', () => {
     }
   });
 
-  test('listDrafts respects limit', () => {
+  test('listDrafts respects limit', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       for (let i = 0; i < 5; i++) {
-        saveDraft(shellPaths, { message: `Draft ${i}`, channel: 'slack:ops' });
+        await saveDraft(shellPaths, { message: `Draft ${i}`, channel: 'slack:ops' });
       }
       const limited = listDrafts(shellPaths, { limit: 2 });
       expect(limited.drafts).toHaveLength(2);
@@ -158,17 +158,17 @@ describe('channel-draft', () => {
     }
   });
 
-  test('queueDraftToSend promotes draft to queued and returns delivery input', () => {
+  test('queueDraftToSend promotes draft to queued and returns delivery input', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, {
+      const saved = await saveDraft(shellPaths, {
         message: 'Ready to send',
         channel: 'slack:ops',
         title: 'Ops alert',
       });
 
-      const queued = queueDraftToSend(shellPaths, saved.draft.id);
+      const queued = await queueDraftToSend(shellPaths, saved.draft.id);
       expect(queued.draftId).toBe(saved.draft.id);
       expect(queued.draft.status).toBe('queued');
       expect(queued.deliveryInput.message).toBe('Ready to send');
@@ -182,31 +182,31 @@ describe('channel-draft', () => {
     }
   });
 
-  test('queueDraftToSend throws when draft not found', () => {
+  test('queueDraftToSend throws when draft not found', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
-      expect(() => queueDraftToSend(makeShellPaths(root), 'bad-id')).toThrow('Draft not found: bad-id');
+      await expect(queueDraftToSend(makeShellPaths(root), 'bad-id')).rejects.toThrow('Draft not found: bad-id');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test('queueDraftToSend throws when draft already sent', () => {
+  test('queueDraftToSend throws when draft already sent', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, { message: 'Sent draft', channel: 'slack:ops', status: 'sent' });
-      expect(() => queueDraftToSend(shellPaths, saved.draft.id)).toThrow('already sent');
+      const saved = await saveDraft(shellPaths, { message: 'Sent draft', channel: 'slack:ops', status: 'sent' });
+      await expect(queueDraftToSend(shellPaths, saved.draft.id)).rejects.toThrow('already sent');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test('markDraftSent updates status and records response id', () => {
+  test('markDraftSent updates status and records response id', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, { message: 'Send me', channel: 'slack:ops' });
+      const saved = await saveDraft(shellPaths, { message: 'Send me', channel: 'slack:ops' });
       const sent = markDraftSent(shellPaths, saved.draft.id, 'response-abc');
       expect(sent.status).toBe('sent');
       expect(sent.sentResponseId).toBe('response-abc');
@@ -215,11 +215,11 @@ describe('channel-draft', () => {
     }
   });
 
-  test('markDraftFailed updates status and records error', () => {
+  test('markDraftFailed updates status and records error', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, { message: 'Will fail', channel: 'slack:ops' });
+      const saved = await saveDraft(shellPaths, { message: 'Will fail', channel: 'slack:ops' });
       const failed = markDraftFailed(shellPaths, saved.draft.id, 'Connection refused');
       expect(failed.status).toBe('failed');
       expect(failed.sendError).toBe('Connection refused');
@@ -228,11 +228,11 @@ describe('channel-draft', () => {
     }
   });
 
-  test('formatChannelDraft produces human-readable output', () => {
+  test('formatChannelDraft produces human-readable output', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, { message: 'Hello world', channel: 'telegram:-100', title: 'Greeting', tags: ['ops', 'alert'] });
+      const saved = await saveDraft(shellPaths, { message: 'Hello world', channel: 'telegram:-100', title: 'Greeting', tags: ['ops', 'alert'] });
       const output = formatChannelDraft(saved.draft);
       expect(output).toContain('draft-');
       expect(output).toContain('telegram:-100');
@@ -243,12 +243,12 @@ describe('channel-draft', () => {
     }
   });
 
-  test('formatChannelDraftList shows summary', () => {
+  test('formatChannelDraftList shows summary', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      saveDraft(shellPaths, { message: 'First draft', channel: 'slack:ops' });
-      saveDraft(shellPaths, { message: 'Second draft', route: 'my-route' });
+      await saveDraft(shellPaths, { message: 'First draft', channel: 'slack:ops' });
+      await saveDraft(shellPaths, { message: 'Second draft', route: 'my-route' });
       const snapshot = readChannelDrafts(shellPaths);
       const output = formatChannelDraftList(snapshot);
       expect(output).toContain('Channel Drafts');
@@ -259,23 +259,23 @@ describe('channel-draft', () => {
     }
   });
 
-  test('draft tags are optional', () => {
+  test('draft tags are optional', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, { message: 'No tags', channel: 'slack:ops' });
+      const saved = await saveDraft(shellPaths, { message: 'No tags', channel: 'slack:ops' });
       expect(saved.draft.tags).toBeUndefined();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test('webhook target is preserved in draft and delivery input', () => {
+  test('webhook target is preserved in draft and delivery input', async () => {
     const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, { message: 'Webhook msg', webhook: 'https://example.test/hook' });
-      const queued = queueDraftToSend(shellPaths, saved.draft.id);
+      const saved = await saveDraft(shellPaths, { message: 'Webhook msg', webhook: 'https://example.test/hook' });
+      const queued = await queueDraftToSend(shellPaths, saved.draft.id);
       expect(queued.deliveryInput.webhook).toBe('https://example.test/hook');
     } finally {
       rmSync(root, { recursive: true, force: true });

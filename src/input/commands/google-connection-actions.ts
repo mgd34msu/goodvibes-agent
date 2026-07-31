@@ -35,7 +35,6 @@ import {
   createGoogleBrowserPort,
   describeGoogleSetupState,
   detectGoogleSetupState,
-  ensureGoogleConfigDefaults,
   runGoogleSetupFlow,
   summarizeCredentials,
   type GoogleBrowserPort,
@@ -52,8 +51,7 @@ import {
   nodeGoogleFilePort,
   startLoopbackListener,
 } from '@pellux/goodvibes-sdk/platform/google/node';
-import { ensureCalendarConfigDefaults } from '../../agent/calendar/calendar-oauth-service.ts';
-import { ensureEmailConfigDefaults } from '@pellux/goodvibes-sdk/platform/email';
+import { ensureConnectorConfigSections } from '@pellux/goodvibes-sdk/platform/config';
 import {
   agentBrowserProfileRoot,
   agentBrowserScreenshotRoot,
@@ -67,10 +65,10 @@ import {
 export function googleConfigPort(ctx: CommandContext): GoogleConfigPort {
   const raw = requirePlatform(ctx).configManager;
   // The flow spans three app-layer config sections. Seed all of them before any
-  // access: resolvePath throws on a section that is not there.
-  ensureGoogleConfigDefaults(raw);
-  ensureCalendarConfigDefaults(raw);
-  ensureEmailConfigDefaults(raw);
+  // access: resolvePath throws on a section that is not there. One call rather
+  // than three: seeding a subset is how the connector came to work on one
+  // surface and throw on the others.
+  ensureConnectorConfigSections(raw);
   const manager = raw as {
     get: (key: string) => unknown;
     setDynamic: (key: string, value: unknown) => void;

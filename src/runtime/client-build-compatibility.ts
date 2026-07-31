@@ -19,10 +19,12 @@
  * The comparison itself (`evaluateClientCompatibility`, the header name, the
  * verdict shape) is owned by the SDK — platform/control-plane/client-compatibility.ts,
  * public since the 1.21.0 re-pin — and imported below rather than duplicated.
- * `ClientBuildGuard` stays local: it is this process's stateful wrapper (the
- * latch and the one-time notification callback), not a value the SDK needs to
- * ship, since the daemon and the TUI runtime each hold their own copy of the
- * same latch shape for their own process lifetime.
+ *
+ * `ClientBuildGuard` stays local. It is not a second comparison; it is this
+ * process's state around the SDK's: the latch, and the once-only notification.
+ * Both are facts about THIS process's lifetime — how long it has been attached,
+ * whether the owner has already been told — and neither is a value the SDK
+ * could hold on its behalf.
  */
 
 import {
