@@ -1,6 +1,7 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import {
   aggregateUnifiedInbox,
+  fetchInboundChannelFeed,
   formatUnifiedInbox,
 } from '../agent/unified-inbox.ts';
 import {
@@ -102,7 +103,14 @@ export async function unifiedInboxSummary(
 ): Promise<Record<string, unknown>> {
   const triage = await buildAgentWorkspaceChannelTriage(context, {});
   const limit = readLimit(args.limit, 50);
-  const inbox = aggregateUnifiedInbox(triage, { limit });
+  const invoke = commsDaemonInvoke(context);
+  const inboundChannelFeed = invoke
+    ? await fetchInboundChannelFeed(invoke, { limit })
+    : undefined;
+  const inbox = aggregateUnifiedInbox(triage, {
+    limit,
+    ...(inboundChannelFeed ? { inboundChannelFeed } : {}),
+  });
   return {
     mode: 'unified_inbox',
     status: inbox.status,
@@ -112,6 +120,7 @@ export async function unifiedInboxSummary(
     deliveryItems: inbox.deliveryItems,
     surfaceMessageItems: inbox.surfaceMessageItems,
     routeBindingItems: inbox.routeBindingItems,
+    inboundMessageItems: inbox.inboundMessageItems,
     inboundChannelFeed: inbox.inboundChannelFeed,
     formatted: formatUnifiedInbox(inbox),
     policy: inbox.policy,

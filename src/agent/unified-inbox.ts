@@ -1,23 +1,29 @@
 /**
  * unified-inbox.ts
  *
- * Agent-side unified inbox read-model. Aggregates the three existing daemon-exposed
- * sources that the triage layer already fetches:
+ * Agent-side unified inbox read-model. Aggregates four daemon-exposed sources:
  *
  *   1. /api/deliveries           — outbound delivery attempts (status / failures)
  *   2. /api/control-plane/messages — surface messages visible to the TUI client
  *   3. /api/routes/bindings      — live route binding continuity records
+ *   4. channels.inbox.list       — provider-specific inbound messages
  *
- * SEAM — Provider-specific inbound inbox feeds (Slack DMs, Discord DMs, email
- * threads, etc.) are NOT published by any current daemon contract. When the
- * daemon publishes a `channels.inbox.*` operator method or a matching REST
- * endpoint, add an adapter here by implementing `InboundChannelFeedAdapter` and
- * registering it in `aggregateUnifiedInbox`. The rest of the model is already
- * shaped to accept per-channel inbound items.
+ * The first three arrive already fetched, in an `AgentWorkspaceChannelTriage`.
+ * The fourth is fetched here, by `fetchInboundChannelFeed`, because it is a
+ * method call rather than one of triage's routes.
+ *
+ * When that call does not produce a feed, the reason says what actually
+ * happened — the daemon's own answer, classified. It does not say the contract
+ * is unpublished, because it is published: an inbox reporting a cause it did
+ * not observe sends whoever reads it to fix the wrong thing.
  */
 
 import type { AgentWorkspaceChannelTriage } from '../input/agent-workspace-channel-triage.ts';
+import type { DaemonInvokeFailureKind, DaemonOperatorInvoke } from './daemon-operator-client.ts';
 import { UNKNOWN_PRINCIPAL_LABEL } from './principal-attribution.ts';
+
+/** The daemon method that serves provider inbound feeds. */
+export const CHANNEL_INBOX_LIST_METHOD = 'channels.inbox.list';
 
 // ---------------------------------------------------------------------------
 // Item kinds
@@ -76,10 +82,37 @@ export interface UnifiedInboxRouteBindingItem {
   readonly jobId: string | null;
 }
 
+/**
+ * An inbound message reported by `channels.inbox.list`.
+ *
+ * The sender is carried as the daemon reports it rather than digested. The
+ * route-binding item above digests its external id because that id is a
+ * third-party correlation key nobody asked to read; this is the operator's own
+ * inbox being shown back to the operator, where a sender they cannot identify
+ * is not an inbox.
+ */
+export interface UnifiedInboxInboundMessageItem {
+  readonly kind: 'inbound_message';
+  readonly id: string;
+  readonly provider: string;
+  /** The provider's own kind for this item (dm, channel, thread, email, …). */
+  readonly messageKind: string;
+  readonly from: string;
+  readonly fromAddress: string | null;
+  readonly subject: string | null;
+  readonly bodyPreview: string;
+  readonly receivedAt: number;
+  readonly unread: boolean;
+  readonly routeId: string | null;
+  readonly threadId: string | null;
+  readonly attachmentCount: number;
+}
+
 export type UnifiedInboxItem =
   | UnifiedInboxDeliveryItem
   | UnifiedInboxSurfaceMessageItem
-  | UnifiedInboxRouteBindingItem;
+  | UnifiedInboxRouteBindingItem
+  | UnifiedInboxInboundMessageItem;
 
 export interface UnifiedInboxTarget {
   readonly kind: string;
@@ -108,18 +141,49 @@ export interface UnifiedInboxSummary {
   readonly deliveryItems: number;
   readonly surfaceMessageItems: number;
   readonly routeBindingItems: number;
+  readonly inboundMessageItems: number;
   readonly attentionCount: number;
   readonly failureCount: number;
 }
 
 /**
- * SEAM: When the daemon exposes per-channel inbound feeds, add items here.
- * The `inboundChannelFeed` field is intentionally typed as a discriminated union
- * so callers can detect the absent-contract case at compile time.
+ * Why the inbound feed is not here, when it is not.
+ *
+ * Each value names something that was actually observed:
+ *
+ *  `not_attempted`   — no connected-host caller was supplied, so nothing was
+ *                      asked and nothing is claimed.
+ *  `auth_required`   — no operator token, or the daemon rejected the one there.
+ *  `daemon_unreachable` — the call did not complete.
+ *  `method_unavailable` — the daemon answered, and its answer was that it does
+ *                      not serve this method. This is what the live platform
+ *                      says today: `channels.inbox.list` is cataloged with
+ *                      `invokable: false` and no route serves its advertised
+ *                      path, so the call returns rather than hanging.
+ *  `daemon_error`    — it answered with something else.
  */
+export type InboundChannelFeedUnavailableReason =
+  | 'not_attempted'
+  | 'auth_required'
+  | 'daemon_unreachable'
+  | 'method_unavailable'
+  | 'daemon_error';
+
 export type InboundChannelFeedState =
-  | { readonly available: false; readonly reason: 'contract_not_published'; readonly daemonMethodNeeded: 'channels.inbox.list' }
-  | { readonly available: true; readonly items: readonly UnifiedInboxItem[] };
+  | {
+      readonly available: false;
+      readonly reason: InboundChannelFeedUnavailableReason;
+      readonly methodId: typeof CHANNEL_INBOX_LIST_METHOD;
+      /** What the daemon said, verbatim, when it said anything. */
+      readonly detail: string;
+    }
+  | {
+      readonly available: true;
+      readonly methodId: typeof CHANNEL_INBOX_LIST_METHOD;
+      readonly items: readonly UnifiedInboxInboundMessageItem[];
+      readonly total: number;
+      readonly truncated: boolean;
+    };
 
 export interface UnifiedInbox {
   readonly mode: 'unified_inbox';
@@ -133,14 +197,9 @@ export interface UnifiedInbox {
   readonly surfaceMessageItems: readonly UnifiedInboxSurfaceMessageItem[];
   /** Route binding continuity. Subset of items where kind === 'route_binding'. */
   readonly routeBindingItems: readonly UnifiedInboxRouteBindingItem[];
-  /**
-   * SEAM: Provider-specific inbound channel feed.
-   *
-   * This will remain `{ available: false }` until the daemon publishes the
-   * `channels.inbox.list` operator method (or equivalent REST endpoint). Once
-   * published, replace the `InboundChannelFeedState` branch here and add an
-   * adapter in `aggregateUnifiedInbox`.
-   */
+  /** Provider inbound messages. Subset of items where kind === 'inbound_message'. */
+  readonly inboundMessageItems: readonly UnifiedInboxInboundMessageItem[];
+  /** The inbound feed, or the observed reason there is none. */
   readonly inboundChannelFeed: InboundChannelFeedState;
   readonly policy: string;
 }
@@ -236,7 +295,83 @@ function toRouteBindingItem(raw: Record<string, unknown>): UnifiedInboxRouteBind
   };
 }
 
+function toInboundMessageItem(raw: Record<string, unknown>): UnifiedInboxInboundMessageItem {
+  return {
+    kind: 'inbound_message',
+    id: readString(raw, 'id', 'inbound'),
+    provider: readString(raw, 'provider', 'unknown'),
+    messageKind: readString(raw, 'kind', 'unknown'),
+    from: readString(raw, 'from', UNKNOWN_PRINCIPAL_LABEL),
+    fromAddress: readStringOrNull(raw, 'fromAddress'),
+    subject: readStringOrNull(raw, 'subject'),
+    bodyPreview: readString(raw, 'bodyPreview'),
+    receivedAt: readNumber(raw, 'receivedAt') ?? 0,
+    unread: raw.unread === true,
+    routeId: readStringOrNull(raw, 'routeId'),
+    threadId: readStringOrNull(raw, 'threadId'),
+    attachmentCount: typeof raw.attachmentCount === 'number' ? raw.attachmentCount : 0,
+  };
+}
+
+/** Map a transport failure onto the reason an operator should act on. */
+function inboundFailureReason(kind: DaemonInvokeFailureKind): InboundChannelFeedUnavailableReason {
+  if (kind === 'auth_required') return 'auth_required';
+  if (kind === 'connected_host_unavailable') return 'daemon_unreachable';
+  if (kind === 'connected_host_route_unavailable') return 'method_unavailable';
+  return 'daemon_error';
+}
+
+/**
+ * Ask the daemon for the provider inbound feed.
+ *
+ * Separate from `aggregateUnifiedInbox` so that function stays a pure
+ * transformation of things already fetched — the property its tests rely on.
+ * A caller with no daemon to ask simply does not call this, and the aggregate
+ * says `not_attempted` rather than inventing a cause.
+ */
+export async function fetchInboundChannelFeed(
+  invoke: DaemonOperatorInvoke,
+  options: { readonly provider?: string; readonly limit?: number; readonly since?: number } = {},
+): Promise<InboundChannelFeedState> {
+  const result = await invoke(CHANNEL_INBOX_LIST_METHOD, {
+    ...(options.provider ? { provider: options.provider } : {}),
+    ...(typeof options.limit === 'number' ? { limit: options.limit } : {}),
+    ...(typeof options.since === 'number' ? { since: options.since } : {}),
+  });
+  if (!result.ok) {
+    return {
+      available: false,
+      reason: inboundFailureReason(result.kind),
+      methodId: CHANNEL_INBOX_LIST_METHOD,
+      detail: result.error,
+    };
+  }
+  if (!isRecord(result.body) || !Array.isArray(result.body.items)) {
+    return {
+      available: false,
+      reason: 'daemon_error',
+      methodId: CHANNEL_INBOX_LIST_METHOD,
+      detail: `${CHANNEL_INBOX_LIST_METHOD} answered without an items array`,
+    };
+  }
+  const items = (result.body.items as unknown[]).filter(isRecord).map(toInboundMessageItem);
+  return {
+    available: true,
+    methodId: CHANNEL_INBOX_LIST_METHOD,
+    items,
+    total: typeof result.body.total === 'number' ? result.body.total : items.length,
+    truncated: result.body.truncated === true,
+  };
+}
+
 const DELIVERY_ATTENTION_STATUSES = new Set(['failed', 'dead_lettered', 'pending', 'sending']);
+
+const INBOUND_FEED_NOT_ATTEMPTED: InboundChannelFeedState = {
+  available: false,
+  reason: 'not_attempted',
+  methodId: CHANNEL_INBOX_LIST_METHOD,
+  detail: 'no connected-host caller was supplied, so the daemon was not asked for an inbound feed',
+};
 
 // ---------------------------------------------------------------------------
 // Public aggregation API
@@ -251,9 +386,17 @@ const DELIVERY_ATTENTION_STATUSES = new Set(['failed', 'dead_lettered', 'pending
  */
 export function aggregateUnifiedInbox(
   triage: AgentWorkspaceChannelTriage,
-  options: { readonly limit?: number } = {},
+  options: {
+    readonly limit?: number;
+    /** The feed a caller already fetched. Absent means it never asked. */
+    readonly inboundChannelFeed?: InboundChannelFeedState;
+  } = {},
 ): UnifiedInbox {
   const limit = typeof options.limit === 'number' && options.limit > 0 ? Math.min(options.limit, 200) : 50;
+  const inboundChannelFeed = options.inboundChannelFeed ?? INBOUND_FEED_NOT_ATTEMPTED;
+  const inboundMessageItems = inboundChannelFeed.available
+    ? inboundChannelFeed.items.slice(0, limit)
+    : [];
 
   // --- Delivery items ---
   const deliveriesSection = triage.deliveries;
@@ -295,6 +438,7 @@ export function aggregateUnifiedInbox(
     ...deliveryItems,
     ...surfaceMessageItems,
     ...routeBindingItems,
+    ...inboundMessageItems,
   ];
 
   const attentionCount = deliveryItems.filter((item) => DELIVERY_ATTENTION_STATUSES.has(item.status)).length;
@@ -328,6 +472,15 @@ export function aggregateUnifiedInbox(
         ? { error: bindingsSection.message as string }
         : {}),
     },
+    {
+      name: 'inbound_messages',
+      route: CHANNEL_INBOX_LIST_METHOD,
+      state: inboundChannelFeed.available
+        ? (inboundMessageItems.length === 0 ? 'empty' : 'ready')
+        : 'unavailable',
+      itemCount: inboundMessageItems.length,
+      ...(inboundChannelFeed.available ? {} : { error: inboundChannelFeed.detail }),
+    },
   ];
 
   const blockedSources = sources.filter((s) => s.state === 'unavailable').length;
@@ -342,6 +495,7 @@ export function aggregateUnifiedInbox(
       deliveryItems: deliveryItems.length,
       surfaceMessageItems: surfaceMessageItems.length,
       routeBindingItems: routeBindingItems.length,
+      inboundMessageItems: inboundMessageItems.length,
       attentionCount,
       failureCount,
     },
@@ -350,15 +504,12 @@ export function aggregateUnifiedInbox(
     deliveryItems,
     surfaceMessageItems,
     routeBindingItems,
-    inboundChannelFeed: {
-      available: false,
-      reason: 'contract_not_published',
-      daemonMethodNeeded: 'channels.inbox.list',
-    },
-    policy:
-      'Read-only unified inbox. Aggregates daemon-exposed delivery attempts, control-plane surface messages, and route bindings. ' +
-      'Provider-specific inbound channel feeds (Slack DMs, Discord messages, email threads) are not yet published by the daemon contract — ' +
-      'field inboundChannelFeed.available === false until daemon publishes channels.inbox.list.',
+    inboundMessageItems,
+    inboundChannelFeed,
+    policy: inboundChannelFeed.available
+      ? 'Read-only unified inbox. Aggregates daemon-exposed delivery attempts, control-plane surface messages, route bindings, and provider inbound messages.'
+      : 'Read-only unified inbox. Aggregates daemon-exposed delivery attempts, control-plane surface messages, and route bindings. '
+        + `The provider inbound feed is absent: ${inboundChannelFeed.detail}`,
   };
 }
 
@@ -366,13 +517,16 @@ export function aggregateUnifiedInbox(
  * Format a UnifiedInbox for human-readable output.
  */
 export function formatUnifiedInbox(inbox: UnifiedInbox): string {
-  const { summary, sources, deliveryItems, surfaceMessageItems, routeBindingItems } = inbox;
+  const { summary, sources, deliveryItems, surfaceMessageItems, routeBindingItems, inboundMessageItems } = inbox;
+  const feed = inbox.inboundChannelFeed;
   const lines: string[] = [
     'Unified Inbox',
     `  status: ${inbox.status}`,
-    `  items: ${summary.totalItems} (deliveries: ${summary.deliveryItems}, surface messages: ${summary.surfaceMessageItems}, route bindings: ${summary.routeBindingItems})`,
+    `  items: ${summary.totalItems} (deliveries: ${summary.deliveryItems}, surface messages: ${summary.surfaceMessageItems}, route bindings: ${summary.routeBindingItems}, inbound: ${summary.inboundMessageItems})`,
     `  attention: ${summary.attentionCount}  failures: ${summary.failureCount}`,
-    `  inbound channel feed: ${inbox.inboundChannelFeed.available ? 'available' : `not available — daemon method needed: ${inbox.inboundChannelFeed.daemonMethodNeeded}`}`,
+    `  inbound channel feed: ${feed.available
+      ? `${feed.total} message(s)${feed.truncated ? ', truncated' : ''} via ${feed.methodId}`
+      : `unavailable (${feed.reason}) — ${feed.detail}`}`,
     `  policy: ${inbox.policy}`,
     '',
     '  Sources',
@@ -402,6 +556,14 @@ export function formatUnifiedInbox(inbox: UnifiedInbox): string {
     lines.push('', '  Route Bindings');
     for (const item of routeBindingItems.slice(0, 10)) {
       lines.push(`  - ${item.id}: ${item.surfaceKind} ${item.bindingKind} ext=${item.externalIdDigest ?? 'none'} sender=${item.principalLabel}`);
+    }
+  }
+
+  if (inboundMessageItems.length > 0) {
+    lines.push('', '  Inbound Messages');
+    for (const item of inboundMessageItems.slice(0, 10)) {
+      const heading = item.subject ?? item.bodyPreview.slice(0, 60);
+      lines.push(`  - [${item.provider}${item.unread ? ' unread' : ''}] ${item.from}: ${heading}`);
     }
   }
 
