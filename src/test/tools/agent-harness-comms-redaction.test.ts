@@ -20,12 +20,12 @@ function makeContext(shellPaths: ReturnType<typeof makeShellPaths>): CommandCont
 }
 
 describe('agent-harness-comms webhook redaction', () => {
-  test('channel_drafts list never returns a raw webhook', () => {
+  test('channel_drafts list never returns a raw webhook', async () => {
     const root = makeProjectTempDir('gv-comms');
     try {
       const shellPaths = makeShellPaths(root);
-      saveDraft(shellPaths, { message: 'hello', webhook: WEBHOOK });
-      const result = channelDraftsSummary(makeContext(shellPaths), {});
+      await saveDraft(shellPaths, { message: 'hello', webhook: WEBHOOK });
+      const result = await channelDraftsSummary(makeContext(shellPaths), {});
       const drafts = result.drafts as ReadonlyArray<{ readonly webhook?: string }>;
       expect(drafts.length).toBeGreaterThan(0);
       for (const draft of drafts) {
@@ -37,12 +37,12 @@ describe('agent-harness-comms webhook redaction', () => {
     }
   });
 
-  test('channel_drafts single read redacts the webhook', () => {
+  test('channel_drafts single read redacts the webhook', async () => {
     const root = makeProjectTempDir('gv-comms');
     try {
       const shellPaths = makeShellPaths(root);
-      const saved = saveDraft(shellPaths, { message: 'hello', webhook: WEBHOOK });
-      const result = channelDraftsSummary(makeContext(shellPaths), { draftId: saved.draft.id });
+      const saved = await saveDraft(shellPaths, { message: 'hello', webhook: WEBHOOK });
+      const result = await channelDraftsSummary(makeContext(shellPaths), { draftId: saved.draft.id });
       const draft = result.draft as { readonly webhook?: string };
       expect(draft.webhook).toBe('[redacted]');
       expect(JSON.stringify(result)).not.toContain(WEBHOOK);
@@ -51,11 +51,11 @@ describe('agent-harness-comms webhook redaction', () => {
     }
   });
 
-  test('channel_draft_save echoes a redacted webhook', () => {
+  test('channel_draft_save echoes a redacted webhook', async () => {
     const root = makeProjectTempDir('gv-comms');
     try {
       const shellPaths = makeShellPaths(root);
-      const result = channelDraftSaveHandoff(makeContext(shellPaths), {
+      const result = await channelDraftSaveHandoff(makeContext(shellPaths), {
         draftMessage: 'hello',
         draftWebhook: WEBHOOK,
         confirm: true,
