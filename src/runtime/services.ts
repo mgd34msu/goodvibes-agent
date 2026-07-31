@@ -9,7 +9,7 @@ import { shell as runtimeShell, operations as runtimeOperations } from '@pellux/
 // this fork's graph later cannot compile without being named for teardown.
 import { createDisposalScope, registerRuntimePollers } from '@pellux/goodvibes-sdk/platform/runtime/disposal';
 import type { shell as RuntimeShell, bootstrap as RuntimeBootstrap } from '@pellux/goodvibes-sdk/platform/runtime';
-import { SecretsManager } from '../config/secrets.ts';
+import { applyRawSecretLiteralHandling, type SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
 import { backfillCheckpointEligibilityIfNeeded, createWorkspaceRegistrationLiveChecker, migrateLegacyWorkspaceRegistryIfNeeded } from '../config/workspace-registration.ts';
 import { FocusTracker } from '../core/focus-tracker.ts';
@@ -44,7 +44,12 @@ import type {
   DevicesClient,
   WireSessionDispatch,
 } from '@pellux/goodvibes-sdk/platform/runtime/client';
-import type { ApprovalRaiser, UserPermissionRuleAccess } from '@pellux/goodvibes-sdk/platform/runtime/client-services';
+import { createClientRuntimeServices } from '@pellux/goodvibes-sdk/platform/runtime/client-services';
+import type {
+  ApprovalRaiser,
+  ProviderRegistryConstructionOptions,
+  UserPermissionRuleAccess,
+} from '@pellux/goodvibes-sdk/platform/runtime/client-services';
 import { createAgentDaemonVerbCaller } from './client/daemon-verbs.ts';
 import { createAgentSessionInputsClient } from './client/session-inputs.ts';
 import { createHostedSessionRegistry, type HostedSessionRegistry } from './client/hosted-sessions.ts';
@@ -121,7 +126,7 @@ import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state'
 // barrel (re-exported there since sdk a03bf218).
 import { MemoryConsolidationScheduler } from '@pellux/goodvibes-sdk/platform/state';
 import type { MemoryConsolidationRunReceipt } from '@pellux/goodvibes-sdk/platform/state';
-import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/control-plane';
+import type { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/control-plane';
 // Sleep ownership (SDK round: power/*): work inhibition, sleep-edge honesty,
 // the keep-awake toggle. Constructed exactly as the SDK composition root does
 // (wireRuntimePower binds runtimeBus work signals and starts the manager).
@@ -143,7 +148,6 @@ import { MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { resolveCanonicalMemoryDbPath, foldMemoryStores } from '@pellux/goodvibes-sdk/platform/state';
 import type { LegacyMemorySource, MemoryFoldReport } from '@pellux/goodvibes-sdk/platform/state';
 import type { RuntimeEventBus } from '@/runtime/index.ts';
-import { createDomainDispatch } from './store/index.ts';
 import type { DomainDispatch, RuntimeStore } from './store/index.ts';
 import { DistributedRuntimeManager } from '@/runtime/index.ts';
 import { RemoteRunnerRegistry, RemoteSupervisor } from '@/runtime/index.ts';
@@ -157,7 +161,7 @@ import { createVoiceSetupService, type VoiceSetupService } from '@pellux/goodvib
 import { WebSearchProviderRegistry, WebSearchService } from '@pellux/goodvibes-sdk/platform/web-search';
 import { MemoryEmbeddingProviderRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { HookActivityTracker } from '@pellux/goodvibes-sdk/platform/hooks';
-import { HookDispatcher, createHookWorkbench, type HookWorkbench } from '@pellux/goodvibes-sdk/platform/hooks';
+import { HookDispatcher, type HookWorkbench } from '@pellux/goodvibes-sdk/platform/hooks';
 import { PluginManager } from '@pellux/goodvibes-sdk/platform/plugins';
 import { BookmarkManager } from '@pellux/goodvibes-sdk/platform/bookmarks';
 import { ProfileManager } from '@pellux/goodvibes-sdk/platform/profiles';
@@ -186,11 +190,11 @@ import { FileStateCache } from '@pellux/goodvibes-sdk/platform/state';
 import { ProjectIndex } from '@pellux/goodvibes-sdk/platform/state';
 import { IdempotencyStore } from '@/runtime/index.ts';
 import { OverflowHandler } from '@pellux/goodvibes-sdk/platform/tools';
-import { ContextAccountingHolder } from '@pellux/goodvibes-sdk/platform/tools';
+import type { ContextAccountingHolder } from '@pellux/goodvibes-sdk/platform/tools';
 import { ToolLLM } from '@pellux/goodvibes-sdk/platform/config';
 import { ComponentHealthMonitor } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
-import { createShellPathService, type ShellPathService } from '@/runtime/index.ts';
+import type { ShellPathService } from '@/runtime/index.ts';
 import { createSessionSurface, type SessionSurface } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
@@ -205,10 +209,7 @@ import {
   type LocalhostFetchApproval,
 } from '@pellux/goodvibes-sdk/platform/runtime/permissions/localhost-fetch-approval';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
-import {
-  createWorkflowServices,
-  type WorkflowServices,
-} from '@pellux/goodvibes-sdk/platform/tools';
+import type { WorkflowServices } from '@pellux/goodvibes-sdk/platform/tools';
 import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
 import { AgentExecutionLedger } from './execution-ledger.ts';
 import { attachAgentSessionWriteLedger, clearAgentSessionWrites } from '../tools/agent-session-write-ledger.ts';
@@ -326,6 +327,37 @@ export type ModelDiscoveryMode = 'refresh' | 'skip';
  */
 export function shouldRefreshModels(mode: ModelDiscoveryMode | undefined): boolean {
   return (mode ?? 'refresh') === 'refresh';
+}
+
+/**
+ * How the client floor builds this product's provider registry — the two
+ * things that are true of it and of no default composition, in one named
+ * place rather than two side effects in a lambda.
+ *
+ * 1. LAUNCH TOLERANCE. The default `new ProviderRegistry(...)` throws when a
+ *    configured provider credential is broken or absent. This product has to
+ *    reach a first frame and then TELL the owner what is wrong, so it
+ *    constructs under placeholder credentials instead: a misconfigured key is
+ *    a degraded provider, never a crash before anything is on screen.
+ *
+ * 2. THE RAW-LITERAL PAIR on the credential store. The floor builds its own
+ *    `SecretsManager` and hands this same instance to the provider stack, the
+ *    service registry and the agent orchestrator; it takes no secrets-manager
+ *    option, so this callback is the only point at which that instance is in
+ *    this product's hands. It is also early enough: the floor's boot
+ *    credential refresh reads the store inside the synchronous prefix of
+ *    `refreshProviderCredentials()`, which runs immediately AFTER this
+ *    callback returns. See applyRawSecretLiteralHandling for what the pair
+ *    does and the SDK option that would retire this.
+ */
+function buildAgentProviderRegistry(options: ProviderRegistryConstructionOptions): ProviderRegistry {
+  // The registry's own option bag narrows the credential store to the two
+  // methods the registry itself calls. The OBJECT is the floor's full
+  // `SecretsManager` — `createProviderStack` passes its own field straight
+  // through — and the pair has to go on the whole thing, so the widening is
+  // stated here.
+  applyRawSecretLiteralHandling(options.secretsManager as SecretsManager);
+  return createLaunchTolerantProviderRegistry(options);
 }
 
 export interface RuntimeServicesOptions {
@@ -694,10 +726,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const disposalScope = createDisposalScope('RuntimeServices'); // see @pellux/goodvibes-sdk/platform/runtime/disposal
   const workingDirectory = options.workingDir;
   const homeDirectory = options.homeDirectory;
-  const shellPaths = createShellPathService({
-    workingDirectory,
-    homeDirectory,
-  });
   const surface = createSessionSurface({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     workingDirectory,
@@ -712,7 +740,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     featureFlags.loadFromConfig({ flags: deriveFeatureStates(configManager) });
     bindFeatureSettingsBridge(configManager, featureFlags);
   }
-  const runtimeDispatch = createDomainDispatch(options.runtimeStore);
   // The catalog SURVIVES the client split. What it no longer carries is any
   // handler, and that includes two families this fork did dispatch in-process:
   // `occasions.*` and `profile.*`.
@@ -780,6 +807,112 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const sessionDispatch: WireSessionDispatch = createWireSessionDispatch({
     hostedSessionIds: () => hostedSessions.ids(),
   });
+
+  // ── The client floor ─────────────────────────────────────────────────────
+  //
+  // Everything a surface's own turn needs in-process, built by the platform
+  // rather than a second time here: the credential/config/service stores, the
+  // model stack, the agent graph, hooks, plugins, MCP, permissions as a client,
+  // the file-tool caches, and the session/orchestration stores. What follows
+  // this call is what the AGENT genuinely has on top of a surface — automation,
+  // channels and delivery, watchers and triggers, the two knowledge stores and
+  // the home graph, voice and media, checkpoints, the orchestration engine, the
+  // fleet registry, the memory governor — all of it built over these instances.
+  //
+  // The three named options are the floor's own seams for the three places this
+  // product's posture differs from the default, each spelled out rather than
+  // re-derived by rebuilding the piece:
+  //
+  //  • providerRegistryFactory — launch tolerance. This product must reach a
+  //    first frame with broken or absent provider credentials; the default
+  //    `new ProviderRegistry` throws on one. (The callback also gives this
+  //    product's raw-literal handling to the credential store the floor built —
+  //    see buildAgentProviderRegistry.)
+  //  • modelDiscovery — the unawaited discovery write outlives a short-lived
+  //    composition (a suite against a temp workspace, a one-shot subcommand),
+  //    so callers that will not outlive it say `skip`. Same rule
+  //    `shouldRefreshModels` has always applied, now spoken to the floor.
+  //  • hookAgentManager: 'withhold' — a `type: 'agent'` hook here answers
+  //    "agent hook runner is not configured in this runtime" and spawns
+  //    nothing. The omission is the feature (pinned by
+  //    src/test/runtime/bootstrap-services.test.ts); naming it as an option is
+  //    what keeps it legible as a decision rather than a wiring bug.
+  //
+  // Not taken from the floor, with the reason in each case: `sessionSpine` and
+  // `memoryAccess` (this product builds both over its OWN REST transports and
+  // a locally-opened canonical memory store, and hands them to the graph under
+  // their own names below); `surface` (a declared `SessionSurface`, which the
+  // floor takes as a bare surfaceRoot); and the approval-derived handlers plus
+  // the feature-announcement store, which the floor builds internally and does
+  // not expose, so this composition keeps its own — they are graph members here
+  // (`localhostFetchApproval`, `onSandboxedRun`, `featureAnnouncementStore`)
+  // that other code reads by name.
+  const clientFloor = createClientRuntimeServices({
+    runtimeBus: options.runtimeBus,
+    runtimeStore: options.runtimeStore,
+    configManager,
+    featureFlags,
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    workingDir: workingDirectory,
+    homeDirectory,
+    requestApproval,
+    sessionDispatch,
+    providerRegistryFactory: buildAgentProviderRegistry,
+    modelDiscovery: shouldRefreshModels(options.modelDiscovery) ? 'run' : 'skip',
+    hookAgentManager: 'withhold',
+  });
+  const {
+    shellPaths,
+    runtimeDispatch,
+    secretsManager,
+    serviceRegistry,
+    subscriptionManager,
+    providerRegistry,
+    providerCapabilityRegistry,
+    providerOptimizer,
+    cacheHitTracker,
+    favoritesStore,
+    benchmarkStore,
+    modelLimitsService,
+    toolLLM,
+    archetypeLoader,
+    agentManager,
+    agentMessageBus,
+    agentOrchestrator,
+    sessionManager,
+    sessionOrchestration,
+    workflow,
+    sandboxSessionRegistry,
+    processManager,
+    modeManager,
+    fileUndoManager,
+    overflowHandler,
+    contextAccountingHolder,
+    sessionLiveTurnControls,
+    mcpRegistry,
+    artifactStore,
+    webSearchProviders,
+    webSearchService,
+    hookDispatcher,
+    hookActivityTracker,
+    hookWorkbench,
+    pluginManager,
+    policyRuntimeState,
+    userPermissionRuleStore,
+    permissionManager,
+    fileCache,
+    projectIndex,
+  } = clientFloor;
+  // The configured chat model must name a provider the registry can actually
+  // route to. Runs after the floor's `initCustomProviders()` rather than before
+  // it, so a model served by a user-defined provider is seen as routable
+  // instead of being rewritten off a registry that had not loaded it yet.
+  ensureConfiguredModelIsRoutable(providerRegistry, configManager);
+  // Everything the floor started comes down with this graph. Idempotent, and it
+  // overlaps deliberately with the poller registration further below: whichever
+  // runs first does the work.
+  disposalScope.registry.add('client runtime floor', () => clientFloor.dispose());
+
   const daemonConfigClient: DaemonConfigClient = createDaemonConfigClient(daemonVerbs);
   const daemonCredentialsClient: DaemonCredentialsClient = createDaemonCredentialsClient(daemonVerbs);
   // NOT installed here. The two settings-routing clients are process-wide (five
@@ -822,71 +955,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const surfaceRegistry = new SurfaceRegistry(configManager, options.runtimeStore);
   const channelPlugins = new ChannelPluginRegistry();
   surfaceRegistry.attachPluginRegistry(channelPlugins);
-  const secretsManager = new SecretsManager({
-    projectRoot: workingDirectory,
-    globalHome: homeDirectory,
-    configManager,
-  });
-  const subscriptionManager = new SubscriptionManager(
-    shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'subscriptions.json'),
-  );
-  const serviceRegistry = new ServiceRegistry(shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'services.json'), {
-    secretsManager,
-    subscriptionManager,
-  });
-  // Settable holder for the context_accounting tool's session source (SDK
-  // 1.6.1). Constructed here (unbound) so it exists for the whole runtime
-  // services lifetime and every consumer of `services.contextAccountingHolder`
-  // sees the SAME instance the tool roster is registered against — bootstrap.ts
-  // binds an Orchestrator-backed ContextAccountingSource onto it once the
-  // interactive Orchestrator exists (see bindOrchestratorContextAccounting in
-  // context-accounting-source.ts). Left unbound here: the tool honestly
-  // reports "no live session context bound" until that bind call runs.
-  const contextAccountingHolder = new ContextAccountingHolder();
-  const providerCapabilityRegistry = new ProviderCapabilityRegistry();
-  const cacheHitTracker = new CacheHitTracker();
-  const favoritesStore = new FavoritesStore({ dir: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT) });
-  const benchmarkStore = new BenchmarkStore({ dir: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT) });
-  const modelLimitsService = new ModelLimitsService({
-    cachePath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'model-limits.json'),
-  });
-  const providerRegistry = createLaunchTolerantProviderRegistry({
-    configManager,
-    subscriptionManager,
-    secretsManager,
-    serviceRegistry,
-    capabilityRegistry: providerCapabilityRegistry,
-    cacheHitTracker,
-    favoritesStore,
-    benchmarkStore,
-    modelLimitsService,
-    featureFlags,
-    runtimeBus: options.runtimeBus,
-  });
-  ensureConfiguredModelIsRoutable(providerRegistry, configManager);
-  providerRegistry.initCustomProviders();
-  if (shouldRefreshModels(options.modelDiscovery)) providerRegistry.initProviderModelDiscovery();
-  // ONE credential chain (env -> secrets -> subscription), mirroring the SDK
-  // composition root: boot applies secrets-backed keys; every secrets
-  // write/delete re-registers builtin providers LIVE (no restart needed).
-  secretsManager.onDidChange(() => void providerRegistry.refreshProviderCredentials().catch((error) => logger.warn('live credential refresh failed', { error: summarizeError(error) })));
-  void providerRegistry.refreshProviderCredentials().catch((error) => logger.warn('boot credential refresh failed', { error: summarizeError(error) }));
-  const toolLLM = new ToolLLM({
-    configManager,
-    providerRegistry,
-    runtimeBus: options.runtimeBus,
-  });
   const localUserAuthManager = options.localUserAuthManager ?? new UserAuthManager({
     bootstrapFilePath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json'),
     bootstrapCredentialPath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-bootstrap.txt'),
   });
   const profileManager = new ProfileManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'profiles'));
   const bookmarkManager = new BookmarkManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'bookmarks'));
-  const sessionManager = new SessionManager(workingDirectory, { surface });
-  const sessionOrchestration = new CrossSessionTaskRegistry(
-    shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'sessions', 'task-graph.json'),
-  );
-  const hookActivityTracker = new HookActivityTracker();
   // featureFlags is REQUIRED here in practice, even though the SDK types it
   // optional. isFeatureGateEnabled(null, ...) is permissive by design — a
   // narrow embed with no manager wired gets the capability rather than a
@@ -906,21 +980,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     runtimeStore: options.runtimeStore,
     runtimeBus: options.runtimeBus,
   });
-  const agentMessageBus = new AgentMessageBus();
-  agentMessageBus.setRuntimeBus(options.runtimeBus);
-  const archetypeLoader = new ArchetypeLoader(join(workingDirectory, '.goodvibes', 'agents'));
-  const agentOrchestrator = new AgentOrchestrator({
-    messageBus: agentMessageBus,
-  });
-  agentOrchestrator.setRuntimeBus(options.runtimeBus);
-  const agentManager = new AgentManager({
-    archetypeLoader,
-    messageBus: agentMessageBus,
-    executor: agentOrchestrator,
-    configManager,
-    providerRegistry,
-  });
-  agentManager.setRuntimeBus(options.runtimeBus);
   const wrfcController = Reflect.construct(WrfcController, [options.runtimeBus, agentMessageBus, {
     agentManager,
     configManager,
@@ -929,36 +988,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     createWorktree: createDisabledAgentWrfcWorktreeOps,
   }]) as WrfcController;
   agentManager.setWrfcController(wrfcController);
-  // agentManager is DELIBERATELY not threaded, unlike the TUI's own dispatcher.
-  // A `type: 'agent'` hook here answers "agent hook runner is not configured in
-  // this runtime" and spawns nothing, which is this product's chosen posture and
-  // is pinned by src/test/runtime/bootstrap-services.test.ts. Do not "fix" this
-  // by passing the manager that sits a few lines above: the omission is the
-  // feature, and the test asserts both the refusal and that no agent was spawned.
-  const hookDispatcher = new HookDispatcher({ toolLLM, projectRoot: workingDirectory }, hookActivityTracker);
-  configManager.attachHookDispatcher(hookDispatcher);
-  const hookWorkbench = createHookWorkbench({
-    hookDispatcher,
-    configManager,
-  });
   const approvalBroker = new ApprovalBroker({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'approvals.json'),
   });
-  // Durable user-origin permission rules — the ones THIS surface remembered,
-  // for the asks THIS surface prompted. That is legitimate and stays: a surface
-  // that asked "always allow?" and was told yes should not ask again.
-  //
-  // What went is the DAEMON-GRADE half. This store used to be registered behind
-  // the `permissions.rules.*` verbs, which made it a second canonical store for
-  // rules the daemon also holds; the daemon serves those verbs now, and the
-  // registration left with the rest of the ws-only handlers. The store is typed
-  // on the graph as `UserPermissionRuleAccess` (read the rules, add one) rather
-  // than the concrete class, which is the client shape's boundary — the same
-  // Pick `PermissionManager` already took.
-  //
-  // Built through the shared free function so its path and its fail-safe
-  // background init have one implementation, not this repo's copy of one.
-  const userPermissionRuleStore = runtimeComposition.createUserPermissionRuleStore(configManager);
   // Per-device revocable pairing tokens (SDK 1.8.0, pairing.tokens.*
   // gateway verbs). Constructed exactly as the SDK composition root does,
   // same control-plane config dir as userPermissionRuleStore above, from the
@@ -1089,7 +1121,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     });
     return { agentId: record.id };
   });
-  const artifactStore = new ArtifactStore({ configManager });
   const memoryEmbeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
   // The agent no longer owns a private per-surface memory.sqlite. It opens
   // the ONE canonical cross-surface store so a fact learned here recalls in the TUI (and
@@ -1268,14 +1299,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     admitExpensiveWork,
   });
 
-  const webSearchProviders = new WebSearchProviderRegistry({
-    env: process.env,
-    serviceRegistry,
-  });
-  const webSearchService = new WebSearchService(webSearchProviders, {
-    serviceRegistry,
-    featureFlags,
-  });
   agentKnowledgeSemanticService.setGapRepairer(createWebKnowledgeGapRepairer({
     searchService: webSearchService,
     ingestService: agentKnowledgeService,
@@ -1287,15 +1310,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const mediaProviders = new MediaProviderRegistry();
   ensureBuiltinMediaProviders(mediaProviders, artifactStore, providerRegistry);
   const multimodalService = new MultimodalService(artifactStore, mediaProviders, voiceService, agentKnowledgeService);
-  const pluginManager = new PluginManager({
-    pathOptions: {
-      cwd: shellPaths.workingDirectory,
-      homeDir: shellPaths.homeDirectory,
-    },
-    stateFilePath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'plugins.json'),
-  });
-  const workflow = createWorkflowServices();
-  hookDispatcher.setTriggerManager(workflow.triggerManager);
   const channelPolicy = new ChannelPolicyManager({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'channels', 'policies.json'),
   });
@@ -1309,13 +1323,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const remoteRunnerRegistry = new RemoteRunnerRegistry(agentManager);
   const remoteSupervisor = new RemoteSupervisor(remoteRunnerRegistry);
-  const sandboxSessionRegistry = new SandboxSessionRegistry(workingDirectory);
-  const mcpRegistry = new McpRegistry({
-    hookDispatcher,
-    sandboxSessions: sandboxSessionRegistry,
-  });
-  mcpRegistry.setRuntimeBus(options.runtimeBus);
-  mcpRegistry.setSandboxRuntime(configManager, sandboxSessionRegistry);
   // featureFlags is REQUIRED here in practice, even though the SDK types it
   // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
   // omitting it did not disable managed blocking when
@@ -1337,48 +1344,18 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // the approval-alert wiring in main.ts.
   const focusTracker = new FocusTracker();
   const replayEngine = new DeterministicReplayEngine(workingDirectory);
-  const providerOptimizer = new ProviderOptimizer(providerRegistry, providerCapabilityRegistry, false);
   const sessionMemoryStore = new SessionMemoryStore();
   const sessionLineageTracker = new SessionLineageTracker();
   const sessionChangeTracker = new SessionChangeTracker();
   const planManager = new ExecutionPlanManager(workingDirectory);
   const adaptivePlanner = new AdaptivePlanner();
   const idempotencyStore = new IdempotencyStore();
-  const overflowHandler = new OverflowHandler({ baseDir: workingDirectory });
-  const policyRuntimeState = new PolicyRuntimeState();
-  // The foreground permission gate, built through the shared free function so
-  // the mapping from a background-agent attribution to the raise's
-  // routeId/metadata has ONE implementation across every composition that
-  // brokers its asks. It used to be hand-built in bootstrap-core with a local
-  // copy of half that mapping; the ask seam it rides is the client raiser above,
-  // so a permission ask now reaches the daemon like every other ask.
-  const permissionManager = runtimeComposition.createBrokeredPermissionManager({
-    requestApproval,
-    configManager,
-    policyRuntimeState,
-    hookDispatcher,
-    featureFlags,
-    userRuleStore: userPermissionRuleStore,
-  });
-  const fileCache = new FileStateCache();
-  const projectIndex = new ProjectIndex(workingDirectory);
   const channelDeliveryRouter = new ChannelDeliveryRouter({
     configManager,
     secretsManager,
     serviceRegistry,
     artifactStore,
   });
-  const processManager = new ProcessManager();
-  // featureFlags is REQUIRED here in practice, even though the SDK types it
-  // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
-  // omitting it did not disable the HITL UX mode system when
-  // behavior.hitlMode is set to 'off' — setHITLMode/setDomainVerbosity kept
-  // accepting writes either way. Threading it preserves current effective
-  // behaviour rather than changing it: behavior.hitlMode defaults to
-  // 'balanced' (not 'off'), and the hitl-ux-modes flag's own defaultState is
-  // 'enabled' — so with nothing configured the gate reads exactly as before.
-  const modeManager = new ModeManager({ featureFlags });
-  const fileUndoManager = new FileUndoManager();
   const executionLedger = new AgentExecutionLedger(options.runtimeBus);
   // Tracks which paths this session's own write/edit tools produced, so the
   // read guard can tell a file the agent just authored from someone else's
@@ -1574,9 +1551,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   appendOnlyRetentionScheduler.start();
   // External config edits apply LIVE through the same subscribe() pipeline an
   // in-process set() uses — a hand-edited settings.json needs no restart to
-  // take effect. The underlying file watchers are unref'd (SDK round), so
-  // this can never pin the process open.
-  const stopConfigWatch = configManager.watchConfigFiles(); // handle kept: dropping it is what left a 250ms poll running forever
+  // take effect. The underlying file watchers are unref'd, so this can never
+  // pin the process open.
+  //
+  // The watch is STARTED by the client floor (createClientRuntimeServices calls
+  // watchConfigFiles() and holds the handle in its own disposal scope). Named
+  // here because the poller contract below is all-required and must still be
+  // able to stop it: `watchConfigFiles()` returns exactly
+  // `() => stopWatchingConfigFiles()`, so this is the same stop, reached
+  // through the manager's public method rather than through a handle this
+  // composition no longer takes.
+  const stopConfigWatch = (): void => { configManager.stopWatchingConfigFiles(); };
   const codeIndexReindexScheduler = new CodeIndexReindexScheduler({
     target: codeIndexStore,
     workingDirectory,
@@ -1789,13 +1774,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       return workspaceCheckpointManager.create(sessionId ? { ...opts, sessionId } : opts);
     },
   };
-
-  // Live-turn controls holder (SDK round: sessions.toolCalls.cancel,
-  // sessions.queuedMessages.list/edit/delete). Empty until an interactive
-  // consumer binds a real Orchestrator into it (see bootstrap.ts, right after
-  // this repo's own Orchestrator is constructed) — until then the verbs
-  // refuse honestly (LIVE_TURN_CONTROLS_UNAVAILABLE), never fake a result.
-  const sessionLiveTurnControls = new SessionLiveTurnControlsHolder();
 
   // Idle-time + slow-schedule memory consolidation, constructed the way the
   // SDK's own RuntimeServices composition root constructs it (platform/
@@ -2041,7 +2019,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     asDaemonGradeView: (): SdkRuntimeServices => ({
       ...graph,
       sessionBroker: automationSessionRegister,
-      userPermissionRuleStore,
+      // The floor builds this through the same `createUserPermissionRuleStore`
+      // this composition used to call, so the OBJECT is the concrete store; the
+      // client shape names it by the narrow `UserPermissionRuleAccess` (read
+      // the rules, add one) because that is all a surface owes. The daemon-grade
+      // view asks for the concrete class, so the widening is stated here rather
+      // than by keeping a second store over the same file — which is the
+      // second-writer hazard the split exists to end.
+      userPermissionRuleStore: userPermissionRuleStore as ReturnType<typeof runtimeComposition.createUserPermissionRuleStore>,
     }),
     // The REAL SDK memory-governance instances composed above (governor
     // constructed + started by wireDaemonMemoryGovernance). The SDK's
