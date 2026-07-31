@@ -63,6 +63,13 @@ describe('new runtime event domains', () => {
       // this domain (see src/test/runtime/fleet-attention.test.ts for the
       // needs-input attention behavior this enables).
       'fleet',
+      // SDK 1.21.0 adds the config domain: in-process settings changes become
+      // key-level events, so a client whose settings live in the daemon gets
+      // live change notices instead of polling for them. Verb-side, and the
+      // daemon is what attaches the emit bridge — this surface reads the
+      // notices rather than producing them, so the vocabulary is all it needs
+      // from this row.
+      'config',
     ]);
     expect(isRuntimeEventDomain('agents')).toBe(true);
     expect(isRuntimeEventDomain('not-a-domain')).toBe(false);
