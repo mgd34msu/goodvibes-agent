@@ -1,7 +1,7 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ModelDefinition, ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
-import type { Orchestrator, OrchestratorUserInputOptions } from '../core/orchestrator.ts';
+import type { Orchestrator, OrchestratorUserInputOptions } from '@pellux/goodvibes-sdk/platform/core';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 
 const SPOKEN_TURN_SOURCE = 'tts';

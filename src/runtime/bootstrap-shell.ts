@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { ConversationManager } from '../core/conversation';
-import type { Orchestrator } from '../core/orchestrator';
+import type { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { RuntimeEventBus } from '@/runtime/index.ts';
 import type { MutableRuntimeState } from '@/runtime/index.ts';

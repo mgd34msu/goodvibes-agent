@@ -70,7 +70,7 @@ describe('Orchestrator', () => {
   });
 
   async function buildOrchestrator(renderRequest: (() => void) | null = null) {
-    const { Orchestrator } = await import('../../core/orchestrator.ts');
+    const { Orchestrator } = await import('@pellux/goodvibes-sdk/platform/core');
     const { ConversationManager } = await import('../../core/conversation.ts');
     const cm = new ConversationManager(() => 80, configManager);
     const policyRuntimeState = new PolicyRuntimeState();
@@ -99,7 +99,7 @@ describe('Orchestrator', () => {
   }
 
   async function buildOrchestratorWithHooks(hookDispatcher: HookDispatcher) {
-    const { Orchestrator } = await import('../../core/orchestrator.ts');
+    const { Orchestrator } = await import('@pellux/goodvibes-sdk/platform/core');
     const { ConversationManager } = await import('../../core/conversation.ts');
     const cm = new ConversationManager(() => 80, configManager);
     const policyRuntimeState = new PolicyRuntimeState();
