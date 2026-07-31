@@ -71,7 +71,7 @@ describe('Agent user-first autonomy policy', () => {
     const sessionId = 'session-agent-policy';
     services.hostedSessions.adopt(sessionId);
 
-    const delivered: Array<{ sessionId: string; inputId: string; consumed: boolean | undefined }> = [];
+    const delivered: Array<{ sessionId: string; inputId: string; consumed: boolean | undefined; agentId: string | undefined }> = [];
     let served = false;
     services.sessionBroker.activate({
       async listInputs(id) {
@@ -92,7 +92,7 @@ describe('Agent user-first autonomy policy', () => {
         };
       },
       async deliverInput(id, inputId, options) {
-        delivered.push({ sessionId: id, inputId, consumed: options?.consumed });
+        delivered.push({ sessionId: id, inputId, consumed: options?.consumed, agentId: options?.agentId });
         return {};
       },
     });
@@ -103,10 +103,18 @@ describe('Agent user-first autonomy policy', () => {
     const deadline = Date.now() + 8_000;
     while (delivered.length === 0 && Date.now() < deadline) await Bun.sleep(50);
 
-    expect(delivered).toEqual([{ sessionId, inputId: 'input-1', consumed: true }]);
     const spawned = services.agentManager.list().find((record) => record.task.includes('Build the thing'));
     expect(spawned).toBeTruthy();
     expect(spawned!.id).toMatch(/^agent-/);
+    // Collected, and the run that will answer it is named. The naming is not
+    // bookkeeping: it is the reply binding, and it is what lets an answer
+    // produced HERE reach a conversation that arrived over a channel. The
+    // consumed acknowledgement comes later, when the run ends, carrying what
+    // it said — so a single `consumed: true` here would mean the answer was
+    // claimed before it existed.
+    expect(delivered).toEqual([
+      { sessionId, inputId: 'input-1', consumed: undefined, agentId: spawned!.id },
+    ]);
     services.dispose();
   }, 10_000);
 
