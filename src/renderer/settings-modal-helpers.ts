@@ -113,6 +113,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   mcp: 'MCP',
   surfaces: 'Channels',
   conversationGate: 'Channel Message Handling',
+  hostedSessions: 'Daemon-Hosted Conversations',
   release: 'Update Channel',
   tools: 'Tools',
   flags: 'Feature Controls',
