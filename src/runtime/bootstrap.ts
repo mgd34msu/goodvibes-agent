@@ -15,7 +15,7 @@ import { collectStartupAnnouncements } from '@pellux/goodvibes-sdk/platform/runt
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHistory } from '../input/input-history.ts';
-import type { SelectionManager } from '../input/selection.ts';
+import type { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import type { Compositor } from '../renderer/compositor.ts';
 
 import type { RuntimeContext, BootstrapOptions } from './context.ts';

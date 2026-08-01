@@ -8,7 +8,7 @@ import { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
 import { createTranscriptNavigators } from './shell/transcript-navigation.ts';
 import { InputHandler } from './input/handler.ts';
-import { SelectionManager } from './input/selection.ts';
+import { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';

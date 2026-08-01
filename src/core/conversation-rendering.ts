@@ -13,7 +13,7 @@ import { renderConversationCollapsedFragment, renderConversationEventLine } from
 import { GLYPHS } from '../renderer/ui-primitives.ts';
 import { activeTheme } from '../renderer/theme.ts';
 import { countExpandedToolResultLines, isDiffContent, renderExpandedToolResultLines } from '../renderer/tool-result-expanded-lines.ts';
-import { drawTreeRails, treeIndentCols, treeTextCol } from '../renderer/conversation-tree.ts';
+import { drawTreeRails, treeIndentCols, treeTextCol } from '@pellux/goodvibes-terminal-shell';
 import {
   MAX_NEST_DEPTH,
   buildRenderPlan,

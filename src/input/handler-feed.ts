@@ -1,5 +1,5 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
-import type { InfiniteBuffer } from '../core/history.ts';
+import type { InfiniteBuffer } from '@pellux/goodvibes-terminal-shell';
 import type { CommandContext, CommandRegistry } from './command-registry.ts';
 import { AutocompleteEngine } from './autocomplete.ts';
 import { FilePickerModal } from './file-picker.ts';
@@ -34,7 +34,7 @@ import type { WrappedPromptInfo } from './handler-prompt-buffer.ts';
 import { handleModalTokenRoutes } from './handler-modal-token-routes.ts';
 import { handleCommandModeToken } from './handler-command-route.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
-import { SelectionManager } from './selection.ts';
+import { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
 import { trackPanelPasteFloodGuard, type PanelBurstGuardState } from './panel-paste-flood-guard.ts';

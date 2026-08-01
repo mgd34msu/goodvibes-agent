@@ -1,13 +1,13 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, relative } from 'node:path';
 import { copyToClipboard, pasteFromClipboard, pasteImageFromClipboard } from '../utils/clipboard.ts';
-import type { InfiniteBuffer } from '../core/history.ts';
+import type { InfiniteBuffer } from '@pellux/goodvibes-terminal-shell';
 import type { ConversationManager } from '../core/conversation';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
 import type { BookmarkManager } from '@pellux/goodvibes-sdk/platform/bookmarks';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
-import type { SelectionManager } from './selection.ts';
+import type { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 
 export const MARKER_REGEX = /\[(TEXT|IMAGE): [^\]]+\]/g;

@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname } from 'node:path';
 import { InputTokenizer } from '@pellux/goodvibes-sdk/platform/core';
 import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleEscapeForHandler, modalOpenedForHandler, registerPasteForHandler } from './handler-interactions.ts';
-import { SelectionManager } from './selection.ts';
-import type { InfiniteBuffer } from '../core/history.ts';
+import { SelectionManager } from '@pellux/goodvibes-terminal-shell';
+import type { InfiniteBuffer } from '@pellux/goodvibes-terminal-shell';
 import type { CommandRegistry, CommandContext } from './command-registry.ts';
 import { AutocompleteEngine } from './autocomplete.ts';
 import { FilePickerModal } from './file-picker.ts';

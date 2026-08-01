@@ -22,7 +22,7 @@
 import { describe, test, expect } from 'bun:test';
 import { ConversationManager } from '../../core/conversation';
 import { renderExpandedToolResultLines } from '../../renderer/tool-result-expanded-lines.ts';
-import { treeBranchCol } from '../../renderer/conversation-tree.ts';
+import { treeBranchCol } from '@pellux/goodvibes-terminal-shell';
 
 const WIDTH = 100;
 

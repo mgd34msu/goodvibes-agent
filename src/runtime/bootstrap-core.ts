@@ -1,6 +1,6 @@
 import { ConversationManager } from '../core/conversation';
 import { registerSessionConversation } from './conversation-rewind-port.ts';
-import { SelectionManager } from '../input/selection.ts';
+import { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { ConfigManager, getConfiguredSystemPrompt } from '../config/index.ts';
 import { buildAgentConfigRouting, installAgentDaemonConfigClient } from '../config/daemon-config-routing.ts';

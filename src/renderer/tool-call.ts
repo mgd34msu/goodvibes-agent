@@ -6,7 +6,7 @@ import { stripDangerousAnsi } from '@pellux/goodvibes-terminal-shell';
 import { friendlyToolLabel } from './tool-labels.ts';
 import { activeUiTones } from './theme.ts';
 import { GLYPHS } from '@pellux/goodvibes-sdk/platform/presentation';
-import { treeContentCol, treeTextCol, writeTreeStatusMarker } from './conversation-tree.ts';
+import { treeContentCol, treeTextCol, writeTreeStatusMarker } from '@pellux/goodvibes-terminal-shell';
 
 const TOOL_NAME_MIN_WIDTH = 8;
 const TOOL_NAME_MAX_WIDTH = 30;
