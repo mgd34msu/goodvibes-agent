@@ -64,7 +64,7 @@ Mail runs over IMAP/SMTP with an app password, which is not an OAuth grant at al
 
 `calendar.events` rather than full `calendar` because it grants event read and write without also granting calendar-list management. Both are sensitive, so nothing is gained by the wider one.
 
-A test in `src/test/agent/google/google-setup-flow.test.ts` fails the build if a restricted Gmail scope is ever added to the requested set, so this cannot drift silently.
+The scope list itself now lives in the platform runtime's Google setup plan (`OAUTH_SCOPES`, deliberately just the one entry, deliberately not a Gmail scope), not in this repository, so this cannot drift silently on this side either.
 
 ### What is given up
 
@@ -87,7 +87,7 @@ Confirmed by direct probe: a `PROPFIND` with Basic credentials against `apidata.
 
 So an app password cannot reach Google Calendar over CalDAV, however it is configured. The app-password path uses the **private iCal address** instead, which needs no credential setup and is read-only. Calendar *writes* are the reason the OAuth path exists.
 
-The CalDAV client in this codebase is still real and still used — it speaks Basic auth for providers that permit it (Fastmail, iCloud, Nextcloud) and Bearer auth for those that require OAuth. It is only Google-plus-app-password that is impossible.
+The CalDAV client the connected daemon uses for other providers (`surfaces.calendar.*` config) is still real and still used — it speaks Basic auth for providers that permit it (Fastmail, iCloud, Nextcloud) and Bearer auth for those that require OAuth. It is only Google-plus-app-password that is impossible.
 
 ## Shipping a client secret: not applicable here, but worth recording
 
