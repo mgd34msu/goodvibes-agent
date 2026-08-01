@@ -25,14 +25,31 @@ import {
 } from '../../runtime/daemon-build-compatibility.ts';
 
 describe('the floor this product declares', () => {
-  test('is unset, which the SDK reads as asking for nothing', () => {
+  test('is 1.28.0, the daemon/TUI product-split breaking change', () => {
     // Deliberate. Raising it costs every operator on an older daemon a forced
     // update, so the number is an owner decision with a release note, not
     // something to infer. This test exists so changing it is a conscious act.
-    expect(AGENT_DAEMON_BUILD_FLOOR).toBeUndefined();
+    expect(AGENT_DAEMON_BUILD_FLOOR).toBe('1.28.0');
+  });
 
+  test('a daemon below 1.28.0 is refused, through the constant this build actually declares', () => {
     const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
-    expect(guard.observeStatus({ status: 'running', version: '0.0.1' }).status).toBe('ok');
+
+    const verdict = guard.observeStatus({ status: 'running', version: '1.27.1' });
+
+    expect(verdict.status).toBe('daemon-update-required');
+    expect(verdict.message).toContain('1.27.1');
+    expect(verdict.message).toContain('1.28.0');
+    expect(guard.mayUseDaemonCapabilities()).toBe(false);
+  });
+
+  test('a daemon at or above 1.28.0 is accepted, through the constant this build actually declares', () => {
+    const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
+
+    const verdict = guard.observeStatus({ status: 'running', version: '1.28.0' });
+
+    expect(verdict.status).toBe('ok');
+    expect(guard.mayUseDaemonCapabilities()).toBe(true);
   });
 });
 

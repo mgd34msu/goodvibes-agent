@@ -21,20 +21,24 @@
  *
  * ON THE FLOOR VALUE
  *
- * `AGENT_DAEMON_BUILD_FLOOR` is deliberately unset. The SDK is explicit that
- * the floor belongs to the consumer, not the platform: "the TUI, the agent and
- * the web UI need different daemon behaviors at different times, and a single
+ * `AGENT_DAEMON_BUILD_FLOOR` is '1.28.0'. The SDK is explicit that the floor
+ * belongs to the consumer, not the platform: "the TUI, the agent and the web
+ * UI need different daemon behaviors at different times, and a single
  * SDK-wide constant would either over-refuse for one of them or under-refuse
  * for another. Each consumer passes its own and states, in its own release
  * notes, what it raised the floor for."
  *
- * Raising it costs every operator running an older daemon a forced update, so
- * the number is a decision with a release note attached rather than something
- * to infer. Unset is a supported, meaningful state — the SDK reads it as this
- * client not asking for anything — and it is the honest one until there is a
- * specific daemon behavior this Agent build refuses to run without. The
- * mechanism below is live either way: set the constant, and the check, the
- * latch and the notification all start working with no other change.
+ * This is a breaking change: the daemon is its own product, with its own
+ * repository, package and release line, separate from the embedded topology
+ * this Agent built and shipped alongside itself before that split. A daemon
+ * build below 1.28.0 belongs to that earlier topology. Once this Agent
+ * observes one, the owner is told exactly once that it needs updating —
+ * naming both versions, in this repository's CHANGELOG and release notes,
+ * because raising the floor costs every operator on an older daemon that
+ * notice and a forced update, so the number is a decision with a release
+ * note attached rather than something to infer. The mechanism below is live
+ * either way: set the constant, and the check, the latch and the
+ * notification all start working with no other change.
  */
 
 import {
@@ -49,7 +53,7 @@ export { evaluateDaemonStatusCompatibility };
  * The oldest daemon build this Agent will work against, or undefined for "this
  * client is not asking for anything". See the note above before changing it.
  */
-export const AGENT_DAEMON_BUILD_FLOOR: string | undefined = undefined;
+export const AGENT_DAEMON_BUILD_FLOOR: string | undefined = '1.28.0';
 
 export interface DaemonBuildGuardOptions {
   /** The floor this client declares. Undefined means it declares none. */

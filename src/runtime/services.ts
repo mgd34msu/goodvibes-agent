@@ -1161,8 +1161,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // up as one call returning 400 or 404, which reads as a broken feature rather
   // than as an old daemon — so the build is checked once per attach and the
   // owner is told in the same feed the forward guard uses. The floor this
-  // product declares is currently unset; see runtime/daemon-build-compatibility.ts
-  // for why that is a decision with a release note attached.
+  // product declares is '1.28.0', the daemon/TUI product-split breaking
+  // change; see runtime/daemon-build-compatibility.ts for why that is a
+  // decision with a release note attached.
   const daemonBuildGuard = new DaemonBuildGuard({
     floor: AGENT_DAEMON_BUILD_FLOOR,
     onDaemonUpdateRequired: (verdict) => {
