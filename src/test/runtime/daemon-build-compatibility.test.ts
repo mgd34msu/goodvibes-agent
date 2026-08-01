@@ -32,23 +32,90 @@ describe('the floor this product declares', () => {
     expect(AGENT_DAEMON_BUILD_FLOOR).toBe('1.28.0');
   });
 
-  test('a daemon below 1.28.0 is refused, through the constant this build actually declares', () => {
-    const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
+  test('a daemon below 1.28.0 is refused adoption, through the constant this build actually declares', () => {
+    const notices: string[] = [];
+    const guard = new DaemonBuildGuard({
+      floor: AGENT_DAEMON_BUILD_FLOOR,
+      onDaemonUpdateRequired: (verdict) => { notices.push(verdict.message); },
+    });
 
-    const verdict = guard.observeStatus({ status: 'running', version: '1.27.1' });
+    // The question the adoption path actually asks.
+    const verdict = guard.judgeForAdoption({ status: 'running', version: '1.27.1' });
 
     expect(verdict.status).toBe('daemon-update-required');
     expect(verdict.message).toContain('1.27.1');
     expect(verdict.message).toContain('1.28.0');
+    // Refused, not merely noted: this is what leaves the spine local.
     expect(guard.mayUseDaemonCapabilities()).toBe(false);
+    expect(notices).toHaveLength(1);
   });
 
-  test('a daemon at or above 1.28.0 is accepted, through the constant this build actually declares', () => {
+  test('a daemon at or above 1.28.0 is adopted, through the constant this build actually declares', () => {
     const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
 
-    const verdict = guard.observeStatus({ status: 'running', version: '1.28.0' });
+    const verdict = guard.judgeForAdoption({ status: 'running', version: '1.28.0' });
 
     expect(verdict.status).toBe('ok');
+    expect(guard.mayUseDaemonCapabilities()).toBe(true);
+  });
+});
+
+describe('judging for adoption, as the adoption path does', () => {
+  test('an updated daemon is adoptable again — the refusal does not latch against a real newer build', () => {
+    const guard = new DaemonBuildGuard({ floor: '1.28.0' });
+
+    expect(guard.judgeForAdoption({ version: '1.27.1' }).status).toBe('daemon-update-required');
+    expect(guard.mayUseDaemonCapabilities()).toBe(false);
+
+    // The operator updates the daemon. The next adoption attempt must be able
+    // to say yes — a latch here would strand the process on a fixed daemon.
+    expect(guard.judgeForAdoption({ version: '1.28.0' }).status).toBe('ok');
+    expect(guard.mayUseDaemonCapabilities()).toBe(true);
+  });
+
+  test('a daemon that goes back below the floor is announced again', () => {
+    const notices: string[] = [];
+    const guard = new DaemonBuildGuard({
+      floor: '1.28.0',
+      onDaemonUpdateRequired: (verdict) => { notices.push(verdict.message); },
+    });
+
+    guard.judgeForAdoption({ version: '1.27.1' });
+    guard.judgeForAdoption({ version: '1.28.0' });
+    // A different, older daemon now answers on the same address.
+    guard.judgeForAdoption({ version: '1.26.0' });
+
+    expect(notices).toHaveLength(2);
+    expect(notices[1]).toContain('1.26.0');
+  });
+
+  test('repeated attempts against the same old daemon say it once', () => {
+    const notices: string[] = [];
+    const guard = new DaemonBuildGuard({
+      floor: '1.28.0',
+      onDaemonUpdateRequired: (verdict) => { notices.push(verdict.message); },
+    });
+
+    // The reconciler retries every heartbeat while the daemon stays refused.
+    guard.judgeForAdoption({ version: '1.27.1' });
+    guard.judgeForAdoption({ version: '1.27.1' });
+    guard.judgeForAdoption({ version: '1.27.1' });
+
+    expect(notices).toHaveLength(1);
+  });
+
+  test('an unreadable body is unknown, not ok — but unknown does not refuse adoption', () => {
+    const guard = new DaemonBuildGuard({ floor: '1.28.0' });
+
+    const verdict = guard.judgeForAdoption({ status: 'running' });
+
+    // A peer that cannot prove its build is not reported as fine...
+    expect(verdict.status).not.toBe('ok');
+    // ...but it is still adopted. Only a POSITIVE reading of a too-old build
+    // refuses. Refusing on an unreadable answer would turn one truncated
+    // response into a lost adoption, which is the reachability probe's question
+    // to answer, not the floor's.
+    expect(verdict.status).not.toBe('daemon-update-required');
     expect(guard.mayUseDaemonCapabilities()).toBe(true);
   });
 });
@@ -178,5 +245,69 @@ describe('reading the daemon build off /status', () => {
 
     expect(guard.current().status).toBe('ok');
     expect(guard.current().daemonVersion).toBeUndefined();
+  });
+});
+
+/**
+ * The composed gate: /status read + verdict -> adopt or refuse.
+ *
+ * Mirrors services.mayAdoptDaemonBuild rather than constructing the whole
+ * services graph, the same way daemon-receipts.test.ts mirrors
+ * services.consumeDaemonReceipts. What it proves is the composition the
+ * reconciler depends on: which readings refuse, and which do not.
+ */
+describe('the adoption gate as services composes it', () => {
+  function gate(guard: DaemonBuildGuard, fetchImpl: typeof fetch) {
+    return async (): Promise<boolean> => {
+      const status = await readDaemonStatusPayload({ baseUrl: 'http://127.0.0.1:3421', token: null }, { fetchImpl });
+      if (status === null) return true;
+      return guard.judgeForAdoption(status, 'http://127.0.0.1:3421').status !== 'daemon-update-required';
+    };
+  }
+
+  const respond = (body: unknown): typeof fetch => (async () => new Response(JSON.stringify(body), {
+    status: 200, headers: { 'content-type': 'application/json' },
+  })) as unknown as typeof fetch;
+
+  test('a daemon below the floor refuses adoption and names both versions once', async () => {
+    const notices: string[] = [];
+    const guard = new DaemonBuildGuard({
+      floor: AGENT_DAEMON_BUILD_FLOOR,
+      onDaemonUpdateRequired: (verdict) => { notices.push(verdict.message); },
+    });
+
+    expect(await gate(guard, respond({ status: 'running', version: '1.27.1' }))()).toBe(false);
+
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('1.27.1');
+    expect(notices[0]).toContain('1.28.0');
+  });
+
+  test('a daemon at the floor adopts', async () => {
+    const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
+    expect(await gate(guard, respond({ status: 'running', version: '1.28.0' }))()).toBe(true);
+  });
+
+  test('an unreachable daemon adopts — a dropped read is not evidence of an old build', async () => {
+    const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
+    const failing = (async () => { throw new Error('ECONNREFUSED'); }) as unknown as typeof fetch;
+
+    // Refusing here would turn one failed request into a lost adoption. Whether
+    // a daemon is answering at all is the reachability probe's question.
+    expect(await gate(guard, failing)()).toBe(true);
+  });
+
+  test('a non-200 /status adopts, for the same reason', async () => {
+    const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
+    const serverError = (async () => new Response('nope', { status: 500 })) as unknown as typeof fetch;
+    expect(await gate(guard, serverError)()).toBe(true);
+  });
+
+  test('an updated daemon flips the gate back to adopt without restarting the process', async () => {
+    const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
+
+    expect(await gate(guard, respond({ version: '1.27.1' }))()).toBe(false);
+    expect(await gate(guard, respond({ version: '1.28.3' }))()).toBe(true);
+    expect(guard.mayUseDaemonCapabilities()).toBe(true);
   });
 });

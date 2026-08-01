@@ -584,6 +584,10 @@ export async function bootstrapRuntime(
     memorySpineClient: services.memorySpineClient,
     transport: services.memorySpineTransport,
     probeReachability: () => services.sessionSpineClient.probeReachability(),
+    // Reachable is not usable: a daemon below this build's floor is refused here,
+    // so nothing activates and the spine keeps its local store. Re-asked per
+    // attempt, so a daemon updated mid-session is adopted on the next tick.
+    mayAdopt: () => services.mayAdoptDaemonBuild(),
     // One consuming /status read per attach: a current daemon delivers its
     // one-shot honesty receipts ("restarted after a crash at HH:MM", "updated
     // from X to Y") only to a ?receipts=consume read, and this adoption edge is

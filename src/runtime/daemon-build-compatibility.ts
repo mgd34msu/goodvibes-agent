@@ -31,14 +31,20 @@
  * This is a breaking change: the daemon is its own product, with its own
  * repository, package and release line, separate from the embedded topology
  * this Agent built and shipped alongside itself before that split. A daemon
- * build below 1.28.0 belongs to that earlier topology. Once this Agent
- * observes one, the owner is told exactly once that it needs updating —
- * naming both versions, in this repository's CHANGELOG and release notes,
- * because raising the floor costs every operator on an older daemon that
- * notice and a forced update, so the number is a decision with a release
- * note attached rather than something to infer. The mechanism below is live
- * either way: set the constant, and the check, the latch and the
- * notification all start working with no other change.
+ * build below 1.28.0 belongs to that earlier topology.
+ *
+ * The floor REFUSES, it does not merely warn. A daemon below it is not adopted:
+ * `judgeForAdoption` is asked before the memory spine activates, and a
+ * below-floor answer means the spine stays on its local store, the inbound
+ * continuation dispatch never binds, and every daemon-dependent path takes the
+ * same route it takes when no daemon is configured at all — plus one notice
+ * naming both versions. Half-adopting an old daemon is the state this exists to
+ * prevent, so the refusal is at adoption, which is the single place adoption is
+ * decided, rather than at each capability's call site.
+ *
+ * The owner is told exactly once, naming both versions, and the number is
+ * recorded in this repository's CHANGELOG and release notes because raising the
+ * floor costs every operator on an older daemon that notice and a forced update.
  */
 
 import {
@@ -106,7 +112,44 @@ export class DaemonBuildGuard {
     return next;
   }
 
-  /** False once the attached daemon has been judged too old for this build. */
+  /**
+   * Judge a freshly-read `/status` for the ADOPTION decision.
+   *
+   * Unlatched, unlike `observeStatus`, and deliberately so: a daemon CAN become
+   * new enough while this process runs — that is exactly what a daemon update
+   * does — and the attach that sees the newer build has to be allowed to adopt
+   * it. The latch exists to stop an UNREADABLE later read from clearing a
+   * finding; a read that positively reports a new-enough build is not that, so
+   * it clears the finding and re-arms the notice for a future refusal.
+   *
+   * `observeStatus` keeps its latched behaviour for the capability verdict.
+   * This is the one the adoption path calls.
+   */
+  judgeForAdoption(statusPayload: unknown, daemonLabel?: string): DaemonCompatibilityVerdict {
+    const next = evaluateDaemonStatusCompatibility(statusPayload, this.options.floor, daemonLabel);
+    this.verdict = next;
+    if (next.status === 'daemon-update-required') {
+      if (!this.announced) {
+        this.announced = true;
+        this.options.onDaemonUpdateRequired?.(next);
+      }
+      return next;
+    }
+    // A daemon that now meets the floor is a different situation from the one
+    // that was announced, so the next refusal gets to speak again.
+    this.announced = false;
+    return next;
+  }
+
+  /**
+   * False once the attached daemon has been judged too old for this build.
+   *
+   * This is what the adoption path asks before routing anything over the wire:
+   * a daemon below the floor is not adopted at all, so the spine stays local and
+   * the daemon-dependent services take the same path they take when no daemon is
+   * configured. It is not a per-capability question asked at each call site —
+   * adoption is the single choke point.
+   */
   mayUseDaemonCapabilities(): boolean {
     return this.verdict.status !== 'daemon-update-required';
   }

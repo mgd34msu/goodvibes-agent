@@ -607,6 +607,21 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    */
   readonly consumeDaemonReceipts: () => Promise<void>;
   /**
+   * May the daemon answering right now be adopted by this build?
+   *
+   * Reads `/status` for the daemon's version and judges it against this
+   * product's build floor. False means the daemon is too old to serve what this
+   * build depends on, and the adoption reconciler leaves the memory spine local
+   * and the inbound dispatch unbound — the same state as no daemon at all — plus
+   * one notice naming both versions.
+   *
+   * True when nothing could be read. An unreachable or truncated `/status` is
+   * not evidence of an old daemon, and refusing on a dropped request would turn
+   * one failed read into a lost adoption; a daemon that is not answering is the
+   * reachability probe's business, not the floor's.
+   */
+  readonly mayAdoptDaemonBuild: () => Promise<boolean>;
+  /**
    * Local idle-time memory-consolidation run receipts, one honest one-line
    * summary per run with something to report — rendered through the SAME
    * attach-time-notice idiom as {@link daemonReceiptFeed} (buffered until a
@@ -1174,6 +1189,19 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       daemonReceiptFeed.push([{ id: `daemon-build-floor:${verdict.floor ?? 'unknown'}`, text: verdict.message, at: Date.now() }]);
     },
   });
+  // The adoption gate. Asked on the adoption edge, before anything routes over
+  // the wire, so a daemon below the floor is refused rather than half-used.
+  // Its own plain /status read: the receipt-consuming read below has a side
+  // effect (the daemon serves each receipt once) and must not be what decides
+  // adoption, and it only runs AFTER a daemon has been adopted anyway.
+  const mayAdoptDaemonBuild = async (): Promise<boolean> => {
+    const connection = spineResolveConnection();
+    const status = await readDaemonStatusPayload(connection);
+    // Nothing read, nothing known — adopt, and leave a daemon that is not
+    // answering to the reachability handling that owns that question.
+    if (status === null) return true;
+    return daemonBuildGuard.judgeForAdoption(status, connection.baseUrl).status !== 'daemon-update-required';
+  };
   const consumeDaemonReceipts = async (): Promise<void> => {
     // Same attach, two reads of the same route: the consuming one that collects
     // the daemon's one-shot receipts, and a plain one for the build it is
@@ -2248,6 +2276,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     sessionSpine: sessionSpineClient,
     daemonReceiptFeed,
     consumeDaemonReceipts,
+    mayAdoptDaemonBuild,
     memoryConsolidationReceiptFeed,
     memoryConsolidationScheduler,
     powerManager,

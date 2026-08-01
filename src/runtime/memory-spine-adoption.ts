@@ -23,6 +23,23 @@ export interface MemorySpineAdoptionOptions {
   readonly probeReachability: () => Promise<'unknown' | 'online' | 'offline'>;
   readonly deactivateReason?: string;
   /**
+   * Asked on the adoption edge, after reachability and before anything routes
+   * over the wire: may this daemon be adopted at all?
+   *
+   * The agent wires this to the daemon build floor. A daemon older than the
+   * floor answers some of the verbs this build depends on and not others, and
+   * adopting it produces a half-working state where one call returns 404 and
+   * reads as a broken feature rather than as an old daemon. Answering false
+   * here means the daemon is NOT adopted: the memory spine stays on its local
+   * store and the inbound dispatch never binds, which is exactly the path taken
+   * when no daemon is configured.
+   *
+   * Absent means adopt on reachability alone. It is asked on every adoption
+   * attempt rather than cached, so a daemon updated mid-session is adopted on
+   * the next reconcile with nothing to reset.
+   */
+  readonly mayAdopt?: () => boolean | Promise<boolean>;
+  /**
    * Called exactly on the transition INTO adoption (reachable AND not yet
    * active) — i.e. once per (re)attach to a daemon, at boot and again whenever a
    * daemon reappears after a loss. The agent wires this to the single
@@ -47,9 +64,12 @@ export interface MemorySpineAdoptionOptions {
 
 /**
  * Runs one reachability check and adopts/releases the daemon accordingly:
- *  - reachable AND not yet active -> activate(transport) (adopt the daemon; every
- *    wire-covered memory op now routes over HTTP and the local store is never
- *    written again, for as long as this holds).
+ *  - reachable AND not yet active AND `mayAdopt` allows it -> activate(transport)
+ *    (adopt the daemon; every wire-covered memory op now routes over HTTP and the
+ *    local store is never written again, for as long as this holds).
+ *  - reachable AND not yet active AND `mayAdopt` REFUSES -> nothing happens: no
+ *    activation, no attach edge, no dispatch binding. A daemon that is there but
+ *    refused leaves this process in the same state as no daemon at all.
  *  - NOT reachable AND currently active -> deactivate(reason) (hand back to owned
  *    local access — a sustained daemon loss, never guessed from a single call
  *    failure elsewhere; see memory-spine/client.ts's honest-failure contract).
@@ -62,6 +82,11 @@ export interface MemorySpineAdoptionOptions {
 export async function reconcileMemorySpineAdoption(options: MemorySpineAdoptionOptions): Promise<void> {
   const reachable = (await options.probeReachability()) === 'online';
   if (reachable && !options.memorySpineClient.active) {
+    // Reachable is not the same as usable. A daemon this build refuses (too old
+    // to serve what it depends on) is left exactly where an absent daemon leaves
+    // things: local store, no wire, no dispatch binding. Asked before activate()
+    // so nothing routes over the wire first and gets pulled back.
+    if (options.mayAdopt && !(await options.mayAdopt())) return;
     options.memorySpineClient.activate(options.transport);
     if (options.onAttach) {
       // Adoption already happened synchronously above; a receipt-read failure
