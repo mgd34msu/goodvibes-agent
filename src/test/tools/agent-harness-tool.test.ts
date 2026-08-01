@@ -3550,8 +3550,12 @@ describe('agent_harness tool', () => {
       // inspecting the schema before any mailbox is claimed.
       expect(missingIntake.preferred.status).toBe('ready');
       expect(missingIntake.preferred.modelRoute).toContain('host action:"methods"');
-      // Every inspect route names a real, dispatchable method now.
-      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('host action:"method" methodId:"email.inbox.list"');
+      // Every inspect route names a real, dispatchable method now. The
+      // unified inbox verb (channels.inbox.list — it merges Slack/Discord/
+      // email threads into one feed, see src/agent/unified-inbox.ts) sorts
+      // first alphabetically among the matched email-lane methods, ahead of
+      // email.inbox.list itself.
+      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('host action:"method" methodId:"channels.inbox.list"');
       // Nothing is missing to INSPECT any more: the method exists. The card
       // reports no missing field rather than naming one it no longer needs.
       expect(missingIntake.preferred.missingFields ?? []).toEqual([]);

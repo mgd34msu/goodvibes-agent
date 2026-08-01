@@ -108,13 +108,25 @@ describe('Agent user-first autonomy policy', () => {
     expect(spawned!.id).toMatch(/^agent-/);
     // Collected, and the run that will answer it is named. The naming is not
     // bookkeeping: it is the reply binding, and it is what lets an answer
-    // produced HERE reach a conversation that arrived over a channel. The
-    // consumed acknowledgement comes later, when the run ends, carrying what
-    // it said — so a single `consumed: true` here would mean the answer was
-    // claimed before it existed.
-    expect(delivered).toEqual([
-      { sessionId, inputId: 'input-1', consumed: undefined, agentId: spawned!.id },
-    ]);
+    // produced HERE reach a conversation that arrived over a channel.
+    //
+    // The dispatcher's own tick drains the session AND reports finished
+    // answers in the same pass (session-dispatch.js's `tick`), so a run fast
+    // enough to reach a terminal state before that pass ends is acknowledged
+    // twice on one poll: once on dispatch (`consumed: undefined`, binding the
+    // reply) and once on completion (`consumed: true`, carrying the answer).
+    // Locally the run is not usually done yet when this happens; how quickly
+    // it finishes is a race, not a contract, so this asserts the one
+    // guarantee this test is actually for — the dispatch-time delivery that
+    // binds the reply — by membership rather than requiring the array to
+    // stop at exactly one entry.
+    expect(delivered.length).toBeGreaterThanOrEqual(1);
+    for (const entry of delivered) {
+      expect(entry.sessionId).toBe(sessionId);
+      expect(entry.inputId).toBe('input-1');
+    }
+    const dispatchDelivery = delivered.find((entry) => entry.consumed === undefined);
+    expect(dispatchDelivery).toEqual({ sessionId, inputId: 'input-1', consumed: undefined, agentId: spawned!.id });
     services.dispose();
   }, 10_000);
 
