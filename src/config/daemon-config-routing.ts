@@ -14,11 +14,12 @@
  *   - a user-level key (`tts.*`, `provider.model`, `provider.reasoningEffort`)
  *     rides the cross-client shared tier.
  *
- * This exists because the split cost real settings: a Telegram bot username set
- * here reported success, landed in `~/.goodvibes/agent/settings.json`, and
- * configured nothing — Telegram runs in the daemon, which reads a different
- * file. Then the same asymmetry ran backwards: asked to confirm the value, the
- * agent read its own store, found a blank, and reported the setting as not set.
+ * This exists because writing a setting to the wrong store silently costs real
+ * behavior: a Telegram bot username written to the agent's own settings file
+ * reports success, lands in `~/.goodvibes/agent/settings.json`, and configures
+ * nothing — Telegram runs in the daemon, which reads a different file. The
+ * same asymmetry runs backwards too: asked to confirm the value, the agent
+ * reads its own store, finds it blank, and reports the setting as not set.
  *
  * Ownership itself is defined ONCE, in the SDK (`config-ownership.ts`). Nothing
  * in this repo re-derives it — `isDaemonOwnedConfigKey` / `configKeyScope` are

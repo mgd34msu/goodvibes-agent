@@ -92,12 +92,11 @@ export function registerAgentTools(deps: AgentToolRegistrationDeps): void {
   //
   // It has to be the daemon's: a phone pairs with the daemon, a grant must
   // outlive the terminal window that approved it, and the sweep that reaps a
-  // grant whose phone is gone has to run with nobody watching. This process used
-  // to compose a second device-posture runtime writing the same grants ledger,
-  // which is the second-writer hazard the split exists to end — and it also
-  // registered `devices.*` handlers on a catalog nothing outside this process
-  // can call, so the web app's grants surface was never being served from here
-  // in the first place.
+  // grant whose phone is gone has to run with nobody watching. This process
+  // composes no second device-posture runtime writing the same grants ledger
+  // — that would be a second-writer hazard — and registers no `devices.*`
+  // handlers on a catalog nothing outside this process can call, so the web
+  // app's grants surface is served from the daemon, not from here.
   registerClientPhoneTool(toolRegistry, services.devicesClient);
   registerAgentExecutionTool(toolRegistry, commandRegistry, commandContext);
   registerAgentHostTool(toolRegistry, commandRegistry, commandContext);

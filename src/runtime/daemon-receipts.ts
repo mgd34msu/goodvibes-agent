@@ -14,8 +14,8 @@
  * payload is pushed here.
  *
  * The parsing helper (extractSessionSpineReceipts) and the DaemonReceipt type
- * now live in the SDK (2026-07-30 daemon/TUI split hoist — this file's own
- * copy was a byte-identical mirror). What stays agent-local is this buffering
+ * now live in the SDK (this file's own copy was a byte-identical mirror).
+ * What stays agent-local is this buffering
  * feed: it delivers receipts captured before the renderer exists (the first
  * consuming read can fire during boot, before the render sink attaches),
  * exactly once each (dedupe by id), as soon as — and whenever — a delivery

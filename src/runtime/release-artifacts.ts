@@ -18,8 +18,8 @@
  * (platform/runtime/self-update) so the agent verifies with the same
  * mechanism every other surface uses. Asset NAMING stays local because it
  * encodes THIS repo's release layout — the SDK's resolveArtifactNames names
- * the TUI's `goodvibes`/`goodvibes-daemon` pair, which this repo does not
- * ship.
+ * the TUI's `goodvibes` binary and the daemon repo's `goodvibes-daemon-*`
+ * assets, neither of which this repo ships.
  */
 export { CHECKSUM_MANIFEST_NAME, parseChecksumFile } from '@pellux/goodvibes-sdk/platform/runtime/self-update';
 export { extractTarGzEntry } from './tar-archive.ts';

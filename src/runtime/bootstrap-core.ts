@@ -622,16 +622,12 @@ export async function initializeBootstrapCore(
 
   await syncConfiguredServices(domainDispatch.syncIntegration, services.serviceRegistry);
 
-  // The permission gate is the graph's. It used to be hand-built here over this
-  // process's own ApprovalBroker, which meant an ask was raised in-process,
-  // decided in-process, and invisible to the daemon, to every other surface, and
-  // to the phone that was supposed to be able to answer it.
-  //
-  // services.permissionManager rides the client raiser instead: the ask is
-  // posted to the daemon AND prompted here, and the first real answer wins. The
-  // background-agent attribution that feeds the fleet plane's
-  // `state: 'awaiting-approval'` is carried by the shared free function the
-  // manager is built through, not by a local copy of that mapping.
+  // The permission gate is the graph's. services.permissionManager rides the
+  // client raiser: the ask is posted to the daemon AND prompted here, and the
+  // first real answer wins. The background-agent attribution that feeds the
+  // fleet plane's `state: 'awaiting-approval'` is carried by the shared free
+  // function the manager is built through, not by a local copy of that
+  // mapping.
   const permissionManager = services.permissionManager;
   installPermissionManagerSafetyGuard(permissionManager);
   // Wire permissionManager into the SAME AgentOrchestrator instance that runs

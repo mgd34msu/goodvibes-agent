@@ -1,9 +1,8 @@
 /**
  * session-spine-rest-transport.ts
  *
- * As of the 2026-07-30 daemon/TUI split Stage 1 hoist, the REST transport,
- * probe, and receipt consumer this file used to implement now live in the
- * SDK itself (`@pellux/goodvibes-sdk/platform/runtime/session-spine`,
+ * The REST transport, probe, and receipt consumer live in the SDK itself
+ * (`@pellux/goodvibes-sdk/platform/runtime/session-spine`,
  * `rest-transport.ts` — adopted from this agent's own implementation
  * verbatim, per that module's "Hoist provenance" doc comment). Callers import
  * `createSessionSpineRestTransport` / `createSessionSpineRestProbe` /

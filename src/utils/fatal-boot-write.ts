@@ -9,12 +9,12 @@
  * shim imports that statically reaches the SDK would fail to resolve on the
  * exact installs the shim exists to explain.
  *
- * The SDK-dependent half this file used to back — `reportFatalBootFailure`,
- * previously mirrored locally in `utils/fatal-boot-report.ts` — is now the
- * SDK's own `@pellux/goodvibes-sdk/platform/daemon` export (2026-07-30
- * daemon/TUI split hoist; that export adopted this file's own byte-accepting
- * write loop as the shared implementation). Every non-`bin/` caller of
- * `writeFatalLine`/`writeExitingStdoutLine` imports them from here directly.
+ * The SDK-dependent half this file does not carry — `reportFatalBootFailure`,
+ * previously mirrored locally in `utils/fatal-boot-report.ts` — is the SDK's
+ * own `@pellux/goodvibes-sdk/platform/daemon` export, which adopted this
+ * file's own byte-accepting write loop as the shared implementation. Every
+ * non-`bin/` caller of `writeFatalLine`/`writeExitingStdoutLine` imports them
+ * from here directly.
  */
 
 import { writeSync } from 'node:fs';

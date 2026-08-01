@@ -4,10 +4,10 @@
  *
  * The compile matrix, the sqlite-vec native-addon copy (same-host) and
  * cross-target npm-pack fetch, and the prebuild step now live in the shared
- * @pellux/goodvibes-toolchain `build-binaries` (one implementation across
- * tui/agent; the TUI's daemon leg is a config flag the Agent does not set). The
- * target matrix + addon layout (dist/lib/sqlite-vec-<os>-<arch>/vec0.<suffix>)
- * come from toolchain.config.json. This file forwards to that tool.
+ * @pellux/goodvibes-toolchain `build-binaries` (one implementation shared
+ * across tui/agent). The target matrix + addon layout
+ * (dist/lib/sqlite-vec-<os>-<arch>/vec0.<suffix>) come from
+ * toolchain.config.json. This file forwards to that tool.
  *
  * Usage (unchanged):
  *   bun run scripts/build.ts                     # build for current platform

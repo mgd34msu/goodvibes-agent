@@ -37,9 +37,8 @@ import {
 } from './agent-workspace-snapshot-builders.ts';
 import type { AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
-// Re-exported so this module's public surface matches the pre-split file (this
-// builder was originally exported here, before a later split moved its body to
-// agent-workspace-snapshot-builders.ts).
+// Re-exported so this module's public surface still carries this builder,
+// whose body now lives in agent-workspace-snapshot-builders.ts.
 export { buildAgentWorkspaceEmailConnectStatus } from './agent-workspace-snapshot-builders.ts';
 
 function inferActiveRuntimeProfile(homeDirectory: string): string {

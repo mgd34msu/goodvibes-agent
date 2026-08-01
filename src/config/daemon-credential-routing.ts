@@ -6,10 +6,7 @@
  *
  * A secret-backed setting is two writes that only work together: the config key
  * gets a `goodvibes://secrets/...` REFERENCE, and the secret store gets the
- * VALUE it points at. This process used to do both halves itself — writing the
- * value into the daemon-scoped tier file and the reference through its own
- * ConfigManager — and that held only because the daemon was in the same
- * process. It is not. Two processes writing one credential tier is the
+ * VALUE it points at. Two processes writing one credential tier is the
  * second-writer hazard, and the failure is silent: the surface reports success
  * and the daemon resolves a reference to nothing.
  *

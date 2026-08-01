@@ -2,14 +2,13 @@
  * memory-spine-rest-transport.ts
  *
  * Thin adapter over the SDK's own memory-spine REST transport
- * (`@pellux/goodvibes-sdk/platform/runtime/memory-spine`), which as of the
- * 2026-07-30 daemon/TUI split hoist implements the full CORE + EXTENDED verb
- * catalog directly on the platform's own transport-http primitives — the
- * hand-rolled `wireFetch`/per-verb JSON parsing this file used to carry is
- * retired in favor of that shared implementation (see the SDK module's own
- * "Hoist provenance" doc comment: the TUI's version was adopted as the
- * superset, unchanged behavior-wise from the agent's for every verb this
- * agent calls).
+ * (`@pellux/goodvibes-sdk/platform/runtime/memory-spine`), which implements
+ * the full CORE + EXTENDED verb catalog directly on the platform's own
+ * transport-http primitives. The hand-rolled `wireFetch`/per-verb JSON
+ * parsing is retired in favor of that shared implementation (see the SDK
+ * module's own "Hoist provenance" doc comment: the TUI's version was adopted
+ * as the superset, unchanged behavior-wise from the agent's for every verb
+ * this agent calls).
  *
  * What stays agent-local, because the SDK's transport takes a fixed
  * `{baseUrl, authToken}` at construction rather than a resolver:

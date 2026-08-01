@@ -200,13 +200,12 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   ['@pellux/goodvibes-', 'tui'].join(''),
   // The scoped name stays banned: it is the internal library the Agent links
   // against, not something a reader installs. The UNSCOPED `goodvibes-daemon`
-  // used to be banned alongside it, from before the daemon became its own
-  // product. It is now this package's one declared dependency (see
+  // is not banned: it is this package's one declared dependency (see
   // src/test/deps/dependency-check.test.ts), and the install instructions have
   // to name it — `bun pm trust -g goodvibes-daemon` is the step that lets the
   // daemon's postinstall place its binary, and `goodvibes-daemon --version` is
-  // how a reader checks both commands landed. Banning the string made the
-  // README and docs/getting-started.md unwritable.
+  // how a reader checks both commands landed. Banning the string would make
+  // the README and docs/getting-started.md unwritable.
   ['@pellux/goodvibes-', 'daemon'].join(''),
   ['~/.goodvibes/', 'tui'].join(''),
   ['Home', ' Assistant'].join(''),

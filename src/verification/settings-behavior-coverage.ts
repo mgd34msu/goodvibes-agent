@@ -100,12 +100,12 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // covered key's tests failed, which is what "would fail if the setting stopped
   // being honoured" means.
   //
-  // WHOSE consumer that is, stated plainly, because it changed with the client
-  // split: the device-posture runtime is the DAEMON's. This agent used to
-  // compose a second copy of it writing the same grants ledger and no longer
-  // does — it holds the `phone` tool and reaches the runtime over the `devices.*`
-  // verbs. So these rows attest the contract this agent depends on across a
-  // process boundary, not a mapping this repo implements. The agent's own end —
+  // WHOSE consumer that is, stated plainly: the device-posture runtime is the
+  // DAEMON's. This agent composes no second copy of it writing the same
+  // grants ledger — it holds the `phone` tool and reaches the runtime over
+  // the `devices.*` verbs. So these rows attest the contract this agent
+  // depends on across a process boundary, not a mapping this repo implements.
+  // The agent's own end —
   // that it forwards every one of these decisions and re-decides none of them —
   // is pinned in src/test/tools/agent-phone-tool.test.ts.
   {
