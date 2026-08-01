@@ -91,7 +91,6 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       // in the SDK. `daemon.enabled` carries the real default.
       expect(typeof mgr.get('danger.httpListener')).toBe('boolean');
       expect(typeof mgr.get('daemon.enabled')).toBe('boolean');
-      expect(typeof mgr.get('daemon.embedInProcess')).toBe('boolean');
     });
 
     test('storage category fields have correct types when no project config exists', () => {
@@ -132,7 +131,6 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       // lives on `daemon.enabled`.
       expect(DEFAULT_CONFIG.danger.httpListener).toBe(false);
       expect(DEFAULT_CONFIG.daemon.enabled).toBe(true);
-      expect(DEFAULT_CONFIG.daemon.embedInProcess).toBe(false);
     });
 
     test('DEFAULT_CONFIG.storage has correct default values', () => {
@@ -453,7 +451,6 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       expect(typeof all.orchestration.maxDepth).toBe('number');
       expect(typeof all.danger.httpListener).toBe('boolean');
       expect(typeof all.daemon.enabled).toBe('boolean');
-      expect(typeof all.daemon.embedInProcess).toBe('boolean');
     });
 
     test('getAll returns tools category with correct field types', () => {
@@ -499,7 +496,6 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       expect(typeof DEFAULT_CONFIG.danger.httpListener).toBe('boolean');
       expect(DEFAULT_CONFIG.daemon).toEqual(expect.objectContaining({
         enabled: expect.any(Boolean),
-        embedInProcess: expect.any(Boolean),
       }));
     });
 

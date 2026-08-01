@@ -4,9 +4,10 @@
  * It wires the SDK CalendarConnector with the REAL runtime adapters the SDK module
  * deliberately leaves injected (so the SDK stays pure and testable): the runtime
  * fetch, and a loopback redirect listener built on the SDK's createOAuthLocalListener.
- * Tokens persist through the Agent secret manager. Client id/secret OVERRIDES are
- * read from config (id) + the secret store (secret); the default is the bundled
- * project client id shipped in the SDK profile.
+ * Tokens persist through the Agent secret manager. The OAuth app is the operator's
+ * own — no client id ships with the product — so the client id is read from config
+ * and the client secret from the secret store, under the keys the SDK profile names.
+ * With none set, every connect returns an honest config-stage refusal naming the key.
  *
  * Every connect returns an honest STAGED result ({ ok, stage, error }) — config,
  * authorize, or token — the same honesty shape the email connect wizard uses. The
@@ -173,13 +174,13 @@ export class CalendarOAuthService {
     });
   }
 
-  /** Resolve the client config (bundled default or config/secret-store overrides). */
+  /** Resolve the client config from the operator's configured OAuth app. */
   async resolveConfig(provider: CalendarProviderId): Promise<ResolvedClientConfig> {
     const overrides = await this.resolveOverrides(provider);
     return resolveClientConfig(providerProfile(provider), overrides);
   }
 
-  /** Read client-id (config) + client-secret (secret store) overrides, if any. */
+  /** Read the client id (config) and client secret (secret store), when set. */
   async resolveOverrides(provider: CalendarProviderId): Promise<OAuthClientOverrides> {
     const clientId = this.readString(CALENDAR_OAUTH_CLIENT_ID_KEYS[provider]);
     const clientSecret = await this.resolveSecretBacked(CALENDAR_OAUTH_CLIENT_SECRET_KEYS[provider]);
@@ -323,22 +324,24 @@ export class CalendarOAuthService {
   // --- internals ------------------------------------------------------------
 
   private guardConfigured(config: ResolvedClientConfig): ConnectResult | null {
-    if (!config.isPlaceholder) return null;
+    if (config.isConfigured) return null;
     const label = config.provider === 'google' ? 'Google Calendar' : 'Microsoft Outlook';
-    const cardLabel = config.provider === 'google' ? 'Connect Google Calendar (advanced)' : 'Connect Microsoft Outlook (advanced)';
+    const cardLabel = config.provider === 'google' ? 'Connect Google Calendar' : 'Connect Microsoft Outlook';
     return {
       ok: false,
       stage: 'config',
       error:
-        `This build ships no ${label} client id — connecting needs your own. ` +
-        `Run /calendar connect for the setup steps, or open "${cardLabel}" under /agent personal-ops and paste your client id in.`,
+        `No ${label} client id is configured. GoodVibes ships none of its own — register your own OAuth app ` +
+        `with the provider and set ${config.clientIdConfigKey} to its client id. ` +
+        `Run /calendar connect for the provider-console steps, or open "${cardLabel}" under /agent personal-ops and paste your client id in.`,
     };
   }
 
   private readString(key: string): string | undefined {
     // get() throws when the config section does not exist yet (nothing has seeded
-    // 'calendar' via the advanced card). Treat that as "unset" so the bundled default
-    // is used rather than surfacing a schema error.
+    // 'calendar'). Treat that as "unset" — an environment where nobody has registered
+    // an OAuth app yet is a normal state that reads as not-configured, not a schema
+    // error surfaced to the operator.
     let value: unknown;
     try {
       value = this.config.get(key);

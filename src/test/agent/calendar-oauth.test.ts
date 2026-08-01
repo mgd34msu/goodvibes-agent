@@ -183,14 +183,24 @@ describe('calendar OAuth advanced-credentials wizard', () => {
 // --- service config resolution + guard --------------------------------------
 
 describe('CalendarOAuthService config resolution', () => {
-  test('bundled default with no override resolves as the honest placeholder', async () => {
+  test('an environment with no registered OAuth app resolves as not configured', async () => {
     const service = new CalendarOAuthService({ config: mapConfig(), secrets: memorySecrets(), connector: throwingConnector() });
     const config = await service.resolveConfig('google');
-    expect(config.usingBundledDefault).toBe(true);
-    expect(config.isPlaceholder).toBe(true);
+    expect(config.isConfigured).toBe(false);
+    expect(config.clientId).toBe('');
+    expect(config.clientIdConfigKey).toBe('calendar.google.clientId');
   });
 
-  test('a config client-id override wins and is not the placeholder', async () => {
+  test('the connect refusal names the key the operator has to set', async () => {
+    const service = new CalendarOAuthService({ config: mapConfig(), secrets: memorySecrets(), connector: throwingConnector() });
+    const result = await service.connectLoopback('google');
+    expect(result.ok).toBe(false);
+    expect(result.stage).toBe('config');
+    expect(result.error).toContain('calendar.google.clientId');
+    expect(result.error).toContain('register your own OAuth app');
+  });
+
+  test("the operator's configured client id resolves into the flow config", async () => {
     const service = new CalendarOAuthService({
       config: mapConfig({ 'calendar.google.clientId': 'user-supplied-id' }),
       secrets: memorySecrets(),
@@ -198,8 +208,7 @@ describe('CalendarOAuthService config resolution', () => {
     });
     const config = await service.resolveConfig('google');
     expect(config.clientId).toBe('user-supplied-id');
-    expect(config.usingBundledDefault).toBe(false);
-    expect(config.isPlaceholder).toBe(false);
+    expect(config.isConfigured).toBe(true);
   });
 
   test('reads a secret-backed client secret from the secret store', async () => {
@@ -225,23 +234,26 @@ describe('CalendarOAuthService config resolution', () => {
     expect(result.stage).toBe('config'); // throwingConnector proves begin* was never reached
   });
 
-  // F1b: the guard's error is a flat, deterministic statement (the placeholder
-  // state is not a maybe — this build always ships the SDK placeholder client
-  // id until someone configures one) with the exact next step, not a hedged
+  // F1b: the guard's error is a flat, deterministic statement (nothing about it
+  // is a maybe — no client id ships, so an environment where nobody registered
+  // an app is always this state) carrying the exact next step, not a hedged
   // "either...or" pair of possibilities.
-  test('the placeholder guard states the situation flatly and names the exact next step, per provider', async () => {
+  test('the not-configured guard states the situation flatly and names the exact next step, per provider', async () => {
     const google = new CalendarOAuthService({ config: mapConfig(), secrets: memorySecrets(), connector: throwingConnector() });
     const googleResult = await google.connectAuto('google');
-    expect(googleResult.error).toContain('This build ships no Google Calendar client id');
+    expect(googleResult.error).toContain('No Google Calendar client id is configured');
     expect(googleResult.error).not.toContain('Either');
+    // The key to set is named, so the operator never has to guess it.
+    expect(googleResult.error).toContain('calendar.google.clientId');
     expect(googleResult.error).toContain('/calendar connect');
-    expect(googleResult.error).toContain('Connect Google Calendar (advanced)');
+    expect(googleResult.error).toContain('Connect Google Calendar');
     expect(googleResult.error).toContain('/agent personal-ops');
 
     const microsoft = new CalendarOAuthService({ config: mapConfig(), secrets: memorySecrets(), connector: throwingConnector() });
     const microsoftResult = await microsoft.connectAuto('microsoft');
-    expect(microsoftResult.error).toContain('This build ships no Microsoft Outlook client id');
-    expect(microsoftResult.error).toContain('Connect Microsoft Outlook (advanced)');
+    expect(microsoftResult.error).toContain('No Microsoft Outlook client id is configured');
+    expect(microsoftResult.error).toContain('calendar.microsoft.clientId');
+    expect(microsoftResult.error).toContain('Connect Microsoft Outlook');
   });
 });
 
