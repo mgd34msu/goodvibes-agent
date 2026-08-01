@@ -28,7 +28,7 @@
  *     that could not land may not cost him the nudge, and a guard that got this
  *     wrong would fail silently.
  *
- * ── Whose composition this drives, as of the client split ────────────────
+ * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
  * over this graph — the agent's own `services.gatewayMethods` carries no handler

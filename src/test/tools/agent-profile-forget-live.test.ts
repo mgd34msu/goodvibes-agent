@@ -35,7 +35,7 @@
  * it. The two capability assertions below already answer the question it was
  * asked to answer.
  *
- * ── Whose composition this drives, as of the client split ────────────────
+ * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
  * over this graph — the agent's own `services.gatewayMethods` carries no handler

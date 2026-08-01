@@ -13,9 +13,9 @@
  * the platform's `createDevicePostureRuntime` — the grants ledger, the capture
  * store, the capability service, the housekeeping cadence, and the mapping from
  * every `device.*` key onto them. That runtime is the DAEMON's now. This agent
- * used to compose a second copy of it (`createDevicePostureRuntime`, deleted with
- * the client split) writing the same grants ledger, which is the second-writer
- * hazard the split exists to end.
+ * composes no second copy of it: a second `createDevicePostureRuntime` writing
+ * the same grants ledger would be the second-writer hazard this file exists
+ * to prevent.
  *
  * So this file no longer holds "the agent's end" of the mapping — the agent has
  * no end of it, and asserting otherwise would be a claim this repo cannot back.

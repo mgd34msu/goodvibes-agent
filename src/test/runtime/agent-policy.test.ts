@@ -62,11 +62,11 @@ describe('Agent user-first autonomy policy', () => {
   });
 
   test('a continuation arriving from the connected host spawns a visible tracked agent', async () => {
-    // The same guarantee as before the client split, one layer out: a
-    // continuation for a session THIS process hosts must reach the loop and
-    // become a tracked agent run. What changed is where it arrives from —
-    // `sessions.inputs.list` on the adopted daemon, not a register this process
-    // wrote into itself — so the wire is what this drives.
+    // The same guarantee, one layer out: a continuation for a session THIS
+    // process hosts must reach the loop and become a tracked agent run. It
+    // arrives from `sessions.inputs.list` on the adopted daemon, not a
+    // register this process wrote into itself — so the wire is what this
+    // drives.
     const services = makeRuntimeServices();
     const sessionId = 'session-agent-policy';
     services.hostedSessions.adopt(sessionId);

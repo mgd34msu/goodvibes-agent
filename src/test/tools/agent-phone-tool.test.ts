@@ -19,7 +19,7 @@
  *
  * That is the assertion with teeth. A regression here would not look like a
  * crash — it would look like the agent quietly answering from a local store
- * again, which is the state the split ended.
+ * again, which is exactly what this suite exists to prevent.
  *
  * The refusal-vs-error line is the other half, and it is behavioural: someone
  * declining their camera is the system WORKING, so it comes back as a

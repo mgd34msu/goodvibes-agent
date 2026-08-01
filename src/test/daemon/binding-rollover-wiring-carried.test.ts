@@ -10,8 +10,8 @@
  * inbound path (so the first failed inbound owner message pings the owner
  * through a working channel rather than warning into a debug log).
  *
- * This fork composes NO daemon facade of its own, and as of the client split it
- * composes no server at all. What it hands the SDK's discovery path is
+ * This fork composes NO daemon facade of its own, and composes no server at
+ * all. What it hands the SDK's discovery path is
  * `asDaemonGradeView()` — the graph with its two client narrowings substituted
  * back — so THAT is the object these seams have to be reachable on. Re-doing
  * either here would be a second sender competing with the first for the same

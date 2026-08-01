@@ -22,7 +22,7 @@
  *     registered onto the governor's seams, and ops.memory.get serves the
  *     genuine live snapshot.
  *
- * ── Whose composition this drives, as of the client split ────────────────
+ * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
  * over this graph — the agent's own `services.gatewayMethods` carries no handler

@@ -1,7 +1,7 @@
 /**
  * approvals-view.test.ts
  *
- * The panel's contract after the split: the daemon's record is the list every
+ * The panel's contract: the daemon's record is the list every
  * surface reads, the asks this process still holds are unioned in rather than
  * dropped, and an unreachable host never renders as an empty list.
  *

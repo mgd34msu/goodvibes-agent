@@ -2,36 +2,27 @@
  * Gate: this process serves no gateway verb, and the catalog it still carries
  * is local dispatch for its own tools.
  *
- * ── What this file used to assert, and why it inverted ────────────────────
+ * ── Why this gate holds ───────────────────────────────────────────────────
  *
- * It asserted that every ws-only verb the daemon advertises — fleet.*,
+ * The property that has to hold: no daemon-served verb — fleet.*,
  * checkpoints.*, sessions.search, push.*, workspaces.*, permissions.rules.* —
- * was INVOKABLE on the runtime this package composes. That was the right gate
- * when this package vendored a daemon: a catalog with descriptors and no
- * handlers answered 501 over websocket and HTTP, and the companion app found it
- * against a shipped build.
+ * carries a handler on the runtime this package composes. This package
+ * vendors no daemon. It composes no DaemonServer, starts no listener, and its
+ * own CLI parser refuses host commands in those words. A handler registered
+ * here would be reachable only by a caller that cannot exist, while the
+ * daemon serves the same families for real to every surface including this
+ * one — a second, partial implementation answering from one surface's state.
  *
- * This package vendors no daemon. It composes no DaemonServer, starts no
- * listener, and its own CLI parser refuses host commands in those words. So the
- * handlers it registered were reachable only by a caller that cannot exist here,
- * while the daemon served the same families for real to every surface including
- * this one. Registering them was fifteen verb families of dead weight and a
- * standing second implementation of each.
+ * If one comes back, this package has started answering a question it cannot
+ * see the whole of — a fleet snapshot missing every other surface's agents, a
+ * checkpoint list missing the daemon's.
  *
- * ── What it asserts now ───────────────────────────────────────────────────
- *
- * The inverse, which is the property that actually has to hold: no daemon-served
- * verb carries a handler in this process. If one comes back, this package has
- * started answering a question it cannot see the whole of — a fleet snapshot
- * missing every other surface's agents, a checkpoint list missing the daemon's.
- *
- * Two families went with them that this fork DID dispatch in-process:
- * `occasions.*` and `profile.*`. The same registrar served all of them and the
- * SDK publishes no entry point for those two alone, so keeping them meant
- * keeping the other fifteen — and what that registration composed was an owner
- * profile store over a Markdown file at DAEMON scope, a second writer of a file
- * the daemon owns. Both tools were built for this: they probe the catalog and
- * fall back to the connected host, which they now always take.
+ * Two families need a different shape of guard: `occasions.*` and
+ * `profile.*`. The SDK publishes no dedicated entry point for those two
+ * alone — only the combined entry point that covers all fifteen daemon-served
+ * families together — so both tools probe `catalog.hasHandler(methodId)`
+ * first and fall back to the connected host, which they always take because
+ * this package registers no in-process handler for either.
  *
  * The catalog itself is deliberately NOT gone: bootstrap.ts hands it to
  * `pluginManager.init({ gatewayMethods })`, so a loaded plugin can register
@@ -113,11 +104,10 @@ describe('the catalog is kept for the consumers that are actually live', () => {
   });
 
   test('occasions and profile verbs are unhandled here, so those tools use the connected host', () => {
-    // This fork DID serve these in-process, over an owner-profile store it
-    // composed against the daemon's own Markdown file. One file, one writer:
+    // The daemon owns the owner-profile Markdown file. One file, one writer:
     // the daemon's. Both invokers probe `hasHandler` first and fall back, so
-    // the fallback is now the live route — pinned here so it is not read as a
-    // defect and "fixed" by re-registering a second writer.
+    // the fallback is the live route — pinned here so it is not read as a
+    // defect and "fixed" by registering a second writer in this process.
     for (const methodId of ['occasions.pending', 'occasions.list', 'profile.get', 'profile.status']) {
       expect(services.gatewayMethods.hasHandler(methodId)).toBe(false);
     }
