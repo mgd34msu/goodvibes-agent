@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/mgd34msu/goodvibes-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mgd34msu/goodvibes-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.23.1-blue.svg)](https://github.com/mgd34msu/goodvibes-agent)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/mgd34msu/goodvibes-agent)
 
 GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness — route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes — instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
 
@@ -133,16 +133,14 @@ Source layout, in brief:
 src/
 ├── main.ts, core/       terminal entrypoint, orchestrator
 ├── agent/               channel, calendar, document, and automation domain logic
-├── tools/               agent-owned model tools (harness, workspace, channels, knowledge, ...)
-├── work-plans/          visible local work-plan tracking
+├── tools/               agent-owned model tools (harness, workspace, channels, knowledge, work plans, ...)
 ├── permissions/         approval posture and confirmation prompts
-├── input/               slash commands, workspace actions, command routing
+├── input/               slash commands, workspace actions, command routing, MCP server management
 ├── renderer/            terminal UI
 ├── cli/, cli-flags.ts   CLI subcommands and flags, package verification
 ├── config/              settings, secrets, checkpoint and update policy
 ├── runtime/             update checks, release-artifact resolution
 ├── audio/               spoken-turn playback and routing
-├── mcp/, plugins/       MCP server discovery, plugin loading
 └── verification/        release-readiness and evidence checks
 ```
 
