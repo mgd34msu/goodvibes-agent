@@ -49,7 +49,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       preferredModelTool: root === 'onboarding' || root === 'tui'
         ? agentHarnessModes('workspace', 'workspace_actions', 'workspace_action', 'run_workspace_action')
         : agentHarnessModes('cli_commands', 'cli_command'),
-      boundary: 'Top-level CLI launch, setup, help, version, and completion commands are package entrypoint surfaces; use in-process workspace and slash-command routes from the model when operating inside the TUI.',
+      boundary: 'Top-level CLI launch, setup, help, version, and completion commands are package entrypoint surfaces; use in-process workspace and slash-command routes from the model when operating inside this agent\'s own interactive session.',
     };
   }
   if (root === 'run') {

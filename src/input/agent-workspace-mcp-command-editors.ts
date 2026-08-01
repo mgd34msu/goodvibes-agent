@@ -24,7 +24,7 @@ const MCP_COMMAND_EDITOR_SPECS: Readonly<Record<AgentWorkspaceMcpCommandEditorKi
       { id: 'env', label: 'Env refs', value: '', required: false, multiline: false, hint: 'Comma-separated KEY=VALUE entries. Prefer secret refs, not raw secrets.' },
       { id: 'paths', label: 'Allowed paths', value: '', required: false, multiline: false, hint: 'Comma-separated path allowlist entries.' },
       { id: 'hosts', label: 'Allowed hosts', value: '', required: false, multiline: false, hint: 'Comma-separated host allowlist entries.' },
-      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save the MCP server through the TUI command router.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save the MCP server through the shell-owned command router.' },
     ],
   },
   'mcp-tools-server': {
