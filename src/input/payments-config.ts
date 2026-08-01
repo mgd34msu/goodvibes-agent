@@ -22,10 +22,9 @@
  * secret store, and config holds only a `goodvibes://secrets/...` reference
  * pointing at it. The SDK does not expose a config-level path for the single
  * implicit card this app's `/payments card` flow models, so these four are
- * synthetic sub-keys under the SDK's real `payments` section — the same
- * established pattern this codebase already uses for `display.themeMode`
- * (see settings-modal.ts's _loadGroups): a key one level under an EXISTING
- * section that CONFIG_SCHEMA has not grown a scalar entry for.
+ * synthetic sub-keys under the SDK's real `payments` section: a key one level
+ * under an EXISTING section that CONFIG_SCHEMA has not grown a scalar entry
+ * for (see settings-modal.ts's _loadGroups, where these are injected).
  *
  * ── Why the keys are named FLAT ──────────────────────────────────────────
  *

@@ -137,14 +137,12 @@ describe('SettingsModal', () => {
         .filter((entry) => !isAgentHiddenSettingKey(entry.key))
         .filter((entry) => entry.key.split('.')[0] === cat)
         .map((entry) => entry.key);
-      // display additionally carries the synthetic display.themeMode
-      // entry (agent-local key, not in the SDK CONFIG_SCHEMA).
-      if (cat === 'display') expectedKeys.push('display.themeMode');
       // payments additionally carries the four synthetic card-material entries.
       // CONFIG_SCHEMA declares none of them on purpose — card material lives
       // write-only in the daemon secret store and config holds only a
       // goodvibes:// reference — so they are injected by the modal from
-      // input/payments-config.ts, the same way display.themeMode is.
+      // input/payments-config.ts, the only synthetic-entry pattern left in
+      // this modal now that display.themeMode is a real CONFIG_SCHEMA key.
       if (cat === 'payments') {
         expectedKeys.push('payments.cardNumber', 'payments.cardExpiry', 'payments.cardCvv', 'payments.cardholderName');
       }

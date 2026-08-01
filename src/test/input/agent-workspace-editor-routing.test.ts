@@ -406,17 +406,12 @@ describe('settingKey exhaustiveness against CONFIG_SCHEMA', () => {
    * document each key with its source module
    * (@pellux/goodvibes-sdk/platform/email).
    *
-   * display.themeMode: the TUI-local synthetic appearance setting
-   * (renderer/theme-mode-config.ts). It is agent-local — stored under the
-   * existing `display` section via ConfigManager.setDynamic/get, never
-   * registered in the SDK's static CONFIG_SCHEMA. Both the classic
-   * settings-modal (settings-modal.ts's _loadGroups) and the workspace
-   * settingAction path (agent-workspace-categories.ts's 'display-theme-mode'
-   * action) resolve it through THEME_MODE_SYNTHETIC_SETTING instead.
+   * display.themeMode is a real CONFIG_SCHEMA entry (SDK 2.0.0+) — it
+   * resolves via the ordinary schema lookup now (agent-workspace-settings.ts's
+   * agentWorkspaceSettingSchema), so it no longer needs an allowlist entry
+   * here.
    */
-  const RUNTIME_EXTENDED_ALLOWLIST = new Set<string>([
-    'display.themeMode',
-  ]);
+  const RUNTIME_EXTENDED_ALLOWLIST = new Set<string>([]);
 
   function collectSettingKeys(
     categories: readonly { readonly actions: readonly { readonly settingKey?: string }[] }[],

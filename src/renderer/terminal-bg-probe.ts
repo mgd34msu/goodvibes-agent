@@ -41,11 +41,21 @@ export type ThemeMode = 'light' | 'dark';
 /** The stored appearance preference (config `display.themeMode`). */
 export type ThemeModeSetting = 'auto' | ThemeMode;
 
-/** Config key backing the appearance/theme-mode preference. */
-export const THEME_MODE_CONFIG_KEY = 'display.themeMode';
+/**
+ * Config key backing the appearance/theme-mode preference. Typed `ConfigKey`
+ * directly — `display.themeMode` is a real CONFIG_SCHEMA entry (SDK 2.0+),
+ * not a TUI-local/agent-local synthetic key, so no cast is needed at call
+ * sites anymore.
+ */
+export const THEME_MODE_CONFIG_KEY: ConfigKey = 'display.themeMode';
 
-/** Default when unset: probe the terminal background on startup. */
-export const THEME_MODE_DEFAULT: ThemeModeSetting = 'auto';
+/**
+ * Default when unset: probe the terminal background on startup. Matches the
+ * CONFIG_SCHEMA default for display.themeMode. Module-private: nothing
+ * outside this file needs the default value directly — callers read the
+ * resolved mode via coerceThemeModeSetting/resolveConfiguredThemeMode.
+ */
+const THEME_MODE_DEFAULT: ThemeModeSetting = 'auto';
 
 /** Narrow an unknown config value to a valid ThemeModeSetting, else the default. */
 export function coerceThemeModeSetting(raw: unknown): ThemeModeSetting {
@@ -61,7 +71,7 @@ export function resolveConfiguredThemeMode(
   configManager: Pick<ConfigManager, 'get'>,
 ): ThemeModeSetting {
   try {
-    return coerceThemeModeSetting(configManager.get(THEME_MODE_CONFIG_KEY as ConfigKey));
+    return coerceThemeModeSetting(configManager.get(THEME_MODE_CONFIG_KEY));
   } catch {
     return THEME_MODE_DEFAULT;
   }

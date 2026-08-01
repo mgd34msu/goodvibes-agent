@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import type { ConfigKey, ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { PendingSubscriptionLogin, ProviderSubscription } from '@pellux/goodvibes-sdk/platform/config';
 import { setHarnessSetting } from '../agent/harness-control.ts';
-import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY, THEME_MODE_SYNTHETIC_SETTING } from '../renderer/theme-mode-config.ts';
+import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { CommandContext } from './command-registry.ts';
 import type {
@@ -327,15 +327,12 @@ function applyTuiSubscriptions(context: CommandContext, parseErrors: string[]): 
 }
 
 export function agentWorkspaceSettingSchema(context: CommandContext | null, key: string): ConfigSetting | null {
-  const fromSchema = context?.platform?.configManager
+  // display.themeMode is a real CONFIG_SCHEMA entry (SDK 2.0+), so it
+  // resolves through the same getSchema() lookup as every other key — no
+  // synthetic fallback needed here anymore.
+  return context?.platform?.configManager
     ?.getSchema()
     .find((setting) => setting.key === key) ?? null;
-  if (fromSchema) return fromSchema;
-  // display.themeMode is a TUI-local synthetic setting that never
-  // joined the SDK ConfigKey schema — the classic settings-modal injects the
-  // same descriptor into its own groups map rather than the schema. Mirror
-  // that fallback here so the workspace surface can discover and cycle it too.
-  return key === THEME_MODE_CONFIG_KEY ? THEME_MODE_SYNTHETIC_SETTING : null;
 }
 
 export function isAgentWorkspaceActionVisible(context: CommandContext | null, action: AgentWorkspaceAction): boolean {
@@ -442,10 +439,16 @@ export async function applyAgentWorkspaceSettingValue(
   }
   if (String(setting.key) === THEME_MODE_CONFIG_KEY) {
     try {
-      // display.themeMode is agent-local and never joined the SDK ConfigKey
-      // schema, so setHarnessSetting's schema lookup would reject it. Persist
-      // directly (the same setDynamic round-trip the classic settings-modal
-      // uses for this key), then run the ONE shared apply hook — forced
+      // display.themeMode is a real CONFIG_SCHEMA entry now (SDK 2.0+), so
+      // this branch is no longer working around a missing schema key — the
+      // direct setDynamic write below is the same round-trip every other
+      // client-owned key would get, and this key isn't daemon-owned or
+      // secret-backed, so there is no ownership routing to gain by going
+      // through setHarnessSetting instead. What still makes this key special
+      // is the live single-process side effect below: the classic settings
+      // modal wires onSettingApplied (ui-openers.ts) to flip the active
+      // render mode and repaint; this workspace surface has no equivalent
+      // hook, so it runs the ONE shared apply hook directly — forced
       // dark/light flips the active mode now with a full repaint; auto only
       // re-probes at startup, stated honestly in the returned message.
       configManager.setDynamic(setting.key as ConfigKey, value);

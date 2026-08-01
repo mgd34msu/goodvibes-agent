@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.1 - 2026-08-01
+
+- Fixed: importing settings that include `display.themeMode` no longer prints an "unknown key" warning. The key is now declared in the platform configuration schema (SDK 2.0.1) — `auto` probes the terminal background once at startup, `dark` and `light` force a fixed appearance — so the settings screen and the import path both treat it as a real, documented setting.
+
 ## 2.0.0 - 2026-08-01
 
 - **BREAKING**: this build declares a daemon build floor of 1.28.0, and a daemon below it is REFUSED, not merely flagged. The daemon is its own product, with its own repository, package and release line, separate from the embedded topology this Agent shipped and updated alongside itself before that split, and a daemon build below 1.28.0 belongs to that earlier topology — it answers some of the verbs this build depends on and not others, so adopting it produces a half-working Agent where one call returns 404 and reads as a broken feature rather than as an old daemon. On each adoption attempt this Agent reads the daemon's own build off `/status`; below the floor it does not adopt the daemon at all. Concretely, that means the memory spine keeps using its local store instead of routing over the wire, the inbound continuation dispatch never binds, and every daemon-dependent path behaves exactly as it does when no daemon is configured. The first time a below-floor daemon is observed, one system message names both versions: "[Connected host] The daemon at <address> is running build <version>; this client requires 1.28.0 or newer — update the daemon." The daemon updates itself automatically, on its own hourly cycle and at the next idle restart, so the ordinary path needs no action; if it has not updated on its own, update the owning GoodVibes host directly, then restart it. No restart of the Agent is needed once the daemon is current — the floor is re-checked on the next adoption attempt and the daemon is adopted then.

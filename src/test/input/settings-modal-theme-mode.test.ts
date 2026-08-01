@@ -1,19 +1,19 @@
 /**
- * settings-modal-theme-mode.test.ts — the synthetic display.themeMode
- * settings-modal entry.
+ * settings-modal-theme-mode.test.ts — the display.themeMode settings-modal
+ * entry.
  *
- * Proves: (1) the display group carries the synthetic enum entry (auto|dark|
- * light) so the preference is discoverable like any other setting; (2) cycling
- * it persists through the real ConfigManager (setDynamic round-trip of the
- * agent-local key) and fires onSettingApplied; (3) the apply hook flips the
- * active theme mode NOW for forced dark/light (with a full repaint) and states
- * the next-launch contract for auto.
+ * Proves: (1) the display group carries the schema-driven enum entry (auto|
+ * dark|light) so the preference is discoverable like any other setting; (2)
+ * cycling it persists through the real ConfigManager and fires
+ * onSettingApplied; (3) the apply hook flips the active theme mode NOW for
+ * forced dark/light (with a full repaint) and states the next-launch
+ * contract for auto.
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { SettingsModal } from '../../input/settings-modal.ts';
-import { ConfigManager, type ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
+import { CONFIG_SCHEMA, ConfigManager, type ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -23,7 +23,6 @@ import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import {
   applyThemeModeSettingChange,
   THEME_MODE_CONFIG_KEY,
-  THEME_MODE_VALUES,
 } from '../../renderer/theme-mode-config.ts';
 import { getActiveThemeMode, setActiveThemeMode } from '../../renderer/theme.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
@@ -33,7 +32,7 @@ function makeTmpDir(): string {
   return dir;
 }
 
-describe('display.themeMode synthetic settings-modal entry', () => {
+describe('display.themeMode settings-modal entry (schema-driven)', () => {
   const originalCwd = process.cwd();
   const originalHome = process.env.HOME;
   let tmpDir: string;
@@ -77,17 +76,18 @@ describe('display.themeMode synthetic settings-modal entry', () => {
     return entries.find((e) => String(e.setting.key) === THEME_MODE_CONFIG_KEY);
   }
 
-  test('display group carries the synthetic enum entry (discoverable)', () => {
+  test('display group carries the schema-driven enum entry (discoverable)', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     const entry = themeModeEntry();
+    const schemaEntry = CONFIG_SCHEMA.find((s) => s.key === THEME_MODE_CONFIG_KEY);
     expect(entry).toBeDefined();
     expect(entry!.setting.type).toBe('enum');
-    expect(entry!.setting.enumValues).toEqual([...THEME_MODE_VALUES]);
+    expect(entry!.setting.enumValues).toEqual(schemaEntry!.enumValues);
     expect(entry!.currentValue).toBe('auto'); // unset → honest default
     expect(entry!.isDefault).toBe(true);
   });
 
-  test('entry is injected exactly once across re-opens', () => {
+  test('entry appears exactly once across re-opens', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     modal.close();
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);

@@ -23,12 +23,6 @@ import {
 import { buildSubscriptionEntries } from './settings-modal-subscriptions.ts';
 import { buildMcpEntries } from './settings-modal-mcp-entries.ts';
 import { buildFlagEntries } from './settings-modal-flag-entries.ts';
-import {
-  coerceThemeModeSetting,
-  THEME_MODE_CONFIG_KEY,
-  THEME_MODE_DEFAULT,
-  THEME_MODE_SYNTHETIC_SETTING,
-} from '../renderer/theme-mode-config.ts';
 import { buildPaymentsSyntheticEntries } from './payments-config.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { FlagState } from '@/runtime/index.ts';
@@ -654,21 +648,6 @@ export class SettingsModal {
       if (crossListed !== undefined && this.groups.has(crossListed)) {
         this.groups.get(crossListed)!.push(entry);
       }
-    }
-
-    // Inject the synthetic display.themeMode enum (auto|dark|light) —
-    // agent-local key stored under the existing `display` section (not in the
-    // SDK ConfigKey union; setDynamic/get round-trip it), the TUI's
-    // settings-modal-data.ts synthetic-setting pattern. Cycles like any other
-    // enum entry; forced modes are applied by the ui-openers change hook.
-    const displayEntries = this.groups.get('display');
-    if (displayEntries && !displayEntries.some((e) => e.setting.key === (THEME_MODE_CONFIG_KEY as ConfigKey))) {
-      const themeModeValue = coerceThemeModeSetting(configManager.get(THEME_MODE_CONFIG_KEY as ConfigKey));
-      displayEntries.push({
-        setting: THEME_MODE_SYNTHETIC_SETTING,
-        currentValue: themeModeValue,
-        isDefault: themeModeValue === THEME_MODE_DEFAULT,
-      });
     }
 
     // Inject the four card-material fields (number, expiry, CVV, cardholder
