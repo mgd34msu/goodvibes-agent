@@ -12,6 +12,8 @@ import {
 import {
   isAgentHiddenSettingKey,
 } from '../config/agent-settings-policy.ts';
+import { settingDomainAliasText } from '../config/settings-search-vocabulary.ts';
+import { catalogSearchTokens, searchCatalog, type CatalogSearchResult } from '../tools/agent-harness-catalog-search.ts';
 import {
   configKeyScope,
   openEffectiveConfigView,
@@ -202,12 +204,59 @@ function findSetting(configManager: Pick<ConfigManager, 'getSchema'>, rawKey: st
   return configManager.getSchema().find((setting) => setting.key === rawKey) ?? null;
 }
 
-function settingLookupText(setting: ConfigSetting): string {
-  return [setting.key, setting.description, setting.type, ...(setting.enumValues ?? [])].join('\n').toLowerCase();
+/**
+ * A key as words: `payments.shippingAddress.line1` -> `payments shipping
+ * address line1`. A dotted camel-case identifier is the one part of a setting
+ * written in no human's vocabulary, and splitting it is what lets "shipping
+ * address" find the seven keys that hold one.
+ */
+function settingKeyWords(key: string): string {
+  return key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[._]/g, ' ');
 }
 
-function settingMatchesSearch(setting: ConfigSetting, query: string): boolean {
-  return settingLookupText(setting).includes(query);
+/**
+ * Everything a search may match a setting on: the key, the key as words, the
+ * description, the type and its allowed values, the validation hint, and the
+ * plain words for the key's domain (see config/settings-search-vocabulary.ts).
+ *
+ * The aliases are indexed, never displayed. A row's `description` is still the
+ * schema's own sentence.
+ */
+function settingLookupText(setting: ConfigSetting): string {
+  return [
+    setting.key,
+    settingKeyWords(setting.key),
+    setting.description,
+    setting.type,
+    ...(setting.enumValues ?? []),
+    setting.validationHint ?? '',
+    settingDomainAliasText(setting.key),
+  ].filter(Boolean).join('\n').toLowerCase();
+}
+
+function matchedTokenCount(tokens: readonly string[], text: string): number {
+  const haystack = text.toLowerCase();
+  return tokens.reduce((count, token) => count + (haystack.includes(token) ? 1 : 0), 0);
+}
+
+/**
+ * How well a setting answers the query. A hit on the key outranks a hit on the
+ * description, which outranks a hit on a domain alias — an alias is what got
+ * the row into the page at all, so it should not also push it to the top over a
+ * key that literally says the word.
+ */
+function settingRelevance(setting: ConfigSetting, query: string): number {
+  const tokens = catalogSearchTokens(query);
+  if (tokens.length === 0) return 0;
+  const keyText = `${setting.key}\n${settingKeyWords(setting.key)}`.toLowerCase();
+  const normalized = query.toLowerCase().trim();
+
+  let score = 0;
+  if (keyText.includes(normalized)) score += 5_000;
+  score += 1_000 * matchedTokenCount(tokens, keyText);
+  score += 100 * matchedTokenCount(tokens, setting.description ?? '');
+  score += 10 * matchedTokenCount(tokens, settingDomainAliasText(setting.key));
+  return score;
 }
 
 function settingCandidate(setting: ConfigSetting): HarnessSettingCandidate {
@@ -326,14 +375,18 @@ export function describeHarnessSettingSummary(
   };
 }
 
-function filterHarnessSettingSchema(
+/**
+ * The structural filters — key, category, prefix, hidden — with no search
+ * applied. This is the catalog a caller asked to see, and the number every
+ * page must report as its `total`.
+ */
+function harnessSettingCatalog(
   configManager: Pick<ConfigManager, 'getSchema'>,
   filters: HarnessSettingFilters = {},
 ): readonly ConfigSetting[] {
   const key = filters.key?.trim();
   const category = filters.category?.trim();
   const prefix = filters.prefix?.trim();
-  const query = filters.query?.trim().toLowerCase();
 
   return configManager.getSchema()
     .filter((setting) => {
@@ -341,11 +394,65 @@ function filterHarnessSettingSchema(
       if (category && setting.key.split('.')[0] !== category) return false;
       if (prefix && !setting.key.startsWith(prefix)) return false;
       if (!filters.includeHidden && isAgentHiddenSettingKey(setting.key)) return false;
-      if (query) {
-        if (!settingMatchesSearch(setting, query)) return false;
-      }
       return true;
     });
+}
+
+/**
+ * The catalog narrowed by the structural filters, then searched.
+ *
+ * The search is the shared two-tier one (tools/agent-harness-catalog-search.ts):
+ * the whole phrase or every word first, single words only if that found
+ * nothing. Matches come back ranked, because a search that returns the right
+ * key 400 rows down has not answered anything.
+ */
+function searchHarnessSettingSchema(
+  configManager: Pick<ConfigManager, 'getSchema'>,
+  filters: HarnessSettingFilters = {},
+): CatalogSearchResult<ConfigSetting> {
+  const narrowed = harnessSettingCatalog(configManager, filters);
+  const query = filters.query?.trim() ?? '';
+  if (!query) return { matches: narrowed, relaxed: false };
+
+  const found = searchCatalog(narrowed, query, settingLookupText);
+  const ranked = found.matches
+    .map((setting, index) => ({ setting, index, score: settingRelevance(setting, query) }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ setting }) => setting);
+  return { matches: ranked, relaxed: found.relaxed };
+}
+
+function filterHarnessSettingSchema(
+  configManager: Pick<ConfigManager, 'getSchema'>,
+  filters: HarnessSettingFilters = {},
+): readonly ConfigSetting[] {
+  return searchHarnessSettingSchema(configManager, filters).matches;
+}
+
+/**
+ * How many settings the caller's structural filters leave, ignoring `query`.
+ *
+ * This is what a page reports as `total`, and it is the number that was wrong:
+ * the settings mode used to report the count of what MATCHED, so a query
+ * nothing matched came back `{"settings": [], "returned": 0, "total": 0}` and
+ * said the platform has no settings at all. Every other harness catalog already
+ * reports its size here (`toolRegistry.getToolDefinitions().length`,
+ * `allWorkspaceActions().length`), which is what makes the envelope's empty-page
+ * sentence — "no settings matched X; N exist" — possible to write.
+ */
+export function countHarnessSettingCatalog(
+  configManager: Pick<ConfigManager, 'getSchema'>,
+  filters: HarnessSettingFilters = {},
+): number {
+  return harnessSettingCatalog(configManager, filters).length;
+}
+
+/** True when a page's rows matched single words rather than the whole query. */
+export function harnessSettingQueryRelaxed(
+  configManager: Pick<ConfigManager, 'getSchema'>,
+  filters: HarnessSettingFilters = {},
+): boolean {
+  return searchHarnessSettingSchema(configManager, filters).relaxed;
 }
 
 export function listHarnessSettings(
@@ -462,13 +569,17 @@ export function resolveHarnessSetting(
 
   const category = args.category?.trim();
   const prefix = args.prefix?.trim();
-  const searchMatches = schema.filter((setting) => {
-    if (category && setting.key.split('.')[0] !== category) return false;
-    if (prefix && !setting.key.startsWith(prefix)) return false;
-    if (!args.includeHidden && isAgentHiddenSettingKey(setting.key)) return false;
-    return settingMatchesSearch(setting, inputLower);
+  const searched = searchHarnessSettingSchema(configManager, {
+    ...(category ? { category } : {}),
+    ...(prefix ? { prefix } : {}),
+    includeHidden: args.includeHidden === true,
+    query: inputLower,
   });
-  if (searchMatches.length === 1) {
+  const searchMatches = searched.matches;
+  // A relaxed hit matched one WORD of what was asked. Naming it as THE setting
+  // and reporting `resolvedBy: 'search'` would dress a guess as a resolution,
+  // so loose hits are always returned as candidates.
+  if (searchMatches.length === 1 && !searched.relaxed) {
     const resolvedLookup = { ...lookup, resolvedBy: 'search' as const };
     return {
       status: 'found',
@@ -476,7 +587,7 @@ export function resolveHarnessSetting(
       lookup: resolvedLookup,
     };
   }
-  if (searchMatches.length > 1) {
+  if (searchMatches.length > 0) {
     return {
       status: 'ambiguous',
       input: lookup.input,

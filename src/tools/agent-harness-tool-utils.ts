@@ -1,4 +1,5 @@
 import type { AgentHarnessToolArgs } from './agent-harness-tool-types.ts';
+import { RELAXED_MATCH_NOTE } from './agent-harness-catalog-search.ts';
 
 export function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -75,24 +76,58 @@ export function catalogFilters(
   return filters;
 }
 
+/**
+ * The other catalogs a query could be asked of, quoted when one comes back
+ * empty.
+ *
+ * A capability lives on exactly one of these surfaces, and the model has no way
+ * to know which before it looks. Asking `mode:"tools"` for "payment" returns
+ * nothing — correctly, there is no payments tool — and that empty page was read
+ * as "this platform cannot take a payment", while a `payments.*` settings
+ * section and a `/payments` command sat one mode away. An empty page now says
+ * where else to look.
+ */
+const SIBLING_CATALOG_ROUTES = 'agent_harness mode:"settings"|"commands"|"workspace_actions"|"tools"|"modes"';
+
+export interface CatalogEnvelopeOptions {
+  /** Rows matched single words from the query, not the phrase itself. */
+  readonly relaxedQuery?: boolean;
+}
+
 export function catalogEnvelope(
   key: string,
   items: readonly unknown[],
   total: number,
   filters: CatalogFilters = {},
   discovery?: string,
+  options: CatalogEnvelopeOptions = {},
 ): Record<string, unknown> {
   const applied = Object.entries(filters)
     .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0);
+
+  const searched = applied.some(([name]) => name === 'query' || name === 'target');
+  const elsewhere = searched
+    ? ` A capability may live on another surface: ${SIBLING_CATALOG_ROUTES} each search a different one.`
+    : '';
 
   const envelope: Record<string, unknown> = {
     [key]: items,
     returned: items.length,
     total,
     ...(applied.length > 0 ? { appliedFilters: Object.fromEntries(applied) } : {}),
+    ...(options.relaxedQuery ? { queryMatch: 'relaxed' } : {}),
   };
 
-  if (total === 0) return envelope;
+  // An empty catalog still owes the reader a sentence, and that sentence is not
+  // about the filter: `total` is the catalog's own size (which the settings
+  // page finally reports), so zero here means the catalog holds nothing and no
+  // other arguments would change that. It used to return with three bare
+  // fields, and `{"x": [], "returned": 0, "total": 0}` as a whole answer is the
+  // shape a reader takes for "this platform cannot do that".
+  if (total === 0) {
+    envelope.note = `This catalog holds no ${key} at all, so no argument emptied this page.${elsewhere}`;
+    return envelope;
+  }
 
   // A SHORTENED page discloses that it is short.
   //
@@ -102,14 +137,20 @@ export function catalogEnvelope(
   // page read as "no such capability", just in slower motion. `returned` and
   // `total` were always both present, but a number two fields away is easy to
   // miss in a way a sentence is not.
+  const relaxedNote = options.relaxedQuery ? ` ${RELAXED_MATCH_NOTE}` : '';
+
   if (items.length > 0) {
-    if (items.length >= total) return envelope;
+    if (items.length >= total && !options.relaxedQuery) return envelope;
     const shownFilters = applied.map(([name, value]) => `${name}="${value}"`).join(', ');
+    if (items.length >= total) {
+      envelope.note = `Showing all ${total} ${key}.${relaxedNote}`;
+      return envelope;
+    }
     envelope.note = `Showing ${items.length} of ${total} ${key}. `
       + (shownFilters
         ? `This is a filtered view (${shownFilters}), not the full catalog`
         : 'This is a partial view, not the full catalog')
-      + `${discovery ? `; re-send as ${discovery} to see everything` : ''}.`;
+      + `${discovery ? `; re-send as ${discovery} to see everything` : ''}.${relaxedNote}`;
     return envelope;
   }
 
@@ -117,7 +158,7 @@ export function catalogEnvelope(
   envelope.note = applied.length > 0
     ? `No ${key} matched ${shown}. ${total} ${key} exist in this catalog`
       + `${discovery ? `; re-send as ${discovery} to list them all` : '; re-send without that filter to list them all'}`
-      + ', or supply a different value.'
+      + `, or supply a different value.${elsewhere}`
     : `This catalog reports ${total} ${key} but returned none for these arguments`
       + `${discovery ? `; ${discovery} lists them all` : ''}.`;
   return envelope;

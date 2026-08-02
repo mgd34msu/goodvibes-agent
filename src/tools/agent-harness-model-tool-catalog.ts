@@ -1,4 +1,5 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { catalogSearchTokens, searchCatalog, type CatalogSearchResult } from './agent-harness-catalog-search.ts';
 
 export interface AgentHarnessModelToolCatalogArgs {
   readonly query?: unknown;
@@ -30,10 +31,6 @@ function previewText(value: string, maxLength = 56): string {
   return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
-function searchTokens(input: string): readonly string[] {
-  return input.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 0);
-}
-
 function schemaSearchText(value: unknown): string {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) return value.map(schemaSearchText).filter(Boolean).join('\n');
@@ -54,14 +51,6 @@ function modelToolSearchText(tool: HarnessModelToolDefinition): string {
   ].join('\n').toLowerCase();
 }
 
-function modelToolMatchesSearch(tool: HarnessModelToolDefinition, input: string): boolean {
-  const text = modelToolSearchText(tool);
-  const normalized = input.toLowerCase().trim();
-  if (!normalized) return true;
-  if (text.includes(normalized)) return true;
-  const tokens = searchTokens(normalized);
-  return tokens.length > 0 && tokens.every((token) => text.includes(token));
-}
 
 function tokenScore(tokens: readonly string[], value: string | undefined, weight: number): number {
   if (!value) return 0;
@@ -75,7 +64,7 @@ function modelToolRelevance(tool: HarnessModelToolDefinition, input: string): nu
   const normalized = input.toLowerCase().trim();
   if (!normalized) return 0;
 
-  const tokens = searchTokens(normalized);
+  const tokens = catalogSearchTokens(normalized);
   const name = tool.name.toLowerCase();
   const namePhrase = name.replace(/_/g, ' ');
   const nameLookup = normalized.replace(/\s+/g, '_');
@@ -92,22 +81,22 @@ function modelToolRelevance(tool: HarnessModelToolDefinition, input: string): nu
   score += tokenScore(tokens, parameterText, 150);
 
   const actionVerb = tokens.find((token) => ACTION_VERBS.has(token));
-  if (actionVerb && searchTokens(name).includes(actionVerb)) score += 1_500;
+  if (actionVerb && catalogSearchTokens(name).includes(actionVerb)) score += 1_500;
 
   return score;
 }
 
-function matchingModelTools(tools: readonly HarnessModelToolDefinition[], input: string): readonly HarnessModelToolDefinition[] {
+function matchingModelTools(tools: readonly HarnessModelToolDefinition[], input: string): CatalogSearchResult<HarnessModelToolDefinition> {
   const query = input.toLowerCase().trim();
-  const matches = tools
+  const found = searchCatalog(tools, query, modelToolSearchText);
+  const ranked = found.matches
     .map((tool, index) => ({ tool, index, score: modelToolRelevance(tool, query) }))
-    .filter(({ tool }) => modelToolMatchesSearch(tool, query));
-  return matches
     .sort((left, right) => {
       if (!query) return left.tool.name.localeCompare(right.tool.name);
       return right.score - left.score || left.tool.name.localeCompare(right.tool.name) || left.index - right.index;
     })
     .map(({ tool }) => tool);
+  return { matches: ranked, relaxed: found.relaxed };
 }
 
 function modelToolLookupFromArgs(args: AgentHarnessModelToolCatalogArgs): { readonly source: ModelToolLookupSource; readonly input: string } | null {
@@ -147,13 +136,18 @@ function describeModelToolCandidates(tools: readonly HarnessModelToolDefinition[
   }));
 }
 
-export function listHarnessModelTools(toolRegistry: ToolRegistry, args: AgentHarnessModelToolCatalogArgs): readonly Record<string, unknown>[] {
+export function searchHarnessModelTools(
+  toolRegistry: ToolRegistry,
+  args: AgentHarnessModelToolCatalogArgs,
+): CatalogSearchResult<Record<string, unknown>> {
   const query = readString(args.query).toLowerCase();
   const includeParameters = args.includeParameters === true;
   const limit = readLimit(args.limit, 500);
-  return matchingModelTools(toolRegistry.getToolDefinitions(), query)
-    .slice(0, limit)
-    .map((tool) => describeModelTool(tool, { includeParameters }));
+  const found = matchingModelTools(toolRegistry.getToolDefinitions(), query);
+  return {
+    matches: found.matches.slice(0, limit).map((tool) => describeModelTool(tool, { includeParameters })),
+    relaxed: found.relaxed,
+  };
 }
 
 export function describeHarnessModelTool(toolRegistry: ToolRegistry, args: AgentHarnessModelToolCatalogArgs): HarnessModelToolResolution | null {
@@ -169,8 +163,9 @@ export function describeHarnessModelTool(toolRegistry: ToolRegistry, args: Agent
         if (insensitive) return { tool: insensitive, resolvedBy: 'case-insensitive-name' };
         if (lookup.source === 'toolName') return null;
         const searched = matchingModelTools(tools, normalized);
-        if (searched.length === 1) return { tool: searched[0]!, resolvedBy: 'search' };
-        if (searched.length > 1) return { candidates: searched };
+        // A loose hit names a tool the query did not: offer it, never pick it.
+        if (searched.matches.length === 1 && !searched.relaxed) return { tool: searched.matches[0]!, resolvedBy: 'search' };
+        if (searched.matches.length > 0) return { candidates: searched.matches };
         return null;
       })();
   if (!found) return null;

@@ -13,6 +13,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { PROFILE_FIELDS, PROSE_ONLY_SECTIONS } from '@pellux/goodvibes-sdk/platform/owner-profile';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ProfileGatewayResult } from '../../agent/owner-profile-gateway.ts';
 import { createAgentProfileTool, registerAgentProfileTool } from '../../tools/agent-profile-tool.ts';
@@ -567,6 +568,45 @@ describe('profile tool — honest degradation', () => {
     expect(result.success).toBe(false);
     expect(result.output).toContain('`action` is required');
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('profile tool — the declared field catalog', () => {
+  function fieldIdProperty(): { readonly enum?: readonly string[]; readonly description?: string } {
+    const invoke = async (): Promise<ProfileGatewayResult> => ({ ok: true, data: {}, route: 'in-process' });
+    const parameters = createAgentProfileTool({ invoke }).definition.parameters as {
+      readonly properties: Record<string, { readonly enum?: readonly string[]; readonly description?: string }>;
+    };
+    return parameters.properties.fieldId!;
+  }
+
+  // The drift test. The live failure was a free-form `fieldId` filled with
+  // `full_name`, `preferred_name`, `home_address`, `timezone` and `wife` — none
+  // of them fields — so the declaration must now be the registry itself, in
+  // registry order, and must stay that way when the SDK adds or renames one.
+  test('declares exactly the SDK field registry ids, in registry order', () => {
+    expect(fieldIdProperty().enum).toEqual(PROFILE_FIELDS.map((field) => field.id));
+  });
+
+  test('groups the ids by section with the label written in the file', () => {
+    const description = fieldIdProperty().description ?? '';
+    for (const field of PROFILE_FIELDS) {
+      expect(description).toContain(`${field.id} (${field.label})`);
+    }
+    expect(description).toContain('Identity: identity.name (name)');
+    expect(description).toContain('Location:');
+    expect(description).toContain('Commerce:');
+  });
+
+  test('the tool description names the field/prose split and why people and dates are prose', () => {
+    const invoke = async (): Promise<ProfileGatewayResult> => ({ ok: true, data: {}, route: 'in-process' });
+    const description = createAgentProfileTool({ invoke }).definition.description;
+    for (const section of PROSE_ONLY_SECTIONS) expect(description).toContain(section);
+    expect(description).toContain('action:"append"');
+    expect(description).toContain('by design');
+    // The five invented ids from the live failure are relationships and dates.
+    expect(description).toContain('People prose');
+    expect(description).toContain('Important dates prose');
   });
 });
 

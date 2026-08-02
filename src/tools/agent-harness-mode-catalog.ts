@@ -1,5 +1,6 @@
 import { AGENT_HARNESS_MODES } from './agent-harness-tool-schema.ts';
 import { catalogEnvelope, readLimit } from './agent-harness-tool-utils.ts';
+import { catalogSearchTokens, searchCatalog, type CatalogSearchResult } from './agent-harness-catalog-search.ts';
 
 export type AgentHarnessMode = typeof AGENT_HARNESS_MODES[number];
 
@@ -45,7 +46,7 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'run_keybinding', kind: 'effect', family: 'keyboard', summary: 'Run one supported keybinding action through the active UI route.', requiresConfirmation: true, parameters: ['actionId', 'key', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'set_keybinding', kind: 'effect', family: 'keyboard', summary: 'Set one configurable keybinding action.', requiresConfirmation: true, parameters: ['actionId', 'combo', 'combos', 'confirm', 'explicitUserRequest'] },
   { id: 'reset_keybinding', kind: 'effect', family: 'keyboard', summary: 'Reset one configurable keybinding action to defaults.', requiresConfirmation: true, parameters: ['actionId', 'confirm', 'explicitUserRequest'] },
-  { id: 'commands', kind: 'discover', family: 'slash', summary: 'List registered slash commands and compact policies.', next: 'Prefer workspace action:"commands|command|run_command".', parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'commands', kind: 'discover', family: 'slash', summary: 'List registered slash commands and compact policies.', next: 'Prefer workspace action:"commands|command|run_command".', keywords: ['payment card entry', 'credit card', 'enter card', 'guided flow', 'chained prompt'], parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'command', kind: 'inspect', family: 'slash', summary: 'Inspect slash command, parsed args, policy, aliases, and model route.', parameters: ['command', 'commandName', 'target', 'query'] },
   { id: 'run_command', kind: 'effect', family: 'slash', summary: 'Run one slash command through shared command dispatch.', requiresConfirmation: true, parameters: ['command', 'commandName', 'args', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'channels', kind: 'discover', family: 'delivery', summary: 'List channel readiness, accounts, delivery posture, and safe setup keys.', next: 'Prefer channels action:"status|channel|setup".', parameters: ['query', 'limit', 'includeParameters'] },
@@ -122,8 +123,12 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'media_provider', kind: 'inspect', family: 'media', summary: 'Inspect one voice or media provider readiness entry.', keywords: ['push to talk', 'wake word', 'spoken response', 'tts voice', 'voice controls', 'phone voice'], parameters: ['mediaProviderId', 'target', 'query'] },
   { id: 'sessions', kind: 'discover', family: 'sessions', summary: 'List saved sessions, bookmarks, exports, and pending approvals posture.', next: 'Use session.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'session', kind: 'inspect', family: 'sessions', summary: 'Inspect one saved session or bookmark entry.', parameters: ['sessionId', 'target', 'query'] },
-  { id: 'settings', kind: 'discover', family: 'settings', summary: 'Search Agent settings compactly by category, prefix, or query.', next: 'Prefer settings action:"list|get|set|reset|import".', parameters: ['category', 'prefix', 'query', 'includeHidden', 'limit', 'includeParameters'] },
-  { id: 'get_setting', kind: 'inspect', family: 'settings', summary: 'Inspect one Agent setting descriptor, value, default, and policy.', parameters: ['key', 'target', 'query'] },
+  // The keywords are the domains a person asks for by name rather than by key
+  // prefix. A model searching modes for "payment" used to find nothing and
+  // report that the platform has no payments — while payments.* held 32 live
+  // keys. The settings mode is where those are, so it says so.
+  { id: 'settings', kind: 'discover', family: 'settings', summary: 'Search Agent settings compactly by category, prefix, or query.', next: 'Prefer settings action:"list|get|set|reset|import".', keywords: ['payment', 'payments', 'credit card', 'spending limit', 'budget', 'purchase', 'billing address', 'shipping address', 'birthday', 'occasion', 'wake word', 'theme', 'model', 'api key', 'permission', 'telegram'], parameters: ['category', 'prefix', 'query', 'includeHidden', 'limit', 'includeParameters'] },
+  { id: 'get_setting', kind: 'inspect', family: 'settings', summary: 'Inspect one Agent setting descriptor, value, default, and policy.', keywords: ['payment', 'payments', 'credit card', 'spending limit', 'budget'], parameters: ['key', 'target', 'query'] },
   { id: 'set_setting', kind: 'effect', family: 'settings', summary: 'Set one Agent-owned setting through config/secret managers.', requiresConfirmation: true, parameters: ['key', 'target', 'query', 'value', 'confirm', 'explicitUserRequest'] },
   { id: 'reset_setting', kind: 'effect', family: 'settings', summary: 'Reset one Agent-owned setting and delete secret refs when needed.', requiresConfirmation: true, parameters: ['key', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'workspace', kind: 'discover', family: 'workspace', summary: 'List Agent workspace categories and action counts.', next: 'Prefer workspace action:"status|actions|action".' },
@@ -203,19 +208,6 @@ function harnessModeSearchText(descriptor: HarnessModeDescriptor): string {
   ].filter(Boolean).join('\n').toLowerCase();
 }
 
-function searchTokens(input: string): readonly string[] {
-  return input.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 0);
-}
-
-function harnessModeMatchesSearch(descriptor: HarnessModeDescriptor, input: string): boolean {
-  const text = harnessModeSearchText(descriptor);
-  const normalized = input.toLowerCase().trim();
-  if (normalized.length === 0) return true;
-  if (text.includes(normalized)) return true;
-  const tokens = searchTokens(normalized);
-  return tokens.length > 0 && tokens.every((token) => text.includes(token));
-}
-
 function tokenScore(tokens: readonly string[], value: string | undefined, weight: number): number {
   if (!value) return 0;
   const text = value.toLowerCase();
@@ -228,7 +220,7 @@ function harnessModeRelevance(descriptor: HarnessModeDescriptor, input: string):
   const normalized = input.toLowerCase().trim();
   if (!normalized) return 0;
 
-  const tokens = searchTokens(normalized);
+  const tokens = catalogSearchTokens(normalized);
   const id = descriptor.id.toLowerCase();
   const idPhrase = id.replace(/_/g, ' ');
   const idLookup = normalized.replace(/\s+/g, '_');
@@ -248,7 +240,7 @@ function harnessModeRelevance(descriptor: HarnessModeDescriptor, input: string):
 
   const actionVerb = tokens.find((token) => ACTION_VERBS.has(token));
   if (actionVerb) {
-    const idTokens = searchTokens(id);
+    const idTokens = catalogSearchTokens(id);
     if (idTokens[0] === actionVerb) score += 2_000;
     if (descriptor.kind === 'effect' && idTokens.includes(actionVerb)) score += 1_000;
   }
@@ -256,14 +248,14 @@ function harnessModeRelevance(descriptor: HarnessModeDescriptor, input: string):
   return score;
 }
 
-function matchingHarnessModes(input: string): readonly HarnessModeDescriptor[] {
-  const matches = HARNESS_MODE_DESCRIPTORS
+function matchingHarnessModes(input: string): CatalogSearchResult<HarnessModeDescriptor> {
+  const found = searchCatalog(HARNESS_MODE_DESCRIPTORS, input, harnessModeSearchText);
+  if (!input) return found;
+  const ranked = found.matches
     .map((descriptor, index) => ({ descriptor, index, score: harnessModeRelevance(descriptor, input) }))
-    .filter(({ descriptor }) => harnessModeMatchesSearch(descriptor, input));
-  if (!input) return matches.map(({ descriptor }) => descriptor);
-  return matches
     .sort((left, right) => right.score - left.score || left.index - right.index)
     .map(({ descriptor }) => descriptor);
+  return { matches: ranked, relaxed: found.relaxed };
 }
 
 function modeLookupInput(args: HarnessModeCatalogArgs): { readonly source: 'target' | 'query'; readonly input: string } | null {
@@ -277,13 +269,14 @@ export function listHarnessModes(args: HarnessModeCatalogArgs): Record<string, u
   const lookup = modeLookupInput(args);
   const limit = readLimit(args.limit, 120);
   const normalized = lookup?.input.toLowerCase() ?? '';
-  const modes = matchingHarnessModes(normalized)
+  const found = matchingHarnessModes(normalized);
+  const modes = found.matches
     .map((descriptor) => describeHarnessModeDescriptor(descriptor, { includeParameters: args.includeParameters === true }))
     .slice(0, limit);
   return {
     ...catalogEnvelope('modes', modes, HARNESS_MODE_DESCRIPTORS.length, {
       ...(lookup ? { [lookup.source]: lookup.input } : {}),
-    }, 'agent_harness mode:"modes" with no query'),
+    }, 'agent_harness mode:"modes" with no query', { relaxedQuery: found.relaxed }),
     families: Array.from(new Set(HARNESS_MODE_DESCRIPTORS.map((descriptor) => descriptor.family))).sort(),
     policy: 'Mode discovery is read-only. Effect modes still require confirm:true and explicitUserRequest.',
   };
@@ -303,14 +296,17 @@ export function describeHarnessMode(args: HarnessModeCatalogArgs): HarnessModeRe
   const insensitive = HARNESS_MODE_DESCRIPTORS.find((descriptor) => descriptor.id.toLowerCase() === normalized);
   if (insensitive) return { status: 'found', mode: describeHarnessModeDescriptor(insensitive, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } }) };
   const searched = matchingHarnessModes(normalized);
-  if (searched.length === 1) {
-    return { status: 'found', mode: describeHarnessModeDescriptor(searched[0]!, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }) };
+  // A relaxed hit matched a WORD of the query, not the query. Naming one of
+  // those as THE mode would be a guess with a receipt on it, so loose hits are
+  // always offered as candidates for the caller to choose between.
+  if (searched.matches.length === 1 && !searched.relaxed) {
+    return { status: 'found', mode: describeHarnessModeDescriptor(searched.matches[0]!, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }) };
   }
-  if (searched.length > 1) {
+  if (searched.matches.length > 0) {
     return {
       status: 'ambiguous',
       input: lookup.input,
-      candidates: searched.slice(0, 12).map((descriptor) => describeHarnessModeDescriptor(descriptor)),
+      candidates: searched.matches.slice(0, 12).map((descriptor) => describeHarnessModeDescriptor(descriptor)),
     };
   }
   return {

@@ -86,10 +86,18 @@ describe('catalog envelope — a non-empty page is left alone', () => {
   });
 
   test('a genuinely empty catalog is not treated as a filter problem', () => {
+    // Still not a filter problem — but no longer silent about it. This used to
+    // assert `note` was undefined, which left `{"x": [], "returned": 0,
+    // "total": 0}` as a complete answer, and that shape is exactly what a model
+    // reads as "this platform has none of these, ever". Zero rows and zero
+    // total now say so in words, without blaming an argument that changed
+    // nothing.
     const result = envelope([], 0, { query: 'a' });
     expect(result.returned).toBe(0);
     expect(result.total).toBe(0);
-    expect(result.note).toBeUndefined();
+    expect(result.note).toContain('no actions at all');
+    expect(result.note).toContain('no argument emptied this page');
+    expect(result.note).not.toContain('query="a"');
   });
 
   test('the page keeps the field name the caller expects', () => {

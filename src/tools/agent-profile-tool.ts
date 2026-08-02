@@ -40,6 +40,7 @@
 
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { PROFILE_FIELDS, PROSE_ONLY_SECTIONS } from '@pellux/goodvibes-sdk/platform/owner-profile';
 import type { ProfileGatewayInvoke } from '../agent/owner-profile-gateway.ts';
 import {
   isProfileAuthority,
@@ -65,6 +66,47 @@ import {
  * `read` (§10) and reachable only through `person`.
  */
 const PEOPLE_SECTION = 'people';
+
+/**
+ * The declared `fieldId` values, taken from the SDK's field registry at module
+ * load rather than written out here.
+ *
+ * `fieldId` used to be a free-form string with two ids as examples, and the
+ * model filled it with the names a person would use: `full_name`,
+ * `preferred_name`, `home_address`, `timezone`, `wife`. Every one was refused by
+ * the daemon — correctly, since none of them is a field — and the facts he had
+ * just given ended up as prose instead of records. The parameter now carries the
+ * whole catalog as an `enum`, so the ids are in front of the model at the moment
+ * it fills the argument in.
+ *
+ * Sourced from {@link PROFILE_FIELDS}, never copied: a hand-written list is one
+ * SDK release away from declaring a field that no longer exists or omitting one
+ * that does, and either way the declaration would be a claim about the daemon
+ * that the daemon does not honour. A test pins this to the registry.
+ */
+const PROFILE_FIELD_IDS: readonly string[] = PROFILE_FIELDS.map((field) => field.id);
+
+/**
+ * The ids grouped under their section headings, e.g.
+ * `Identity: identity.name (name), identity.goesBy (goes by)`.
+ *
+ * The enum alone says which ids exist; it does not say which one holds the fact
+ * in hand. Grouping them by the section they live in, each next to the label
+ * written in the file, is what lets "where he lives" reach `location.city`
+ * rather than a guess.
+ */
+function describeProfileFieldCatalog(): string {
+  const bySection = new Map<string, string[]>();
+  for (const field of PROFILE_FIELDS) {
+    const entries = bySection.get(field.section) ?? [];
+    entries.push(`${field.id} (${field.label})`);
+    bySection.set(field.section, entries);
+  }
+  return Array.from(bySection, ([section, ids]) => `${section}: ${ids.join(', ')}`).join('. ');
+}
+
+/** The sections that hold prose lines rather than keyed fields, in file order. */
+const PROSE_SECTION_LIST = PROSE_ONLY_SECTIONS.join(', ');
 
 type ToolOutcome = { readonly success: boolean; readonly output: string };
 
@@ -326,7 +368,7 @@ async function handleAppend(
   authority: ProfileAuthority,
   said: string,
 ): Promise<ToolOutcome> {
-  if (!section) return fail(['`section` is required, e.g. section:"Notes", "Places", "Work", "Style", "People".']);
+  if (!section) return fail([`\`section\` is required, one of: ${PROSE_SECTION_LIST}.`]);
   if (!text) return fail(['`text` is required: the note to add, in plain words.']);
   const result = await deps.invoke(PROFILE_METHOD_IDS.append, {
     section,
@@ -418,7 +460,16 @@ export function createAgentProfileTool(deps: AgentProfileToolDeps): Tool {
   return {
     definition: {
       name: 'profile',
-      description: 'Read and record what GoodVibes knows about the owner.',
+      description: 'Read and record what GoodVibes knows about the owner.'
+        + ' Two kinds of content, and which one it is decides the action.'
+        + ' A MECHANICAL FIELD holds one keyed fact: action:"set" with a'
+        + ' fieldId from the list on that parameter, and nothing else is a field.'
+        + ' A PROSE SECTION holds lines in his own words: action:"append" with'
+        + ` section and text. The prose sections are ${PROSE_SECTION_LIST}.`
+        + ' No field id exists for a relationship, a person, or a birthday, and'
+        + ' that is by design: people belong in People prose, dates in'
+        + ' Important dates prose, which is where occasions reads them.'
+        + ' An invented fieldId is refused; append the fact instead.',
       parameters: {
         type: 'object',
         properties: {
@@ -427,9 +478,14 @@ export function createAgentProfileTool(deps: AgentProfileToolDeps): Tool {
             enum: [...PROFILE_ACTIONS],
             description: 'read/get/person/provenance look up; set/append record; forget/undo fix.',
           },
-          fieldId: { type: 'string', description: 'Mechanical field id, e.g. location.timezone, commerce.shippingAddress.' },
+          fieldId: {
+            type: 'string',
+            enum: [...PROFILE_FIELD_IDS],
+            description: `The mechanical field, by id. ${describeProfileFieldCatalog()}.`
+              + ' Nothing outside this list is a field; anything else is prose, via action:"append".',
+          },
           value: { type: 'string', description: 'The value to record for `fieldId`.' },
-          section: { type: 'string', description: 'Notes, Places, Work, Style or People. For append and for forget.' },
+          section: { type: 'string', description: `A prose section: ${PROSE_SECTION_LIST}. For append and for forget.` },
           text: { type: 'string', description: 'The note to append, or the line to forget, without its list marker.' },
           // No lineIndex: a prose line is named by its content. See handleForget.
 

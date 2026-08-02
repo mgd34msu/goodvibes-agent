@@ -6,7 +6,7 @@ import { autonomyIntakeSummary } from './agent-harness-autonomy-intake.ts';
 import { autonomyQueueCatalogStatus, autonomyQueueSummary, describeAutonomyQueueItem } from './agent-harness-autonomy-queue.ts';
 import { channelReadinessCatalogStatus, describeHarnessChannel, describeHarnessChannelDeliveries, describeHarnessChannelSetupGuide, describeHarnessChannelTriage, listHarnessChannels } from './agent-harness-channel-metadata.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
-import { describeHarnessCommand, listHarnessCommands } from './agent-harness-command-catalog.ts';
+import { describeHarnessCommand, searchHarnessCommands } from './agent-harness-command-catalog.ts';
 import { describeLearningCandidate, learningCuratorCatalogStatus, learningCuratorSummary } from './agent-harness-learning-curator.ts';
 import { runAutoPromoter } from './agent-harness-learning-auto-promote.ts';
 import { runSkillDraftProposer } from '../agent/skill-draft-runner.ts';
@@ -24,7 +24,7 @@ import { describeHarnessExecutionRoute, executionPostureCatalogStatus, execution
 import { fileRecoveryCatalogStatus, fileRecoverySummary, runFileRecovery } from './agent-harness-file-recovery.ts';
 import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary, runLocalModelServerSmoke } from './agent-harness-model-routing.ts';
-import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
+import { describeHarnessModelTool, searchHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
 import { memoryRefinementCatalogStatus, memoryRefinementSummary, runMemoryRefinement } from './agent-harness-memory-refinement.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
@@ -324,8 +324,8 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return confirmationError ? error(confirmationError) : output(runHarnessKeybinding(deps.commandContext, args));
         }
         if (args.mode === 'commands') {
-          const commands = listHarnessCommands(deps.commandRegistry, args);
-          return output(catalogEnvelope('commands', commands, deps.commandRegistry.list().length, catalogFilters(args, CQ.commands.filters), CQ.commands.discovery));
+          const commands = searchHarnessCommands(deps.commandRegistry, args);
+          return output(catalogEnvelope('commands', commands.matches, deps.commandRegistry.list().length, catalogFilters(args, CQ.commands.filters), CQ.commands.discovery, { relaxedQuery: commands.relaxed }));
         }
         if (args.mode === 'command') {
           const detail = describeHarnessCommand(deps.commandRegistry, args);
@@ -657,8 +657,8 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'run_workspace_action') return runWorkspaceAction(deps, args);
         if (args.mode === 'tools') {
-          const tools = listHarnessModelTools(deps.toolRegistry, args);
-          return output(catalogEnvelope('tools', tools, deps.toolRegistry.getToolDefinitions().length, catalogFilters(args, CQ.tools.filters), CQ.tools.discovery));
+          const tools = searchHarnessModelTools(deps.toolRegistry, args);
+          return output(catalogEnvelope('tools', tools.matches, deps.toolRegistry.getToolDefinitions().length, catalogFilters(args, CQ.tools.filters), CQ.tools.discovery, { relaxedQuery: tools.relaxed }));
         }
         if (args.mode === 'tool') {
           const query = readString(args.toolName || args.target || args.query);

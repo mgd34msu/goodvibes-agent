@@ -1,6 +1,7 @@
 import type { CommandRegistry, SlashCommand } from '../input/command-registry.ts';
 import { parseSlashCommand } from '../input/slash-command-parser.ts';
 import { describeCommandPolicy } from './agent-harness-metadata.ts';
+import { catalogTextMatches, searchCatalog, type CatalogSearchResult } from './agent-harness-catalog-search.ts';
 
 export interface AgentHarnessCommandCatalogArgs {
   readonly query?: unknown;
@@ -44,16 +45,18 @@ function previewText(value: string, maxLength = 56): string {
   return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
-function commandMatches(command: SlashCommand, query: string): boolean {
-  if (!query) return true;
-  const haystack = [
+function commandSearchText(command: SlashCommand): string {
+  return [
     command.name,
     ...(command.aliases ?? []),
     command.description,
     command.usage ?? '',
     command.argsHint ?? '',
   ].join('\n').toLowerCase();
-  return haystack.includes(query.toLowerCase());
+}
+
+function commandMatches(command: SlashCommand, query: string): boolean {
+  return catalogTextMatches(commandSearchText(command), query);
 }
 
 function describeCommand(command: SlashCommand, lookup?: CommandDetailLookup): Record<string, unknown> {
@@ -181,15 +184,22 @@ export function resolveHarnessCommandDetail(commandRegistry: CommandRegistry, ar
   return null;
 }
 
-export function listHarnessCommands(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): readonly Record<string, unknown>[] {
+export function searchHarnessCommands(
+  commandRegistry: CommandRegistry,
+  args: AgentHarnessCommandCatalogArgs,
+): CatalogSearchResult<Record<string, unknown>> {
   const query = readString(args.query);
   const limit = readLimit(args.limit, 500);
   const includeParameters = args.includeParameters === true;
-  return commandRegistry.list()
-    .filter((command) => commandMatches(command, query))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, limit)
-    .map((command) => includeParameters ? describeCommand(command) : describeCommandCandidate(command));
+  const found = searchCatalog(commandRegistry.list(), query, commandSearchText);
+  return {
+    matches: found.matches
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, limit)
+      .map((command) => includeParameters ? describeCommand(command) : describeCommandCandidate(command)),
+    relaxed: found.relaxed,
+  };
 }
 
 export function describeHarnessCommand(commandRegistry: CommandRegistry, args: AgentHarnessCommandCatalogArgs): Record<string, unknown> | null {
