@@ -51,7 +51,7 @@ describe('external-services bootstrap stays adopt-only (no daemon construction)'
     const startServicesSpy = mock(async (..._args: unknown[]) => fakeHandle) as unknown as typeof startExternalServices;
 
     const configManager = {
-      get: (key: 'daemon.enabled' | 'daemon.embedInProcess' | 'danger.httpListener' | 'controlPlane.host' | 'controlPlane.port' | 'httpListener.host' | 'httpListener.port') => {
+      get: (key: 'daemon.enabled' | 'danger.httpListener' | 'controlPlane.host' | 'controlPlane.port' | 'httpListener.host' | 'httpListener.port') => {
         switch (key) {
           case 'controlPlane.host': return '127.0.0.1';
           case 'controlPlane.port': return 3421;
@@ -108,8 +108,10 @@ describe('external-services bootstrap stays adopt-only (no daemon construction)'
     ).toEqual({ adoptOnly: true });
     expect(
       factories && 'createDaemonServer' in factories,
-      'No daemon-construction factory (createDaemonServer) may be passed at this call site. This process adopts ' +
-      'connected hosts; it does not build them.',
+      'No daemon-construction factory may be passed at this call site. The SDK deleted the createDaemonServer ' +
+      'slot when in-process daemon composition was removed; this runtime check stays as insurance against the ' +
+      'slot being reintroduced or smuggled through as an untyped extra. This process adopts connected hosts; ' +
+      'it does not build them.',
     ).toBe(false);
   });
 });

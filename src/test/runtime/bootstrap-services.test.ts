@@ -15,7 +15,6 @@ function createConfig(overrides: {
     get(
       key:
         | 'daemon.enabled'
-        | 'daemon.embedInProcess'
         | 'danger.httpListener'
         | 'controlPlane.host'
         | 'controlPlane.port'
@@ -23,12 +22,6 @@ function createConfig(overrides: {
         | 'httpListener.port',
     ): boolean | string | number {
       if (key === 'daemon.enabled') return overrides.daemon ?? false;
-      // Agent's call site (bootstrap.ts) passes adoptOnly:true, which already
-      // rules out spawn/embed — daemon.embedInProcess is irrelevant there, but
-      // these tests call startExternalServices directly and must still force it
-      // false so a bug that ignores adoptOnly is caught by these assertions,
-      // not silently swallowed by the embed path.
-      if (key === 'daemon.embedInProcess') return false;
       if (key === 'danger.httpListener') return overrides.httpListener ?? false;
       if (key === 'controlPlane.host') return overrides.controlPlaneHost ?? '127.0.0.1';
       if (key === 'controlPlane.port') return overrides.controlPlanePort ?? 3421;
@@ -50,12 +43,7 @@ describe('startExternalServices (Agent: adopt-only)', () => {
   });
 
   test('never spawns or embeds a daemon even when legacy flags are enabled', async () => {
-    const daemonFactory = mock(() => ({
-      enable: mock(() => true),
-      start: mock(async () => {}),
-      stop: mock(async () => {}),
-      listRecentControlPlaneEvents: mock(() => []),
-    }));
+    const spawnDetachedDaemon = mock(() => ({ pid: 1, unref: () => {} }));
     const probeDaemonPortInUse = mock(async () => false);
 
     // httpListener stays at its default (disabled) here so this test never
@@ -67,13 +55,15 @@ describe('startExternalServices (Agent: adopt-only)', () => {
       runtimeServices.asDaemonGradeView(),
       {
         adoptOnly: true,
-        createDaemonServer: daemonFactory,
+        spawnDetachedDaemon,
         probeDaemonPortInUse,
       },
     );
 
-    // adoptOnly never spawns/embeds the daemon regardless of daemon.enabled.
-    expect(daemonFactory).not.toHaveBeenCalled();
+    // adoptOnly never spawns/embeds the daemon regardless of daemon.enabled:
+    // with the port free, adoptOnly steers the decision to 'adopt-only-idle'
+    // rather than 'spawn', so the detached-spawn seam is never invoked.
+    expect(spawnDetachedDaemon).not.toHaveBeenCalled();
     expect(probeDaemonPortInUse).toHaveBeenCalledTimes(1);
     expect(services.daemonServer).toBeNull();
     expect(services.httpListener).toBeNull();
