@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 import type { CommandContext } from './command-registry.ts';
 
 export interface ConnectedHostConnection {
@@ -36,19 +37,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function resolveConnectedHostConnection(context: CommandContext): ConnectedHostConnection {
-  const hostValue = context.platform?.configManager?.get('controlPlane.host');
-  const portValue = context.platform?.configManager?.get('controlPlane.port');
-  const host = typeof hostValue === 'string' && hostValue.trim().length > 0 ? hostValue.trim() : '127.0.0.1';
-  const port = typeof portValue === 'number' && Number.isFinite(portValue) ? portValue : 3421;
+  const baseUrl = connectedHostBaseUrl(
+    context.platform?.configManager?.get('controlPlane.host'),
+    context.platform?.configManager?.get('controlPlane.port'),
+  );
   const homeDirectory = context.workspace?.shellPaths?.homeDirectory ?? process.env.HOME ?? '';
   const tokenPath = join(homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
-  if (!existsSync(tokenPath)) return { baseUrl: `http://${host}:${port}`, token: null, tokenPath };
+  if (!existsSync(tokenPath)) return { baseUrl, token: null, tokenPath };
   try {
     const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
     const token = isRecord(parsed) && typeof parsed.token === 'string' ? parsed.token : null;
-    return { baseUrl: `http://${host}:${port}`, token, tokenPath };
+    return { baseUrl, token, tokenPath };
   } catch {
-    return { baseUrl: `http://${host}:${port}`, token: null, tokenPath };
+    return { baseUrl, token: null, tokenPath };
   }
 }
 

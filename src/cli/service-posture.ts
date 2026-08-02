@@ -7,6 +7,7 @@ import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { RuntimeEndpointBinding, RuntimeEndpointId } from './endpoints.ts';
 import { classifyBindPosture, isNetworkFacing } from '@pellux/goodvibes-terminal-shell';
 import { redactText } from './redaction.ts';
+import { dialHostForConfiguredHost } from '../config/connected-host-dial.ts';
 
 export interface CliServiceRuntime {
   readonly configManager: ConfigManager;
@@ -82,10 +83,8 @@ interface CliServicePostureOptions {
   readonly logTailBytes?: number;
 }
 
-function connectHostForBindHost(host: string): string {
-  if (host === '0.0.0.0' || host === '::') return '127.0.0.1';
-  return host || '127.0.0.1';
-}
+/** A TCP probe from this process, so a wildcard bind resolves to loopback. */
+const connectHostForBindHost = dialHostForConfiguredHost;
 
 async function probeTcp(host: string, port: number, timeoutMs = 750): Promise<boolean> {
   return await new Promise<boolean>((resolve) => {

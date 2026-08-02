@@ -4,6 +4,7 @@ import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 import { formatAgentRecordReviewState } from './record-labels.ts';
 import type { AgentRoutineRecord } from './routine-registry.ts';
 
@@ -244,16 +245,18 @@ export function resolveAgentConnectedHostConnection(
   configManager: AgentConnectedHostConfigReader,
   homeDirectory: string,
 ): AgentConnectedHostConnection {
-  const host = String(configManager.get('controlPlane.host') ?? '127.0.0.1');
-  const port = Number(configManager.get('controlPlane.port') ?? 3421);
+  const baseUrl = connectedHostBaseUrl(
+    configManager.get('controlPlane.host'),
+    configManager.get('controlPlane.port'),
+  );
   const tokenPath = join(homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
-  if (!existsSync(tokenPath)) return { baseUrl: `http://${host}:${Number.isFinite(port) ? port : 3421}`, token: null, tokenPath };
+  if (!existsSync(tokenPath)) return { baseUrl, token: null, tokenPath };
   try {
     const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
     const token = isRecord(parsed) && typeof parsed.token === 'string' ? parsed.token : null;
-    return { baseUrl: `http://${host}:${Number.isFinite(port) ? port : 3421}`, token, tokenPath };
+    return { baseUrl, token, tokenPath };
   } catch {
-    return { baseUrl: `http://${host}:${Number.isFinite(port) ? port : 3421}`, token: null, tokenPath };
+    return { baseUrl, token: null, tokenPath };
   }
 }
 

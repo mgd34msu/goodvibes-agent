@@ -1,6 +1,7 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 
 /**
  * Reads the connected daemon host's process-wide runtime metrics snapshot via
@@ -58,9 +59,10 @@ export interface CliConnectedHostMetricsInspectionOptions {
 // (cli/external-runtime.ts): controlPlane.host/port, defaulting to the local
 // daemon. Kept in step with that module so both probes target one host.
 function resolveBaseUrl(configManager: Pick<ConfigManager, 'get'>): string {
-  const host = String(configManager.get('controlPlane.host') ?? '127.0.0.1');
-  const port = Number(configManager.get('controlPlane.port') ?? 3421);
-  return `http://${host}:${Number.isFinite(port) ? port : 3421}`;
+  return connectedHostBaseUrl(
+    configManager.get('controlPlane.host'),
+    configManager.get('controlPlane.port'),
+  );
 }
 
 function readNumber(value: unknown): number {

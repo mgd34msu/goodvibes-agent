@@ -21,6 +21,7 @@
 
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { readConnectedHostOperatorToken } from './connected-host-auth.ts';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 
 export interface SessionRegistrationConnection {
   readonly baseUrl: string;
@@ -39,11 +40,11 @@ export function createSpineConnectionResolver(
   homeDirectory: string,
 ): () => SessionRegistrationConnection {
   return () => {
-    const hostValue = configManager.get('controlPlane.host');
-    const portValue = configManager.get('controlPlane.port');
-    const host = typeof hostValue === 'string' && hostValue.trim().length > 0 ? hostValue.trim() : '127.0.0.1';
-    const port = typeof portValue === 'number' && Number.isFinite(portValue) ? portValue : 3421;
+    const baseUrl = connectedHostBaseUrl(
+      configManager.get('controlPlane.host'),
+      configManager.get('controlPlane.port'),
+    );
     const token = readConnectedHostOperatorToken(homeDirectory);
-    return { baseUrl: `http://${host}:${port}`, token: token.token, tokenPath: token.path };
+    return { baseUrl, token: token.token, tokenPath: token.path };
   };
 }

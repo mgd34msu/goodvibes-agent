@@ -8,11 +8,13 @@
 //      gutter at column 0, left of the whole transcript);
 //   2. the vertical `│` runs unbroken from a row down to its next sibling —
 //      the connector used to be drawn only on a row's FIRST line, so every
-//      multi-line row (collapsed fragment box, expanded body) punched a hole
-//      in the rail;
+//      multi-line row (an expanded body) punched a hole in the rail;
 //   3. every level steps by exactly TREE_STEP_COLS and a result row lines up
-//      predictably under the tool row it belongs to — the tool row, its result
-//      row and that result's fragment each used to compute their own margin.
+//      predictably under the tool row it belongs to — the tool row and its
+//      result row each used to compute their own margin.
+//
+// The final describe block pins a fourth: a COLLAPSED result is one row, with
+// no frame rules, no preview box and no blank filler between consecutive folds.
 //
 // The assertions are on EXACT emitted rows and exact column indices, because
 // "looks aligned" is the property under test and nothing weaker detects a
@@ -209,7 +211,7 @@ describe('rails are continuous through a subtree', () => {
     }
   });
 
-  test('a collapsed result\'s fragment box carries the rail on every one of its lines', () => {
+  test('a collapsed result occupies one row and that row carries the rail', () => {
     const padded: Record<string, string> = {};
     for (let i = 0; i < 30; i++) padded[`k${i}`] = `value-${i}`;
     const rows = renderRows([
@@ -226,14 +228,13 @@ describe('rails are continuous through a subtree', () => {
     ]).filter((row) => row.length > 0);
 
     const railCol = treeBranchCol(treeIndentCols(1, WIDTH));
-    // The fragment box is the run of rows between the two call rows; every one
-    // of them (top border, preview, bottom border) must carry the rail.
+    // Exactly ONE row sits between the two call rows: the first call's folded
+    // result. The framed preview box that used to live here cost four (a ▄ top
+    // rule, the preview, a ▀ bottom rule, on top of the badge row).
     const firstCall = rows.findIndex((row) => row.includes('needle'));
     const secondCall = rows.findIndex((row) => row.includes('second-command'));
-    expect(secondCall - firstCall).toBeGreaterThan(3);
-    for (let i = firstCall + 1; i < secondCall; i++) {
-      expect(rows[i]![railCol], `row ${i}: ${JSON.stringify(rows[i])}`).toBe('│');
-    }
+    expect(secondCall - firstCall).toBe(2);
+    expect(rows[firstCall + 1]![railCol], JSON.stringify(rows[firstCall + 1])).toBe('│');
   });
 
   test('the last sibling ends the rail — nothing is drawn below its └', () => {
@@ -260,7 +261,7 @@ describe('result rows line up under the call they belong to', () => {
     expect(colOf(bodyRow, 'polled')).toBe(depth2Text);
   });
 
-  test('a collapsed preview\'s ▸ sits in the same column as its header\'s ▸', () => {
+  test('a collapsed result carries its badge AND its preview on one row, on the grid', () => {
     const padded: Record<string, string> = {};
     for (let i = 0; i < 30; i++) padded[`k${i}`] = `value-${i}`;
     const rows = renderRows([
@@ -272,10 +273,68 @@ describe('result rows line up under the call they belong to', () => {
       { role: 'tool', callId: 'c1', toolName: 'find', content: JSON.stringify(padded) },
     ]).filter((row) => row.length > 0);
 
-    const headerRow = rows.find((row) => /▸ \d+ lines/.test(row))!;
-    const previewRow = rows.find((row) => row.includes('hidden]'))!;
-    expect(colOf(previewRow, '▸')).toBe(colOf(headerRow, '▸'));
+    const badgeRows = rows.filter((row) => /▸ \d+ lines/.test(row));
+    expect(badgeRows.length).toBe(1);
+    const headerRow = badgeRows[0]!;
+    // The badge starts the row on the depth-2 text column...
     expect(colOf(headerRow, '▸')).toBe(treeTextCol(treeIndentCols(2, WIDTH)));
+    // ...and the head of the output rides the same row, after it.
+    expect(headerRow).toContain('{"k0":"value-0"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The fold is ONE row. Four times the owner rejected a collapsed result that
+// spent four to six rows saying "there is something here": a ▄ top rule, a
+// preview box, a ▀ bottom rule, a second restatement of the count as
+// `[▸ N hidden]`, and a blank separator between every pair. A run of folded
+// results must read as a run of single lines with nothing between them.
+// ---------------------------------------------------------------------------
+describe('a collapsed tool result is one compact row', () => {
+  /** Three long results, none of them attached to a call (the flat path). */
+  function threeFlatResults(): Message[] {
+    const padded: Record<string, string> = {};
+    for (let i = 0; i < 30; i++) padded[`k${i}`] = `value-${i}`;
+    const body = JSON.stringify(padded);
+    return [
+      { role: 'assistant', content: 'three lookups' } as Message,
+      { role: 'tool', callId: 'c1', toolName: 'find', content: body },
+      { role: 'tool', callId: 'c2', toolName: 'grep', content: body },
+      { role: 'tool', callId: 'c3', toolName: 'exec', content: body },
+    ];
+  }
+
+  test('no frame rules are drawn around a collapsed result', () => {
+    for (const row of renderRows(threeFlatResults())) {
+      expect(row.includes('▄'), `frame rule in ${JSON.stringify(row)}`).toBe(false);
+      expect(row.includes('▀'), `frame rule in ${JSON.stringify(row)}`).toBe(false);
+    }
+  });
+
+  test('the count is stated once, by the badge — no separate hidden marker', () => {
+    const rows = renderRows(threeFlatResults());
+    expect(rows.some((row) => row.includes('hidden'))).toBe(false);
+    expect(rows.filter((row) => /▸ \d+ lines/.test(row)).length).toBe(3);
+  });
+
+  test('three collapsed results render as three ADJACENT rows — no blank filler', () => {
+    const rows = renderRows(threeFlatResults());
+    const badgeRows = rows
+      .map((row, index) => ({ row, index }))
+      .filter((entry) => /▸ \d+ lines/.test(entry.row));
+    expect(badgeRows.length).toBe(3);
+    // Consecutive, with no row of any kind in between.
+    expect(badgeRows[1]!.index - badgeRows[0]!.index).toBe(1);
+    expect(badgeRows[2]!.index - badgeRows[1]!.index).toBe(1);
+  });
+
+  test('expanding a result still gives it its full multi-line body', () => {
+    const messages = threeFlatResults();
+    const collapseState = new Map<string, boolean>();
+    const folded = renderRows(messages, { collapseState });
+    for (const key of [...collapseState.keys()]) collapseState.set(key, false);
+    const opened = renderRows(messages, { collapseState });
+    expect(opened.length).toBeGreaterThan(folded.length + 20);
   });
 });
 

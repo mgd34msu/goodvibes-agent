@@ -59,11 +59,17 @@ function buildFoldedToolGroup(): { cm: ConversationManager; hitMemberIdx: number
 
 /** A single long tool result (>200 chars, no recognized summarizer shape)
  *  stays collapsed by default — its needle is nowhere in the 1-line
- *  collapsed preview, only in the raw content. */
+ *  collapsed preview, only in the raw content.
+ *
+ *  The needle sits AFTER a long run of padding on purpose. The collapsed row's
+ *  preview flattens newlines into one run (the shared fold policy's rule) and
+ *  truncates to the columns the badge leaves, so the only way to keep a marker
+ *  genuinely hidden — which is the condition this whole suite is about — is to
+ *  put it past that budget rather than merely on a later line. */
 function buildLongToolResult(): { cm: ConversationManager; needle: string } {
   const cm = new ConversationManager(() => 80);
   const needle = 'zzzFindableMarkerZzz';
-  const longContent = `line one\nline two with ${needle} inside\n` + 'padding '.repeat(60);
+  const longContent = `line one\n${'padding '.repeat(60)}\nlast line with ${needle} inside`;
   cm.addAssistantMessage('', { toolCalls: [{ id: 'c1', name: 'exec', arguments: {} }] });
   cm.addToolResults([{ callId: 'c1', success: true, output: longContent }]);
   cm.getDisplayBlocks();

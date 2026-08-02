@@ -7,13 +7,17 @@ import { renderSystemMessage } from '../renderer/system-message.ts';
 import { createEmptyLine, type Line, type Cell } from '@pellux/goodvibes-sdk/platform/types';
 import { getSplashLines, type SplashOptions } from '../utils/splash-lines.ts';
 import { interpolateColor, getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
-import { LAYOUT } from '../renderer/layout.ts';
+import { BORDERS, LAYOUT } from '../renderer/layout.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import { renderConversationCollapsedFragment, renderConversationEventLine } from '../renderer/conversation-surface.ts';
+import {
+  renderConversationEventLine,
+  renderConversationFoldedRow,
+  type ConversationStatusSegment,
+} from '../renderer/conversation-surface.ts';
 import { GLYPHS } from '../renderer/ui-primitives.ts';
-import { activeTheme } from '../renderer/theme.ts';
+import { activeTheme, activeUiTones } from '../renderer/theme.ts';
 import { countExpandedToolResultLines, isDiffContent, renderExpandedToolResultLines } from '../renderer/tool-result-expanded-lines.ts';
-import { drawTreeRails, treeIndentCols, treeTextCol } from '@pellux/goodvibes-terminal-shell';
+import { drawTreeRails, treeContentCol, treeIndentCols, treeTextCol } from '@pellux/goodvibes-terminal-shell';
 import {
   MAX_NEST_DEPTH,
   buildRenderPlan,
@@ -23,6 +27,7 @@ import {
   type RenderNode,
 } from './conversation-turn-structure.ts';
 import type { BlockMeta, ConversationMessageSnapshot } from './conversation';
+import { foldedToolResultContent, trailingBlankAfter } from './conversation-fold.ts';
 import {
   collectToolCallOutcomes,
   isTurnCollapsed,
@@ -52,6 +57,20 @@ export {
 
 function summarizeCallId(callId: string, maxLength = 24): string {
   return callId.length <= maxLength ? callId : `${callId.slice(0, maxLength - 1)}…`;
+}
+
+/**
+ * The `▸ N lines` badge — a folded block's only statement of its own size, and
+ * the one badge every fold class carries. The row's geometry (leftover columns,
+ * the preview tail, the fallback when neither fits) belongs to
+ * renderConversationFoldedRow in the renderer surface.
+ */
+function foldSizeBadge(lineCount: number, isCollapsed: boolean): ConversationStatusSegment {
+  return {
+    text: ` ${isCollapsed ? GLYPHS.navigation.collapsed : GLYPHS.navigation.expanded} ${lineCount} line${lineCount === 1 ? '' : 's'} `,
+    fg: '244',
+    dim: true,
+  };
 }
 
 export function renderConversationUserMessage(
@@ -97,30 +116,21 @@ function renderCompactionContinuationMessage(
     context.collapseState.set(collapseKey, true);
   }
 
-  context.history.addLine(renderConversationEventLine(width, {
+  // Folded, this is ONE row like every other fold: the badge states the size
+  // and the row's tail says what the handoff IS. It used to add a framed
+  // preview box below the header saying the same sentence in three more rows.
+  // A preview IS drawn here, and it is safe to draw: it is fixed descriptive
+  // text naming what the handoff is, never any of the compacted content.
+  context.history.addLine(renderConversationFoldedRow(width, {
     marker: GLYPHS.status.active,
     markerFg: T.toolAccent,
     label: 'compaction handoff',
     labelFg: T.toolAccent,
     detailFg: '244',
-  }, [
-    { text: ` ${isCollapsed ? GLYPHS.navigation.collapsed : GLYPHS.navigation.expanded} ${lineCount} line${lineCount === 1 ? '' : 's'} `, fg: '244', dim: true },
-  ]));
+  }, [foldSizeBadge(lineCount, isCollapsed)],
+  isCollapsed ? 'compacted-context handoff (re-injected instructions + session summary)' : null));
 
-  if (isCollapsed) {
-    const rendered = renderConversationCollapsedFragment(
-      'compacted-context handoff (re-injected instructions + session summary)',
-      width,
-      {
-        prefix: ` ${GLYPHS.navigation.collapsed} `,
-        prefixFg: T.toolAccent,
-        text: '244',
-        bodyBg: T.collapsedBodyBg,
-        dim: true,
-      },
-    );
-    context.history.addLines(rendered);
-  } else {
+  if (!isCollapsed) {
     context.history.addLines(renderMarkdownTracked(content, width).lines);
   }
 
@@ -240,8 +250,31 @@ export function renderConversationAssistantMessage(
     const thinkingStartLine = context.history.getLineCount();
     const thinkingBlockIdx = context.blockRegistry.length;
     const thinkingCollapseKey = `msg_${msgIdx}_thinking`;
-    const thinkingLines = renderThinkingBlock(message.reasoningContent, width);
-    context.history.addLines(thinkingLines);
+    // `/collapse thinking` has always registered this key; until now nothing
+    // read it, so collapsing a reasoning block silently did nothing. It folds
+    // to the same ONE row every other fold uses. The DEFAULT stays expanded:
+    // showing thinking at all is already opt-in (display.showThinking), and
+    // folding what someone switched on would answer a different question than
+    // the one they asked.
+    const thinkingCollapsed = context.collapseState.get(thinkingCollapseKey) ?? false;
+    if (thinkingCollapsed) {
+      // NO preview. Reasoning text stays behind the toggle: a fold that leaks
+      // the first line of it would show reasoning to someone who just asked not
+      // to see reasoning. The row is `thinking  ▸ N lines` and nothing more,
+      // carrying the thinking block's own ▌ marker and reasoning purple rather
+      // than the assistant bullet, so a folded reasoning block still reads as
+      // one. This is the one fold class that passes no preview.
+      const reasoningFg = activeUiTones().state.reasoning;
+      context.history.addLine(renderConversationFoldedRow(width, {
+        marker: BORDERS.THINKING.char,
+        markerFg: reasoningFg,
+        label: 'thinking',
+        labelFg: reasoningFg,
+        detailFg: '244',
+      }, [foldSizeBadge(message.reasoningContent.split('\n').length, true)], null));
+    } else {
+      context.history.addLines(renderThinkingBlock(message.reasoningContent, width));
+    }
     context.history.addLine(createEmptyLine(width));
     const thinkingRenderedLines = context.history.getLineCount() - thinkingStartLine;
     context.blockRegistry.push({
@@ -495,15 +528,15 @@ export function renderConversationToolMessage(
   const bodyWidth = Math.max(LAYOUT.LEFT_MARGIN + LAYOUT.RIGHT_MARGIN + 8, width - bodyShift);
   const lineCount = countExpandedToolResultLines(message.content, bodyWidth);
 
-  const isShort = message.content.length <= 200;
-  const isCollapsed = isShort
-    ? false
-    : context.collapseState.has(collapseKey)
-      ? context.collapseState.get(collapseKey)!
-      : true;
+  // The fold decision is the canonical policy's, reached through this
+  // product's adapter (conversation-fold.ts) — never re-derived here, which is
+  // how the two renderers drifted apart before.
+  const isCollapsed = foldedToolResultContent(message.content, context.collapseState.get(collapseKey));
 
+  // First sight of this block stores what it just decided, so a later toggle
+  // flips a state that matches what the user is looking at.
   if (!context.collapseState.has(collapseKey)) {
-    context.collapseState.set(collapseKey, isShort ? false : true);
+    context.collapseState.set(collapseKey, isCollapsed);
   }
 
   // In the tree a result hangs under the call that produced it, so repeating
@@ -518,16 +551,16 @@ export function renderConversationToolMessage(
       ? [{ text: ` ${friendlyToolLabel(message.toolName)} `, fg: T.toolNameFg }]
       : [{ text: ` ${summarizeCallId(message.callId || 'standalone')} `, fg: '244' as const, dim: true }]);
 
-  const headerLine = renderConversationEventLine(width, {
+  // A COLLAPSED result is exactly ONE row: this header line, carrying the
+  // `▸ N lines` badge and the head of the output as its tail. Expanded, the
+  // same call yields the plain header it has always drawn.
+  const headerLine = renderConversationFoldedRow(width, {
     marker: blockType === 'diff' ? GLYPHS.status.dualPane : GLYPHS.status.active,
     markerFg: blockType === 'diff' ? T.diffAccent : T.toolAccent,
     label,
     labelFg: blockType === 'diff' ? T.diffAccent : T.toolAccent,
     detailFg: '244',
-  }, [
-    ...nameSegments,
-    { text: ` ${isCollapsed ? GLYPHS.navigation.collapsed : GLYPHS.navigation.expanded} ${lineCount} line${lineCount === 1 ? '' : 's'} `, fg: '244', dim: true },
-  ], indent);
+  }, [...nameSegments, foldSizeBadge(lineCount, isCollapsed)], isCollapsed ? message.content : null, indent);
   // Every line this row emits, gathered before anything is committed, so the
   // rails can be drawn across all of them in one pass (see drawTreeRails). The
   // result row deliberately carries NO status marker of its own: the call row
@@ -535,24 +568,7 @@ export function renderConversationToolMessage(
   // and a second marker one row down only doubles it.
   const rows: Line[] = [headerLine];
 
-  if (isCollapsed) {
-    const collapseSuffixReserve = 30;
-    const previewWidth = Math.max(0, width - LAYOUT.LEFT_MARGIN - LAYOUT.RIGHT_MARGIN - indent - collapseSuffixReserve);
-    const preview = contentLines[0].slice(0, previewWidth);
-    const hiddenCount = lineCount - 1;
-    const collapsedText = hiddenCount > 0
-      ? `${preview}...  [${GLYPHS.navigation.collapsed} ${hiddenCount} hidden]`
-      : preview;
-    const rendered = renderConversationCollapsedFragment(collapsedText, width, {
-      prefix: blockType === 'diff' ? ` ${GLYPHS.status.dualPane} ` : ` ${GLYPHS.navigation.collapsed} `,
-      prefixFg: blockType === 'diff' ? T.diffAccent : T.toolAccent,
-      text: '244',
-      bodyBg: T.collapsedBodyBg,
-      dim: true,
-      indentCols: indent,
-    });
-    for (const line of rendered) rows.push(line);
-  } else {
+  if (!isCollapsed) {
     // The expanded body — exactly the render the "N lines" badge above counts.
     //
     // Deliberately NOT indented. renderExpandedToolResultLines (and the
@@ -662,11 +678,10 @@ export function appendConversationMessages(
 
     const rendered = turnContext.history.getLineCount() > before;
     if (!rendered) continue;
-    // Branch rows sit tight under their parent; the blank separator lands only
-    // after the last row of a top-level unit, which is what keeps a turn's
-    // whole subtree reading as one block instead of a run of spaced-out rows.
-    const next = plan[i + 1];
-    if (!next || next.depth === 0) {
+    // Where the blank separator does and does not belong is decided in one
+    // place (conversation-fold.ts) so every surface that measures this
+    // transcript agrees with what was drawn.
+    if (trailingBlankAfter(turnContext, node, plan[i + 1])) {
       turnContext.history.addLine(createEmptyLine(width));
     }
   }

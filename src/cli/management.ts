@@ -45,6 +45,7 @@ import { handleBrowserCommand } from './browser-command.ts';
 import { handleRelayCommand } from './relay-command.ts';
 import { handleFleetCommand } from './fleet-command.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { dialHostForConfiguredHost } from '../config/connected-host-dial.ts';
 
 export interface CliCommandRuntime {
   readonly cli: GoodVibesCliParseResult;
@@ -132,11 +133,18 @@ function getLocalNetworkIp(): string {
   return '127.0.0.1';
 }
 
-function connectHostForBindHost(host: string): string {
-  if (host === '0.0.0.0' || host === '::') return '127.0.0.1';
-  return host || '127.0.0.1';
-}
+/**
+ * Where THIS process dials. Shares the wildcard→loopback mapping with every
+ * other dial site (config/connected-host-dial.ts).
+ */
+const connectHostForBindHost = dialHostForConfiguredHost;
 
+/**
+ * Where ANOTHER machine dials — a pairing QR code, a phone-facing link. A
+ * wildcard resolves to this host's LAN address here, NOT to loopback, because
+ * loopback on the other device is the other device. Deliberately not the
+ * function above.
+ */
 export function urlHostForBindHost(host: string): string {
   if (host === '0.0.0.0' || host === '::') return getLocalNetworkIp();
   return host || '127.0.0.1';

@@ -3,6 +3,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { VERSION } from '../version.ts';
 import { normalizeAgentKnowledgeScopeAliases } from '../agent/knowledge-scope-alias.ts';
 import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 import type { ConnectedHostCallMethod } from './agent-knowledge-methods.ts';
 
 export type JsonRecord = Record<string, unknown>;
@@ -57,9 +58,10 @@ export function readPackageMetadata(): { readonly version: string } {
 }
 
 export function resolveConnectedHostConnection(runtime: AgentKnowledgeConnectionRuntime): AgentKnowledgeConnection {
-  const host = String(runtime.configManager.get('controlPlane.host') ?? '127.0.0.1');
-  const port = Number(runtime.configManager.get('controlPlane.port') ?? 3421);
-  const baseUrl = `http://${host}:${Number.isFinite(port) ? port : 3421}`;
+  const baseUrl = connectedHostBaseUrl(
+    runtime.configManager.get('controlPlane.host'),
+    runtime.configManager.get('controlPlane.port'),
+  );
   const token = readConnectedHostOperatorToken(runtime.homeDirectory);
   return { baseUrl, token: token.token, tokenPath: token.path };
 }

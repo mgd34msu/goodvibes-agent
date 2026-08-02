@@ -37,16 +37,15 @@ import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import type { RuntimeServices } from './services.ts';
 import type { UiRuntimeServices } from './ui-services.ts';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 
+/**
+ * This is a PROBE address, so it goes through the same wildcard→loopback
+ * mapping every other dial site uses (config/connected-host-dial.ts) rather
+ * than keeping a second, subtly different copy of it.
+ */
 function formatHostServiceBaseUrl(host: string, port: number): string {
-  const normalized = host.trim().toLowerCase();
-  const probeHost = normalized === '0.0.0.0'
-    ? '127.0.0.1'
-    : normalized === '::' || normalized === '[::]'
-      ? '::1'
-      : host;
-  const urlHost = probeHost.includes(':') && !probeHost.startsWith('[') ? `[${probeHost}]` : probeHost;
-  return `http://${urlHost}:${port}`;
+  return connectedHostBaseUrl(host, port);
 }
 
 // Pending status shown before the deferred probe completes — honest

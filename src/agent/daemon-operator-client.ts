@@ -18,6 +18,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 import {
   READ_ONLY_HTTP_METHODS,
   operatorRequestPath,
@@ -102,11 +103,10 @@ export function resolveDaemonOperatorConnection(
   configManager: DaemonOperatorConfigReader,
   homeDirectory: string,
 ): DaemonOperatorConnection {
-  const hostValue = configManager.get('controlPlane.host');
-  const portValue = configManager.get('controlPlane.port');
-  const host = typeof hostValue === 'string' && hostValue.trim() ? hostValue.trim() : '127.0.0.1';
-  const port = typeof portValue === 'number' && Number.isFinite(portValue) ? portValue : 3421;
-  const baseUrl = `http://${host}:${port}`;
+  const baseUrl = connectedHostBaseUrl(
+    configManager.get('controlPlane.host'),
+    configManager.get('controlPlane.port'),
+  );
   const tokenPath = join(homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
   if (!existsSync(tokenPath)) return { baseUrl, token: null, tokenPath };
   try {

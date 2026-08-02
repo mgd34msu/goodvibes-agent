@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.3 - 2026-08-01
+
+- **Collapsed output is compact.** A folded block — tool result, thinking block, or compaction handoff — renders as exactly one row: its header, with the `▸ N lines` badge as the only count and the head of the content riding the same line (thinking folds keep their content behind the toggle by design). The frame rows, the interior preview row with its second hidden-count marker, and the blank rows between consecutive folded results are gone. Expanded rendering is unchanged. The fold decisions come from the shared platform policy the terminal app reads, so the two renderers cannot drift apart again.
+- Fixed: connected-host calls dial the daemon where it answers. Every client-side URL built from the configured host now maps a wildcard bind (`0.0.0.0`, `::`) to loopback before dialing — thirteen call sites route through one shared helper, and `goodvibes-agent doctor` reports the loopback form. Pairing and QR URLs are deliberately excluded: they are read by another device, where the right answer is this machine's LAN address. With the platform runtime at 2.0.3 the transport also stops refusing wildcard hosts as "public", so profile reads and writes work over a deliberately LAN-bound daemon.
+- Fixed: `/collapse thinking` folds the reasoning block. The collapse state was registered but nothing read it, so the command silently did nothing.
+
 ## 2.0.2 - 2026-08-01
 
 - **Fixed: conversation turns work again.** The 2.0.0-2.0.1 packaged runtime crashed on the first message of every conversation — the platform runtime still carried pre-split remnants that lazily imported in-process daemon composition code, which fractured the packaged bundle's module initialization; the turn engine then hit an uninitialized module and died with a swallowed error, leaving the session frozen at "awaiting response". The runtime is now 2.0.2, which removes those remnants entirely, and this release's gates run a real prompt through the built bundle before anything ships.

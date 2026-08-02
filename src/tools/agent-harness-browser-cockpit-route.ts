@@ -5,6 +5,7 @@ import type { AgentSetupWizardDurableReceipt } from '../agent/setup-wizard.ts';
 import { buildSetupWizardDurableReceipts } from '../agent/setup-wizard-artifact-receipts.ts';
 import { mergeSetupWizardDurableReceipts, setupWizardLiveDurableReceipts } from '../input/setup-wizard-live-receipts.ts';
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
+import { urlHostForConfiguredHost } from '../config/connected-host-dial.ts';
 import {
   browserPwaReadModelSnapshot,
   certifiedBrowserPwaCategoryRouteForCategory,
@@ -14,11 +15,8 @@ import {
   type BrowserPwaReadModelSnapshot,
 } from './agent-harness-browser-pwa-read-models.ts';
 
-function browserConnectHost(host: string): string {
-  if (host === '0.0.0.0' || host === '::') return '127.0.0.1';
-  if (host.includes(':') && !host.startsWith('[')) return `[${host}]`;
-  return host || '127.0.0.1';
-}
+/** This browser opens on THIS host, so a wildcard bind resolves to loopback. */
+const browserConnectHost = urlHostForConfiguredHost;
 
 const BROWSER_COCKPIT_EXPECTED_LANES = [
   {

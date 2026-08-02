@@ -2,7 +2,7 @@ import { type Line, createEmptyLine, createStyledCell } from '@pellux/goodvibes-
 import { getDisplayWidth, truncateDisplay, wrapText } from '../utils/terminal-width.ts';
 import { LAYOUT } from './layout.ts';
 import { GLYPHS } from './ui-primitives.ts';
-import { treeBranchCol, treeContentCol } from '@pellux/goodvibes-terminal-shell';
+import { foldPreviewText, treeBranchCol, treeContentCol } from '@pellux/goodvibes-terminal-shell';
 
 export interface ConversationSurfacePalette {
   readonly accent: string;
@@ -173,29 +173,11 @@ export function renderConversationFragment(
   return lines;
 }
 
-export function renderConversationCollapsedFragment(
-  content: string,
-  width: number,
-  options: {
-    readonly prefix?: string;
-    readonly prefixFg?: string;
-    readonly text?: string;
-    readonly bodyBg?: string;
-    readonly dim?: boolean;
-    readonly italic?: boolean;
-    /** Tree-branch indent, in columns (see conversation-tree.ts). */
-    readonly indentCols?: number;
-  } = {},
-): Line[] {
-  return renderConversationFragment(content, width, {
-    prefix: options.prefix ?? ` ${GLYPHS.navigation.selected} `,
-    prefixFg: options.prefixFg ?? '#38bdf8',
-    text: options.text ?? '244',
-    bodyBg: options.bodyBg ?? '#1a1a1a',
-    dim: options.dim ?? true,
-    italic: options.italic ?? false,
-  }, options.indentCols ?? 0);
-}
+// renderConversationCollapsedFragment used to live here: a framed box drawn
+// under a collapsed block's header, carrying a preview and a second copy of the
+// hidden count. A fold is now ONE row — the header line itself — so nothing
+// draws that box any more. renderConversationFragment above stays; it is what
+// message bars and queued-prompt ghosts are made of.
 
 export function renderConversationKeyValueRow(
   width: number,
@@ -270,6 +252,55 @@ export function renderConversationStatusLine(
     col += getDisplayWidth(segment.text);
   }
   return line;
+}
+
+/**
+ * The ONE row a folded block renders as — the whole geometry of a fold, in one
+ * place, for all three kinds of fold (tool results, thinking blocks, compaction
+ * handoffs).
+ *
+ * The row is an event line: marker, label, then the caller's badges (of which
+ * `▸ N lines` is the block's only statement of size). Whatever columns are left
+ * after all of that carry the head of the content as a dim tail.
+ *
+ * Whether a preview may render at all, and what its text flattens to, is the
+ * canonical fold policy's call (foldPreviewText in
+ * @pellux/goodvibes-terminal-shell), including the minimum-column rule. What
+ * stays here is display-width TRUNCATION, because wide-glyph and ANSI width
+ * rules are product-local — and it is truncation, never wrapping: a fold that
+ * can wrap is not a fold.
+ *
+ * When the policy declines the preview, or nothing legible survives fitting it,
+ * the row falls back to the plain event line rather than drawing a stub.
+ * Callers that pass no preview (thinking folds) get exactly that plain line.
+ */
+export function renderConversationFoldedRow(
+  width: number,
+  tone: ConversationEventTone,
+  details: readonly ConversationStatusSegment[],
+  preview?: string | null,
+  indentCols = 0,
+): Line {
+  const plainRow = (): Line => renderConversationEventLine(width, tone, details, indentCols);
+  if (!preview) return plainRow();
+
+  // The columns the row has already spent: its label, plus every badge.
+  const usedCols = (tone.label ? getDisplayWidth(` ${tone.label} `) : 0)
+    + details.reduce((sum, segment) => sum + getDisplayWidth(segment.text), 0);
+  const leftoverCols = width - LAYOUT.RIGHT_MARGIN - treeContentCol(Math.max(0, indentCols)) - usedCols - 1;
+
+  const flattened = foldPreviewText(preview, leftoverCols);
+  if (!flattened) return plainRow();
+
+  const fitted = truncateDisplay(flattened, leftoverCols);
+  if (getDisplayWidth(fitted) === 0) return plainRow();
+
+  return renderConversationEventLine(
+    width,
+    tone,
+    [...details, { text: ` ${fitted}`, fg: '244', dim: true }],
+    indentCols,
+  );
 }
 
 export function renderConversationEventLine(

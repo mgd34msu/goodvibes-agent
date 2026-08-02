@@ -36,6 +36,7 @@ import {
   buildAgentWorkspaceVoiceMediaProvidersSnapshot,
 } from './agent-workspace-snapshot-builders.ts';
 import type { AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 
 // Re-exported so this module's public surface still carries this builder,
 // whose body now lives in agent-workspace-snapshot-builders.ts.
@@ -234,7 +235,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   if (provider === 'unknown' || model === 'unknown') warnings.push('Provider/model unavailable in this runtime context.');
   if (!context.executeCommand) warnings.push('Command dispatch is unavailable; workspace actions will show guidance only.');
   const config = buildAgentWorkspaceConfigSettingsSnapshot(context);
-  const runtimeBaseUrl = `http://${host}:${port}`;
+  const runtimeBaseUrl = connectedHostBaseUrl(host, port);
   const companionAccess = buildAgentWorkspaceCompanionAccessSnapshot(context, runtimeBaseUrl);
   const subscriptionSnapshot = buildAgentWorkspaceSubscriptionSnapshot(context);
   const channels = buildAgentWorkspaceChannels(context);

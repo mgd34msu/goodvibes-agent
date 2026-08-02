@@ -41,16 +41,19 @@ import { resolveDaemonEnabled } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { DaemonReachability, DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 import { readConnectedHostOperatorToken, connectedHostTokenRequiredMessage } from '../connected-host-auth.ts';
+import { connectedHostBaseUrl } from '../../config/connected-host-dial.ts';
 
-/** The connected host's dial address, derived the same way the spine derives it. */
+/**
+ * The connected host's dial address, derived the same way the spine derives it.
+ *
+ * The wildcard→loopback mapping this function used to carry alone now lives in
+ * config/connected-host-dial.ts, so every other dial site gets it too.
+ */
 function resolveConnectedHostBaseUrl(configManager: Pick<ConfigManager, 'get'>): string {
-  const hostValue = configManager.get('controlPlane.host');
-  const portValue = configManager.get('controlPlane.port');
-  const host = typeof hostValue === 'string' && hostValue.trim().length > 0 ? hostValue.trim() : '127.0.0.1';
-  const port = typeof portValue === 'number' && Number.isFinite(portValue) ? portValue : 3421;
-  // A wildcard bind is not a dial target; loopback is the interface it answers on.
-  const dialHost = host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host;
-  return `http://${dialHost.includes(':') && !dialHost.startsWith('[') ? `[${dialHost}]` : dialHost}:${port}`;
+  return connectedHostBaseUrl(
+    configManager.get('controlPlane.host'),
+    configManager.get('controlPlane.port'),
+  );
 }
 
 export interface AgentDaemonVerbCallerOptions {

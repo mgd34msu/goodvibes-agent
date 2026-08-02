@@ -1,6 +1,7 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
+import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 
 export interface CliExternalRuntimeInspectionOptions {
   readonly configManager: Pick<ConfigManager, 'get'>;
@@ -27,9 +28,13 @@ export interface CliExternalRuntimeSnapshot {
 }
 
 function resolveBaseUrl(configManager: Pick<ConfigManager, 'get'>): string {
-  const host = String(configManager.get('controlPlane.host') ?? '127.0.0.1');
-  const port = Number(configManager.get('controlPlane.port') ?? 3421);
-  return `http://${host}:${Number.isFinite(port) ? port : 3421}`;
+  // `doctor` prints this string. It used to echo the bind host verbatim, so a
+  // daemon bound to 0.0.0.0 reported `baseUrl: http://0.0.0.0:3421` — an
+  // address the probe below then failed to reach.
+  return connectedHostBaseUrl(
+    configManager.get('controlPlane.host'),
+    configManager.get('controlPlane.port'),
+  );
 }
 
 async function fetchJson(
