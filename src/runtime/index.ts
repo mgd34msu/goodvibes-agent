@@ -208,132 +208,143 @@ export type RemoteRuntimeEventsOptions = Transport.RemoteRuntimeEventsOptions;
 export type RemoteRuntimeEvents = Transport.RemoteRuntimeEvents;
 export type SerializedRuntimeEnvelope = Transport.SerializedRuntimeEnvelope;
 
-// Operations compatibility aliases. (OpsControlPlane and its error classes
-// are deliberately NOT re-exported: the Agent never constructs the ops
-// intervention plane — connected-host tasks are read-only by product policy,
-// with mutations routed to /workplan and /delegate.)
-export const ToolContractVerifier = operations.ToolContractVerifier;
-export const McpLifecycleManager = operations.McpLifecycleManager;
-export const McpPermissionManager = operations.McpPermissionManager;
-export const McpSchemaFreshnessTracker = operations.McpSchemaFreshnessTracker;
-export const buildMcpAttackPathReview = operations.buildMcpAttackPathReview;
-export const createMcpLifecycleManager = operations.createMcpLifecycleManager;
-export const DEFAULT_RECONNECT_CONFIG = operations.DEFAULT_RECONNECT_CONFIG;
-export const ALL_CAPABILITIES = operations.ALL_CAPABILITIES;
-export const PLUGIN_CAPABILITIES = operations.PLUGIN_CAPABILITIES;
-export const HIGH_RISK_CAPABILITIES = operations.HIGH_RISK_CAPABILITIES;
-export const PluginLifecycleManager = operations.PluginLifecycleManager;
-export const PluginQuarantineEngine = operations.PluginQuarantineEngine;
-export const PluginTrustStore = operations.PluginTrustStore;
-export const SAFE_CAPABILITIES = operations.SAFE_CAPABILITIES;
-export const filterCapabilitiesByTrust = operations.filterCapabilitiesByTrust;
-export const hasCapability = operations.hasCapability;
-export const isHighRiskCapability = operations.isHighRiskCapability;
-export const isPluginOperational = operations.isPluginOperational;
-export const isPluginReloadable = operations.isPluginReloadable;
-export const isPluginTerminal = operations.isPluginTerminal;
-export const resolveCapabilityManifest = operations.resolveCapabilityManifest;
-export const validateManifestV2 = operations.validateManifestV2;
-export const validatePluginSignature = operations.validatePluginSignature;
-export const LOW_QUALITY_THRESHOLD = operations.LOW_QUALITY_THRESHOLD;
-export const computeQualityScore = operations.computeQualityScore;
-export const createCompactionManager = operations.createCompactionManager;
-export const describeScore = operations.describeScore;
-export const escalateStrategy = operations.escalateStrategy;
-export const isTerminalCompactionState = operations.isTerminalCompactionState;
-export const reachableFromCompactionState = operations.reachableFromCompactionState;
-export const compactionFailurePlaybook = operations.compactionFailurePlaybook;
-export const exportRecoveryPlaybook = operations.exportRecoveryPlaybook;
-export const permissionDeadlockPlaybook = operations.permissionDeadlockPlaybook;
-export const pluginDegradationPlaybook = operations.pluginDegradationPlaybook;
-export const reconnectFailurePlaybook = operations.reconnectFailurePlaybook;
-export const sessionUnrecoverablePlaybook = operations.sessionUnrecoverablePlaybook;
-export const stuckTurnPlaybook = operations.stuckTurnPlaybook;
-export const createSessionUnrecoverablePlaybook = operations.createSessionUnrecoverablePlaybook;
-export const createStuckTurnPlaybook = operations.createStuckTurnPlaybook;
-export const evaluateOrchestrationSpawn = operations.evaluateOrchestrationSpawn;
-export const TRANSPORT_COMPATIBILITY_MATRIX = operations.TRANSPORT_COMPATIBILITY_MATRIX;
-export const applyTransition = operations.applyTransition;
-export const canTransition = operations.canTransition;
-export const isOperational = operations.isOperational;
-export const isReloadable = operations.isReloadable;
-export const isTerminal = operations.isTerminal;
-export const reachableFrom = operations.reachableFrom;
-export const evaluateSessionMaintenance = operations.evaluateSessionMaintenance;
-export const formatSessionMaintenanceLines = operations.formatSessionMaintenanceLines;
-export const getGuidanceMode = operations.getGuidanceMode;
-export const DEFAULT_RETENTION_CONFIG = operations.DEFAULT_RETENTION_CONFIG;
-export const RetentionPolicy = operations.RetentionPolicy;
-export const SnapshotPruner = operations.SnapshotPruner;
-export const buildPersistedSessionContext = operations.buildPersistedSessionContext;
-export const buildLocalReturnContextSummary = operations.buildLocalReturnContextSummary;
-export const formatReturnContextForDisplay = operations.formatReturnContextForDisplay;
-export const getReturnContextMode = operations.getReturnContextMode;
-export const maybeAssistReturnContextSummary = operations.maybeAssistReturnContextSummary;
-export const persistConversation = operations.persistConversation;
-export const generateUserSessionId = operations.generateUserSessionId;
-export const loadLastConversation = operations.loadLastConversation;
-export const loadRecoveryConversation = operations.loadRecoveryConversation;
-export const writeRecoveryFile = operations.writeRecoveryFile;
-export const deleteRecoveryFile = operations.deleteRecoveryFile;
-export const checkRecoveryFile = operations.checkRecoveryFile;
-export const getRecoveryFilePath = operations.getRecoveryFilePath;
-export const getLastSessionPointerPath = operations.getLastSessionPointerPath;
-export const writeLastSessionPointer = operations.writeLastSessionPointer;
-export const readLastSessionPointer = operations.readLastSessionPointer;
-// Declare-once product storage handle (see platform/runtime/session-surface.ts):
-// every session-persistence / SessionManager / checkpoint call site threads
-// this through instead of re-deriving workingDirectory/homeDirectory/surfaceRoot
-// independently. consumeRecovery/removeRecoveryPoint are the prompted
-// resume/discard primitives for a surface-backed recovery flow (load-then-delete,
-// and delete-without-load, respectively).
-export const createSessionSurface = operations.createSessionSurface;
-export const consumeRecovery = operations.consumeRecovery;
-// The reclaim half of those same artefacts: one bounded sweep of the sessions
-// directory that removes what no live session can ever use again, discloses
-// what it removed, and never touches the session in use.
-export const startDurabilityHousekeeping = operations.startDurabilityHousekeeping;
-// "Is this the build you are actually reaching, and is it the current one" —
-// the PATH shadow scan, the install-kind answer it depends on, and the wording
-// it produces. A product supplies its own command/package name and release
-// lookup (runtime/path-shadow-startup.ts) and nothing else.
-// OS-level terminal focus, from the focus-reporting tokens a host feeds it.
-export const FocusTracker = operations.FocusTracker;
-// The last-session pointer writer, bound to one SessionSurface so a caller in a
-// (sessionId) => void slot cannot silently drop the surface argument.
-export const bindWriteLastSessionPointerToSurface = operations.bindWriteLastSessionPointerToSurface;
-export const detectInstallKind = operations.detectInstallKind;
-export const announceReachability = operations.announceReachability;
-export const boundedLatestRelease = operations.boundedLatestRelease;
-export const runReachabilityCheck = operations.runReachabilityCheck;
-export const resolveSelfDirectory = operations.resolveSelfDirectory;
-export const probeVersionLine = operations.probeVersionLine;
-export const buildReachabilityNotices = operations.buildReachabilityNotices;
-export const reachabilityNoticeLines = operations.reachabilityNoticeLines;
-export const INSTALLED_COMMANDS = operations.INSTALLED_COMMANDS;
+// Operations compatibility aliases. Grouped as a single live ESM re-export
+// from the SDK's own `platform/runtime/operations` subpath rather than eager
+// `export const X = operations.X` module-scope reads off the `operations`
+// namespace object: those reads evaluated the namespace getter while the
+// compiled single-file bundle could still be mid-cycle, and the binding they
+// reached for was not defined yet — source execution hid this, the compiled
+// binary died on it at load. A grouped `export { ... } from '<subpath>'` is a
+// live binding resolved by the module system, not a module-scope value read,
+// so it is cycle-safe.
+// (OpsControlPlane and its error classes are deliberately NOT re-exported:
+// the Agent never constructs the ops intervention plane — connected-host
+// tasks are read-only by product policy, with mutations routed to
+// /workplan and /delegate.)
+export {
+  ToolContractVerifier,
+  McpLifecycleManager,
+  McpPermissionManager,
+  McpSchemaFreshnessTracker,
+  buildMcpAttackPathReview,
+  createMcpLifecycleManager,
+  DEFAULT_RECONNECT_CONFIG,
+  ALL_CAPABILITIES,
+  PLUGIN_CAPABILITIES,
+  HIGH_RISK_CAPABILITIES,
+  PluginLifecycleManager,
+  PluginQuarantineEngine,
+  PluginTrustStore,
+  SAFE_CAPABILITIES,
+  filterCapabilitiesByTrust,
+  hasCapability,
+  isHighRiskCapability,
+  isPluginOperational,
+  isPluginReloadable,
+  isPluginTerminal,
+  resolveCapabilityManifest,
+  validateManifestV2,
+  validatePluginSignature,
+  LOW_QUALITY_THRESHOLD,
+  computeQualityScore,
+  createCompactionManager,
+  describeScore,
+  escalateStrategy,
+  isTerminalCompactionState,
+  reachableFromCompactionState,
+  compactionFailurePlaybook,
+  exportRecoveryPlaybook,
+  permissionDeadlockPlaybook,
+  pluginDegradationPlaybook,
+  reconnectFailurePlaybook,
+  sessionUnrecoverablePlaybook,
+  stuckTurnPlaybook,
+  createSessionUnrecoverablePlaybook,
+  createStuckTurnPlaybook,
+  evaluateOrchestrationSpawn,
+  TRANSPORT_COMPATIBILITY_MATRIX,
+  applyTransition,
+  canTransition,
+  isOperational,
+  isReloadable,
+  isTerminal,
+  reachableFrom,
+  evaluateSessionMaintenance,
+  formatSessionMaintenanceLines,
+  getGuidanceMode,
+  DEFAULT_RETENTION_CONFIG,
+  RetentionPolicy,
+  SnapshotPruner,
+  buildPersistedSessionContext,
+  buildLocalReturnContextSummary,
+  formatReturnContextForDisplay,
+  getReturnContextMode,
+  maybeAssistReturnContextSummary,
+  persistConversation,
+  generateUserSessionId,
+  loadLastConversation,
+  loadRecoveryConversation,
+  writeRecoveryFile,
+  deleteRecoveryFile,
+  checkRecoveryFile,
+  getRecoveryFilePath,
+  getLastSessionPointerPath,
+  writeLastSessionPointer,
+  readLastSessionPointer,
+  // Declare-once product storage handle (see platform/runtime/session-surface.ts):
+  // every session-persistence / SessionManager / checkpoint call site threads
+  // this through instead of re-deriving workingDirectory/homeDirectory/surfaceRoot
+  // independently. consumeRecovery/removeRecoveryPoint are the prompted
+  // resume/discard primitives for a surface-backed recovery flow (load-then-delete,
+  // and delete-without-load, respectively).
+  createSessionSurface,
+  consumeRecovery,
+  // The reclaim half of those same artefacts: one bounded sweep of the sessions
+  // directory that removes what no live session can ever use again, discloses
+  // what it removed, and never touches the session in use.
+  startDurabilityHousekeeping,
+  // OS-level terminal focus, from the focus-reporting tokens a host feeds it.
+  FocusTracker,
+  // The last-session pointer writer, bound to one SessionSurface so a caller in a
+  // (sessionId) => void slot cannot silently drop the surface argument.
+  bindWriteLastSessionPointerToSurface,
+  // "Is this the build you are actually reaching, and is it the current one" —
+  // the PATH shadow scan, the install-kind answer it depends on, and the wording
+  // it produces. A product supplies its own command/package name and release
+  // lookup (runtime/path-shadow-startup.ts) and nothing else.
+  detectInstallKind,
+  announceReachability,
+  boundedLatestRelease,
+  runReachabilityCheck,
+  resolveSelfDirectory,
+  probeVersionLine,
+  buildReachabilityNotices,
+  reachabilityNoticeLines,
+  INSTALLED_COMMANDS,
+  removeRecoveryPoint,
+  exportRemoteArtifactForAgent,
+  importRemoteArtifact,
+  RemoteRunnerRegistry,
+  RemoteSupervisor,
+  DistributedRuntimeManager,
+  getDistributedNodeHostContract,
+  CURRENT_PROTOCOL_VERSION,
+  VersionMismatchError,
+  negotiateProtocolVersion,
+  // Protocol version types — re-exported for transport compatibility tests.
+  // ProtocolVersion, VersionNegotiationResult, NegotiatedProtocol are available
+  // via operations namespace (operations.ProtocolVersion etc.) but cannot be
+  // re-exported here without a registered subpath. Tests that need these types
+  // should import from the operations namespace types directly.
+  createTaskManager,
+  PhasedToolExecutor,
+  budgetPhase,
+  permissionPhase,
+} from '@pellux/goodvibes-sdk/platform/runtime/operations';
 export type InstallKind = Operations.InstallKind;
 export type ReachabilityCheckInput = Operations.ReachabilityCheckInput;
 export type ReachabilityCheckResult = Operations.ReachabilityCheckResult;
 export type ReachabilityNotice = Operations.ReachabilityNotice;
-export const removeRecoveryPoint = operations.removeRecoveryPoint;
-export const exportRemoteArtifactForAgent = operations.exportRemoteArtifactForAgent;
-export const importRemoteArtifact = operations.importRemoteArtifact;
-export const RemoteRunnerRegistry = operations.RemoteRunnerRegistry;
-export const RemoteSupervisor = operations.RemoteSupervisor;
-export const DistributedRuntimeManager = operations.DistributedRuntimeManager;
-export const getDistributedNodeHostContract = operations.getDistributedNodeHostContract;
-export const CURRENT_PROTOCOL_VERSION = operations.CURRENT_PROTOCOL_VERSION;
-export const VersionMismatchError = operations.VersionMismatchError;
-export const negotiateProtocolVersion = operations.negotiateProtocolVersion;
-// Protocol version types — re-exported for transport compatibility tests.
-// ProtocolVersion, VersionNegotiationResult, NegotiatedProtocol are available
-// via operations namespace (operations.ProtocolVersion etc.) but cannot be
-// re-exported here without a registered subpath. Tests that need these types
-// should import from the operations namespace types directly.
-export const createTaskManager = operations.createTaskManager;
-export const PhasedToolExecutor = operations.PhasedToolExecutor;
-export const budgetPhase = operations.budgetPhase;
-export const permissionPhase = operations.permissionPhase;
 
 export type RemoteSessionBundle = Operations.RemoteSessionBundle;
 export type ContractVerifierOptions = Operations.ContractVerifierOptions;
@@ -371,10 +382,11 @@ export type CompactionStrategy = Operations.CompactionStrategy;
 export type StrategyInput = Operations.StrategyInput;
 export type StrategyOutput = Operations.StrategyOutput;
 export type DistributedRuntimeSnapshotStore = Operations.DistributedRuntimeSnapshotStore;
-export type RemoteRunnerRegistry = Operations.RemoteRunnerRegistry;
-export type FocusTracker = Operations.FocusTracker;
-export type RemoteSupervisor = Operations.RemoteSupervisor;
-export type DistributedRuntimeManager = Operations.DistributedRuntimeManager;
+// RemoteRunnerRegistry, FocusTracker, RemoteSupervisor, and
+// DistributedRuntimeManager are classes forwarded by the grouped value
+// re-export above (`export { X } from '<subpath>'` carries both the value
+// and its implicit instance type), so redeclaring their types here would
+// conflict (TS2484).
 export type RuntimeTransitionResult = Operations.RuntimeTransitionResult;
 export type RetentionClass = Operations.RetentionClass;
 export type RetentionClassConfig = Operations.RetentionClassConfig;

@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.2 - 2026-08-01
+
+- **Fixed: conversation turns work again.** The 2.0.0-2.0.1 packaged runtime crashed on the first message of every conversation — the platform runtime still carried pre-split remnants that lazily imported in-process daemon composition code, which fractured the packaged bundle's module initialization; the turn engine then hit an uninitialized module and died with a swallowed error, leaving the session frozen at "awaiting response". The runtime is now 2.0.2, which removes those remnants entirely, and this release's gates run a real prompt through the built bundle before anything ships.
+- Changed: the runtime barrel's operations exports are live re-exports from the platform runtime instead of eagerly-evaluated aliases — the same initialization-order hazard class, removed at the source.
+
 ## 2.0.1 - 2026-08-01
 
 - Fixed: importing settings that include `display.themeMode` no longer prints an "unknown key" warning. The key is now declared in the platform configuration schema (SDK 2.0.1) — `auto` probes the terminal background once at startup, `dark` and `light` force a fixed appearance — so the settings screen and the import path both treat it as a real, documented setting.
