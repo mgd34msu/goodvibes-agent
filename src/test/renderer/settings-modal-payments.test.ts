@@ -1,7 +1,8 @@
 /**
  * Rendering tests for the payments settings category: the CVV trade-off
- * warning appears only when prompt is selected, money values render in major
- * units, and no settings surface ever renders a card-material-shaped value.
+ * warning appears only when prompt is selected, a money value renders exactly
+ * as stored with no unit conversion, and no settings surface ever renders a
+ * card-material-shaped value.
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync } from 'fs';
@@ -77,19 +78,22 @@ describe('renderSettingsModal payments category', () => {
   });
 
   test('the payments category renders without crashing and shows its keys', () => {
-    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItemCents');
+    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItem');
     const texts = linesToText(renderSettingsModal(modal, W)).join('\n');
     expect(texts).toContain('Payments (36)');
-    expect(texts).toContain('payments.budget.dailyItemCents');
+    expect(texts).toContain('payments.budget.dailyItem');
     expect(texts).toContain('Daily Item Budget');
   });
 
-  test('a money field renders in major units with the currency code, not a raw cent integer', () => {
-    cm.setDynamic('payments.budget.dailyItemCents', 1999);
+  test('a money field renders the stored amount as-is, with no unit conversion', () => {
+    // SDK 2.0.5 removed the minor-unit storage these keys used to have: the
+    // stored value already IS the amount a person typed ("19.99" stores as
+    // 19.99), so the settings screen renders it exactly like any other
+    // number setting rather than reformatting it through a currency table.
+    cm.setDynamic('payments.budget.dailyItem', 19.99);
     reopen(); // reload modal.groups from the mutated config, same as resetSelected()'s test pattern
     const texts = linesToText(renderSettingsModal(modal, W)).join('\n');
-    expect(texts).toContain('USD 19.99');
-    expect(texts).not.toContain('1999');
+    expect(texts).toContain('19.99');
   });
 
   test('payments.defaultCardId renders as a plain visible id, never masked like a secret', () => {

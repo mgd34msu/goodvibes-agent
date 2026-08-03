@@ -10,7 +10,7 @@
  * model asking a settings catalog of 572 keys for "spending limit" or "credit
  * card" got `{"settings": [], "total": 0}` — no key's description happens to
  * contain either phrase — and read it as a platform with no payment settings at
- * all, while `payments.budget.dailyItemCents` sat in the schema the whole time.
+ * all, while `payments.budget.dailyItem` sat in the schema the whole time.
  *
  * The rule here is two-tier, and the order is the point:
  *

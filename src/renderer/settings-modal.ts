@@ -12,7 +12,6 @@ import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { CATEGORY_LABELS, describeUiRouting, formatValue, getSettingLabel, inferSubscriptionRouteReason, valueColor } from './settings-modal-helpers.ts';
 import { isSecretConfigKey } from '../config/secret-config.ts';
 import { maskConcealedText } from '../input/concealed-input.ts';
-import { formatMoneyForDisplay, isMoneyMinorUnitsConfigKey } from '../config/payments-money-format.ts';
 import { CVV_PROMPT_TRADEOFF_WARNING } from '@pellux/goodvibes-sdk/platform/payments';
 import { formatProviderAuthRouteId } from '../provider-auth-route-display.ts';
 import { GLYPHS } from './ui-primitives.ts';
@@ -148,17 +147,7 @@ function formatDefaultValue(value: unknown): string {
   return String(value);
 }
 
-/** The configured payments.currency, or the schema default before a card is set up. */
-function currentPaymentsCurrency(modal: SettingsModal): string {
-  const entry = modal.groups.get('payments')?.find((candidate) => candidate.setting.key === 'payments.currency');
-  return typeof entry?.currentValue === 'string' && entry.currentValue.length > 0 ? entry.currentValue : 'USD';
-}
-
-/** Money-aware Default column: the raw stored default (always 0) shown in the same units as Current. */
-function formatDefaultForEntry(modal: SettingsModal, entry: SettingEntry): string {
-  if (isMoneyMinorUnitsConfigKey(entry.setting.key) && typeof entry.setting.default === 'number') {
-    return formatMoneyForDisplay(entry.setting.default, currentPaymentsCurrency(modal));
-  }
+function formatDefaultForEntry(entry: SettingEntry): string {
   return formatDefaultValue(entry.setting.default);
 }
 
@@ -179,9 +168,6 @@ function currentSettingValue(modal: SettingsModal, entry: SettingEntry, selected
     const buffer = isSecretConfigKey(entry.setting.key) ? maskConcealedText(modal.editBuffer) : modal.editBuffer;
     return `${buffer}${GLYPHS.surface.cursor}`;
   }
-  if (isMoneyMinorUnitsConfigKey(entry.setting.key) && typeof entry.currentValue === 'number') {
-    return formatMoneyForDisplay(entry.currentValue, currentPaymentsCurrency(modal));
-  }
   return formatValue(entry);
 }
 
@@ -190,7 +176,7 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
     getSettingLabel(entry),
     `Key: ${entry.setting.key}`,
     `Current: ${currentSettingValue(modal, entry, true)}`,
-    `Default: ${formatDefaultForEntry(modal, entry)}`,
+    `Default: ${formatDefaultForEntry(entry)}`,
     `Type: ${entry.setting.type}${entry.setting.enumValues ? ` with ${entry.setting.enumValues.length} possible value(s)` : ''}`,
     `Source: ${entry.effectiveSource ?? 'default'}${entry.sourceLabel ? ` from ${entry.sourceLabel}` : ''}`,
   ];
@@ -441,7 +427,7 @@ function renderSettingRows(modal: SettingsModal, width: number, height: number):
     const value = currentSettingValue(modal, entry, selected);
     const source = `${entry.effectiveSource ?? 'default'}${entry.locked ? ' locked' : ''}${entry.conflict ? ' conflict' : ''}`;
     const label = getSettingLabel(entry);
-    rows.push(`${marker} ${padDisplay(label, keyWidth)}  ${padDisplay(value, valueWidth)}  ${padDisplay(entry.setting.type, typeWidth)}  ${padDisplay(source, sourceWidth)}  ${padDisplay(formatDefaultForEntry(modal, entry), defaultWidth)}`);
+    rows.push(`${marker} ${padDisplay(label, keyWidth)}  ${padDisplay(value, valueWidth)}  ${padDisplay(entry.setting.type, typeWidth)}  ${padDisplay(source, sourceWidth)}  ${padDisplay(formatDefaultForEntry(entry), defaultWidth)}`);
   }
 
   if (window.end < items.length) rows.push(`${GLYPHS.navigation.moreBelow} ${items.length - window.end} more setting(s) below`);

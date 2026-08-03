@@ -11,8 +11,7 @@ import { routeSettingWriteToConnectedHost } from './settings-modal-daemon-writes
 import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
-  moneyEditBufferValue,
-  parseMoneyOrNumberEditBuffer,
+  parseNumberEditBuffer,
   roundToPrecision,
 } from './settings-modal-behavior.ts';
 import { CVV_PROMPT_TRADEOFF_WARNING } from '@pellux/goodvibes-sdk/platform/payments';
@@ -390,9 +389,7 @@ export class SettingsModal {
     } else if (setting.type === 'string' || setting.type === 'number') {
       // Enter inline edit mode
       this.editingMode = true;
-      this.editBuffer = setting.type === 'number'
-        ? moneyEditBufferValue(setting, entry.currentValue, this._paymentsCurrency())
-        : String(entry.currentValue ?? '');
+      this.editBuffer = String(entry.currentValue ?? '');
     }
   }
 
@@ -544,7 +541,7 @@ export class SettingsModal {
     let parsed: unknown = this.editBuffer;
 
     if (setting.type === 'number') {
-      parsed = parseMoneyOrNumberEditBuffer(setting, this.editBuffer, this._paymentsCurrency());
+      parsed = parseNumberEditBuffer(this.editBuffer);
       if (parsed === null) {
         this.editingMode = false;
         this.editBuffer = '';
@@ -753,11 +750,6 @@ export class SettingsModal {
       logger.error('SettingsModal: failed to set config value', { key, error: summarizeError(e) });
       this.lastSettingEffectMessage = `Save failed: ${summarizeError(e)}`;
     }
-  }
-
-  /** Current payments.currency, defaulting to the schema default before any card is configured. */
-  private _paymentsCurrency(): string {
-    return String(this.configManager?.get('payments.currency') ?? 'USD');
   }
 
 }

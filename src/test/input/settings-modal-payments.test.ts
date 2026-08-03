@@ -80,11 +80,11 @@ describe('SettingsModal payments category', () => {
       'payments.billingAddress.name',
       'payments.billingAddress.postalCode',
       'payments.billingAddress.region',
-      'payments.budget.dailyItemCents',
-      'payments.budget.dailyOverageCents',
-      'payments.budget.overageToleranceDailyAllowanceCents',
+      'payments.budget.dailyItem',
+      'payments.budget.dailyOverage',
+      'payments.budget.overageToleranceDailyAllowance',
       'payments.budget.overageToleranceEnabled',
-      'payments.budget.perPurchaseCeilingCents',
+      'payments.budget.perPurchaseCeiling',
       'payments.budget.perPurchaseCeilingEnabled',
       'payments.currency',
       'payments.cvvHandling',
@@ -118,55 +118,58 @@ describe('SettingsModal payments category', () => {
     ].sort());
   });
 
-  describe('money fields round-trip exactly', () => {
-    test.each(['0.1', '0.29', '19.99', '1234.56'])('typing %s stores the exact cent value and re-editing shows it back', (typed) => {
+  describe('money fields round-trip exactly, as the plain amount typed', () => {
+    // SDK 2.0.5 dropped the Cents suffix and the minor-unit storage: the
+    // config now holds exactly the number a person typed ("19.99" stores as
+    // 19.99, not 1999), so there is no cent-rounding math left to prove here
+    // — only that the value survives the edit buffer unchanged.
+    test.each(['0.1', '0.29', '19.99', '1234.56'])('typing %s stores that exact amount and re-editing shows it back', (typed) => {
       while (modal.currentCategory !== 'payments') modal.nextCategory();
-      modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItemCents');
+      modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItem');
       modal.activateSelected();
       expect(modal.editingMode).toBe(true);
-      // A user typing "50" must never silently mean fifty cents: the edit
-      // buffer starts in major units ("0.00"), not the raw stored integer.
-      expect(modal.editBuffer).toBe('0.00');
+      // The edit buffer opens on the raw stored default (0), not a
+      // currency-formatted string — there is no unit to format for anymore.
+      expect(modal.editBuffer).toBe('0');
 
       modal.editBuffer = typed;
       expect(modal.commitEdit()).toBe(true);
+      expect(cm.get('payments.budget.dailyItem')).toBe(Number(typed));
 
-      const expectedCents = Math.round(Number(typed) * 100);
-      expect(cm.get('payments.budget.dailyItemCents')).toBe(expectedCents);
-
-      // Re-opening the field for edit shows the same major-units string back.
+      // Re-opening the field for edit shows the same value back.
       modal.activateSelected();
-      expect(modal.editBuffer).toBe(formatMajor(expectedCents));
+      expect(modal.editBuffer).toBe(typed);
       modal.cancelEdit();
     });
 
-    // Every other payments.*Cents key drives the identical conversion code,
-    // but each gets its own two-value assertion here rather than inheriting
-    // dailyItemCents's — a wrong key name on any one of these would silently
+    // Every other payments.budget.* amount key drives the identical path,
+    // but each gets its own assertion here rather than inheriting
+    // dailyItem's — a wrong key name on any one of these would silently
     // read/write the wrong config path and only its own test would catch it.
     test.each([
-      ['payments.budget.dailyOverageCents', '0.29', 29],
-      ['payments.budget.perPurchaseCeilingCents', '19.99', 1999],
-      ['payments.budget.overageToleranceDailyAllowanceCents', '1234.56', 123456],
-    ])('%s: typing %s stores exactly %d cents', (key, typed, expectedCents) => {
+      ['payments.budget.dailyOverage', '0.29'],
+      ['payments.budget.perPurchaseCeiling', '19.99'],
+      ['payments.budget.overageToleranceDailyAllowance', '1234.56'],
+    ])('%s: typing %s stores exactly that amount', (key, typed) => {
       while (modal.currentCategory !== 'payments') modal.nextCategory();
       modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === key);
       modal.activateSelected();
-      expect(modal.editBuffer).toBe('0.00');
+      expect(modal.editBuffer).toBe('0');
       modal.editBuffer = typed as string;
       expect(modal.commitEdit()).toBe(true);
-      expect(cm.get(key as 'payments.budget.dailyOverageCents')).toBe(expectedCents as number);
+      expect(cm.get(key as 'payments.budget.dailyOverage')).toBe(Number(typed));
     });
   });
 
   describe('payments keys that are NOT money keep their plain numeric form', () => {
-    // These four are counts and minutes, not minor units. The whole payments
-    // category shares one edit/commit path, and that path decides per KEY
-    // whether to convert (see config/payments-money-format.ts): a key that
-    // started being treated as money would take "45" to mean 0.45 and store
-    // 4500, quietly turning a 45-minute approval window into a 45-hour one.
-    // Each key is driven to two distinct values so a wrong key name inside the
-    // classifier fails on that key rather than being masked by its neighbours.
+    // These four are counts and minutes, never amounts of payments.currency —
+    // config/payments-money-format.ts's isMoneyConfigKey would say so for
+    // any of them, since none carries the schema's `unit: 'money'` mark. The
+    // edit/commit path treats every number setting identically now (money or
+    // not), so this mainly guards against a wrong key name silently reading
+    // or writing the wrong config path. Each key is driven to two distinct
+    // values so that failure mode shows up on the specific key, not masked by
+    // its neighbours.
     test.each([
       ['payments.windows.approvalMinutes', 60, '45', 45, '90', 90],
       ['payments.windows.vetoMinutes', 10, '5', 5, '30', 30],
@@ -180,7 +183,6 @@ describe('SettingsModal payments category', () => {
       modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === key);
       modal.activateSelected();
       expect(modal.editingMode).toBe(true);
-      // The money path opens at '0.00'. This one opens at the stored integer.
       expect(modal.editBuffer).toBe(String(initial));
 
       modal.editBuffer = firstTyped as string;
@@ -237,26 +239,31 @@ describe('SettingsModal payments category', () => {
 
   test('a non-numeric or negative money entry is rejected, not silently coerced', () => {
     while (modal.currentCategory !== 'payments') modal.nextCategory();
-    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItemCents');
+    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItem');
     modal.activateSelected();
     modal.editBuffer = '-5';
     expect(modal.commitEdit()).toBe(false);
-    expect(cm.get('payments.budget.dailyItemCents')).toBe(0);
+    expect(cm.get('payments.budget.dailyItem')).toBe(0);
   });
 
-  test('a non-USD currency is honored in the money edit buffer conversion', () => {
+  test('changing payments.currency has no effect on a money field\'s edit buffer or stored value', () => {
+    // SDK 2.0.5 removed the currency-dependent minor-unit conversion this
+    // used to prove (JPY's zero-decimal exponent used to change what "500"
+    // meant). A money key's value is now the plain number typed, independent
+    // of payments.currency, so switching to JPY changes nothing about it —
+    // including that a two-decimal amount still stores exactly as typed.
     while (modal.currentCategory !== 'payments') modal.nextCategory();
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.currency');
     modal.activateSelected();
     modal.editBuffer = 'JPY';
     expect(modal.commitEdit()).toBe(true);
 
-    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItemCents');
+    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItem');
     modal.activateSelected();
-    expect(modal.editBuffer).toBe('0'); // JPY has no minor unit
-    modal.editBuffer = '500';
+    expect(modal.editBuffer).toBe('0');
+    modal.editBuffer = '500.25';
     expect(modal.commitEdit()).toBe(true);
-    expect(cm.get('payments.budget.dailyItemCents')).toBe(500);
+    expect(cm.get('payments.budget.dailyItem')).toBe(500.25);
   });
 
   test('selecting daemon.timezone dispatches the picker instead of free-text edit', () => {
@@ -300,9 +307,3 @@ describe('SettingsModal payments category', () => {
     expect(suspicious).toEqual([]);
   });
 });
-
-function formatMajor(cents: number): string {
-  const whole = Math.floor(cents / 100);
-  const frac = String(cents % 100).padStart(2, '0');
-  return `${whole}.${frac}`;
-}

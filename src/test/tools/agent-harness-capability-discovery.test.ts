@@ -70,7 +70,7 @@ describe('capability discovery — the settings catalog answers in plain words',
     const page = await settingsPage('spending limit');
     const keys = page.settings.map((setting) => setting.key);
     expect(keys.filter((key) => key.startsWith('payments.budget.')).length).toBeGreaterThan(0);
-    expect(keys).toContain('payments.budget.dailyItemCents');
+    expect(keys).toContain('payments.budget.dailyItem');
     // The whole phrase was found (in the domain vocabulary), so these are not
     // near misses and must not be labelled as such.
     expect(page.queryMatch).toBeUndefined();
@@ -140,17 +140,17 @@ describe('capability discovery — modes and commands', () => {
 });
 
 describe('capability discovery — the shared match rule', () => {
-  const entries = ['payments budget daily item cents', 'voice wake word threshold'] as const;
+  const entries = ['payments budget daily item amount', 'voice wake word threshold'] as const;
   const text = (entry: string): string => entry;
 
   test('an exact phrase and an all-words query both match strictly', () => {
     expect(searchCatalog(entries, 'wake word', text)).toEqual({ matches: ['voice wake word threshold'], relaxed: false });
-    expect(searchCatalog(entries, 'cents budget', text)).toEqual({ matches: ['payments budget daily item cents'], relaxed: false });
+    expect(searchCatalog(entries, 'amount budget', text)).toEqual({ matches: ['payments budget daily item amount'], relaxed: false });
   });
 
   test('a phrase that matches nothing falls back to single words, and says it did', () => {
     const found = searchCatalog(entries, 'daily spending budget', text);
-    expect(found.matches).toEqual(['payments budget daily item cents']);
+    expect(found.matches).toEqual(['payments budget daily item amount']);
     expect(found.relaxed).toBe(true);
   });
 

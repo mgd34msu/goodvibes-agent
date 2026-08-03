@@ -4,12 +4,12 @@
  * the job.
  *
  * A settings search reads the key and the description, and both are written in
- * the platform's vocabulary. `payments.budget.dailyItemCents` describes itself
- * as "Most that may be spent on ITEM PRICES in one calendar day, in minor units
- * (cents)" — accurate, and it contains neither "spending limit" nor "credit
- * card", which is what was actually asked. The catalog answered "0", the model
- * reported that the platform has no payment settings, and thirty-two live keys
- * went unmentioned.
+ * the platform's vocabulary. `payments.budget.dailyItem` describes itself as
+ * "Most that may be spent on ITEM PRICES in one calendar day, written the way
+ * you would say it" — accurate, and it contains neither "spending limit" nor
+ * "credit card", which is what was actually asked. The catalog answered "0",
+ * the model reported that the platform has no payment settings, and
+ * thirty-two live keys went unmentioned.
  *
  * So each domain carries the words for it as well as its own. These are search
  * aliases only: they are indexed beside the key and never displayed as if the

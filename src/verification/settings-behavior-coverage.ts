@@ -459,34 +459,29 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // src/test/input/daemon-settings-actions.test.ts for the timezone picker's
   // own selection-handling code.
   {
-    key: 'payments.budget.dailyItemCents',
+    key: 'payments.budget.dailyItem',
     test: 'src/test/input/settings-modal-payments.test.ts',
-    asserts: 'typing "0.1"/"0.29"/"19.99"/"1234.56" into the edit buffer stores exactly 10/29/1999/123456 cents (not a float-rounding-adjacent value), and re-opening the field shows the same major-units string back; a negative entry is refused rather than coerced',
+    asserts: 'typing "0.1"/"0.29"/"19.99"/"1234.56" into the edit buffer stores that exact amount (not a float-rounding-adjacent value), and re-opening the field shows the same string back; a negative entry is refused rather than coerced',
   },
   {
-    key: 'payments.budget.dailyOverageCents',
+    key: 'payments.budget.dailyOverage',
     test: 'src/test/input/settings-modal-payments.test.ts',
-    asserts: 'typing "0.29" against this specific key stores exactly 29 cents through the real money edit/commit path',
+    asserts: 'typing "0.29" against this specific key stores exactly 0.29 through the real money edit/commit path',
   },
   {
-    key: 'payments.budget.perPurchaseCeilingCents',
+    key: 'payments.budget.perPurchaseCeiling',
     test: 'src/test/input/settings-modal-payments.test.ts',
-    asserts: 'typing "19.99" against this specific key stores exactly 1999 cents through the real money edit/commit path',
+    asserts: 'typing "19.99" against this specific key stores exactly 19.99 through the real money edit/commit path',
   },
   {
-    key: 'payments.budget.overageToleranceDailyAllowanceCents',
+    key: 'payments.budget.overageToleranceDailyAllowance',
     test: 'src/test/input/settings-modal-payments.test.ts',
-    asserts: 'typing "1234.56" against this specific key stores exactly 123456 cents through the real money edit/commit path',
+    asserts: 'typing "1234.56" against this specific key stores exactly 1234.56 through the real money edit/commit path',
   },
   {
     key: 'payments.defaultCardId',
     test: 'src/test/renderer/settings-modal-payments.test.ts',
     asserts: 'renders as a plain visible id both empty and set — never routed through the secret-masking path a real credential key goes through, which matters because this key names a card without ever holding its number, expiry or CVV',
-  },
-  {
-    key: 'payments.currency',
-    test: 'src/test/input/settings-modal-payments.test.ts',
-    asserts: 'changing it to JPY changes the money edit buffer for a Cents field from a two-decimal major-units string to a whole-number one with no decimal point, proving the conversion is genuinely currency-aware rather than hardcoded to USD',
   },
   {
     key: 'payments.cvvHandling',
