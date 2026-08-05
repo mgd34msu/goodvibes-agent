@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.8 - 2026-08-05
+
+- **Fixed: every turn runs on the platform's host — including one-shot runs.** `goodvibes-agent run` now routes through the daemon like the interactive conversation, with the same output shapes and exit codes, falling back to this process with a stated reason on stderr when no host is reachable.
+- **Fixed: a turn can no longer run forever.** A hosted event stream that closed cleanly never ended its turn — the interactive surface could show work that had already finished. Every stream ending now completes the turn.
+- Changed: the bundled platform runtime is 2.0.9 and the daemon this Agent installs alongside itself is 1.28.11.
+
 ## 2.0.7 - 2026-08-05
 
 - **Fixed: pasting an image works.** Ctrl+V with an image in the clipboard attaches it to your next message with a visible chip — the keystroke was silently discarded by a snapshot the shortcut route wrote back over the composer. Undo and redo were losing edits the same way and are fixed with it. When no clipboard reader exists, the reply names the package instead of doing nothing.

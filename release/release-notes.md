@@ -1,3 +1,5 @@
+- **Fixed: every turn runs on the platform's host — including one-shot runs.** `goodvibes-agent run` routes through the daemon like the interactive conversation, same output shapes and exit codes, falling back to this process with a stated reason when no host is reachable.
+- **Fixed: a turn can no longer run forever.** A hosted event stream that closed cleanly never ended its turn; every stream ending now completes the turn.
 - **Fixed: pasting an image works.** Ctrl+V with an image in the clipboard attaches it to your next message with a visible chip — the keystroke was silently discarded before it reached the composer. Undo and redo were losing edits the same way and are fixed with it. When no clipboard reader exists, the reply names the package to install instead of doing nothing.
 - **Fixed: the working area holds still.** The activity label streamed every character of a tool call two at a time; it now names the tool and stays put.
 - **Fixed: reminders respect being heard.** A reminder raises twice at most — at its lead time and on the day. Replying to one records the acknowledgment in the same turn and it goes quiet; your own remember-only dates never push at all; and a complaint about one reminder mutes that one reminder, never the whole feature.
@@ -5,4 +7,4 @@
 - **Changed: setup completes what you meant.** Asks traverse the inferred chain with one-line approvals for extensions and concrete questions at real forks — and no reply ever tells you to type a command. Pasting Google client values into the conversation registers them and answers with the consent link.
 - Changed: exec output marks every truncation with a counted line, ordinary diagnostics are no longer refused by the command guard, and the bundled platform runtime is 2.0.9 with daemon 1.28.11 alongside.
 
-GoodVibes Agent 2.0.7 - 2026-08-05
+GoodVibes Agent 2.0.8 - 2026-08-05
