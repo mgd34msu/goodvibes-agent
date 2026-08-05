@@ -97,8 +97,8 @@
     "@pellux/goodvibes-daemon": "1.28.9"
   },
   "devDependencies": {
-    "@pellux/goodvibes-sdk": "2.0.6",
-    "@pellux/goodvibes-terminal-shell": "2.0.6",
+    "@pellux/goodvibes-sdk": "2.0.7",
+    "@pellux/goodvibes-terminal-shell": "2.0.7",
     "onnxruntime-web": "^1.27.0",
     "sql.js": "^1.14.1",
     "sqlite-vec": "^0.1.9",
