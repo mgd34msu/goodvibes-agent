@@ -37,7 +37,7 @@
  * "this host has not wired that verb", which is a real answer about the host
  * and must never be laundered into an empty result.
  */
-import { resolveDaemonEnabled } from '@pellux/goodvibes-sdk/platform/config';
+import { resolveConnectedHostDialEnabled } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { DaemonReachability, DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 import { readConnectedHostOperatorToken, connectedHostTokenRequiredMessage } from '../connected-host-auth.ts';
@@ -83,8 +83,24 @@ function resolveConnection(options: AgentDaemonVerbCallerOptions): ResolvedConne
   if (typeof (configManager as { get?: unknown } | null)?.get !== 'function') {
     return { reason: 'no config manager is wired here, so no connected host can be resolved.' };
   }
-  if (!resolveDaemonEnabled(configManager)) {
-    return { reason: 'the connected host is disabled (daemon.enabled=false) — nothing to reach. Enable it in settings, then retry.' };
+  // `daemon.connectedHost.enabled`, NOT `daemon.enabled`.
+  //
+  // `daemon.enabled` answers whether this surface ADOPTS a session daemon of
+  // its own. It is the wrong question here, and asking it was a real defect:
+  // on a machine with `daemon.enabled: false` and a connected host that was
+  // live and answering, this gate refused every call through this caller — the
+  // session-inputs poll (every two seconds, thousands of log lines an hour),
+  // the conversation-rewind host registration, the approvals update stream and
+  // the hosted-conversation handoff — while the session spine, the memory
+  // spine and the operator tools dialed the SAME host without trouble, because
+  // none of them read the flag. Half the product believed there was no daemon.
+  //
+  // The two meanings are now two settings. This one is the dial permission.
+  if (!resolveConnectedHostDialEnabled(configManager)) {
+    return {
+      reason: 'this surface is set not to dial a connected host (daemon.connectedHost.enabled=false) — '
+        + 'nothing to reach. Set it to true in settings, then retry.',
+    };
   }
   const homeDirectory = typeof options.homeDirectory === 'function' ? options.homeDirectory() : options.homeDirectory;
   const token = readConnectedHostOperatorToken(homeDirectory);

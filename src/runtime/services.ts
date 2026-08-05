@@ -572,6 +572,16 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   readonly guardedCheckpoints: Pick<WorkspaceCheckpointManager, 'list' | 'create' | 'diff' | 'restore' | 'sessionChanges' | 'workspaceRoot'>;
   /** Every client seam's one plug into the connected host. */
   readonly daemonVerbs: DaemonVerbCaller;
+  /**
+   * The connected host's address and token, or the honest reason there is
+   * none — the SAME resolution {@link daemonVerbs} uses.
+   *
+   * For the seams that need a long-lived stream rather than a call (the
+   * approvals update stream, a hosted conversation's event stream). Sharing
+   * the resolution is what keeps a surface from calling one daemon and
+   * streaming from another.
+   */
+  readonly resolveConnectedHost: () => { readonly baseUrl: string; readonly token: string } | { readonly reason: string };
   /** Daemon-owned settings, read and written where they are acted on. */
   readonly daemonConfigClient: DaemonConfigClient;
   /** Credentials the daemon uses, written as one verified pair. */
@@ -2266,6 +2276,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     hostedSessions,
     hostedHandoff,
     daemonVerbs,
+    resolveConnectedHost: () => resolveConnectedHostConnection(connectedHostAccess),
     daemonConfigClient,
     daemonCredentialsClient,
     devicesClient,

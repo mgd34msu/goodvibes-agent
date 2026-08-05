@@ -84,6 +84,7 @@ function makeServicePosture(overrides: Partial<CliStatusService> = {}): CliStatu
       autostart: true,
       restartOnFailure: true,
       daemonEnabled: true,
+      connectedHostDialEnabled: true,
     },
     managed: {
       platform: 'manual',
