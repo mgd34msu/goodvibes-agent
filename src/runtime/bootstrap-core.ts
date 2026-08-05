@@ -37,6 +37,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { importVibeFilesIntoMemoryOnce } from '../agent/vibe-file.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
+import { installAgentPlatformBoundaryGuard } from '../tools/agent-platform-boundary-policy.ts';
 import { registerAgentChannelSendTool } from '../tools/agent-channel-send-tool.ts';
 import { registerAgentAutonomyScheduleTool } from '../tools/agent-autonomy-schedule-tool.ts';
 import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
@@ -402,6 +403,15 @@ export async function initializeBootstrapCore(
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });
+  // The conversational-session boundary: platform source is not touched as a
+  // means of self-repair in a turn that asked for something else. Installed
+  // AFTER the policy guard so it wraps the policy-wrapped execute rather than
+  // the other way round — the boundary question ("did he ask for this at all")
+  // is answered before the read policy is asked what shape the read may take.
+  // Reads his own words this turn through the same conversation accessor, which
+  // is the only thing that distinguishes self-directed repair from a read he
+  // requested.
+  installAgentPlatformBoundaryGuard(toolRegistry, () => conversation.getLastUserMessage());
   installToolExecutionSafetyGuard(toolRegistry);
   compactRegisteredToolDefinitions(toolRegistry);
   // Captured so the permissionManager-bearing follow-up call below (issued once
