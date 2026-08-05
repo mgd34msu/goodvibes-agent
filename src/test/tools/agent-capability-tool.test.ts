@@ -64,17 +64,17 @@ const GOOGLE_UNCONFIGURED: CapabilityStatusInputs = {
     capability('email.read', 'needs-setup', {
       title: 'Read Gmail',
       reason: 'No Google account is connected.',
-      fix: 'Connect one with: /google setup',
+      fix: 'Connect one with: /google connect',
     }),
     capability('email.send', 'needs-setup', {
       title: 'Send Gmail',
       reason: 'No Google account is connected.',
-      fix: 'Connect one with: /google setup',
+      fix: 'Connect one with: /google connect',
     }),
     capability('calendar.read', 'needs-setup', {
       title: 'Read Google Calendar',
       reason: 'No Google account is connected.',
-      fix: 'Connect one with: /google setup',
+      fix: 'Connect one with: /google connect',
     }),
   ]),
 };
@@ -84,7 +84,7 @@ describe('a Google question with nothing connected answers from runtime state', 
 
   test('it names the native route and the exact step that connects an account', () => {
     expect(answer).toContain('built-in google tool');
-    expect(answer).toContain('/google setup');
+    expect(answer).toContain('/google connect');
     expect(answer).toContain('/google adopt');
   });
 
@@ -127,7 +127,7 @@ describe('a build that genuinely lacks the route says so', () => {
   test('it does not send the user off to configure a separate server', () => {
     expect(answer).not.toContain('MCP');
     expect(answer).not.toContain('SMTP');
-    expect(answer).not.toContain('/google setup');
+    expect(answer).not.toContain('/google connect');
   });
 
   test('a capability id the build does not declare at all is reported, not silently dropped', () => {
@@ -146,7 +146,7 @@ describe('a mail question keeps Google and a direct mailbox apart', () => {
   });
 
   test('the Google remedy comes first and a direct mailbox is named as a separate feature', () => {
-    const googleFix = answer.indexOf('/google setup');
+    const googleFix = answer.indexOf('/google connect');
     const mailboxMention = answer.indexOf('/email set');
     expect(googleFix).toBeGreaterThan(-1);
     expect(mailboxMention).toBeGreaterThan(googleFix);

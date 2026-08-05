@@ -249,7 +249,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'external-network',
       confirmation,
       preferredModelTool: 'google',
-      boundary: 'Connects the Google account that backs mail and calendar. /google adopt takes up credentials already on this machine; /google setup runs the connection flow. Once connected, the google tool is the model route — no MCP server is involved.',
+      boundary: 'Connects the Google account that backs mail and calendar. /google connect runs the connection flow; /google adopt takes up credentials from files you point it at. Once connected, the google tool is the model route — no MCP server is involved.',
     };
   }
   if (root === 'email') {

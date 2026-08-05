@@ -160,7 +160,7 @@ describe('capability index against the owner\'s machine state', () => {
 
     // The route still exists, so this is needs-setup rather than unavailable.
     expect(send?.state).toBe('needs-setup');
-    expect(send?.fix).toContain('/google setup');
+    expect(send?.fix).toContain('/google connect');
     expect(send?.fix).not.toMatch(MCP_INSTRUCTION);
   });
 

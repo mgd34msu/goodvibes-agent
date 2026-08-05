@@ -107,7 +107,7 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
           if (!serviceDomain) return failure('accounts action:"alias" needs the serviceDomain you are signing up at.');
           const base = options.baseAddress?.() ?? null;
           if (!base) {
-            return failure('No mailbox is connected to mint a signup alias from. Connect one with: /google setup');
+            return failure('No mailbox is connected to mint a signup alias from. Connect one with: /google connect');
           }
           const alias = mintAddressFor(base, serviceDomain);
           // Opening the expectation here is what lets the verification mail

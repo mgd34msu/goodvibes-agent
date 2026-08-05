@@ -730,7 +730,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       inspectRoute: 'google action:"status"',
       requiresConfirmation: false,
       missingFields: ['a connected Google account'],
-      userQuestion: 'Connect a Google account with /google setup, or take up credentials already on this machine with /google adopt — which would you like?',
+      userQuestion: 'Connect a Google account with /google connect, or take up credentials already on this machine with /google adopt — which would you like?',
     });
   }
 

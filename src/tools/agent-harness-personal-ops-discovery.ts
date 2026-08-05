@@ -385,7 +385,7 @@ export function inboxWorkflows(methodIds: readonly string[], connectors: readonl
   const degradedAdNote = unavailableMethodsNote(unavailableMethodIds);
   const setupPrerequisite = status === 'needs-setup'
     ? [
-      'Connect a Google account first with /google setup, or take up credentials already on this machine with /google adopt.',
+      'Connect a Google account first with /google connect, or take up credentials already on this machine with /google adopt.',
       ...(degradedAdNote ? [degradedAdNote] : []),
     ]
     : status === 'attention'
@@ -441,7 +441,7 @@ export function calendarWorkflows(methodIds: readonly string[], connectors: read
   const degradedAdNote = unavailableMethodsNote(unavailableMethodIds);
   const setupPrerequisite = status === 'needs-setup'
     ? [
-      'Connect a Google account first with /google setup, or subscribe to a calendar feed with /calendar subscribe.',
+      'Connect a Google account first with /google connect, or subscribe to a calendar feed with /calendar subscribe.',
       ...(degradedAdNote ? [degradedAdNote] : []),
     ]
     : status === 'attention'

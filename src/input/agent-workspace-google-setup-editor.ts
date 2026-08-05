@@ -25,6 +25,9 @@ import { isAffirmative } from './agent-workspace-editors.ts';
 import { renderGoogleSetupReport } from '@pellux/goodvibes-sdk/platform/google';
 import {
   adoptGoogleCredentials,
+  connectGoogle,
+  forgetGoogleCredentials,
+  reauthorizeGoogle,
   describeGoogleConnection,
   runGoogleSetup,
 } from './commands/google-connection-actions.ts';
@@ -70,6 +73,75 @@ export function createGoogleStatusEditor(): AgentWorkspaceLocalEditor {
       + 'already exist on this machine that nothing is using yet. Reads only; nothing is changed and no '
       + 'credential is shown.',
     fields: [confirmField('Type yes to read the current connection state.')],
+  };
+}
+
+/**
+ * The card people should reach for, and the reason the others are still here.
+ *
+ * `/google connect` works out the route by itself — a stored credential, a
+ * stored client that only needs consent, or an authenticated gcloud — and asks
+ * for at most one thing. The path-specific cards below remain for someone who
+ * knows they want a particular one; nobody should have to choose first.
+ */
+export function createGoogleConnectEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'google-connect',
+    mode: 'create',
+    title: 'Connect Google',
+    selectedFieldIndex: 0,
+    message:
+      'Connect Gmail and Calendar. This works out the shortest route on its own: it uses a credential '
+      + 'already stored, goes straight to consent when an OAuth client exists, and uses the gcloud CLI '
+      + 'for the project and APIs when it is signed in. Mail and calendar are requested together, so one '
+      + 'approval covers both. At the end it reads your mailbox and your calendar to prove the connection '
+      + 'actually works rather than reporting that something was stored.',
+    fields: [confirmField('Type yes to connect Google.')],
+  };
+}
+
+/**
+ * A fresh consent, for when a credential is alive but not permitted enough.
+ *
+ * This is the card the old error text pointed at and which did not exist. It
+ * deletes nothing: Google issues a new refresh token when consent is granted
+ * again, and approving on the consent screen IS the confirmation.
+ */
+export function createGoogleReauthorizeEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'google-reauthorize',
+    mode: 'create',
+    title: 'Re-authorize Google',
+    selectedFieldIndex: 0,
+    message:
+      'Ask for a fresh Google consent covering mail and calendar together. Use this when something '
+      + 'reports a missing scope, or when a credential has stopped working. The existing OAuth client is '
+      + 'reused, so there is no project or console work — just one consent link to approve. Check the '
+      + 'account shown on the consent screen: approving as a personal account by reflex is the most '
+      + 'common way this goes wrong.',
+    fields: [confirmField('Type yes to start a fresh Google consent.')],
+  };
+}
+
+/**
+ * Removal, behind a confirm field.
+ *
+ * A stored refresh token is the product of a person completing a consent
+ * screen, and it was once deleted mid-flow with nothing asked and nothing said.
+ * The card states what would go before anything goes.
+ */
+export function createGoogleForgetEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'google-forget',
+    mode: 'create',
+    title: 'Remove stored Google credentials',
+    selectedFieldIndex: 0,
+    message:
+      'Remove the Google credentials held in the encrypted store — the refresh token, the OAuth client '
+      + 'secret, the Gmail app password and the private calendar address, whichever of them are there. '
+      + 'This cannot be undone: getting the refresh token back means approving a consent screen again. '
+      + 'Nothing is removed until you confirm, and the reply names exactly what was removed.',
+    fields: [confirmField('Type yes to remove the stored Google credentials.')],
   };
 }
 
@@ -266,7 +338,7 @@ export async function submitAgentWorkspaceGoogleSetupEditor(
 
   if (editor.kind === 'google-status') {
     try {
-      const text = await describeGoogleConnection(context, 'the "Adopt existing Google credentials" card');
+      const text = await describeGoogleConnection(context);
       host.localEditor = null;
       host.status = 'Google connection state read.';
       // Not a 'recap' result: that kind renders every line behind a green check,
@@ -299,6 +371,63 @@ export async function submitAgentWorkspaceGoogleSetupEditor(
       };
     } catch (error) {
       failed(host, editor, 'Google adoption failed', error);
+    }
+    return;
+  }
+
+  if (editor.kind === 'google-connect' || editor.kind === 'google-reauthorize') {
+    const reauthorizing = editor.kind === 'google-reauthorize';
+    const transcript: string[] = [];
+    try {
+      host.status = reauthorizing ? 'Asking Google for a fresh consent...' : 'Connecting Google...';
+      // The consent link goes into the transcript the pane renders. A card has
+      // no console to print to, and the link is the ONE thing the person has to
+      // act on, so it is announced rather than opened: Google blocks automated
+      // browsers at its sign-in wall, and a link they click always works.
+      const announce = (url: string): void => {
+        transcript.push('Open this link and approve it:');
+        transcript.push(url);
+      };
+      const outcome = reauthorizing
+        ? await reauthorizeGoogle(context, collectingProgress(transcript), announce)
+        : await connectGoogle(context, collectingProgress(transcript), announce);
+
+      host.localEditor = null;
+      host.status = outcome.connected
+        ? 'Google connected and proven.'
+        : 'Google is not connected yet.';
+      host.lastActionResult = {
+        kind: outcome.connected ? 'refreshed' : 'error',
+        title: reauthorizing ? 'Google re-authorization' : 'Connect Google',
+        detail: [outcome.text, '', ...transcript].join('\n'),
+        safety: 'safe',
+      };
+    } catch (error) {
+      failed(host, editor, reauthorizing ? 'Google re-authorization failed' : 'Connecting Google failed', error);
+    }
+    return;
+  }
+
+  if (editor.kind === 'google-forget') {
+    try {
+      // The confirm field at the top of this card IS the explicit yes. Reaching
+      // this line already required typing it, which is why `true` is passed
+      // here and never defaulted anywhere below.
+      const detail = await forgetGoogleCredentials(
+        context,
+        ['refresh-token', 'client-secret', 'app-password', 'calendar-address'],
+        true,
+      );
+      host.localEditor = null;
+      host.status = 'Stored Google credentials removed.';
+      host.lastActionResult = {
+        kind: 'refreshed',
+        title: 'Stored Google credentials removed',
+        detail,
+        safety: 'safe',
+      };
+    } catch (error) {
+      failed(host, editor, 'Removing the Google credentials failed', error);
     }
     return;
   }
