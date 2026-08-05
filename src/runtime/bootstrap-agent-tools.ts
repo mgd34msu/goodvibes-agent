@@ -10,7 +10,9 @@
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import type { ConfigManager } from '../config/index.ts';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { RuntimeServices } from './services.ts';
+import { missingConversationalCaptureTools } from './agent-conversational-capture.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { createOccasionsGatewayInvoke } from '../agent/occasions-gateway.ts';
 import { createProfileGatewayInvoke } from '../agent/owner-profile-gateway.ts';
@@ -140,5 +142,20 @@ export function registerAgentTools(deps: AgentToolRegistrationDeps): void {
   registerAgentWorkspaceTool(toolRegistry, commandRegistry, commandContext);
   registerAgentSettingsImportTool(toolRegistry, commandContext);
   registerAgentTerminalProcessTools(toolRegistry, commandContext);
+  // The capture floor, checked once every tool this build registers is in.
+  // The operator policy tells every turn that recording what it learns is part
+  // of answering; if the tools that do the recording were not registered, that
+  // instruction is a promise the run cannot keep — which is exactly how an
+  // itinerary got found, answered, and stored nowhere. Reported rather than
+  // thrown: a missing capture tool is a degraded Agent, not a reason to refuse
+  // to boot one.
+  const missingCaptureTools = missingConversationalCaptureTools(
+    toolRegistry.list().map((tool) => tool.definition.name),
+  );
+  if (missingCaptureTools.length > 0) {
+    logger.warn('conversational capture tools are not registered; this build cannot record what it learns', {
+      missing: missingCaptureTools,
+    });
+  }
   compactRegisteredToolDefinitions(toolRegistry);
 }
