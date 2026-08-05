@@ -1,6 +1,6 @@
 # Which Google scopes to request, and why
 
-Verified against Google's live documentation on 2026-07-26. Every classification below carries the source it came from.
+Verified against Google's live documentation on 2026-07-26, and re-verified on 2026-08-05 when the scope set widened to cover mail. Every classification below carries the source it came from.
 
 ## The model this assumes
 
@@ -51,30 +51,58 @@ For a personal app the tier does not create a fee. It still shapes the request, 
 
 ## What this integration requests
 
-**`https://www.googleapis.com/auth/calendar.events` — and nothing else.**
+**Three scopes, asked for together, in one consent.**
 
-| Capability | How | OAuth scope needed |
+| Scope | Tier | What needs it |
 | --- | --- | --- |
-| Read and search mail | IMAP + app password | none |
-| Send mail | SMTP + app password | none |
-| Read calendar | `calendar.events` | sensitive |
-| Write calendar | `calendar.events` | sensitive |
+| `https://www.googleapis.com/auth/gmail.readonly` | restricted | Reading messages (`api-client.ts`), and the inbound-mail history delta (`history-delta.ts`) |
+| `https://www.googleapis.com/auth/gmail.send` | sensitive | Sending through the Gmail API (`messages/send`) |
+| `https://www.googleapis.com/auth/calendar.events` | sensitive | Reading and writing events |
 
-Mail runs over IMAP/SMTP with an app password, which is not an OAuth grant at all — no project, no client, no consent screen, no publishing status, and nothing that expires. OAuth is used only for the one thing an app password genuinely cannot do, which is reach the calendar.
+### Why all three at once, and not one at a time
 
-`calendar.events` rather than full `calendar` because it grants event read and write without also granting calendar-list management. Both are sensitive, so nothing is gained by the wider one.
+Because splitting them produced a real failure. A token was minted carrying
+Gmail scopes only; the first Calendar call afterwards returned
+`403 insufficient authentication scopes`. A grant carries exactly the scopes
+that were approved, so a consent that omits one produces a credential that
+looks connected, reports connected, and then refuses a single feature at the
+moment somebody uses it — long after the setup that would explain it.
 
-The scope list itself now lives in the platform runtime's Google setup plan (`OAUTH_SCOPES`, deliberately just the one entry, deliberately not a Gmail scope), not in this repository, so this cannot drift silently on this side either.
+Asking once for everything the product can do costs the person nothing extra:
+it is the same consent screen with a longer permissions list. Splitting it
+costs them a second consent and a confusing failure in between. `OAUTH_SCOPES`
+in the platform runtime is therefore the complete set, and a test pins it.
 
-### What is given up
+### On `gmail.readonly` being restricted
 
-Compared with requesting `gmail.readonly`:
+It is, and that no longer changes the decision. The restricted tier triggers a
+third-party security assessment for apps **published to other people's users**.
+That is not this model: each person creates the OAuth client in their own
+Google Cloud account and is its only user, so there is nobody for Google to
+vouch to, the app is self-certified rather than verified, and the 100-user cap
+is irrelevant to a one-user app. The consent screen shows its unverified-app
+warning once, which the flow tells the person to expect.
 
-- **Gmail push/watch channels.** IMAP IDLE gives near-real-time arrival but holds a connection open and is not the same mechanism.
-- **Gmail's `q=` search syntax.** IMAP search is weaker — no `category:`, no relevance ranking.
-- **Label semantics.** IMAP sees folders, not Gmail's overlapping labels.
+The guard that remains is on **width**, not on tier. `gmail.modify` and
+`https://mail.google.com/` grant message deletion and full mailbox control, and
+nothing in this platform does either — requesting one would widen what a leaked
+credential reaches in exchange for nothing. Those two are listed in
+`FORBIDDEN_OAUTH_SCOPES` and a test fails if either is ever added.
 
-If push notification later proves essential, that is a deliberate decision to revisit — not a scope to add quietly.
+### Both APIs are enabled, not just Calendar
+
+`REQUIRED_SERVICES` carries `gmail.googleapis.com` alongside
+`calendar-json.googleapis.com`. A scope whose API is switched off fails with a
+service-disabled error rather than an auth error, which is a genuinely
+confusing thing to debug — the credential is valid and the call still fails.
+Both are enabled through gcloud with no clicking.
+
+### Mail over IMAP is still there
+
+The app-password path is unchanged and still needs no OAuth grant at all. What
+changed is that the OAuth path no longer pretends mail is out of its scope: the
+platform reads and sends mail through the Gmail API when a Google account is
+connected that way, so the grant has to permit it.
 
 ## Why Google Calendar is read-only on the app-password path
 

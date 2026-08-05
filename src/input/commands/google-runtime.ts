@@ -32,9 +32,12 @@ import { renderGoogleSetupRunbook } from '@pellux/goodvibes-sdk/platform/google'
 import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS } from '@pellux/goodvibes-sdk/platform/google';
 import {
   adoptGoogleCredentials,
+  connectGoogle,
   describeGoogleConnection,
+  forgetGoogleCredentials,
   googleConfigPort,
   googleSecretPort,
+  reauthorizeGoogle,
   runGoogleSetup,
 } from './google-connection-actions.ts';
 import type { GoogleProgressPort, GoogleSetupPath, GoogleSetupStepSpec, GoogleStepResult } from '@pellux/goodvibes-sdk/platform/google';
@@ -43,15 +46,20 @@ import { getOutwardApprovalStore, takeRefusedOutwardAction } from '../../trust/o
 const USAGE = [
   'Usage: /google <subcommand>',
   '',
-  '  status                          What is connected, and what is still missing.',
-  '  adopt                           Take up Google credentials already on this machine (~/.gmail-mcp).',
-  '  setup [--path app-password|oauth]',
-  '                                  Run the connection flow. Defaults to the app-password fast lane.',
-  '  client-file <path>              Use an OAuth client JSON you already downloaded.',
+  '  connect                         Connect Gmail and Calendar. Works out the shortest route by itself',
+  '                                  and asks you for at most one thing: approving a consent link.',
+  '  status                          What is connected, proven by reading mail and calendar.',
+  '  reauthorize                     Fresh consent covering mail and calendar together. Use this when',
+  '                                  something reports a missing scope or a dead credential.',
+  '  forget [--yes]                  Remove stored Google credentials. Says what would go and waits.',
+  '  adopt [--yes]                   Take up Google credentials from files on this machine (~/.gmail-mcp).',
+  '  client-file <path>              Use an OAuth client JSON you already have.',
   '  client <client-id> <client-secret>',
   '                                  Use an OAuth client id and secret you copied from the console.',
   '  account <address>               Set the Gmail address to connect as.',
   '  calendar-address <url>          Store the private iCal address for read-only calendar access.',
+  '  setup [--path app-password|oauth|existing-client]',
+  '                                  Run one specific path. /google connect picks for you.',
   '  runbook                         Print the written step-by-step instructions.',
   '  approve                         Approve the outward action that was just refused. Type it yourself;',
   '                                  it is ignored when the model runs it.',
@@ -78,7 +86,30 @@ function progressPort(ctx: CommandContext): GoogleProgressPort {
 function parsePath(args: readonly string[]): GoogleSetupPath {
   const index = args.indexOf('--path');
   const value = index >= 0 ? args[index + 1] : undefined;
-  return value === 'oauth' ? 'oauth' : 'app-password';
+  if (value === 'oauth') return 'oauth';
+  if (value === 'existing-client') return 'existing-client';
+  return 'app-password';
+}
+
+/** True when the owner typed an explicit yes on this invocation. */
+function saidYes(args: readonly string[]): boolean {
+  return args.includes('--yes') || args.includes('-y');
+}
+
+/**
+ * Where a consent link goes.
+ *
+ * Printed on its own line with nothing wrapped around it, because the person
+ * has to be able to click or copy it cleanly. This is the single action the
+ * whole flow asks of anyone.
+ */
+function consentAnnouncer(ctx: CommandContext): (url: string) => void {
+  return (url: string) => {
+    ctx.print('');
+    ctx.print('Open this link and approve it:');
+    ctx.print(url);
+    ctx.print('');
+  };
 }
 
 async function runSetup(args: readonly string[], ctx: CommandContext, intake?: GoogleClientIntakeChoice): Promise<void> {
@@ -95,7 +126,7 @@ async function setAccount(args: readonly string[], ctx: CommandContext): Promise
   const config = googleConfigPort(ctx);
   config.set(GOOGLE_CONFIG_KEYS.emailUsername, address);
   config.set(GOOGLE_CONFIG_KEYS.emailFromAddress, address);
-  ctx.print(`Gmail address set to ${address}. Continue with: /google setup`);
+  ctx.print(`Gmail address set to ${address}. Continue with: /google connect`);
 }
 
 /**
@@ -162,11 +193,37 @@ export async function runGoogleCommand(args: readonly string[], ctx: CommandCont
 
   try {
     if (sub === 'status') {
-      ctx.print(await describeGoogleConnection(ctx, '/google adopt'));
+      ctx.print(await describeGoogleConnection(ctx));
+      return;
+    }
+    if (sub === 'connect') {
+      const outcome = await connectGoogle(ctx, progressPort(ctx), consentAnnouncer(ctx));
+      ctx.print(outcome.text);
+      return;
+    }
+    if (sub === 'reauthorize' || sub === 'reauth') {
+      const outcome = await reauthorizeGoogle(ctx, progressPort(ctx), consentAnnouncer(ctx));
+      ctx.print(outcome.text);
+      return;
+    }
+    if (sub === 'forget') {
+      // Every stored Google credential is in scope, and none of it goes
+      // without the owner's yes on this exact invocation.
+      ctx.print(
+        await forgetGoogleCredentials(
+          ctx,
+          ['refresh-token', 'client-secret', 'app-password', 'calendar-address'],
+          saidYes(rest),
+        ),
+      );
       return;
     }
     if (sub === 'adopt') {
-      const outcome = await adoptGoogleCredentials(ctx, { setup: '/google setup', status: '/google status' });
+      const outcome = await adoptGoogleCredentials(
+        ctx,
+        { setup: '/google connect', status: '/google status' },
+        { confirmReplace: saidYes(rest) },
+      );
       ctx.print(outcome.text);
       return;
     }
@@ -205,9 +262,9 @@ export function registerGoogleRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'google',
     aliases: ['gmail'],
-    description: 'Connect Gmail and Google Calendar: adopt existing credentials, or run the setup flow',
-    usage: 'status | adopt | setup [--path app-password|oauth] | client-file <path> | client <id> <secret> | account <address> | calendar-address <url> | runbook | approve',
-    argsHint: 'status|adopt|setup|client-file|client|account|calendar-address|runbook|approve',
+    description: 'Connect Gmail and Google Calendar: one command, one consent link, proven by use',
+    usage: 'connect | status | reauthorize | forget [--yes] | adopt [--yes] | setup [--path app-password|oauth|existing-client] | client-file <path> | client <id> <secret> | account <address> | calendar-address <url> | runbook | approve',
+    argsHint: 'connect|status|reauthorize|forget|adopt|setup|client-file|client|account|calendar-address|runbook|approve',
     handler: runGoogleCommand,
   });
 }

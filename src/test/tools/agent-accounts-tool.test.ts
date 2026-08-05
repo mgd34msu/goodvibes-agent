@@ -66,7 +66,7 @@ describe('the account register', () => {
     const result = await (without.execute({ action: 'alias', serviceDomain: 'github.com' }) as Promise<{ success: boolean; error?: string }>);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('/google setup');
+    expect(result.error).toContain('/google connect');
   });
 
   test('an account the agent creates is recorded and can be listed', async () => {

@@ -49,7 +49,12 @@
 
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-import { openGoogleConnection, type GoogleConnection, type GoogleConnectionSources } from '@pellux/goodvibes-sdk/platform/google';
+import {
+  openGoogleConnection,
+  summarizeCredentials,
+  type GoogleConnection,
+  type GoogleConnectionSources,
+} from '@pellux/goodvibes-sdk/platform/google';
 import { nodeGoogleFilePort } from '@pellux/goodvibes-sdk/platform/google/node';
 import {
   evaluateOutwardEffect,
@@ -134,7 +139,7 @@ function isFailure<T>(result: GoogleApiResult<T>): result is GoogleApiFailure {
 
 const NOT_CONNECTED = [
   'No Google account is connected, and no Google credentials were found on this machine.',
-  'Connect one with: /google setup',
+  'Connect one with: /google connect',
   'If credentials already exist here from another tool, take them up with: /google adopt',
 ].join(' ');
 
@@ -253,7 +258,27 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
 
       const connection = await connect();
       if (connection === null) return failure(NOT_CONNECTED);
-      const { client, summary } = connection;
+      const { client } = connection;
+
+      // What the grant actually permits is only knowable AFTER a refresh.
+      //
+      // A credential read from the encrypted store is constructed with an empty
+      // scope list — the store records no scopes — and the real set arrives on
+      // the refresh response. Gating on the pre-refresh summary therefore reads
+      // an empty list as "no permissions" and refuses mail.send and
+      // calendar.create on a perfectly good credential. That was invisible
+      // while credentials came off disk carrying their own scope list, and it
+      // became every credential's problem the moment the store became the only
+      // source. `collectHistoryDelta` already forces this refresh for the same
+      // reason; this is the same fix on the tool path.
+      const refreshed = await connection.tokens.forceRefresh();
+      if (!refreshed.ok) {
+        return failure([refreshed.problem, refreshed.fix].filter(Boolean).join(' '));
+      }
+      const summary = summarizeCredentials(
+        { ...connection.credentials, scopes: connection.tokens.scopes() },
+        Date.now(),
+      );
 
       if (action === 'status') {
         return ok(
@@ -387,7 +412,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         const body = readString(rawArgs.body);
         if (!to || !subject) return failure('google action:"mail.send" needs to and subject.');
         if (!summary.canSendMail) {
-          return failure('The connected Google account was not granted a scope that permits sending mail. Re-authorize with: /google setup --path oauth');
+          return failure('The connected Google account was not granted a scope that permits sending mail. Re-authorize with: /google reauthorize');
         }
         // The one exemption: a send whose EVERY recipient is the owner himself.
         //
@@ -441,7 +466,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         return failure('google action:"calendar.create" needs summary, start and end.');
       }
       if (!summary.canWriteCalendar) {
-        return failure('The connected Google account was not granted a scope that permits writing to the calendar. Re-authorize with: /google setup --path oauth');
+        return failure('The connected Google account was not granted a scope that permits writing to the calendar. Re-authorize with: /google reauthorize');
       }
       // An event's title, location and description are what a stranger's text
       // would have to reach in order to plant something on the owner's calendar

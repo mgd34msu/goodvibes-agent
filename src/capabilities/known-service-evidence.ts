@@ -54,7 +54,7 @@ export function knownServiceEvidence(homeDirectory: string, _workingDirectory = 
     'These are Google credentials this build reads natively — no MCP server and no hand-made credential file is involved.',
     'Take them up with: /google adopt',
     'That copies them into the encrypted store and makes mail and calendar usable through the built-in google tool.',
-    'To connect a different account instead, run: /google setup',
+    'To connect a different account instead, run: /google connect',
   ].join(' ');
 
   const googleEvidence: readonly CapabilityProbe[] = [

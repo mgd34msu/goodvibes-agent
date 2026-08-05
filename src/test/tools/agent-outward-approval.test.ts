@@ -29,6 +29,7 @@ import {
   OUTWARD_APPROVAL_GESTURE,
   resetOutwardApprovalStoreForTests,
 } from '../../trust/outward-approvals.ts';
+import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS } from '@pellux/goodvibes-sdk/platform/google';
 import { runGoogleCommand } from '../../input/commands/google-runtime.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { startTurnForOwnerInput } from '@pellux/goodvibes-sdk/platform/security';
@@ -54,12 +55,38 @@ function writeCredentials(root: string): void {
   );
 }
 
+
+/**
+ * The credential as a CONNECTED machine holds it: in the config and secret
+ * stores, which is where adoption puts it.
+ *
+ * These tests used to write `~/.gmail-mcp` files and leave both stores empty,
+ * because the resolver scanned that directory on every call. It no longer goes
+ * looking — rummaging through a home directory for another tool's credential
+ * files is not something to do unasked — so the state under test is the state
+ * after adoption. The files are still written, unread, so a resolver that
+ * quietly started scanning again would not make these pass for the wrong
+ * reason.
+ */
+const STORED_CONFIG: Readonly<Record<string, unknown>> = {
+  [GOOGLE_CONFIG_KEYS.oauthClientId]: 'x.apps.googleusercontent.com',
+  [GOOGLE_CONFIG_KEYS.oauthClientSecretRef]: GOOGLE_CONFIG_KEYS.oauthClientSecretRef,
+};
+
+const STORED_SECRETS: Readonly<Record<string, string>> = {
+  [GOOGLE_SECRET_KEYS.oauthClientSecret]: 's',
+  [GOOGLE_SECRET_KEYS.oauthRefreshToken]: 'r',
+};
+
+const storedSecretGet = async (key: string): Promise<string | null> => STORED_SECRETS[key] ?? null;
+
 function googleTool() {
   const sent: string[] = [];
   const tool = createAgentGoogleTool({
     homeDirectory: home,
-    configGet: (key: string) => (key === 'email.fromAddress' ? 'owner@example.com' : undefined),
-    secretGet: async () => null,
+    configGet: (key: string) =>
+      (key === 'email.fromAddress' ? 'owner@example.com' : STORED_CONFIG[key]),
+    secretGet: storedSecretGet,
     approvals: getOutwardApprovalStore(),
     approvalGesture: OUTWARD_APPROVAL_GESTURE,
     fetchImpl: async (url: string, init: RequestInit) => {

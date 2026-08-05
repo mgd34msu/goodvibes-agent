@@ -118,7 +118,7 @@ function googleAccountProbe(options: BuiltinCapabilityOptions): CapabilityProbe 
   };
 }
 
-const GOOGLE_ACCOUNT_FIX = 'Connect a Google account with: /google setup — or, if credentials from another tool are already on this machine, take them up with: /google adopt';
+const GOOGLE_ACCOUNT_FIX = 'Connect a Google account with: /google connect — it works out the shortest route and asks you to approve one consent link';
 
 function googlePrerequisite(options: BuiltinCapabilityOptions): CapabilityPrerequisite {
   return {

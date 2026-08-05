@@ -28,7 +28,10 @@ function findAction(id: string) {
 
 /** Card id -> the `/google` route it is the UI equivalent of. */
 const GOOGLE_CARDS = [
+  ['personal-ops-google-connect', 'google-connect', 'connect'],
   ['personal-ops-google-status', 'google-status', 'status'],
+  ['personal-ops-google-reauthorize', 'google-reauthorize', 'reauthorize'],
+  ['personal-ops-google-forget', 'google-forget', 'forget'],
   ['personal-ops-google-app-password', 'google-setup-app-password', 'setup --path app-password'],
   ['personal-ops-google-oauth', 'google-setup-walkthrough', 'setup --path oauth'],
   ['personal-ops-google-adopt', 'google-adopt', 'adopt'],

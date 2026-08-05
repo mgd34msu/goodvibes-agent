@@ -18,6 +18,9 @@ import {
   createGoogleAppPasswordEditor,
   createGoogleClientFileEditor,
   createGoogleClientManualEditor,
+  createGoogleConnectEditor,
+  createGoogleForgetEditor,
+  createGoogleReauthorizeEditor,
   createGoogleStatusEditor,
   createGoogleWalkthroughEditor,
 } from './agent-workspace-google-setup-editor.ts';
@@ -222,6 +225,9 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'calendar-oauth-google') return createCalendarOAuthEditor('google', options.calendarOAuthConfigStatus?.google ?? false);
   if (editorKind === 'calendar-oauth-outlook') return createCalendarOAuthEditor('microsoft', options.calendarOAuthConfigStatus?.microsoft ?? false);
   if (editorKind === 'google-status') return createGoogleStatusEditor();
+  if (editorKind === 'google-connect') return createGoogleConnectEditor();
+  if (editorKind === 'google-reauthorize') return createGoogleReauthorizeEditor();
+  if (editorKind === 'google-forget') return createGoogleForgetEditor();
   if (editorKind === 'google-setup-walkthrough') return createGoogleWalkthroughEditor();
   if (editorKind === 'google-setup-app-password') return createGoogleAppPasswordEditor();
   if (editorKind === 'google-adopt') return createGoogleAdoptEditor();

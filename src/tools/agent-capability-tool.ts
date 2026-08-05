@@ -159,7 +159,7 @@ function describeGoogleRoute(inputs: CapabilityStatusInputs): string[] {
   }
   const lines = [
     'Gmail and Google Calendar run through the built-in google tool, in this process.',
-    'There is nothing to install and nothing separate to register: connect an account with /google setup,',
+    'There is nothing to install and nothing separate to register: connect an account with /google connect,',
     'or take up credentials already on this machine with /google adopt.',
   ];
   if (inputs.googleStatus) {
@@ -253,7 +253,7 @@ export function createAgentCapabilityTool(options: AgentCapabilityToolOptions): 
       let googleStatus: string | undefined;
       if (registered && (GOOGLE_BACKED.has(subject) || subject === 'all')) {
         try {
-          googleStatus = await describeGoogleConnection(options.commandContext, '/google adopt');
+          googleStatus = await describeGoogleConnection(options.commandContext);
         } catch {
           googleStatus = undefined;
         }

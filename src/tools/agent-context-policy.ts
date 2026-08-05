@@ -202,7 +202,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
     ],
     needsSetupOrIntegration: [
-      'Email and calendar are built in: the google tool reads and sends Gmail and reads and writes Google Calendar once an account is connected with /google setup, or credentials already on this machine are taken up with /google adopt. No MCP server or plugin is involved.',
+      'Email and calendar are built in: the google tool reads and sends Gmail and reads and writes Google Calendar once an account is connected with /google connect, or credentials already on this machine are taken up with /google adopt. No MCP server or plugin is involved.',
       'Signing up for a third-party service in service of work the owner asked for is authorized and does not need separate permission. Record it with accounts action:\"record\" at creation time — service, URL, alias, purpose, and the secret-store key name — so it can be listed and revoked. Never record the credential itself, only the name of the secret-store entry holding it.',
       'Long-running work belongs on an explicit schedule, routine, automation, research run, or connected-host route so it appears in the autonomy queue and can be cancelled. Starting such work is authorized; starting it where the owner cannot see it is not.',
       'New capabilities can come from installed plugins, MCP servers, configured services, or code changes; the Agent should inspect what is installed before claiming a capability exists.',
