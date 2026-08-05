@@ -678,6 +678,24 @@ export async function initializeBootstrapCore(
   services.conversationRewindHost.start(runtime.sessionId);
   void sharedSessionBroker.createSession({
     id: runtime.sessionId,
+    // The record's IDENTITY axis, and it has to be said out loud here.
+    //
+    // This call named neither `kind` nor `project`, so the broker fell back to
+    // its documented defaults for an ungrounded create: `classifySessionOriginKind`
+    // (session-broker-sessions.ts) maps a non-channel surface — this one is
+    // 'service' — to 'tui', and project defaults to 'unknown'. The local mirror
+    // at ~/.goodvibes/agent/control-plane/sessions.json therefore filed every
+    // agent session as kind:"tui" project:"unknown", while the spine
+    // registration twenty lines below correctly filed the SAME session as
+    // kind:'agent' with its real project. Two stores describing one session and
+    // disagreeing about what it is: a fleet listing filtered on kind:"agent"
+    // missed this process's own sessions, and one filtered on kind:"tui" claimed
+    // terminal sessions that were never opened.
+    //
+    // The default was never wrong for what it knew — it is a fallback for a
+    // caller that says nothing. Saying it is this call site's job.
+    kind: 'agent',
+    project: workingDir,
     title: 'GoodVibes Agent session',
     // Declares the session permission mode at creation time in the shared
     // metadata bag (SDK 1.6.1 permissions.mode: prompt/allow-all/custom/
