@@ -49,7 +49,9 @@ import { ConnectedHostVerbError, describeConnectedHostVerbError } from './daemon
 import {
   createHostedFrameRenderer,
   type HostedFrameConversation,
+  type HostedFrameRenderer,
   type HostedSessionFrame,
+  type HostedTurnCompletion,
 } from './hosted-frame-render.ts';
 
 /** The reason given when the person has turned routing off themselves. */
@@ -63,6 +65,17 @@ export type RemoteTurnOutcome =
     readonly hostedSessionId: string;
     /** Whether this message opened the session, steered it, or reopened it. */
     readonly action: 'created' | 'steered' | 'recreated';
+    /**
+     * Resolves when the hosted turn ENDS, with its final text and stop reason.
+     *
+     * `submit` deliberately resolves as soon as the daemon has the turn, so an
+     * interactive composer is not blocked on a whole turn. A headless run needs
+     * the other thing — one final answer and an exit code — and this is where
+     * it waits, since a hosted turn emits no local turn events for it to watch.
+     *
+     * Ignoring it is fine and is what the composer does.
+     */
+    readonly completion: Promise<HostedTurnCompletion>;
   }
   | {
     readonly routed: false;
@@ -96,6 +109,24 @@ export interface RemoteConversationRouterOptions {
   /** Identifies this surface's attachment to the hosted session. */
   readonly clientId: string;
   readonly fetchImpl?: typeof fetch | undefined;
+  /**
+   * Every frame this router applies, before it is rendered.
+   *
+   * For callers that need the raw stream as well as the rendered conversation
+   * — `run --output-format stream-json` re-emits deltas, and counts frames the
+   * way the local path counts turn events. Rendering does not depend on it.
+   */
+  readonly onFrame?: ((frame: HostedSessionFrame) => void) | undefined;
+  /**
+   * Reconnect policy for the hosted event stream. Defaults to the SDK's, which
+   * retries with backoff — the right behaviour, because the turn is still
+   * running on the daemon and a reconnect recovers the rest of it rather than
+   * abandoning work that is still happening.
+   *
+   * Exposed so a caller can disable it: a test needs the stream's close to
+   * become a termination immediately instead of waiting out ten attempts.
+   */
+  readonly reconnect?: { readonly enabled: boolean } | undefined;
 }
 
 /** What else the caller knows about this submission. */
@@ -172,12 +203,29 @@ export function createRemoteConversationRouter(
   };
 
   /**
+   * A stream that stopped delivering frames before the turn ended.
+   *
+   * Not necessarily a failure of the turn: the daemon may still be running it.
+   * What is certain is that no further frame reaches THIS process, so the
+   * renderer is closed out with what it has and the reason is stated.
+   */
+  const endWatch = (turnRenderer: HostedFrameRenderer, error: unknown): void => {
+    if (turnRenderer.isTurnFinished()) return;
+    turnRenderer.abandon(
+      'The connection to the hosting daemon ended before this turn finished'
+      + `${error ? `: ${String(error)}` : '.'} `
+      + 'Anything above this line is what the daemon had already sent. The turn may still be '
+      + 'running there — reopen this conversation to see how it ended.',
+    );
+  };
+
+  /**
    * Open the hosted session's event stream and point a fresh renderer at it.
    *
    * A NEW renderer per turn: its state is the turn's, and a frame arriving late
    * from a finished turn must not land in the next one's message.
    */
-  const watch = async (baseUrl: string, token: string, sessionId: string): Promise<void> => {
+  const watch = async (baseUrl: string, token: string, sessionId: string): Promise<HostedFrameRenderer> => {
     stopWatching();
     const turnRenderer = createHostedFrameRenderer(options.conversation, options.requestRender);
     renderer = turnRenderer;
@@ -195,6 +243,16 @@ export function createRemoteConversationRouter(
           // updated yet cannot bleed another session into this transcript.
           if (frame.sessionId !== undefined && frame.sessionId !== sessionId) return;
           try {
+            options.onFrame?.(frame);
+          } catch (error) {
+            // An observer that throws is the observer's problem, not the
+            // stream's: the turn is still arriving and still worth rendering.
+            logger.debug('[remote-conversation] a hosted-frame observer threw', {
+              type: frame.type,
+              error: String(error),
+            });
+          }
+          try {
             turnRenderer.apply(frame);
           } catch (error) {
             // A mapping failure must not tear down the stream: the rest of the
@@ -205,18 +263,20 @@ export function createRemoteConversationRouter(
             });
           }
         },
-        onTerminate: ({ error }: { readonly error: unknown }) => {
-          if (turnRenderer.isTurnFinished()) return;
-          turnRenderer.abandon(
-            'The connection to the hosting daemon ended before this turn finished'
-            + `${error ? `: ${String(error)}` : '.'} `
-            + 'Anything above this line is what the daemon had already sent. The turn may still be '
-            + 'running there — reopen this conversation to see how it ended.',
-          );
-        },
+        // BOTH endings, deliberately. `onTerminate` fires when reconnection has
+        // given up; `onClose` fires when the stream closed cleanly and no
+        // reconnect was attempted. Either way the turn has no more frames
+        // coming here, and a caller awaiting its completion — a headless run
+        // choosing an exit code — would otherwise wait forever.
+        onTerminate: ({ error }: { readonly error: unknown }) => endWatch(turnRenderer, error),
+        onClose: () => endWatch(turnRenderer, null),
       },
-      { getAuthToken: () => token },
+      {
+        getAuthToken: () => token,
+        ...(options.reconnect ? { reconnect: options.reconnect } : {}),
+      },
     );
+    return turnRenderer;
   };
 
   const createHosted = async (
@@ -249,8 +309,9 @@ export function createRemoteConversationRouter(
       );
     }
     hostedId = id;
+    let turnRenderer: HostedFrameRenderer;
     try {
-      await watch(baseUrl, token, id);
+      turnRenderer = await watch(baseUrl, token, id);
     } catch (error) {
       // The session EXISTS and its turn is running on the daemon. Refusing here
       // and re-running locally would run the same message twice, on two
@@ -260,7 +321,7 @@ export function createRemoteConversationRouter(
         + `${String(error)}. The turn is running there; reopen this conversation to see it.`,
       );
     }
-    return { routed: true, hostedSessionId: id, action };
+    return { routed: true, hostedSessionId: id, action, completion: turnRenderer.completion() };
   };
 
   const submit = async (text: string, context?: RemoteTurnContext): Promise<RemoteTurnOutcome> => {
@@ -292,12 +353,17 @@ export function createRemoteConversationRouter(
     try {
       // The stream is re-opened per turn with a fresh renderer before the steer
       // lands, so the first delta has somewhere to go.
-      await watch(connection.baseUrl, connection.token, existing);
+      const turnRenderer = await watch(connection.baseUrl, connection.token, existing);
       await options.verbs.invoke<unknown>('sessions.steer', {
         sessionId: existing,
         body: text,
       });
-      return { routed: true, hostedSessionId: existing, action: 'steered' };
+      return {
+        routed: true,
+        hostedSessionId: existing,
+        action: 'steered',
+        completion: turnRenderer.completion(),
+      };
     } catch (error) {
       if (!isStaleHostedSession(error)) {
         stopWatching();

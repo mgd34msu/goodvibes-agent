@@ -12,11 +12,12 @@ import { createRuntimeStore } from '../runtime/store/index.ts';
 import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import type { RuntimeServices } from '../runtime/services.ts';
 import { SecretsManager } from '../config/secrets.ts';
-import { RuntimeEventBus, type TurnEvent, configureRuntimeEventBusDefaults, runtimeEventBusOptionsFrom } from '@/runtime/index.ts';
+import { RuntimeEventBus, configureRuntimeEventBusDefaults, runtimeEventBusOptionsFrom } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { conversationMessagesAsSessionRecords } from '../core/conversation-message-snapshot.ts';
+import { executeRunTurn, writeRunTurnResult } from './run-turn.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { writeFatalLine } from '../utils/fatal-boot-write.ts';
 import { listProviderRuntimeSnapshots } from '@pellux/goodvibes-sdk/platform/providers';
@@ -245,71 +246,20 @@ export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promis
     homeDirectory: runtime.homeDirectory,
   });
 
-  const events: TurnEvent[] = [];
-  let finalResponse = '';
-  let finalError = '';
-  let finalStopReason = '';
   let exitCode = 0;
-
-  const done = new Promise<void>((resolve) => {
-    const unsubs = [
-      ctx.runtimeBus.on<Extract<TurnEvent, { type: 'STREAM_DELTA' }>>('STREAM_DELTA', ({ payload }) => {
-        events.push(payload);
-        if (outputFormat === 'stream-json') {
-          process.stdout.write(JSON.stringify({ type: payload.type, content: payload.content, accumulated: payload.accumulated }) + '\n');
-        }
-      }),
-      ctx.runtimeBus.on<Extract<TurnEvent, { type: 'TURN_COMPLETED' }>>('TURN_COMPLETED', ({ payload }) => {
-        events.push(payload);
-        finalResponse = payload.response;
-        finalStopReason = payload.stopReason;
-        for (const unsub of unsubs) unsub();
-        resolve();
-      }),
-      ctx.runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', ({ payload }) => {
-        events.push(payload);
-        finalError = payload.error;
-        finalStopReason = payload.stopReason;
-        exitCode = 1;
-        for (const unsub of unsubs) unsub();
-        resolve();
-      }),
-      ctx.runtimeBus.on<Extract<TurnEvent, { type: 'TURN_CANCEL' }>>('TURN_CANCEL', ({ payload }) => {
-        events.push(payload);
-        finalError = payload.reason ?? 'cancelled';
-        finalStopReason = payload.stopReason;
-        exitCode = 130;
-        for (const unsub of unsubs) unsub();
-        resolve();
-      }),
-    ];
-  });
-
   try {
-    await ctx.orchestrator.handleUserInput(prompt);
-    await done;
-    if (outputFormat === 'json') {
-      process.stdout.write(JSON.stringify({
-        ok: exitCode === 0,
-        response: finalResponse,
-        error: finalError || undefined,
-        stopReason: finalStopReason,
-        sessionId: ctx.runtime.sessionId,
-        model: ctx.runtime.model,
-        provider: ctx.runtime.provider,
-        events: events.length,
-      }, null, 2) + '\n');
-    } else if (outputFormat !== 'stream-json') {
-      process.stdout.write((exitCode === 0 ? finalResponse : finalError) + '\n');
-    } else {
-      process.stdout.write(JSON.stringify({
-        type: exitCode === 0 ? 'TURN_COMPLETED' : 'TURN_ERROR',
-        ok: exitCode === 0,
-        response: finalResponse,
-        error: finalError || undefined,
-        stopReason: finalStopReason,
-      }) + '\n');
-    }
+    // Where the turn runs is decided inside executeRunTurn — the connected
+    // daemon when routing says so, this process otherwise — and both endings
+    // arrive in one shape, so the output below never learns the difference.
+    const result = await executeRunTurn({
+      ctx,
+      prompt,
+      outputFormat,
+      stdout: (line) => process.stdout.write(`${line}\n`),
+      stderr: (line) => process.stderr.write(`${line}\n`),
+    });
+    exitCode = result.exitCode;
+    writeRunTurnResult(result, { ctx, outputFormat, stdout: (line) => process.stdout.write(`${line}\n`) });
   } finally {
     const messages = ctx.conversation.getMessageSnapshot();
     const snapshot: SessionSnapshot = {

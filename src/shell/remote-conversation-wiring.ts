@@ -13,9 +13,12 @@
 
 import { createRemoteConversationRouter } from '../runtime/client/remote-conversation.ts';
 import type { BootstrapContext } from '../runtime/bootstrap.ts';
+import type { HostedSessionFrame, HostedTurnCompletion } from '../runtime/client/hosted-frame-render.ts';
 
 export interface RemoteConversationWiringOptions {
   readonly render: () => void;
+  /** Passed through to the router — see its `onFrame`. */
+  readonly onFrame?: ((frame: HostedSessionFrame) => void) | undefined;
   /**
    * How a one-line notice reaches the person. The same channel the surface
    * already uses for the lines it must not bury.
@@ -27,13 +30,23 @@ export interface RemoteConversationWiring {
   /**
    * Decide where this turn runs and act on it.
    *
-   * Returns `true` when the connected daemon has the turn — the caller does
-   * nothing more, because the turn now renders from the hosted session's event
-   * stream. Returns `false` when the caller should run the turn locally, having
-   * already told the person why.
+   * Returns a HANDLE when the connected daemon has the turn: an interactive
+   * caller can discard it, because the turn renders itself from the hosted
+   * session's event stream as frames arrive. A caller that has to WAIT for one
+   * answer — a headless `run` choosing an exit code — awaits `completion`.
+   *
+   * Returns `null` when the caller should run the turn locally, having already
+   * been told why. Both shapes stay truthy/falsy, so `if (await …) return;`
+   * reads the same as it did when this returned a boolean.
    */
-  routeOrExplain(text: string, hasAttachments: boolean): Promise<boolean>;
+  routeOrExplain(text: string, hasAttachments: boolean): Promise<RoutedTurnHandle | null>;
   dispose(): void;
+}
+
+/** A turn the daemon accepted, and the way to wait for how it ended. */
+export interface RoutedTurnHandle {
+  readonly hostedSessionId: string;
+  readonly completion: Promise<HostedTurnCompletion>;
 }
 
 export function installRemoteConversationRouting(
@@ -52,10 +65,11 @@ export function installRemoteConversationRouting(
     // The hosted session's tools operate where this surface is working.
     workspaceRoot: ctx.services.workingDirectory,
     clientId: `goodvibes-agent:${ctx.runtime.sessionId}`,
+    ...(options.onFrame ? { onFrame: options.onFrame } : {}),
   });
 
   return {
-    routeOrExplain: async (text: string, hasAttachments: boolean): Promise<boolean> => {
+    routeOrExplain: async (text: string, hasAttachments: boolean): Promise<RoutedTurnHandle | null> => {
       const outcome = await router.submit(text, { hasAttachments });
       if (outcome.routed) {
         // The daemon's transcript is authoritative; this is the local mirror,
@@ -63,7 +77,7 @@ export function installRemoteConversationRouting(
         // send back (the daemon received it directly).
         conversation.addUserMessage(text);
         options.render();
-        return true;
+        return { hostedSessionId: outcome.hostedSessionId, completion: outcome.completion };
       }
       // Never silent. A turn that ran somewhere other than where the settings
       // say it should is exactly what the person needs told — unless running
@@ -72,7 +86,7 @@ export function installRemoteConversationRouting(
         options.notify(`[Turn] ${outcome.reason}`);
         options.render();
       }
-      return false;
+      return null;
     },
     dispose: () => router.dispose(),
   };

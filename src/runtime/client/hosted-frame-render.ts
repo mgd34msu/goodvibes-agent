@@ -73,6 +73,32 @@ export interface HostedSessionFrame {
   readonly payload?: Record<string, unknown> | undefined;
 }
 
+/**
+ * How a hosted turn ended, for a caller that has to WAIT for it.
+ *
+ * An interactive surface never needs this — it renders frames as they arrive
+ * and the person watches. A headless run does: `goodvibes-agent run "..."`
+ * has to print one final answer and exit with a code that means something, and
+ * a hosted turn emits no local `TURN_COMPLETED` for it to hang that off.
+ */
+export interface HostedTurnCompletion {
+  /**
+   * `abandoned` is its own status, not an error: the turn may still be running
+   * on the daemon. It is reported as a failure by callers that need an exit
+   * code, but the distinction is real and is not flattened here.
+   */
+  readonly status: 'completed' | 'error' | 'cancelled' | 'abandoned';
+  /**
+   * The assistant's final text — partial text when the turn did not complete,
+   * because what the daemon already produced is still what it produced.
+   */
+  readonly response: string;
+  /** Why it did not complete. Absent exactly when `status` is `completed`. */
+  readonly error?: string | undefined;
+  /** The daemon's own stop reason where it gave one. */
+  readonly stopReason: string;
+}
+
 /** What a renderer does with frames, and what it can be asked afterwards. */
 export interface HostedFrameRenderer {
   /** Apply one frame. Unknown frame types are ignored, never guessed at. */
@@ -85,6 +111,13 @@ export interface HostedFrameRenderer {
    * partial output is kept rather than discarded, and states what happened.
    */
   abandon(reason: string): void;
+  /**
+   * Resolves when this turn reaches an end frame, or when it is abandoned.
+   *
+   * Never rejects: an ended turn is an outcome, and a caller awaiting it is
+   * usually about to choose an exit code rather than handle an exception.
+   */
+  completion(): Promise<HostedTurnCompletion>;
 }
 
 function readString(source: Record<string, unknown> | undefined, key: string): string | undefined {
@@ -136,6 +169,22 @@ export function createHostedFrameRenderer(
   let model: string | undefined;
   let provider: string | undefined;
   let finished = false;
+  /**
+   * The whole turn's assistant text, across every flush.
+   *
+   * `accumulated` is reset at each flush — a tool batch closes one message and
+   * starts another — so it is the wrong thing to report as the turn's answer
+   * when a turn called tools. This keeps the text a caller would have read.
+   */
+  let turnText = '';
+  let settle: ((completion: HostedTurnCompletion) => void) | null = null;
+  const completed = new Promise<HostedTurnCompletion>((resolve) => { settle = resolve; });
+  /** Resolve once; later end frames for the same turn are already ignored. */
+  const finish = (completion: HostedTurnCompletion): void => {
+    finished = true;
+    settle?.(completion);
+    settle = null;
+  };
 
   const openStream = (): void => {
     if (streaming) return;
@@ -160,6 +209,7 @@ export function createHostedFrameRenderer(
     const toolCalls = pendingToolCalls;
     pendingToolCalls = [];
     accumulated = '';
+    if (text) turnText = turnText ? `${turnText}\n${text}` : text;
     if (!text && toolCalls.length === 0) return;
     closeStream();
     conversation.addAssistantMessage(text, {
@@ -252,26 +302,39 @@ export function createHostedFrameRenderer(
         // without deltas (a non-streaming provider).
         flush(accumulated || readString(payload, 'response') || '', { final: true });
         closeStream();
-        finished = true;
         requestRender();
+        finish({
+          status: 'completed',
+          response: turnText,
+          stopReason: readString(payload, 'stopReason') ?? 'completed',
+        });
         return;
       }
       case 'TURN_ERROR': {
         flush(accumulated, { final: true });
         closeStream();
-        finished = true;
-        conversation.addSystemMessage(
-          `The hosting daemon reported this turn failed: ${readString(payload, 'error') ?? 'no reason was given'}`,
-        );
+        const reason = readString(payload, 'error') ?? 'no reason was given';
+        conversation.addSystemMessage(`The hosting daemon reported this turn failed: ${reason}`);
         requestRender();
+        finish({
+          status: 'error',
+          response: turnText,
+          error: reason,
+          stopReason: readString(payload, 'stopReason') ?? 'unexpected_error',
+        });
         return;
       }
       case 'TURN_CANCEL': {
         flush(accumulated, { final: true });
         closeStream();
-        finished = true;
         conversation.addSystemMessage('This turn was cancelled on the hosting daemon.');
         requestRender();
+        finish({
+          status: 'cancelled',
+          response: turnText,
+          error: readString(payload, 'reason') ?? 'cancelled',
+          stopReason: readString(payload, 'stopReason') ?? 'cancelled',
+        });
         return;
       }
       default:
@@ -284,15 +347,16 @@ export function createHostedFrameRenderer(
   return {
     apply,
     isTurnFinished: () => finished,
+    completion: () => completed,
     abandon: (reason: string): void => {
       if (finished) return;
       // Partial output is kept. The person watched it arrive, and dropping it
       // because the connection died would lose work the daemon actually did.
       flush(accumulated, { final: true });
       closeStream();
-      finished = true;
       conversation.addSystemMessage(reason);
       requestRender();
+      finish({ status: 'abandoned', response: turnText, error: reason, stopReason: 'stream_ended' });
     },
   };
 }
