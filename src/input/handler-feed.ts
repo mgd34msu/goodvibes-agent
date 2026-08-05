@@ -34,6 +34,7 @@ import type { WrappedPromptInfo } from './handler-prompt-buffer.ts';
 import { handleModalTokenRoutes } from './handler-modal-token-routes.ts';
 import { handleCommandModeToken } from './handler-command-route.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
+import type { PromptEdit } from './handler-shortcuts.ts';
 import { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
@@ -155,9 +156,10 @@ export interface InputFeedContext {
   readonly handleBlockCopy: () => void;
   readonly handleBookmark: () => void;
   readonly handleBlockSave: () => void;
-  readonly handleUndo: () => void;
-  readonly handleRedo: () => void;
-  readonly handlePaste: () => void;
+  // Report where the prompt landed; the shortcut route copies it forward.
+  readonly handleUndo: () => PromptEdit | void;
+  readonly handleRedo: () => PromptEdit | void;
+  readonly handlePaste: () => PromptEdit | void;
   readonly saveUndoState: () => void;
   readonly ensureInputCursorVisible: (contentWidth?: number) => void;
   readonly registerPaste: (content: string) => string;
