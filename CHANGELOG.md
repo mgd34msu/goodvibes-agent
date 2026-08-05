@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.7 - 2026-08-05
+
+- **Fixed: pasting an image works.** Ctrl+V with an image in the clipboard attaches it to your next message with a visible chip — the keystroke was silently discarded by a snapshot the shortcut route wrote back over the composer. Undo and redo were losing edits the same way and are fixed with it. When no clipboard reader exists, the reply names the package instead of doing nothing.
+- **Fixed: the working area holds still.** The activity label named every streaming character of a tool call two at a time; it now names the tool and stays put.
+- **Fixed: reminders respect being heard.** A reminder raises twice at most — at its lead time and on the day. Replying to one records the acknowledgment in the same turn and it goes quiet; your own remember-only dates never push at all; and a complaint about one reminder mutes that reminder, never the whole feature. Nudges arrive as framed notices, not bare lines woven into other conversation.
+- **Fixed: voice setup finishes the job.** A dead runtime record no longer makes daemon-owned settings unreadable; wake transcription runs through the daemon first with a stated-reason fallback; enabling wake on a surface that is opted out says so and fixes it in the same act; and the managed installer repoints superseded manual paths by name and proves itself by speaking a sentence and transcribing it back.
+- **Changed: setup completes what you meant.** Asks traverse the inferred chain — wake word implies speech-to-text as a one-line approval, forks like local-vs-BYOK text-to-speech are asked concretely — and no reply ever tells you to type a command. Pasting Google client values into the conversation registers them and answers with the consent link.
+- Changed: exec output marks every truncation with a counted line, ordinary diagnostics are no longer refused by the command guard, and the sandbox states its own isolation.
+- Changed: the bundled platform runtime is 2.0.9 and the daemon this Agent installs alongside itself is 1.28.11.
+
 ## 2.0.6 - 2026-08-05
 
 - **Fixed: the platform can tell you what it knows about you again.** Profile reads failed against an up-to-date daemon because its answers carried more than its published contract allowed — the assistant asked where you live while your address was on file. The contract and the answers agree now, and a conformance test keeps them agreeing.

@@ -384,7 +384,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           timeMax: { type: 'string', description: 'RFC3339 upper bound for calendar.list.' },
           maxResults: { type: 'number', description: 'How many items to return. Defaults to 10.' },
           clientId: { type: 'string', description: 'OAuth client id the user pasted, for connect.client.' },
-          clientSecret: { type: 'string', description: 'OAuth client secret the user pasted, for connect.client. Stored encrypted, never echoed.' },
+          clientSecret: { type: 'string', description: 'Pasted client secret for connect.client; stored encrypted, never echoed.' },
           path: { type: 'string', description: 'Path to an OAuth client JSON the user named, for connect.clientFile.' },
           confirm: { type: 'boolean', description: 'Required true for mail.send and calendar.create.' },
         },

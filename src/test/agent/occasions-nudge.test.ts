@@ -44,6 +44,10 @@ function nudge(overrides: Record<string, unknown> = {}): OccasionsPendingRespons
       person: 'Sarah',
       kind: 'gift-giving',
       proximity: 'approaching',
+      // Platform runtime 2.0.9: subject attribution and acknowledgment state
+      // ride every nudge subject.
+      subject: 'other',
+      acknowledged: false,
     }],
     message: "Sarah's birthday is coming up. Do you want to sort something for it?",
     answerable: true,

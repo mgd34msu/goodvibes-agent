@@ -197,8 +197,12 @@ describe('sender registered: the push lands and the pull goes quiet', () => {
     expect(agentDelivery?.delivered).toBe(true);
     expect(agentDelivery?.failure).toBeNull();
 
-    // Byte-for-byte what the daemon composed — no title prefix, no rewording.
-    expect(h.said).toEqual([pushedMessage]);
+    // Platform runtime 2.0.9: the push arrives as a FRAMED, self-contained
+    // notice — named as an occasion reminder, carrying the daemon's composed
+    // sentence whole, never a bare line woven into other conversation.
+    expect(h.said).toHaveLength(1);
+    expect(h.said[0]).toContain('[Occasion reminder]');
+    expect(h.said[0]).toContain(pushedMessage);
     expect(h.said[0]).toContain('Sarah');
     // Proximity is a word: no date and no day count reached the transcript (§4.3).
     expect(/\d/.test(h.said[0] ?? '')).toBe(false);
@@ -209,8 +213,10 @@ describe('sender registered: the push lands and the pull goes quiet', () => {
     // The item is stamped, the agent is a configured push destination, so the pull
     // leaves it out. He was told once.
     expect(outstanding.nudge).toBeNull();
-    // And nothing else reached the transcript behind the pull's back.
-    expect(h.said).toEqual([pushedMessage]);
+    // And nothing else reached the transcript behind the pull's back — still
+    // exactly the one framed notice.
+    expect(h.said).toHaveLength(1);
+    expect(h.said[0]).toContain(pushedMessage);
   });
 
   test('the answer and interview loop is reached the same way after a push as after a pull', async () => {
