@@ -167,4 +167,24 @@ describe('browser tool surface', () => {
     // built on the first call that needs it.
     expect(registry.has('browser')).toBe(true);
   });
+
+  test('attach with no cdpEndpoint says the owner\'s regular browser cannot supply one, instead of just asking for the parameter', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = createAgentBrowserTool({ engine: fakeEngine(calls) });
+    const result = await tool.execute({ action: 'attach' });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('regular already-running browser');
+    expect(result.error).toContain('remote-debugging-port');
+    // Points at the actual sanctioned path instead of leaving a dead end.
+    expect(result.error).toContain('action:"launch"');
+    expect(calls).toEqual([]);
+  });
+
+  test('attach with a real cdpEndpoint still reaches the engine', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = createAgentBrowserTool({ engine: fakeEngine(calls) });
+    const result = await tool.execute({ action: 'attach', cdpEndpoint: 'http://127.0.0.1:9222' });
+    expect(result.success).toBe(true);
+    expect(calls.map((entry) => entry.method)).toEqual(['attach']);
+  });
 });

@@ -10704,6 +10704,36 @@ describe('agent_harness tool', () => {
       const missing = await fixture.tool.execute({ mode: 'tool', toolName: 'not_a_tool' });
       expect(missing.success).toBe(false);
       expect(missing.error).toContain('Unknown model tool');
+      // The names of the real, registered tools are right there in the
+      // refusal — not a pointer to go look them up somewhere else.
+      expect(missing.error).toContain('Known tools:');
+
+      // The exact incident, with no "mcp" tool registered: the refusal says
+      // plainly that there is nothing here to call an MCP tool through,
+      // rather than a bare "unknown" that leaves the model guessing.
+      const mcpQualifiedNoRoute = await fixture.tool.execute({ mode: 'tool', toolName: 'mcp:playwright:browser_tabs' });
+      expect(mcpQualifiedNoRoute.success).toBe(false);
+      expect(mcpQualifiedNoRoute.error).toContain('mcp:playwright:browser_tabs');
+      expect(mcpQualifiedNoRoute.error).toContain('no "mcp" tool is registered');
+
+      // With an "mcp" tool registered (the real shape of the incident): the
+      // model saw `mcp:playwright:browser_tabs` listed by `mcp mode:"tools"`,
+      // then asked this catalog to describe it as if it were a directly
+      // callable tool. A bare "unknown" sent the model looking for a route
+      // that does not exist; the fix names the real one.
+      fixture.toolRegistry.register({
+        definition: {
+          name: 'mcp',
+          description: 'Inspect and call MCP servers.',
+          parameters: { type: 'object', properties: { mode: { type: 'string' } }, required: ['mode'], additionalProperties: false },
+        },
+        execute: async () => ({ success: true, output: '{}' }),
+      });
+      const mcpQualified = await fixture.tool.execute({ mode: 'tool', toolName: 'mcp:playwright:browser_tabs' });
+      expect(mcpQualified.success).toBe(false);
+      expect(mcpQualified.error).toContain('mcp:playwright:browser_tabs');
+      expect(mcpQualified.error).toContain('not a directly callable tool');
+      expect(mcpQualified.error).toContain('mcp mode:"call" qualifiedName:"mcp:playwright:browser_tabs"');
     } finally {
       fixture.cleanup();
     }
