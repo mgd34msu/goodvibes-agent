@@ -300,28 +300,39 @@ describe('the wake path transcribes through the platform voice service', () => {
     expect(calls[0]?.audio.metadata).toEqual({});
   });
 
-  test('no registered speech-to-text provider is a reason reported BEFORE audio is captured, not a throw after', () => {
+  test('no speech-to-text ANYWHERE is a reason reported BEFORE audio is captured, not a throw after', () => {
+    // "No provider registered" is only ever true of THIS process, so the
+    // refusal now requires both routes to be absent — no local provider AND no
+    // connected host. It also names no command: the platform provisions.
     const resolution = createVoiceSttGateway({
       voiceService: {} as never,
       voiceProviders: { findProvider: () => null } as never,
+      daemonVerbs: { probe: () => ({ available: false, reason: 'no connected host' }) } as never,
     });
     expect(resolution.available).toBe(false);
     if (resolution.available) throw new Error('expected no gateway');
-    expect(resolution.reason).toContain('no speech-to-text provider is registered');
-    expect(resolution.reason).toContain('/voice setup');
+    expect(resolution.reason).toContain('no provider registered');
+    expect(resolution.reason).toContain('no connected host');
+    expect(resolution.reason).not.toContain('/voice setup');
   });
 
   test('a provider registered without a transcribe implementation is refused rather than called', () => {
     const resolution = createVoiceSttGateway({
       voiceService: {} as never,
       voiceProviders: { findProvider: () => ({ id: 'tts-only' }) } as never,
+      daemonVerbs: { probe: () => ({ available: false, reason: 'no connected host' }) } as never,
     });
     expect(resolution.available).toBe(false);
   });
 
   test('a provider that is registered but not configured is described as that, not as a generic failure', () => {
     const notConfigured = new GoodVibesSdkError('Voice STT provider is not registered', { code: 'PROVIDER_NOT_CONFIGURED' });
-    expect(describeTranscriptionFailure(notConfigured)).toContain('/voice setup');
+    const described = describeTranscriptionFailure(notConfigured);
+    expect(described).toContain('Voice STT provider is not registered');
+    // It says what the PLATFORM does about it, and hands over no command: an
+    // instruction to type something is the defect this replaced.
+    expect(described).toContain('managed voice runtime provisions');
+    expect(described).not.toContain('/voice');
     expect(describeTranscriptionFailure(new Error('whisper exited 1'))).toBe('whisper exited 1');
   });
 });

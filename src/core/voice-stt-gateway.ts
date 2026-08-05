@@ -4,29 +4,48 @@
  * A confirmed wake hands over the utterance that followed it, and this is where
  * that audio becomes words.
  *
- * WHY THIS CALLS THE VOICE SERVICE DIRECTLY AND NOT A DAEMON OVER HTTP
+ * THE CONNECTED HOST FIRST, THIS PROCESS SECOND.
  *
- * `voice.stt` (POST /api/voice/stt) is implemented as exactly one line:
- * `voiceService.transcribe(providerId, { audio, ... })` against whichever voice
- * provider is registered, including the managed local whisper that `/voice setup`
- * provisions. This process OWNS that VoiceService instance — it is the same object
- * the `voice.*` gateway verbs are served from here — so calling it directly is the
- * same code path the verb runs, without a loopback request to ask itself a
- * question it already holds the answer to. (The terminal has no in-process voice
- * service and therefore goes over the verb; that difference is in where the
- * service lives, not in what runs.)
+ * This used to call the in-process voice service and nothing else, on the
+ * reasoning that the daemon's `voice.stt` verb is a one-line call to the same
+ * kind of service, so a loopback request would be asking ourselves a question
+ * we already held the answer to. That reasoning was sound and the conclusion
+ * was wrong: the two processes do not hold the same answer. On a machine whose
+ * config reads were broken, THIS process's local provider threw 'local STT is
+ * not configured' while the DAEMON transcribed perfectly, in the same session,
+ * from the same managed whisper install. The user was told speech-to-text did
+ * not exist on a machine where it demonstrably did.
  *
- * The provider is left unspecified so the registry picks the configured one,
- * matching the verb's behaviour when a caller sends no `providerId`.
+ * Nobody using this cares which process owns whisper. So the route is resolved
+ * rather than assumed — the SDK owns the policy (platform/voice/stt-routing.ts)
+ * so every surface gets the same behaviour — and this file supplies the two
+ * candidate routes: the connected host's `voice.stt` verb, and this process's
+ * own voice service. A fallback states what it fell back from, and every
+ * attempt is written to the voice diagnostics file rather than only to a
+ * notification that scrolls away.
  */
 
 import { GoodVibesSdkError } from '@pellux/goodvibes-sdk';
-import type { UtteranceAudioArtifact, VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
+import {
+  recordVoiceDiagnostic,
+  transcribeThroughBestRoute,
+  SttRoutesExhaustedError,
+  type SttRouteCandidate,
+  type UtteranceAudioArtifact,
+  type VoiceProviderRegistry,
+  type VoiceService,
+} from '@pellux/goodvibes-sdk/platform/voice';
+import type { DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 
 /** The narrow verb surface a capture consumer needs. */
 export interface VoiceSttGateway {
   /** Transcribe one captured utterance; resolves to the recognised text. */
   transcribe(audio: UtteranceAudioArtifact): Promise<string>;
+  /**
+   * Plain words for the route the LAST transcription took, or null before one
+   * has run. A surface shows this when the route was not the expected one.
+   */
+  lastRouteExplanation(): string | null;
 }
 
 /**
@@ -37,6 +56,12 @@ export type VoiceSttGatewayResolution =
   | { readonly available: true; readonly gateway: VoiceSttGateway }
   | { readonly available: false; readonly reason: string };
 
+/** What the daemon's `voice.stt` verb answers with. */
+interface DaemonSttResult {
+  readonly providerId?: string;
+  readonly text?: string;
+}
+
 export interface VoiceSttGatewayDeps {
   readonly voiceService: VoiceService;
   /**
@@ -46,20 +71,58 @@ export interface VoiceSttGatewayDeps {
    * transcribe it with.
    */
   readonly voiceProviders: Pick<VoiceProviderRegistry, 'findProvider'>;
+  /**
+   * This process's one plug into the connected host. Present means the daemon
+   * route exists and is tried first; absent means this process holds no
+   * connection, which is the honest reason to transcribe locally.
+   */
+  readonly daemonVerbs?: Pick<DaemonVerbCaller, 'probe' | 'invoke'> | null | undefined;
+  /** Where voice diagnostics are written — the managed voice root. */
+  readonly managedVoiceRoot?: string | undefined;
 }
 
-/** Build the live speech-to-text gateway, or say why there is none. */
+/**
+ * Build the live speech-to-text gateway, or say why there is none.
+ *
+ * "None" now means BOTH routes are absent, which is a much rarer and much more
+ * honest claim than the one this made before.
+ */
 export function createVoiceSttGateway(deps: VoiceSttGatewayDeps): VoiceSttGatewayResolution {
   const provider = deps.voiceProviders.findProvider('stt');
-  if (provider === null || provider.transcribe === undefined) {
+  const inProcessAvailable = provider !== null && provider.transcribe !== undefined;
+
+  // A reachable host is a route regardless of what this process has registered.
+  const hostReachable = deps.daemonVerbs?.probe().available === true;
+
+  if (!inProcessAvailable && !hostReachable) {
     return {
       available: false,
-      reason: 'no speech-to-text provider is registered — run /voice setup to provision the managed local runtime, or configure a voice provider.',
+      reason: 'no speech-to-text is available here: this process has no provider registered, and there is no '
+        + 'connected host to send the audio to. The managed voice runtime provisions one.',
     };
   }
-  return {
-    available: true,
-    gateway: {
+
+  const connectedHost: SttRouteCandidate | null = hostReachable && deps.daemonVerbs
+    ? {
+      route: 'connected-host',
+      provider: 'the host\'s configured speech-to-text provider',
+      configSource: 'the connected host\'s own settings',
+      transcribe: async (audio) => {
+        const result = await deps.daemonVerbs!.invoke<DaemonSttResult>('voice.stt', {
+          audio: { ...audio, metadata: {} },
+        });
+        const text = result?.text;
+        if (typeof text !== 'string') throw new Error('the host answered without any transcribed text');
+        return text;
+      },
+    }
+    : null;
+
+  const inProcess: SttRouteCandidate | null = inProcessAvailable
+    ? {
+      route: 'in-process',
+      provider: provider?.id ?? 'local',
+      configSource: 'this process\'s own voice.local.* settings',
       transcribe: async (audio) => {
         // `metadata` is required on the service's artifact and absent from the
         // capture layer's, which is deliberate: the SDK's artifact carries only
@@ -67,6 +130,29 @@ export function createVoiceSttGateway(deps: VoiceSttGatewayDeps): VoiceSttGatewa
         // supplied none.
         const result = await deps.voiceService.transcribe(undefined, { audio: { ...audio, metadata: {} } });
         return result.text;
+      },
+    }
+    : null;
+
+  let lastExplanation: string | null = null;
+
+  return {
+    available: true,
+    gateway: {
+      lastRouteExplanation: () => lastExplanation,
+      transcribe: async (audio) => {
+        const outcome = await transcribeThroughBestRoute(
+          { ...audio },
+          {
+            connectedHost,
+            inProcess,
+            ...(deps.managedVoiceRoot !== undefined
+              ? { recordDiagnostic: (entry) => { recordVoiceDiagnostic(deps.managedVoiceRoot!, entry); } }
+              : {}),
+          },
+        );
+        lastExplanation = outcome.explanation;
+        return outcome.text;
       },
     },
   };
@@ -78,8 +164,12 @@ export function createVoiceSttGateway(deps: VoiceSttGatewayDeps): VoiceSttGatewa
  * request that reached a provider and failed.
  */
 export function describeTranscriptionFailure(error: unknown): string {
+  if (error instanceof SttRoutesExhaustedError) {
+    // Every route's own reason, so "it did not work" is never the whole answer.
+    return error.message;
+  }
   if (error instanceof GoodVibesSdkError && error.code === 'PROVIDER_NOT_CONFIGURED') {
-    return `${error.message} — run /voice setup to provision the managed local runtime, or configure a voice provider.`;
+    return `${error.message} — the managed voice runtime provisions a local one, or a configured voice provider supplies it.`;
   }
   return error instanceof Error ? error.message : String(error);
 }

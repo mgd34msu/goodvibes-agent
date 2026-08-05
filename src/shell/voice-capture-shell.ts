@@ -19,12 +19,24 @@ import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { VoiceCaptureIndicatorState } from '../core/voice-capture-status.ts';
 import { wireVoiceCapture } from '../audio/voice-capture-wiring.ts';
+import type { DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 
 export interface VoiceCaptureShellDeps {
   readonly configManager: ConfigManager;
   /** This process's own voice service — what the `voice.stt` verb is served from here. */
   readonly voiceService: VoiceService;
   readonly voiceProviders: Pick<VoiceProviderRegistry, 'findProvider'>;
+  /**
+   * This surface's plug into the connected host, so a captured utterance can be
+   * transcribed by the daemon — which owns the managed whisper install and
+   * answers even when this process's own provider cannot.
+   */
+  readonly daemonVerbs?: Pick<DaemonVerbCaller, 'probe' | 'invoke'> | null | undefined;
+  /**
+   * Fetches missing wake artifacts. Wired from the agent's voice setup service,
+   * so enabling wake on a host without models completes the request.
+   */
+  readonly ensureWakeProvisioned?: (() => Promise<{ readonly ready: boolean; readonly message: string }>) | undefined;
   readonly shellPaths: Pick<ShellPathService, 'resolveUserPath'>;
   /** Names retained wake clips so the SDK's sweeper reaps them when this session ends. */
   readonly sessionId: string;
@@ -48,6 +60,8 @@ export function installVoiceCapture(deps: VoiceCaptureShellDeps): () => VoiceCap
     configManager: deps.configManager,
     voiceService: deps.voiceService,
     voiceProviders: deps.voiceProviders,
+    daemonVerbs: deps.daemonVerbs ?? null,
+    ...(deps.ensureWakeProvisioned !== undefined ? { ensureWakeProvisioned: deps.ensureWakeProvisioned } : {}),
     // The same managed root `/voice setup` uses; the wake tree is `<root>/wake`.
     managedVoiceRoot: deps.shellPaths.resolveUserPath('voice'),
     // Surface-scoped: the extracted onnxruntime assets belong to this surface's

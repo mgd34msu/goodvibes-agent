@@ -488,7 +488,7 @@ async function main() {
   // Model picker callback is handled in bootstrap.ts — do not duplicate here.
   input.setHistory(inputHistory);
   // The wake-word capture host: one microphone path, opened only when voice.wake.enabled AND voice.wake.surfaces.agent are both on (shell/voice-capture-shell.ts).
-  voiceCaptureStatus = installVoiceCapture({ configManager, voiceService: ctx.services.voiceService, voiceProviders: ctx.services.voiceProviders, shellPaths: ctx.services.shellPaths, sessionId: runtime.sessionId, unsubs, buffer: input, submitInput, notify: (m) => { systemMessageRouter.high(m); render(); }, render: () => render() });
+  voiceCaptureStatus = installVoiceCapture({ configManager, voiceService: ctx.services.voiceService, voiceProviders: ctx.services.voiceProviders, daemonVerbs: ctx.services.daemonVerbs, ensureWakeProvisioned: async () => { const outcome = await ctx.services.voiceSetup.wakeEnsureProvisioned(); return { ready: outcome.ready, message: outcome.message }; }, shellPaths: ctx.services.shellPaths, sessionId: runtime.sessionId, unsubs, buffer: input, submitInput, notify: (m) => { systemMessageRouter.high(m); render(); }, render: () => render() });
 
   const toolCount = toolRegistry.list().length;
   conversation.splashOptions = {

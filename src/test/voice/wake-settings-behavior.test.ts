@@ -787,6 +787,10 @@ interface CaptureHarnessOptions {
   readonly transcribeError?: string;
   /** Reports the models as absent, the way a fresh host does. */
   readonly notProvisioned?: boolean;
+  /** Wire a provisioner, so the runtime FETCHES missing models instead of reporting a chore. */
+  readonly ensureProvisioned?: () => Promise<{ readonly ready: boolean; readonly message: string }>;
+  /** A provision read that can change between calls, for the fetch-then-recheck path. */
+  readonly provisionStatusOverride?: () => { readonly ready: boolean; readonly reason: string | null; readonly vadReady: boolean };
   /** No transcription available at all — the honest refusal path. */
   readonly noTranscriber?: string;
   /** Which recorders the PATH scan should claim are installed. */
@@ -852,6 +856,9 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
             if (options.transcribeError !== undefined) throw new Error(options.transcribeError);
             return options.transcript ?? 'open the deploy log';
           },
+          // The gateway now names the route it took, so a surface can say when
+          // the connected host answered rather than this process.
+          lastRouteExplanation: () => null,
         },
       }),
     playActivationSound: (sound) => { sounds.push({ kind: sound.kind, path: sound.path }); },
@@ -866,9 +873,12 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
       if (modelPath.includes('goodvibes-vad')) return vadSession;
       return modelPath.includes('speech-embedding') ? embedding : classifier;
     },
-    provisionStatus: () => (options.notProvisioned === true
-      ? { ready: false, reason: 'not-provisioned', vadReady: false }
-      : { ready: true, reason: null, vadReady: options.vadReady ?? false }),
+    provisionStatus: () => (options.provisionStatusOverride !== undefined
+      ? options.provisionStatusOverride()
+      : options.notProvisioned === true
+        ? { ready: false, reason: 'not-provisioned', vadReady: false }
+        : { ready: true, reason: null, vadReady: options.vadReady ?? false }),
+    ...(options.ensureProvisioned !== undefined ? { ensureProvisioned: options.ensureProvisioned } : {}),
     // The stage the SDK listener wraps this surface's opener with. Injected so the
     // wiring is asserted without instantiating WebAssembly — what is under test here
     // is that the stage is built and every frame goes through it, which is this
@@ -989,12 +999,40 @@ describe('voice.wake.enabled and voice.wake.surfaces.agent are a DOUBLE gate on 
     await harness.runtime.stop();
   });
 
-  test('an enabled detector whose models are not provisioned says so and still opens nothing', async () => {
+  test('an enabled detector with no models and no provisioner says so, opens nothing, and names no command', async () => {
     const harness = makeCaptureHarness({ notProvisioned: true });
     await harness.runtime.refresh();
     expect(harness.spawns.calls).toEqual([]);
-    expect(harness.notices.join('\n')).toContain('not provisioned');
-    expect(harness.notices.join('\n')).toContain('/voice wake setup');
+    const said = harness.notices.join('\n');
+    expect(said).toContain('the wake models are not on this host');
+    // The models are the platform's job. Telling the user to go and run a
+    // command for work this process can do is the defect this replaced.
+    expect(said).not.toContain('/voice wake setup');
+  });
+
+  test('missing models are FETCHED when a provisioner is wired, and the detector then starts', async () => {
+    let fetched = 0;
+    // Not provisioned on the first read, provisioned once the fetch has run —
+    // the runtime re-reads from disk rather than taking the provisioner's word.
+    let provisioned = false;
+    const harness = makeCaptureHarness({
+      provisionStatusOverride: () => (provisioned
+        ? { ready: true, reason: null, vadReady: false }
+        : { ready: false, reason: 'not-provisioned', vadReady: false }),
+      ensureProvisioned: async () => {
+        fetched += 1;
+        provisioned = true;
+        return { ready: true, message: 'Downloaded and checksum-verified the wake models.' };
+      },
+    });
+    await harness.runtime.refresh();
+
+    expect(fetched).toBe(1);
+    const said = harness.notices.join('\n');
+    expect(said).toContain('fetching and verifying them now');
+    expect(said).toContain('Downloaded and checksum-verified');
+    // It got as far as opening the device, which is the point of fetching.
+    expect(harness.spawns.calls.length).toBeGreaterThan(0);
   });
 });
 

@@ -174,8 +174,9 @@ export function createWakeEngineFactory(options: WakeEngineFactoryOptions): () =
     if (options.settings.vadThreshold > 0 && options.vad !== undefined) {
       if (!options.vad.ready) {
         throw new Error(
-          `voice.wake.vadThreshold is ${options.settings.vadThreshold}, but the speech gate is not provisioned `
-          + '(run /voice wake setup). Refusing to start rather than scoring frames the row says are being screened.',
+          `voice.wake.vadThreshold is ${options.settings.vadThreshold}, but the speech gate is not on disk. `
+          + 'Refusing to start rather than scoring frames the row says are being screened; the gate is fetched with '
+          + 'the rest of the wake artifacts.',
         );
       }
       vad = { session: await load(options.vad.path), threshold: options.settings.vadThreshold };

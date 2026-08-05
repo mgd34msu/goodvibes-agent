@@ -13,10 +13,12 @@
  *
  * TWO THINGS ARE DELIBERATELY NOT AUTOMATIC
  *
- *  - **Nothing downloads.** The classifier and the speech-embedding front end are
- *    provisioned only by an explicit `/voice wake setup`. If the feature is on and
- *    the models are absent, this says exactly that instead of starting a detector
- *    that could never score anything.
+ *  - **Turning it on is not a download trigger — but a missing model is not the
+ *    user's errand either.** Enabling wake detection on a host whose artifacts
+ *    are absent FETCHES them here, once, and says what it fetched. What it never
+ *    does is start a detector that could not score anything, and what it must
+ *    never do is print an instruction telling someone to go and run a command
+ *    for work this process is holding the ability to do.
  *  - **Disabled means no device is opened at all.** `settings.active` is the only
  *    thing consulted before opening a microphone, and the SDK listener re-checks
  *    it and refuses without touching the capture opener. A configuration that is
@@ -30,6 +32,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  recordVoiceDiagnostic,
   WakeListener,
   encodeWavPcm16,
   resolveManagedWakePaths,
@@ -47,11 +50,13 @@ import {
 import type { VoiceCaptureIndicatorState } from '../core/voice-capture-status.ts';
 import { agentWakeCapabilities, describeWakeBlockers, describeWakeLimitations } from '../core/wake-provision-status.ts';
 import { createWakeEngineFactory } from './wake-inference.ts';
+import { AGENT_WAKE_SURFACE } from './wake-surface.ts';
 import type { VoiceSttGateway } from '../core/voice-stt-gateway.ts';
 import { describeTranscriptionFailure } from '../core/voice-stt-gateway.ts';
 
-/** The `voice.wake.surfaces.*` row this surface listens on. */
-export const AGENT_WAKE_SURFACE = 'agent' as const;
+// Re-exported from its own dependency-free module: the settings path needs this
+// name and must not pull the inference runtime in behind it (see wake-surface.ts).
+export { AGENT_WAKE_SURFACE } from './wake-surface.ts';
 
 /** Indicator kind per listener phase. `idle`/`stopped` render nothing. */
 const PHASE_INDICATOR: Partial<Record<WakeListenerState['phase'], VoiceCaptureIndicatorState['kind']>> = {
@@ -79,6 +84,13 @@ export interface WakeRuntimeDeps {
    */
   readonly createNoiseSuppression?: WakeListenerOptions['createNoiseSuppression'];
   readonly resolveTranscriber: () => { readonly available: true; readonly gateway: VoiceSttGateway } | { readonly available: false; readonly reason: string };
+  /**
+   * Fetch the wake artifacts this host is missing. Called when the feature is
+   * on and the models are not on disk — the platform completes the request
+   * rather than handing back a command to type. Absent in a composition with no
+   * provisioner, where the honest report is that they are missing.
+   */
+  readonly ensureProvisioned?: (() => Promise<{ readonly ready: boolean; readonly message: string }>) | undefined;
   /** Plays the resolved activation sound at the moment of a wake. */
   readonly playActivationSound: (sound: WakeRuntimeSettings['activationSound']) => void;
   /** Submits the recognised text as a turn (`voice.wake.autoSubmit` on). */
@@ -185,6 +197,17 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
     const resolution = deps.resolveTranscriber();
     if (!resolution.available) {
       deps.notify(`[Wake] Captured the utterance after the wake phrase but could not transcribe it: ${resolution.reason}`);
+      // Written down as well as shown. A notification scrolls away; this is
+      // what makes the question "why did voice stop working" answerable later.
+      recordVoiceDiagnostic(deps.managedRoot, {
+        at: new Date().toISOString(),
+        operation: 'wake-transcribe',
+        route: 'none',
+        ok: false,
+        provider: 'none',
+        configSource: 'no speech-to-text route resolved on this surface',
+        error: resolution.reason,
+      });
       deps.render();
       return;
     }
@@ -202,19 +225,53 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
         deps.render();
       }
     } catch (error) {
-      deps.notify(`[Wake] Transcription failed: ${describeTranscriptionFailure(error)}`);
+      const detail = describeTranscriptionFailure(error);
+      deps.notify(`[Wake] Transcription failed: ${detail}`);
+      // The SDK's routing records each ROUTE's own attempt; this records the
+      // failure of the whole act, which is the entry that says a wake fired and
+      // produced nothing.
+      recordVoiceDiagnostic(deps.managedRoot, {
+        at: new Date().toISOString(),
+        operation: 'wake-transcribe',
+        route: 'none',
+        ok: false,
+        provider: 'every available route',
+        configSource: 'this surface\'s resolved speech-to-text routes',
+        error: detail,
+      });
       deps.render();
     }
   };
 
   const start = async (settings: WakeRuntimeSettings, provision: { readonly ready: boolean; readonly reason: string | null }): Promise<void> => {
-    if (!provision.ready) {
-      deps.notify(
-        `[Wake] voice.wake.enabled is on, but the wake models are not provisioned (${provision.reason ?? 'not-provisioned'}), `
-        + 'so nothing is listening. Run /voice wake setup to download and verify them.',
-      );
+    let ready = provision.ready;
+    if (!ready) {
+      if (deps.ensureProvisioned === undefined) {
+        deps.notify(
+          `[Wake] Wake detection is on, but the wake models are not on this host (${provision.reason ?? 'not-provisioned'}), `
+          + 'and this surface has no provisioner wired, so nothing is listening.',
+        );
+        deps.render();
+        return;
+      }
+      // The models are the platform's job, not an errand for the user.
+      deps.notify('[Wake] The wake models are not on this host yet — fetching and verifying them now.');
       deps.render();
-      return;
+      const outcome = await deps.ensureProvisioned();
+      ready = outcome.ready;
+      deps.notify(`[Wake] ${outcome.message}`);
+      if (!ready) {
+        deps.render();
+        return;
+      }
+      // Re-read from disk: the provisioner's own word is not the last one.
+      const after = readProvision(deps.managedRoot);
+      vadReady = after.vadReady;
+      if (!after.ready) {
+        deps.notify(`[Wake] The wake models still do not verify on disk (${after.reason ?? 'not-provisioned'}), so nothing is listening.`);
+        deps.render();
+        return;
+      }
     }
     const paths = resolveManagedWakePaths(deps.managedRoot);
     // The SDK resolves `voice.wake.models` to files: the pinned id inside the
