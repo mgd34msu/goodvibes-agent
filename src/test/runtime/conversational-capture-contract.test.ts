@@ -142,6 +142,22 @@ describe('the capture contract the operator policy carries', () => {
     expect(lower).toContain('attempt the capture with the true surface anyway');
   });
 
+  test('a refused found fact routes to the two-step, so one word from him finishes it', () => {
+    // The untrusted-source bar stays exactly where the owner put it
+    // (owner-profile-rulings.md, 2026-07-27: "Untrusted content can never
+    // write or propose ... never build a parallel notion of trust"). The
+    // friction it causes is answered with the two-step that already exists,
+    // not with a new trust tier — so a found itinerary lands one beat later
+    // rather than never.
+    const lower = AGENT_CONVERSATIONAL_CAPTURE_POLICY.toLowerCase();
+    expect(lower).toContain('a refusal there is not the end of it');
+    expect(lower).toContain('plan_propose');
+    expect(lower).toContain('one word finishes it');
+    expect(lower).toContain('do not make him retype what you already found');
+    // He is told what he is confirming and where it came from.
+    expect(lower).toContain('the sender and the subject');
+  });
+
   test('inference and use: the meaning is captured, then it shapes the answer', () => {
     const lower = AGENT_CONVERSATIONAL_CAPTURE_POLICY.toLowerCase();
     expect(lower).toContain('recording is the floor');
