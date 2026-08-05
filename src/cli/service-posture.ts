@@ -1,7 +1,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import net from 'node:net';
 import { isAbsolute, join } from 'node:path';
-import { resolveDaemonEnabled } from '@pellux/goodvibes-sdk/platform/config';
+import { resolveConnectedHostDialEnabled, resolveDaemonEnabled } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigKey, ConfigManager } from '../config/index.ts';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { RuntimeEndpointBinding, RuntimeEndpointId } from './endpoints.ts';
@@ -54,7 +54,15 @@ export interface CliServicePosture {
     readonly enabled: boolean;
     readonly autostart: boolean;
     readonly restartOnFailure: boolean;
+    /** `daemon.enabled` — whether this surface adopts a session daemon of its own. */
     readonly daemonEnabled: boolean;
+    /**
+     * `daemon.connectedHost.enabled` — whether this surface may DIAL the host
+     * it is connected to. Reported separately because it is what the
+     * daemon-backed features actually consult; reporting only the adopt flag
+     * described a machine that was not the one running.
+     */
+    readonly connectedHostDialEnabled: boolean;
   };
   readonly managed: CliExternalHostLifecyclePosture;
   readonly endpoints: readonly CliServiceEndpointPosture[];
@@ -189,8 +197,14 @@ export async function buildCliServicePosture(
     autostart: runtime.configManager.get('service.autostart') === true,
     restartOnFailure: runtime.configManager.get('service.restartOnFailure') === true,
     daemonEnabled: resolveDaemonEnabled(runtime.configManager),
+    connectedHostDialEnabled: resolveConnectedHostDialEnabled(runtime.configManager),
   };
-  const serverBackedEnabled = config.daemonEnabled || endpoints.some((endpoint) => endpoint.enabled);
+  // Dialing is what the daemon-backed features consult, so a machine that does
+  // not adopt a daemon but does dial a connected one is server-backed — which
+  // is exactly the topology this product is designed for.
+  const serverBackedEnabled = config.daemonEnabled
+    || config.connectedHostDialEnabled
+    || endpoints.some((endpoint) => endpoint.enabled);
   const issues: string[] = [];
   const advisories: string[] = [];
 
@@ -243,7 +257,8 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
     '  Agent starts connected host: only at boot, when it is installed but stopped',
     `  external host config present: ${yesNo(posture.config.enabled)}`,
     '  external host lifecycle config: only the service name is read, for the boot start check',
-    `  daemon considered enabled: ${yesNo(posture.config.daemonEnabled)}`,
+    `  adopts a daemon of its own: ${yesNo(posture.config.daemonEnabled)}`,
+    `  may dial the connected host: ${yesNo(posture.config.connectedHostDialEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',

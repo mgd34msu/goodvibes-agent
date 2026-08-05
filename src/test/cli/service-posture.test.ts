@@ -50,7 +50,11 @@ describe('CLI service posture', () => {
     expect(text).toContain('lifecycle owner: outside goodvibes-agent');
     expect(text).toContain('Agent starts connected host: only at boot, when it is installed but stopped');
     expect(text).toContain('external host lifecycle config: only the service name is read, for the boot start check');
-    expect(text).toContain('daemon considered enabled: yes');
+    // Two lines, not one. "daemon considered enabled" answered two questions
+    // with one word, which is precisely how a machine with adoption off and a
+    // live connected host read as having no daemon at all.
+    expect(text).toContain('adopts a daemon of its own: yes');
+    expect(text).toContain('may dial the connected host: yes');
     expect(text).not.toContain('installed:');
     expect(text).not.toContain('running:');
     expect(text).not.toContain('platform:');

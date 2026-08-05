@@ -69,6 +69,8 @@ import { bindApprovalsPanel } from './shell/approvals-panel.ts';
 import { buildListAutomationRunsSince } from './agent/automation-runs-source.ts';
 import { startHardwareProbe } from './core/hardware-profile.ts';
 import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
+import { installRemoteConversationRouting } from './shell/remote-conversation-wiring.ts';
+import { applyAtModelSwitches } from './input/at-model-switch.ts';
 
 // Escape bytes and enter/exit sequencing live in renderer/terminal-escapes.ts (re-exported from @pellux/goodvibes-terminal-shell) so this file never holds its own drifting copy.
 
@@ -324,26 +326,22 @@ async function main() {
     configManager,
     notify: (message) => { systemMessageRouter.high(message); render(); },
   }));
+  // Where a turn runs — see shell/remote-conversation-wiring.ts.
+  const remoteConversation = installRemoteConversationRouting(ctx, {
+    render: () => render(),
+    notify: (message) => systemMessageRouter.high(message),
+  });
+  unsubs.push(() => remoteConversation.dispose());
+
   const submitInput = (text: string, content?: ContentPart[], options: { readonly spokenOutput?: boolean } = {}) => {
     input.clearModalStack();
     scrollLocked = true; // Re-lock on user input
-    const AT_MODEL_RE = /@model:([^\s]+)/g;
-    let processedText = text;
-    let atModelMatch: RegExpExecArray | null;
-    while ((atModelMatch = AT_MODEL_RE.exec(text)) !== null) {
-      const modelId = atModelMatch[1];
-      try {
-        providerRegistry.setCurrentModel(modelId);
-        const def = providerRegistry.getCurrentModel();
-        runtime.model = def.id;
-        runtime.provider = def.provider;
-        configManager.set('provider.model', def.registryKey);
-        systemMessageRouter.high(`[Model] Switched to ${def.displayName} (${def.provider}) via @model:`);
-      } catch {
-        systemMessageRouter.high(`[Model] Unknown model: ${modelId}`);
-      }
-      processedText = processedText.replace(atModelMatch[0], '').trim();
-    }
+    let processedText = applyAtModelSwitches(text, {
+      providerRegistry,
+      configManager,
+      onModelChanged: (model) => { runtime.model = model.id; runtime.provider = model.provider; },
+      notify: (message) => systemMessageRouter.high(message),
+    });
     if (processedText.startsWith('!#')) {
       const memoryText = processedText.slice(2).trim();
       if (!memoryText) {
@@ -376,6 +374,8 @@ async function main() {
         if (options.spokenOutput && processedText) {
           spokenTurns.submitNextTurn(processedText);
         }
+        // Routed to the daemon, or run here with the reason already stated.
+        if (await remoteConversation.routeOrExplain(outgoing, Boolean(content?.length))) return;
         orchestrator.handleUserInput(outgoing, content, inputOptions).catch((err: unknown) => {
           logger.debug('handleUserInput safety catch (already handled by runTurn)', { error: summarizeError(err) });
         });
