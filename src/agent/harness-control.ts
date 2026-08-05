@@ -1,6 +1,7 @@
 import type { ConfigKey, ConfigManager, ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import { isValidConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { applyWakeEnablementCompanion, type WakeCompanionWrite } from '../config/wake-enablement-companion.ts';
 import type { SecretsManager } from '../config/secrets.ts';
 import {
   buildGoodVibesSecretKey,
@@ -135,6 +136,8 @@ export interface HarnessSettingMutationResult {
    * agent's own settings file configures nothing.
    */
   readonly persistedTo?: string | undefined;
+  /** A second row that had to move with this one — see config/wake-enablement-companion.ts. */
+  readonly alsoSet?: WakeCompanionWrite | undefined;
 }
 
 /**
@@ -675,6 +678,9 @@ export async function setHarnessSetting(
     homeDir: configManager.getHomeDirectory() ?? undefined,
     ...routing,
   });
+  // A row that would otherwise configure nothing takes its companion with it.
+  const companion = await applyWakeEnablementCompanion(configManager, setting.key, coerced, routing);
+
   return {
     key: setting.key,
     action: 'set',
@@ -683,6 +689,7 @@ export async function setHarnessSetting(
     scope: outcome.scope,
     appliedBy: outcome.appliedBy,
     persistedTo: outcome.persistedTo,
+    ...(companion ? { alsoSet: companion } : {}),
   };
 }
 
@@ -763,19 +770,7 @@ export function formatHarnessSetting(setting: HarnessSettingDescriptor | null): 
   ].join('\n');
 }
 
-export function formatHarnessMutation(result: HarnessSettingMutationResult): string {
-  return [
-    `Setting ${result.action}`,
-    `  key ${result.key}`,
-    `  previous ${String(result.previous)}`,
-    `  current ${String(result.current)}`,
-    // Name the owner and the store. "Saved" alone cannot distinguish a value
-    // the acting runtime will read from one written into a file it never opens.
-    ...(result.scope ? [`  owner ${result.scope}`] : []),
-    ...(result.appliedBy ? [`  applied by ${result.appliedBy}`] : []),
-    ...(result.persistedTo ? [`  stored in ${result.persistedTo}`] : []),
-  ].join('\n');
-}
+export { formatHarnessMutation } from './harness-mutation-format.ts';
 
 export function formatHarnessError(error: unknown): string {
   return summarizeError(error);

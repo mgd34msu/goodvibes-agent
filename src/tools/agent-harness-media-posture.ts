@@ -281,11 +281,14 @@ function buildVoiceInteractionWorkflows(
         : wake.active
           ? 'Wake-word capture is live on this surface: a recorder subprocess feeds the pinned classifier, a confirmed wake plays the activation sound and shows a listening row, and the utterance that follows goes to speech-to-text. Published recall figures for the model are measured on synthesised speech only.'
           : `Wake-word capture is wired on this surface and switched off: voice.wake.enabled is ${wake.enabled ? 'on' : 'off'} and voice.wake.surfaces.agent is ${wake.surfaceEnabled ? 'on' : 'off'}. Wake capture on a paired phone remains unpublished by the current Agent runtime contract.`,
+      // These are instructions to YOU, and they describe work you perform. A
+      // next step phrased as a command for the user to type is the defect: the
+      // platform does the thing and reports what it did.
       nextStep: wake.blockers.length > 0
-        ? `Clear the refusing row: ${wake.blockers[0]?.key ?? 'see /voice wake status'} — run /voice wake status for the written reason.`
+        ? `Clear the refusing row yourself: ${wake.blockers[0]?.key ?? 'the blocking row'} — its written reason is in this posture record.`
         : wake.active
-          ? 'Run /voice wake status to confirm the pinned models are provisioned; nothing downloads on its own.'
-          : 'Turn on voice.wake.enabled and voice.wake.surfaces.agent, then run /voice wake setup --yes to download the pinned models.',
+          ? 'Wake capture is live; confirm the pinned models verify on disk and report the result rather than asking anyone to check.'
+          : 'Set voice.wake.enabled for the user — the surface row moves with it, and missing models are fetched and verified as part of turning it on.',
       capabilities: ['wake word', 'always listening', 'permission repair'],
       modelRoute: wakeRecords[0]?.modelRoute ?? 'agent_harness mode:"media_posture" query:"wake word" includeParameters:true',
       setupRoutes: [

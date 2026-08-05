@@ -89,7 +89,7 @@ export function agentWakeCapabilities(options: { readonly vadReady: boolean }): 
 export function wakeArtifactLine(label: string, artifact: WakeArtifactStatus): string {
   if (artifact.verified) return `  ${label}: verified (${formatWakeBytes(artifact.bytes)})`;
   if (artifact.corrupt) {
-    return `  ${label}: PRESENT BUT FAILS VERIFICATION (${formatWakeBytes(artifact.bytes)}) — torn, truncated, or the wrong asset; /voice wake setup replaces it`;
+    return `  ${label}: PRESENT BUT FAILS VERIFICATION (${formatWakeBytes(artifact.bytes)}) — torn, truncated, or the wrong asset; the next provision replaces it`;
   }
   return `  ${label}: missing`;
 }
@@ -125,7 +125,7 @@ export function wakeStatusLines(
     wakeArtifactLine('speech-gate NOTICE', status.vadNotice),
   ];
   if (!status.ready) {
-    lines.push(`  a fresh provision would download ${formatWakeBytes(status.downloadBytes)} — run /voice wake setup (nothing downloads on its own)`);
+    lines.push(`  a fresh provision would download ${formatWakeBytes(status.downloadBytes)}, fetched automatically when wake detection is turned on`);
   }
   lines.push(
     `  wake models configured: ${settings.modelIds.length > 0 ? settings.modelIds.join(', ') : 'none (voice.wake.models is empty, so nothing is scored)'}`,
@@ -141,7 +141,7 @@ export function wakeStatusLines(
         ? ' (0 = every frame reaches the classifier, which is the shipped default)'
         : status.vadReady
           ? `, screening frames with goodvibes-vad ${WAKE_VAD_MODEL.version}${vadThresholdNote(settings.vadThreshold)}`
-          : `, but the gate is not on disk, so the detector refuses to start rather than leaving frames unscreened — run /voice wake setup --yes (goodvibes-vad ${WAKE_VAD_MODEL.version}${vadThresholdNote(settings.vadThreshold)})`}`
+          : `, but the gate is not on disk, so the detector refuses to start rather than leaving frames unscreened; it is fetched with the other wake artifacts (goodvibes-vad ${WAKE_VAD_MODEL.version}${vadThresholdNote(settings.vadThreshold)})`}`
       + `, gate on disk: ${status.vadReady ? 'yes' : 'no'}`,
     `  after a wake: ${settings.autoSubmit ? 'the transcript is submitted as a turn' : 'the transcript is placed in the composer'}`,
     `  indicator: voice.wake.indicator=${settings.indicator}, activation sound=${settings.activationSound.kind}`,
@@ -183,5 +183,5 @@ export function wakeProvisionReceiptLines(result: WakeProvisionResult): string[]
 export const WAKE_SETUP_ANNOUNCEMENT = [
   'Wake-Word Setup',
   '  downloading the pinned "hey goodvibes" classifier and the shared speech-embedding front end…',
-  '  both are checksum-verified and the download is resumable — re-run /voice wake setup to retry any failed component.',
+  '  both are checksum-verified and the download is resumable, so a failed component is retried rather than restarted.',
 ].join('\n');

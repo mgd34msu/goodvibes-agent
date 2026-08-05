@@ -1,8 +1,9 @@
 /**
  * voice-capture-wiring.ts — composes this surface's microphone path.
  *
- * One capture opener (capture.ts), one transcription route (the in-process voice
- * service, through core/voice-stt-gateway.ts), one set of `voice.wake.*` rows.
+ * One capture opener (capture.ts), one transcription route resolved
+ * connected-host-first (core/voice-stt-gateway.ts), one set of `voice.wake.*`
+ * rows.
  * Written as a composition root rather than inlined into the wake runtime because
  * the capture opener is shared by construction: a wake does not end a capture
  * session, it starts one, and anything else that ever wants a microphone here has
@@ -23,6 +24,7 @@ import { LocalStreamingAudioPlayer } from './player.ts';
 import type { StreamingAudioPlayer } from './player.ts';
 import { createVoiceSttGateway } from '../core/voice-stt-gateway.ts';
 import { startWakeRuntime, wireWakeRuntime } from './wake-runtime.ts';
+import type { DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 
 export interface VoiceCaptureWiringDeps {
   readonly configManager: ConfigManager;
@@ -42,6 +44,17 @@ export interface VoiceCaptureWiringDeps {
   readonly submitTurn: (text: string) => void;
   readonly notify: (message: string) => void;
   readonly render: () => void;
+  /**
+   * This surface's plug into the connected host. Supplied so a captured
+   * utterance can be transcribed by the DAEMON, which owns the managed whisper
+   * install and works even when this process's own provider does not.
+   */
+  readonly daemonVerbs?: Pick<DaemonVerbCaller, 'probe' | 'invoke'> | null | undefined;
+  /**
+   * Fetches the wake artifacts when they are missing, so enabling detection on a
+   * host without them completes rather than reporting a chore.
+   */
+  readonly ensureWakeProvisioned?: (() => Promise<{ readonly ready: boolean; readonly message: string }>) | undefined;
   /** Injected in tests; defaults to a real streaming player for the activation sound. */
   readonly player?: StreamingAudioPlayer;
 }
@@ -65,7 +78,12 @@ export function wireVoiceCapture(deps: VoiceCaptureWiringDeps): VoiceCaptureWiri
   // capability or filtering twice (see capture.ts).
   const openCapture = createAgentCaptureOpener({ warn });
   const resolveTranscriber = () => {
-    const resolution = createVoiceSttGateway({ voiceService: deps.voiceService, voiceProviders: deps.voiceProviders });
+    const resolution = createVoiceSttGateway({
+      voiceService: deps.voiceService,
+      voiceProviders: deps.voiceProviders,
+      daemonVerbs: deps.daemonVerbs ?? null,
+      managedVoiceRoot: deps.managedVoiceRoot,
+    });
     return resolution.available
       ? { available: true as const, gateway: resolution.gateway }
       : { available: false as const, reason: resolution.reason };
@@ -87,6 +105,7 @@ export function wireVoiceCapture(deps: VoiceCaptureWiringDeps): VoiceCaptureWiri
     render: deps.render,
     sessionId: deps.sessionId,
     warn,
+    ...(deps.ensureWakeProvisioned !== undefined ? { ensureProvisioned: deps.ensureWakeProvisioned } : {}),
   });
 
   return {

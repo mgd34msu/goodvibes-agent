@@ -9336,7 +9336,10 @@ describe('agent_harness tool', () => {
       const wake = posture.voiceWorkflows.find((workflow) => workflow.id === 'wake-and-speak');
       expect(wake?.status).toBe('setup-needed');
       expect(wake?.summary).toContain('voice.wake.surfaces.agent is off');
-      expect(wake?.nextStep).toContain('/voice wake setup');
+      // The next step describes what YOU do for the user, not a command to hand
+      // over: setting the row also moves the surface row and fetches the models.
+      expect(wake?.nextStep).toContain('Set voice.wake.enabled');
+      expect(wake?.nextStep).not.toContain('/voice');
       expect(wake?.evidence.localCaptureHost).toBe(true);
       expect(wake?.evidence.listening).toBe(false);
       expect(wake?.evidence.companionWakePublishedByCurrentAgentContract).toBe(false);
