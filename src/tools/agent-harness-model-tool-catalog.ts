@@ -150,6 +150,43 @@ export function searchHarnessModelTools(
   };
 }
 
+/**
+ * Shape of the qualified names `mcp mode:"tools"` reports for MCP servers'
+ * own tools — `mcp:<server>:<tool>`. Those names are real and describable
+ * (see the `mcp` tool's own `mode:"tool"` lookup), but they are NOT
+ * themselves top-level model tools: nothing in this registry resolves a
+ * literal call to one, because they can only be invoked through
+ * `mcp mode:"call" qualifiedName:"…"`.
+ *
+ * The incident this guards against: the model saw `mcp:playwright:browser_tabs`
+ * listed by `mcp mode:"tools"`, then asked THIS catalog to look it up as if it
+ * were a directly callable tool, got a bare "unknown", and had no way to learn
+ * the real invocation path from that answer alone.
+ */
+const MCP_QUALIFIED_NAME_PATTERN = /^mcp:[^:]+:[^:]+$/;
+
+/**
+ * The message for a toolName/target/query that resolved to nothing.
+ *
+ * Names the tools that actually exist, right there, rather than sending the
+ * caller on another round trip through `mode:"tools"` to find out. When the
+ * input looks like an MCP-qualified name, adds the specific correction: that
+ * shape is not a callable tool by itself, and the real invocation path is
+ * named explicitly.
+ */
+export function describeUnknownModelTool(toolRegistry: ToolRegistry, query: string): string {
+  const names = toolRegistry.getToolDefinitions().map((tool) => tool.name).sort();
+  const known = names.length > 0 ? `Known tools: ${names.join(', ')}.` : 'No model tools are registered.';
+  const label = query || '<missing>';
+  if (query && MCP_QUALIFIED_NAME_PATTERN.test(query)) {
+    const hint = names.includes('mcp')
+      ? `"${query}" is an MCP-qualified name, not a directly callable tool. Call it with mcp mode:"call" qualifiedName:"${query}" input:{...} — confirm it is actually connected first with mcp mode:"servers" or mode:"tools".`
+      : `"${query}" names an MCP tool, but no "mcp" tool is registered here to call it through.`;
+    return `Unknown model tool ${label}. ${hint} ${known}`;
+  }
+  return `Unknown model tool ${label}. ${known} Use mode:"tools" to inspect available model tools.`;
+}
+
 export function describeHarnessModelTool(toolRegistry: ToolRegistry, args: AgentHarnessModelToolCatalogArgs): HarnessModelToolResolution | null {
   const lookup = modelToolLookupFromArgs(args);
   if (!lookup) return null;

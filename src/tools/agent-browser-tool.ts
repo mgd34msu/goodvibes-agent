@@ -259,8 +259,21 @@ export function createAgentBrowserTool(options: AgentBrowserToolOptions = {}): T
               profileName: readString(args.profileName) || undefined,
               ...(typeof args.headless === 'boolean' ? { headless: args.headless } : {}),
             }));
-          case 'attach':
-            return output(await browser.attach({ cdpEndpoint: requireString(args.cdpEndpoint, 'cdpEndpoint', 'attach') }));
+          case 'attach': {
+            const cdpEndpoint = readString(args.cdpEndpoint);
+            if (!cdpEndpoint) {
+              // Naming a missing parameter is honest only if the caller can
+              // actually supply it. The owner's regular, already-running
+              // browser exposes no remote-debugging port by default, so there
+              // is no cdpEndpoint to hand over for it — attach only works for
+              // a browser the owner deliberately started with one.
+              throw new BrowserSessionError(
+                'browser action:"attach" needs cdpEndpoint, and there is no way to get one for the owner\'s regular already-running browser — it exposes no remote-debugging port unless started with one.',
+                'Only use attach for a browser the owner deliberately started with --remote-debugging-port=<port> --user-data-dir=<a profile that is not already open>. For anything else, use action:"launch" instead — it opens the agent\'s own managed, isolated profile.',
+              );
+            }
+            return output(await browser.attach({ cdpEndpoint }));
+          }
           case 'release':
             return output(browser.release(requireString(args.sessionId, 'sessionId', 'release')));
           case 'close':

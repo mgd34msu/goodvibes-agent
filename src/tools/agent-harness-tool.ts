@@ -24,7 +24,7 @@ import { describeHarnessExecutionRoute, executionPostureCatalogStatus, execution
 import { fileRecoveryCatalogStatus, fileRecoverySummary, runFileRecovery } from './agent-harness-file-recovery.ts';
 import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary, runLocalModelServerSmoke } from './agent-harness-model-routing.ts';
-import { describeHarnessModelTool, searchHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
+import { describeHarnessModelTool, describeUnknownModelTool, searchHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
 import { memoryRefinementCatalogStatus, memoryRefinementSummary, runMemoryRefinement } from './agent-harness-memory-refinement.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
@@ -665,7 +665,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describeHarnessModelTool(deps.toolRegistry, args);
           if (resolved?.status === 'found') return output(resolved.tool);
           if (resolved?.status === 'ambiguous') return error(`Ambiguous model tool ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
-          return error(`Unknown model tool ${query || '<missing>'}. Use mode:"tools" to inspect available model tools.`);
+          return error(describeUnknownModelTool(deps.toolRegistry, query));
         }
         if (args.mode === 'release_evidence') return output(releaseEvidenceSummary(args));
         if (args.mode === 'release_evidence_artifact') {
