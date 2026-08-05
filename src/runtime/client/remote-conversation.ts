@@ -285,15 +285,20 @@ export function createRemoteConversationRouter(
     token: string,
     action: 'created' | 'recreated',
   ): Promise<RemoteTurnOutcome> => {
-    // The stream opens BEFORE the create returns work, so no frame of the
-    // opening turn can be emitted into a stream nobody is listening on yet.
-    // The session id is not known until create resolves, so the order is:
-    // create (which does not wait for the turn), then watch.
+    // Create WITHOUT `initialPrompt`, then open the stream, then steer the
+    // message in.
+    //
+    // `initialPrompt` starts the turn inside the create call, and the session
+    // id it returns is the only way to address the stream — so a create that
+    // carries the prompt necessarily emits the start of the turn (and, for a
+    // fast one, all of it) before anything is listening. Those frames are gone:
+    // the stream is live traffic, not a replayable log. That is one round trip
+    // traded for never losing the beginning of an answer, and it makes the
+    // first message take the same create-then-steer path every later one does.
     let reply: HostedCreateReply;
     try {
       reply = await options.verbs.invoke<HostedCreateReply>('sessions.hosted.create', {
         workspaceRoot: options.workspaceRoot,
-        initialPrompt: text,
         clientId: options.clientId,
       });
     } catch (error) {
@@ -319,6 +324,17 @@ export function createRemoteConversationRouter(
       return refuse(
         `the hosted conversation opened on the connected host, but this surface could not watch its output — `
         + `${String(error)}. The turn is running there; reopen this conversation to see it.`,
+      );
+    }
+    // The stream is open now, so the turn's first frame has somewhere to land.
+    try {
+      await options.verbs.invoke<unknown>('sessions.steer', { sessionId: id, body: text });
+    } catch (error) {
+      stopWatching();
+      hostedId = null;
+      return refuse(
+        `the connected host opened a hosted conversation but would not take the message into it, `
+        + `so this turn ran here — ${describeConnectedHostVerbError(error)}`,
       );
     }
     return { routed: true, hostedSessionId: id, action, completion: turnRenderer.completion() };

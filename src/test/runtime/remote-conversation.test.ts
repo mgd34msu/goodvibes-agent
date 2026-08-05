@@ -84,9 +84,14 @@ describe('routing a conversation turn to the connected daemon', () => {
     const outcome = await router.submit('hello');
 
     expect(outcome).toMatchObject({ routed: true, hostedSessionId: HOSTED_ID, action: 'created' });
-    expect(calls[0]?.methodId).toBe('sessions.hosted.create');
+    // Create carries NO prompt: `initialPrompt` would start the turn inside the
+    // create call, before the event stream this surface renders from exists, and
+    // those frames are live traffic that cannot be replayed. So the first
+    // message takes the same create-then-steer path every later one takes.
+    expect(calls.map((call) => call.methodId)).toEqual(['sessions.hosted.create', 'sessions.steer']);
     expect(calls[0]?.input.workspaceRoot).toBe('/home/someone/project');
-    expect(calls[0]?.input.initialPrompt).toBe('hello');
+    expect(calls[0]?.input.initialPrompt).toBeUndefined();
+    expect(calls[1]?.input.body).toBe('hello');
     expect(router.hostedSessionId()).toBe(HOSTED_ID);
   });
 
@@ -99,18 +104,22 @@ describe('routing a conversation turn to the connected daemon', () => {
     const second = await router.submit('second');
 
     expect(second).toMatchObject({ routed: true, hostedSessionId: HOSTED_ID, action: 'steered' });
-    expect(calls.map((call) => call.methodId)).toEqual(['sessions.hosted.create', 'sessions.steer']);
-    expect(calls[1]?.input.sessionId).toBe(HOSTED_ID);
-    expect(calls[1]?.input.body).toBe('second');
+    expect(calls.map((call) => call.methodId))
+      .toEqual(['sessions.hosted.create', 'sessions.steer', 'sessions.steer']);
+    expect(calls[2]?.input.sessionId).toBe(HOSTED_ID);
+    expect(calls[2]?.input.body).toBe('second');
   });
 
   test('a steer into a session the daemon no longer has opens a new one and carries the message', async () => {
     // The daemon restarted, or the session was killed. Recoverable: the person
     // should not have to notice, and their message must not be dropped.
+    let steers = 0;
     const { router, calls } = harness({
       invoke: (methodId, _payload, call) => {
         if (methodId === 'sessions.hosted.create') return { session: { id: `${HOSTED_ID}-${call}` } };
-        return new ConnectedHostVerbError('gone', 404);
+        steers += 1;
+        // The first message's steer lands; the second finds the session gone.
+        return steers === 2 ? new ConnectedHostVerbError('gone', 404) : {};
       },
     });
 
@@ -118,18 +127,24 @@ describe('routing a conversation turn to the connected daemon', () => {
     const second = await router.submit('second');
 
     expect(second).toMatchObject({ routed: true, action: 'recreated' });
-    expect(calls.map((call) => call.methodId))
-      .toEqual(['sessions.hosted.create', 'sessions.steer', 'sessions.hosted.create']);
-    expect(calls[2]?.input.initialPrompt).toBe('second');
+    expect(calls.map((call) => call.methodId)).toEqual([
+      'sessions.hosted.create', 'sessions.steer',
+      'sessions.steer',
+      'sessions.hosted.create', 'sessions.steer',
+    ]);
+    // The message is carried into the freshly opened session, not dropped.
+    expect(calls[4]?.input.body).toBe('second');
   });
 
   test('a refusal that is NOT a stale session does not open a second one', async () => {
     // A session cap or a 5xx is a real refusal. Retrying into it turns one
     // failure into two, and the second one counts against the same cap.
+    let steers = 0;
     const { router, calls } = harness({
       invoke: (methodId) => {
         if (methodId === 'sessions.hosted.create') return { session: { id: HOSTED_ID } };
-        return new ConnectedHostVerbError('at capacity', 429);
+        steers += 1;
+        return steers === 2 ? new ConnectedHostVerbError('at capacity', 429) : {};
       },
     });
 
@@ -137,6 +152,9 @@ describe('routing a conversation turn to the connected daemon', () => {
     const second = await router.submit('second');
 
     expect(second.routed).toBe(false);
+    if (second.routed) throw new Error('unreachable');
+    expect(second.reason).toContain('429');
+    // One create, not two: the refusal was not a recoverable stale session.
     expect(calls.filter((call) => call.methodId === 'sessions.hosted.create')).toHaveLength(1);
   });
 });

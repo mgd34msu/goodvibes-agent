@@ -50,7 +50,7 @@ import { deriveComposerState } from './core/composer-state.ts';
 import { describePowerStatus } from './renderer/power-status.ts';
 import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
-import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
+import { buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
 import { reachabilityAtLaunch } from './runtime/path-shadow-startup.ts';
 import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
@@ -71,6 +71,7 @@ import { startHardwareProbe } from './core/hardware-profile.ts';
 import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
 import { installRemoteConversationRouting } from './shell/remote-conversation-wiring.ts';
 import { applyAtModelSwitches } from './input/at-model-switch.ts';
+import { createCommandContextUi } from './shell/command-context-ui.ts';
 
 // Escape bytes and enter/exit sequencing live in renderer/terminal-escapes.ts (re-exported from @pellux/goodvibes-terminal-shell) so this file never holds its own drifting copy.
 
@@ -387,6 +388,9 @@ async function main() {
 
   const cancelGeneration = () => {
     spokenTurns.stop('Spoken output stopped.');
+    // A hosted turn sets the same isThinking the local path does, but its
+    // waiting state is owned here, not by orchestrator.abort().
+    remoteConversation.cancelHostedTurn();
     if (orchestrator.isThinking) {
       orchestrator.abort();
     }
@@ -411,21 +415,16 @@ async function main() {
   commandContext.cancelGeneration = cancelGeneration;
   commandContext.jumpToBookmark = jumpToBookmark;
   commandContext.scrollToLine = scrollToLine;
-  commandContext.clearScreen = () => {
-    compositor.resetDiff();
-    allowTerminalWrite(() => stdout.write(CLEAR_VIEWPORT_HOME));
-    render();
-  };
-  commandContext.toggleActivitySidebar = () => {
-    const width = getTerminalSize(stdout).width;
-    sidebarOverride = !(sidebarWidthFor(width) > 0);
-    render();
-  };
-  const rawRequestPermission: typeof permissionPromptRef.requestPermission = (request) => new Promise((resolve) => { // see shell/terminal-focus-mode.ts
-    pendingPermission = { ...request, resolve: (approved: boolean, remember = false) => resolve({ approved, remember }) };
-    render();
+  const commandUi = createCommandContextUi({
+    compositor, stdout, render: () => render(), terminalWidth: () => getTerminalSize(stdout).width,
+    sidebarVisibleAt: (width) => sidebarWidthFor(width) > 0,
+    setSidebarOverride: (visible) => { sidebarOverride = visible; },
+    setPendingPermission: (pending) => { pendingPermission = pending; },
   });
-  permissionPromptRef.requestPermission = wrapRequestPermissionWithApprovalAlert(rawRequestPermission, { focusTracker: ctx.services.focusTracker });
+  commandContext.clearScreen = commandUi.clearScreen;
+  commandContext.toggleActivitySidebar = commandUi.toggleActivitySidebar;
+  // see shell/terminal-focus-mode.ts
+  permissionPromptRef.requestPermission = wrapRequestPermissionWithApprovalAlert(commandUi.requestPermission as typeof permissionPromptRef.requestPermission, { focusTracker: ctx.services.focusTracker });
 
   const input: InputHandler = new InputHandler(
     () => render(),
@@ -498,7 +497,12 @@ async function main() {
     toolCount,
   };
 
-  const render = () => {
+  // A hoisted DECLARATION, not `const`: callbacks wired above fire before this
+  // line (bindApprovalsPanel starts an unawaited refresh + stream that repaint).
+  // Under a `const` they hit the temporal dead zone — every boot logged "Cannot
+  // access 'render' before initialization" as an unhandled rejection, which killed
+  // that wiring, so the surface never repainted from any async source again.
+  function render(): void {
     // The terminal has already been handed back to the shell; never paint another frame over it.
     if (terminalRestored) return;
     const { width, height } = getTerminalSize(stdout);
@@ -624,7 +628,7 @@ async function main() {
 
     viewport.push(...buildThinkingOverlay({ // honest waiting state; [] when not thinking
       orchestrator, configManager, streamTokenSpeed, clock: thinkingClock,
-      streamToolPreview: sessionSnapshot.streamToolPreview,
+      streamToolPreview: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview,
       approvalPending: pendingPermission !== null, width: conversationWidth,
     }));
 
@@ -653,7 +657,7 @@ async function main() {
           lines: buildActivitySidebarLines({
             now: {
               busy: orchestrator.isThinking,
-              label: sessionSnapshot.streamToolPreview?.trim() || undefined,
+              label: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview?.trim() ?? undefined,
               agents: buildSidebarAgentRows(activeAgents, ctx.services.fleetUnion.nodes()),
               processes: runningProcessCount,
             },
@@ -684,7 +688,7 @@ async function main() {
       sidebar,
       sidebarWidth,
     });
-  };
+  }
   const terminalOutputGuard = installFullScreenTerminalOutputGuard({ stdout, stderr: process.stderr, notify: (message) => { systemMessageRouter.low(message); render(); } });
 
   setRenderRequest(render);
@@ -761,7 +765,6 @@ async function main() {
 
   conversation.rebuildHistory();
   render();
-
   ({ recoveryInterval, recoveryPending, pendingWorkspaceRegistration } = startFirstRenderFollowups({
     shellPaths: ctx.services.shellPaths,
     providerRegistry,

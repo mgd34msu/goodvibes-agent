@@ -114,6 +114,8 @@ function routedHarness(input: {
         if (!outcome.chosen) input.notify?.(`[Turn] ${outcome.reason}`);
         return null;
       },
+      cancelHostedTurn: () => {},
+      hostedToolPreview: () => undefined,
       dispose: () => router.dispose(),
     };
   };
@@ -179,12 +181,14 @@ describe('a headless run whose turn the daemon ran', () => {
       createRouting: harness.createRouting,
     });
 
-    // The daemon-side session is created WITH the message — an empty hosted
-    // session is exactly the symptom this round exists to remove.
-    expect(harness.calls).toHaveLength(1);
-    expect(harness.calls[0]?.methodId).toBe('sessions.hosted.create');
-    expect(harness.calls[0]?.input.initialPrompt).toBe('do the thing');
+    // The daemon-side session receives the message — an empty hosted session is
+    // exactly the symptom this work exists to remove. The prompt rides a steer
+    // rather than `initialPrompt` so the turn cannot start before the event
+    // stream this surface renders from is open.
+    expect(harness.calls.map((call) => call.methodId))
+      .toEqual(['sessions.hosted.create', 'sessions.steer']);
     expect(harness.calls[0]?.input.workspaceRoot).toBe('/home/someone/project');
+    expect(harness.calls[1]?.input.body).toBe('do the thing');
 
     // And the local record is the mirror: the prompt, and what came back.
     expect(harness.user).toEqual(['do the thing']);

@@ -25,7 +25,7 @@ import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import { emitSessionReady, emitSessionStarted } from '@/runtime/index.ts';
 import { loadLastConversation } from '@/runtime/index.ts';
 import { bindWriteLastSessionPointerToSurface } from '@/runtime/index.ts';
-import { scheduleBackgroundMcpDiscovery } from '@/runtime/index.ts';
+import { scheduleMcpSuggestionScanOnFirstUse } from './mcp-suggestion-scan.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
 import { runGatedLanScan } from './lan-scan-consent.ts';
 import { scheduleCalendarSubscriptionBootRefresh } from './calendar-boot-refresh.ts';
@@ -672,7 +672,7 @@ export async function bootstrapRuntime(
     systemMessageRouter,
     requestRender,
   });
-  const mcpDiscovery = scheduleBackgroundMcpDiscovery({
+  const mcpDiscovery = scheduleMcpSuggestionScanOnFirstUse({ // lazy — see mcp-lazy-start.ts
     mcpRegistry: services.mcpRegistry,
     systemMessageRouter,
     requestRender,

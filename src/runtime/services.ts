@@ -202,6 +202,7 @@ import { ComponentHealthMonitor } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { createSessionSurface, type SessionSurface } from '@/runtime/index.ts';
+import { createLazyMcpRegistry } from './mcp-lazy-start.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import { createFeatureFlagManager, deriveFeatureStates, bindFeatureSettingsBridge } from '@/runtime/index.ts';
@@ -1735,6 +1736,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // would leave the registered activity-log and telemetry-ledger entries
   // skipped on every sweep, same defect class the SDK round fixed at its own
   // call site.
+  // MCP servers start when a tool needs one — never at boot. See
+  // runtime/mcp-lazy-start.ts: launching the agent used to spawn every server
+  // in mcp.json, which on a real machine meant two browser-automation servers
+  // (one aimed at a cloud console) starting because someone opened a terminal.
+  const lazyMcp = createLazyMcpRegistry(mcpRegistry, shellPaths);
+
   const appendOnlyRetentionRoots = {
     workingDirectory,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
@@ -2329,7 +2336,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     multimodalService,
     memoryEmbeddingRegistry,
     channelPolicy,
-    mcpRegistry,
+    mcpRegistry: lazyMcp.registry,
     tokenAuditor,
     componentHealthMonitor,
     worktreeRegistry,
