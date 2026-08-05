@@ -26,6 +26,9 @@ const WORKSPACE_ACTION_DISCOVERY =
 const SETTING_FILTERS = ['query', 'category', 'prefix'] as const;
 const SETTING_DISCOVERY = 'agent_harness mode:"settings" with no category, prefix, or query';
 
+const METHOD_FILTERS = ['query', 'methodId', 'target'] as const;
+const METHOD_DISCOVERY = 'host action:"methods" with no query';
+
 /** Filter names and full-listing route for each catalog mode, keyed by mode id. */
 export const CATALOG_QUERIES = {
   settings: { filters: SETTING_FILTERS, discovery: SETTING_DISCOVERY },
@@ -34,4 +37,5 @@ export const CATALOG_QUERIES = {
   cli_commands: { filters: CLI_COMMAND_FILTERS, discovery: CLI_COMMAND_DISCOVERY },
   commands: { filters: COMMAND_FILTERS, discovery: COMMAND_DISCOVERY },
   workspace_actions: { filters: WORKSPACE_ACTION_FILTERS, discovery: WORKSPACE_ACTION_DISCOVERY },
+  methods: { filters: METHOD_FILTERS, discovery: METHOD_DISCOVERY },
 } as const;

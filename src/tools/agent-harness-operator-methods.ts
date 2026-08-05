@@ -1,5 +1,9 @@
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import { RELAXED_MATCH_NOTE, searchCatalog } from './agent-harness-catalog-search.ts';
+import { CATALOG_QUERIES } from './agent-harness-catalog-filters.ts';
+import { catalogEnvelope, catalogFilters } from './agent-harness-tool-utils.ts';
+import { operatorMethodCategoryAliasText } from './agent-harness-operator-method-vocabulary.ts';
 
 export interface AgentHarnessOperatorMethodArgs {
   readonly methodId?: unknown;
@@ -34,6 +38,18 @@ interface OperatorContractMethod {
 interface OperatorMethodDescriptor {
   readonly id: string;
   readonly label: string;
+  /**
+   * The contract's own title and description, kept SEPARATELY from `label`.
+   *
+   * `label` collapses the two (`title ?? description ?? id`) and is replaced
+   * outright for an unavailable method, so a search over `label` alone reads
+   * whichever one of them happened to win and never the other. Both are held
+   * here so {@link methodSearchText} can index both — the description is where
+   * a method says what it is FOR, and it was the field the catalog search
+   * could not see.
+   */
+  readonly title: string;
+  readonly description: string;
   readonly route: string;
   readonly effect: OperatorMethodEffect;
   readonly owner: 'goodvibes-daemon';
@@ -74,7 +90,14 @@ function unavailableLabel(method: OperatorContractMethod): string {
 
 type OperatorMethodResolution =
   | { readonly status: 'found'; readonly method: Record<string, unknown> }
-  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
+  | {
+      readonly status: 'ambiguous';
+      readonly input: string;
+      readonly candidates: readonly Record<string, unknown>[];
+      /** Present only when the candidates came from the relaxed single-word pass. */
+      readonly queryMatch?: 'relaxed';
+      readonly note?: string;
+    }
   | { readonly status: 'missing_lookup'; readonly usage: string };
 
 const READ_ONLY_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -152,6 +175,8 @@ function toDescriptor(method: OperatorContractMethod): OperatorMethodDescriptor 
   return {
     id: method.id,
     label,
+    title: method.title ?? '',
+    description: method.description ?? '',
     route: `${httpMethod} ${path}`,
     effect,
     owner: 'goodvibes-daemon',
@@ -174,17 +199,40 @@ function allOperatorMethods(): readonly OperatorMethodDescriptor[] {
   return operatorContractMethods().map(toDescriptor);
 }
 
+/**
+ * Everything a query is matched against for one method.
+ *
+ * This used to be the id, the collapsed `label`, the route, and the harness's
+ * own boilerplate (effect, preferred tool, boundary sentence, access, scopes).
+ * Two consequences, both of them live failures:
+ *
+ *  - The contract's DESCRIPTION was unreachable whenever the method also had a
+ *    title, because `label` is `title ?? description ?? id`. The description is
+ *    the only place a method says what it does.
+ *  - The boilerplate is nearly identical across all 434 methods, so it
+ *    contributed hundreds of near-identical words to every haystack and
+ *    distinguished nothing.
+ *
+ * It now indexes the contract's own four naming fields — id, title,
+ * description, category — plus the route and scopes a caller might quote back,
+ * plus the category's plain-word aliases (see
+ * agent-harness-operator-method-vocabulary.ts). The harness boilerplate is
+ * gone from the haystack: `effect` and `access` stay because they are short,
+ * meaningful and worth searching ("admin", "read-only-network"); the prose
+ * `boundary` and `preferredModelTool` sentences do not.
+ */
 function methodSearchText(method: OperatorMethodDescriptor): string {
   return [
     method.id,
     method.label,
+    method.title,
+    method.description,
+    method.category,
     method.route,
     method.effect,
-    method.preferredModelTool,
-    method.boundary,
-    method.category,
     method.access,
     method.scopes.join(' '),
+    operatorMethodCategoryAliasText(method.category),
   ].join('\n').toLowerCase();
 }
 
@@ -256,18 +304,48 @@ export function operatorMethodCatalogStatus(): Record<string, unknown> {
   };
 }
 
+/**
+ * The `methods` page — `host action:"methods"`.
+ *
+ * The filter used to be `methodSearchText(method).includes(query)`: the
+ * caller's whole phrase, lowercased, as ONE CONTIGUOUS SUBSTRING. That is the
+ * same rule the settings catalog was fixed off in agent 2.0.4, and it failed
+ * here the same way. `host action:"methods" query:"google"` answered
+ * `{ methods: [], returned: 0, total: 434 }` — repeatedly, in a live session —
+ * and the model went on to guess method ids from memory, because a page that
+ * names 434 methods and shows none of them reads as "none of them is what you
+ * asked for".
+ *
+ * Three things changed:
+ *
+ *  1. The haystack (see {@link methodSearchText}) now holds the contract's own
+ *     title, description and category rather than a collapsed label.
+ *  2. Matching goes through {@link searchCatalog} — whole phrase, or every
+ *     word, and only if THAT finds nothing, any single word, flagged as a
+ *     looser match so nothing pretends the phrase was found.
+ *  3. The response goes out through {@link catalogEnvelope}, so a page that is
+ *     short of `total` says so in words, and a query that matched nothing says
+ *     what it was filtered on and how many methods exist — instead of three
+ *     bare numbers a reader has to interpret.
+ */
 export function operatorMethodSummary(args: AgentHarnessOperatorMethodArgs): Record<string, unknown> {
-  const query = readString(args.query).toLowerCase();
+  const query = readString(args.query);
   const limit = readLimit(args.limit, 200);
   const includeParameters = args.includeParameters === true;
-  const methods = allOperatorMethods()
-    .filter((method) => !query || methodSearchText(method).includes(query))
+  const all = allOperatorMethods();
+  const found = searchCatalog(all, query, methodSearchText);
+  const methods = found.matches
     .slice(0, limit)
     .map((method) => describeMethod(method, { includeParameters }));
   return {
-    methods,
-    returned: methods.length,
-    total: allOperatorMethods().length,
+    ...catalogEnvelope(
+      'methods',
+      methods,
+      all.length,
+      catalogFilters(args, CATALOG_QUERIES.methods.filters),
+      CATALOG_QUERIES.methods.discovery,
+      { relaxedQuery: found.relaxed },
+    ),
     policy: 'Dynamic GoodVibes daemon operator catalog. Prefer simpler first-class tools when available; use agent_operator_method for exact contract parity.',
   };
 }
@@ -290,19 +368,31 @@ export function describeHarnessOperatorMethod(args: AgentHarnessOperatorMethodAr
   if (insensitive) {
     return { status: 'found', method: describeMethod(insensitive, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } }) };
   }
-  const searched = methods.filter((method) => methodSearchText(method).includes(normalized));
+  // Same two-tier rule the methods PAGE uses, for the same reason: a lookup by
+  // plain words ("google calendar") had to appear verbatim in one method's text
+  // or the answer was "Unknown operator method", which is indistinguishable
+  // from the method not existing.
+  const found = searchCatalog(methods, lookup.input, methodSearchText);
+  const searched = found.matches;
   if (searched.length === 1) {
-    return { status: 'found', method: describeMethod(searched[0]!, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }) };
+    return {
+      status: 'found',
+      method: describeMethod(searched[0]!, {
+        includeParameters: true,
+        lookup: { ...lookup, resolvedBy: found.relaxed ? 'search-relaxed' : 'search' },
+      }),
+    };
   }
   if (searched.length > 1) {
     return {
       status: 'ambiguous',
       input: lookup.input,
       candidates: searched.slice(0, 8).map(describeCandidate),
+      ...(found.relaxed ? { queryMatch: 'relaxed', note: RELAXED_MATCH_NOTE } : {}),
     };
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown operator method ${lookup.input}. Use host action:"methods" to inspect available methods.`,
+    usage: `Unknown operator method ${lookup.input}. Nothing in the ${methods.length} cataloged methods matched that, as a phrase or word by word. Use host action:"methods" with no query to list them all.`,
   };
 }
