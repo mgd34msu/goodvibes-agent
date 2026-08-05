@@ -167,6 +167,36 @@ export function buildAgentConfigRouting(options: AgentConfigRoutingOptions = {})
     // without this a live daemon looked absent and daemon-owned writes went to
     // the local file while it was running.
     readDaemonBinding: () => readDaemonBindingFromStore(daemonHomeDir),
+    // READS COME BACK FROM THE HOST THE WRITES WENT TO.
+    //
+    // `routeConfigWrite` below prefers the installed connected-host client: one
+    // already-resolved connection, reached through the runtime's verb route.
+    // This leg was left on address discovery, so the two directions resolved the
+    // daemon INDEPENDENTLY — and independent resolution is free to disagree.
+    //
+    // It did. A settings read answered against `http://127.0.0.1:4444` — a port
+    // this machine's daemon genuinely used for weeks (installer-era daemon home,
+    // daemon versions 1.27.0 through 1.28.4) and had since left — while writes
+    // in the SAME process, in the same minutes, reached the live daemon on 3421
+    // through the connected client. Every daemon-owned key read back
+    // `unavailable` against an address nothing had listened on for days.
+    //
+    // Discovery's own staleness recovery could not save it: a runtime record is
+    // reaped when it does not answer, but the fallback is the control-plane
+    // binding in the daemon's config — and that named the same dead port. Both
+    // rungs of the ladder were stale together. The connection this process was
+    // ALREADY holding knew the right answer the whole time; it was simply never
+    // asked. So it is asked first now, and discovery becomes what it should have
+    // been all along: the path for a process that holds no connection, not a
+    // second opinion for one that does.
+    // Presence is decided when the deps are built (it is what makes the route
+    // 'daemon' at all), but the CLIENT is resolved when the snapshot is actually
+    // taken. A runtime that installs its client after a caller built its routing
+    // still answers through it, and one that disposed its client reports an
+    // honest "no snapshot" rather than dereferencing a connection that is gone.
+    ...(installedConfigClient
+      ? { readDaemonSnapshot: async () => await (agentDaemonConfigClient()?.snapshot() ?? null) }
+      : {}),
     ...(trimmedBaseUrl
       ? { endpoint: { baseUrl: trimmedBaseUrl, token, source: 'configured controlPlane base URL' } }
       : {}),
