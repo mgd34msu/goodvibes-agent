@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { InputTokenizer } from '@pellux/goodvibes-sdk/platform/core';
-import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleEscapeForHandler, modalOpenedForHandler, registerPasteForHandler } from './handler-interactions.ts';
+import { clearModalStackForHandler, cleanupMarkerRegistryForHandler, executeBlockActionForHandler, expandPromptForHandler, findMarkerAtPosForHandler, getImageAttachmentsForHandler, handleBlockCopyForHandler, handleBlockRerunForHandler, handleBlockSaveForHandler, handleBlockToggleForHandler, handleBookmarkForHandler, handleCopyForHandler, handleCtrlCForHandler, handleEscapeForHandler, handlePasteForHandler, modalOpenedForHandler, registerPasteForHandler } from './handler-interactions.ts';
 import { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import type { InfiniteBuffer } from '@pellux/goodvibes-terminal-shell';
 import type { CommandRegistry, CommandContext } from './command-registry.ts';
@@ -71,6 +71,8 @@ import {
 import { handleModalTokenRoutes } from './handler-modal-token-routes.ts';
 import { handleCommandModeToken } from './handler-command-route.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
+import { pasteImageFromClipboard, pasteFromClipboard } from '../utils/clipboard.ts';
+import type { ClipboardPasteSource } from './handler-content-actions.ts';
 import { feedInputTokens } from './handler-feed.ts';
 import { buildInitialFeedContext, syncFeedContextMutableFields } from './feed-context-factory.ts';
 import type { UiRuntimeServices } from '../runtime/ui-services.ts';
@@ -276,9 +278,12 @@ export class InputHandler {
         handleBlockCopy: () => this.handleBlockCopy(),
         handleBookmark: () => this.handleBookmark(),
         handleBlockSave: () => this.handleBlockSave(),
-        handleUndo: () => { this.handleUndo(); this.syncFeedContextMutableFields(); },
-        handleRedo: () => { this.handleRedo(); this.syncFeedContextMutableFields(); },
-        handlePaste: () => { this.handlePaste(); this.syncFeedContextMutableFields(); },
+        // These three edit this.prompt, so they report back where it landed;
+        // the shortcut route copies that into its own state, which is what the
+        // feed loop reads when the token is handled.
+        handleUndo: () => { this.handleUndo(); this.syncFeedContextMutableFields(); return this.promptEdit(); },
+        handleRedo: () => { this.handleRedo(); this.syncFeedContextMutableFields(); return this.promptEdit(); },
+        handlePaste: () => { this.handlePaste(); this.syncFeedContextMutableFields(); return this.promptEdit(); },
         saveUndoState: () => this.saveUndoState(),
         ensureInputCursorVisible: (contentWidth?: number) => this.ensureInputCursorVisible(contentWidth),
         registerPaste: (content: string) => this.registerPaste(content),
@@ -297,6 +302,11 @@ export class InputHandler {
         onModelPickerCommit: () => this.handleModelPickerCommit(),
       },
     );
+  }
+
+  /** Where the prompt currently sits, for callers that must copy it forward. */
+  public promptEdit(): { readonly prompt: string; readonly cursorPos: number } {
+    return { prompt: this.prompt, cursorPos: this.cursorPos };
   }
 
   /** Sync mutable handler fields back into feedContext after in-feed mutations. */
@@ -589,27 +599,14 @@ export class InputHandler {
    * Tries image clipboard first, falls back to text paste.
    */
   public handlePaste(): ReturnType<typeof handleClipboardPaste> {
-    const result = handleClipboardPaste({
-      prompt: this.prompt,
-      cursorPos: this.cursorPos,
-      pasteRegistry: this.pasteRegistry,
-      nextPasteId: this.nextPasteId,
-      imageRegistry: this.imageRegistry,
-      nextImageId: this.nextImageId,
-      saveUndoState: () => this.saveUndoState(),
-      ensureInputCursorVisible: () => this.ensureInputCursorVisible(),
-      requestRender: this.requestRender,
-    }, this.uiServices.environment.shellPaths.workingDirectory);
-    this.prompt = result.prompt;
-    this.cursorPos = result.cursorPos;
-    this.nextImageId = result.nextImageId;
-    this.nextPasteId = result.nextPasteId;
-    if (!result.pasted) {
-      this.conversationManager?.log('[Paste: clipboard does not contain supported text or image data]', { fg: '240' });
-      this.requestRender();
-    }
-    return result;
+    return handlePasteForHandler(this);
   }
+
+  /**
+   * The clipboard this composer pastes from. Swappable so tests can supply a
+   * clipboard instead of reaching for the machine's real one.
+   */
+  public clipboardSource: ClipboardPasteSource = { pasteImageFromClipboard, pasteFromClipboard };
 
   /** Content width for wrapping — set by main.ts via setContentWidth(). */
   public contentWidth = 76;

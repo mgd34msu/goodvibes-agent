@@ -11,6 +11,7 @@
  *     already-allocated context before each feed() dispatch.
  */
 import type { InputFeedContext } from './handler-feed.ts';
+import type { PromptEdit } from './handler-shortcuts.ts';
 import type { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import type { InfiniteBuffer } from '@pellux/goodvibes-terminal-shell';
 import type { CommandRegistry, CommandContext } from './command-registry.ts';
@@ -144,9 +145,10 @@ export interface FeedContextClosures {
   handleBlockCopy: () => void;
   handleBookmark: () => void;
   handleBlockSave: () => void;
-  handleUndo: () => void;
-  handleRedo: () => void;
-  handlePaste: () => void;
+  // Report where the prompt landed; the shortcut route copies it forward.
+  handleUndo: () => PromptEdit | void;
+  handleRedo: () => PromptEdit | void;
+  handlePaste: () => PromptEdit | void;
   saveUndoState: () => void;
   ensureInputCursorVisible: (contentWidth?: number) => void;
   registerPaste: (content: string) => string;

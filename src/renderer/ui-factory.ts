@@ -328,6 +328,18 @@ export class UIFactory {
     if (inp > 0 || out > 0) {
       statusTokens.push({ text: `↑${fmtNum(inp)} ↓${fmtNum(out)}`, fg: '240' });
     }
+    // The attachment chip — the ONE composer flag this row renders.
+    //
+    // The status line is deliberately compact here: mode, state and the flag
+    // list are all withheld on purpose (see the test that pins it, and the note
+    // below about the retired approval-wait token). An attachment is the
+    // exception that earns its place, because it changes what the next message
+    // actually carries, and because the only other evidence of it is the
+    // [IMAGE: ...] marker sitting in the prompt — which reads as text you typed,
+    // not as a picture that is going to be sent. Every other flag stays silent.
+    if (composerFlags?.includes('attachments')) {
+      statusTokens.push({ text: `${GLYPHS.status.active} image attached`, fg: '81', bold: true });
+    }
     // The disconnected footer 'waiting for your approval' token is retired
     // here — the approval-wait truth now lives in the unified waiting state of the
     // thinking indicator (createThinkingFragment's approvalPending path) and in the

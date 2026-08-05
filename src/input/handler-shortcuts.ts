@@ -12,6 +12,26 @@ type WrappedPromptInfo = {
   cursorWrappedLine: number;
 };
 
+/**
+ * Where the prompt ended up after an action that edits it somewhere else.
+ *
+ * Most cases in the switch below edit `state.prompt` directly, and the caller
+ * (feedInputTokens) copies `state.prompt` back into the feed context when the
+ * token is handled. Paste, undo and redo are different: they delegate to
+ * InputHandler methods that edit the handler's own `prompt` field. Those edits
+ * used to be invisible to the caller, which then wrote its pre-action snapshot
+ * of `state.prompt` back over them — a pasted image marker was inserted and
+ * immediately erased, so Ctrl+V looked like it did nothing at all. Returning
+ * the new prompt keeps this route state the single thing the caller reads.
+ */
+export type PromptEdit = { readonly prompt: string; readonly cursorPos: number };
+
+function applyPromptEdit(state: GlobalShortcutRouteState, edit: PromptEdit | void): void {
+  if (!edit) return;
+  state.prompt = edit.prompt;
+  state.cursorPos = edit.cursorPos;
+}
+
 export type GlobalShortcutRouteState = {
   keybindingsManager: KeybindingsManager;
   prompt: string;
@@ -34,9 +54,14 @@ export type GlobalShortcutRouteState = {
   handleBlockCopy: () => void;
   handleBookmark: () => void;
   handleBlockSave: () => void;
-  handleUndo: () => void;
-  handleRedo: () => void;
-  handlePaste: () => void;
+  /**
+   * Actions that edit the prompt on the InputHandler rather than on this
+   * route state. They return where the prompt landed so the switch can copy it
+   * back — see applyPromptEdit and the note on PromptEdit.
+   */
+  handleUndo: () => PromptEdit | void;
+  handleRedo: () => PromptEdit | void;
+  handlePaste: () => PromptEdit | void;
   handleEscape: () => void;
   cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
   dismissAgentWorkspace: () => boolean;
@@ -176,15 +201,15 @@ export function handleGlobalShortcutToken(
       return true;
 
     case 'undo':
-      state.handleUndo();
+      applyPromptEdit(state, state.handleUndo());
       return true;
 
     case 'redo':
-      state.handleRedo();
+      applyPromptEdit(state, state.handleRedo());
       return true;
 
     case 'paste':
-      state.handlePaste();
+      applyPromptEdit(state, state.handlePaste());
       return true;
 
     default:
