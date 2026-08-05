@@ -15,6 +15,11 @@ import {
   type WorkspaceResolution,
 } from '@pellux/goodvibes-sdk/platform/workspace';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from './surface.ts';
+import {
+  legacyWorkspaceRegisterPath,
+  resolveWorkspaceRegisterReadPath,
+  sharedWorkspaceRegisterPath,
+} from '@pellux/goodvibes-sdk/platform/workspace';
 
 export { normalizeWorkspaceRoot } from '@pellux/goodvibes-sdk/platform/workspace';
 export type {
@@ -70,15 +75,33 @@ export const AGENT_EXPLICIT_REGISTRATION_ORIGIN = 'agent-explicit-registration';
 
 export type StoreShellPaths = Pick<ShellPathService, 'resolveUserPath' | 'homeDirectory'>;
 
-/** Path of the shared store's JSON document — the SAME path the SDK's registerGatewayVerbGroups uses internally to construct its own store instance. */
+/**
+ * Path of the shared store's JSON document — the SAME file the SDK's
+ * registerGatewayVerbGroups writes and the daemon reads for checkpoint
+ * eligibility.
+ *
+ * It lives in the platform's shared tier (~/.goodvibes/shared/), which takes no
+ * surface root, precisely because three products share it: scoping it per
+ * surface would give this agent its own register, and workspaces registered
+ * here would vanish from the daemon while the daemon's vanished from here.
+ *
+ * This is a READ resolver, so it falls back to the pre-split location
+ * (~/.goodvibes/control-plane/) while that is still where the state is — the
+ * daemon's boot fold moves it, and until then an updated agent must not report
+ * the operator's registered workspaces as gone. Writes always go to the shared
+ * path; see createWorkspaceRegistrationStore below.
+ */
 export function sharedWorkspaceRegistrationStorePath(shellPaths: StoreShellPaths): string {
-  return shellPaths.resolveUserPath('control-plane', 'workspace-registrations.json');
+  return resolveWorkspaceRegisterReadPath(shellPaths, existsSync);
 }
 
 /** Construct a store instance over the shared file — for callers that can go async (CLI commands, interactive prompts). */
 export function createWorkspaceRegistrationStore(shellPaths: StoreShellPaths): WorkspaceRegistrationStore {
   return new WorkspaceRegistrationStore({
-    path: sharedWorkspaceRegistrationStorePath(shellPaths),
+    // WRITES go to the shared tier, always; reads fall back to the pre-split
+    // location until the daemon's boot fold has moved it.
+    path: sharedWorkspaceRegisterPath(shellPaths),
+    fallbackReadPath: legacyWorkspaceRegisterPath(shellPaths),
     homeDir: shellPaths.homeDirectory,
     daemonStateDir: shellPaths.resolveUserPath(),
   });
@@ -232,7 +255,9 @@ function legacyWorkspaceRegistryPath(shellPaths: StoreShellPaths): string {
 }
 
 function migrationReceiptPath(shellPaths: StoreShellPaths): string {
-  return shellPaths.resolveUserPath('control-plane', 'workspace-registration-migration-receipt.json');
+  // This repo's own receipt, not shared state — it rides the agent's surface
+  // root like everything else this product owns.
+  return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'workspace-registration-migration-receipt.json');
 }
 
 /**
@@ -390,7 +415,8 @@ export async function registerWorkspaceForCheckpoints(
 }
 
 function checkpointEligibilityBackfillReceiptPath(shellPaths: StoreShellPaths): string {
-  return shellPaths.resolveUserPath('control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
+  // Also this repo's own receipt; surface-scoped for the same reason.
+  return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
 }
 
 export interface CheckpointEligibilityBackfillResult {
