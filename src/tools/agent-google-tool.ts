@@ -50,12 +50,20 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import {
+  beginGoogleConsent,
   openGoogleConnection,
+  readClientCredentialsFromJson,
+  registerGoogleClient,
+  storeClientCredentials,
   summarizeCredentials,
+  type GoogleClientRegistration,
   type GoogleConnection,
   type GoogleConnectionSources,
+  type GoogleConsentSession,
+  type GoogleLoopbackListenerFactory,
 } from '@pellux/goodvibes-sdk/platform/google';
 import { nodeGoogleFilePort } from '@pellux/goodvibes-sdk/platform/google/node';
+import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS } from '@pellux/goodvibes-sdk/platform/google';
 import {
   evaluateOutwardEffect,
   getSessionUntrustedContentLedger,
@@ -75,6 +83,12 @@ import { extractVerification } from '@pellux/goodvibes-sdk/platform/google';
 
 const GOOGLE_ACTIONS = [
   'status',
+  // The two that let a conversation FINISH a connection instead of handing
+  // the owner a command. Before these existed the guided path had no honest
+  // ending: it had walked him to a dialog holding a client id and a secret,
+  // and the only thing it could say was "now go and type /google client ...".
+  'connect.client',
+  'connect.clientFile',
   'mail.list',
   'mail.read',
   'mail.send',
@@ -86,12 +100,45 @@ const GOOGLE_ACTIONS = [
 /** Actions that only read. Everything else is an outward effect. */
 const READ_ONLY_ACTIONS = new Set<string>(['status', 'mail.list', 'mail.read', 'calendar.list', 'mail.verification']);
 
+/**
+ * Actions that register a credential the owner just handed over.
+ *
+ * Exempt from the confirm:true gate, and the reasoning matters. That gate
+ * guards things that leave this machine — a mail send, a calendar write —
+ * where content read this turn could have steered the model into acting. A
+ * credential write is neither: the values came from the owner's own message in
+ * this turn, they go into the local encrypted store, and nothing is
+ * transmitted. Asking him to confirm values he just pasted is the second
+ * question the zero-friction rule exists to delete, and outward-action
+ * approval framing does not apply to a local write of what he typed.
+ *
+ * They run BEFORE the connection is opened, because their entire purpose is to
+ * exist on a machine that has no connection yet.
+ */
+const CONNECT_ACTIONS = new Set<string>(['connect.client', 'connect.clientFile']);
+
 export interface AgentGoogleToolOptions {
   readonly homeDirectory: string;
   readonly configGet: (key: string) => unknown;
   readonly secretGet: (key: string) => Promise<string | null>;
   /** Injected in tests; production uses the process fetch. */
   readonly fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;
+  /**
+   * Config and secret WRITES, for registering a client the owner pasted.
+   *
+   * Absent means this surface cannot complete a connection, and
+   * `connect.client` says exactly that rather than reporting a success it did
+   * not perform. Optional so narrow compositions and read-only tests can build
+   * the tool without a writable store.
+   */
+  readonly configSet?: ((key: string, value: unknown) => void) | undefined;
+  readonly secretSet?: ((key: string, value: string) => Promise<void>) | undefined;
+  /**
+   * Binds the local port Google redirects back to after consent. Injected
+   * because binding a port is real machine I/O — the whole exchange runs
+   * against a fake listener in tests.
+   */
+  readonly loopback?: GoogleLoopbackListenerFactory | undefined;
   /**
    * Where approvals the owner has answered are held, when this surface has an
    * approval prompt wired.
@@ -138,9 +185,10 @@ function isFailure<T>(result: GoogleApiResult<T>): result is GoogleApiFailure {
 }
 
 const NOT_CONNECTED = [
-  'No Google account is connected, and no Google credentials were found on this machine.',
-  'Connect one with: /google connect',
-  'If credentials already exist here from another tool, take them up with: /google adopt',
+  'No Google account is connected on this machine.',
+  'Offer to connect one: work out the shortest route, walk the user through creating an OAuth client if there is none,',
+  'and when they paste the client id and secret call connect.client to register them and hand back the consent link.',
+  'Never tell them to run a command.',
 ].join(' ');
 
 export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
@@ -219,10 +267,101 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
     return resolveOwnerAddresses(options.configGet);
   }
 
+
+  /**
+   * The consent in flight, if one is.
+   *
+   * Held so a second `connect.client` in the same session releases the first
+   * listener rather than leaving a bound port behind. One connection at a time
+   * is the only sensible reading anyway: a second paste replaces the first.
+   */
+  let pendingConsent: GoogleConsentSession | null = null;
+
+  /** Registration + the consent link, in one answer. */
+  async function registerClient(action: string, rawArgs: Record<string, unknown>): Promise<ToolOutput> {
+    const configSet = options.configSet;
+    const secretSet = options.secretSet;
+    const loopback = options.loopback;
+    if (configSet === undefined || secretSet === undefined || loopback === undefined) {
+      // A surface with no writable store says so rather than reporting a
+      // success it did not perform — the same rule the approval path follows.
+      return failure(
+        'This surface cannot register a Google client: it was built without a writable credential store. '
+        + 'The values you pasted were not stored anywhere.',
+      );
+    }
+
+    const config = { get: options.configGet, set: configSet };
+    const secrets = { get: options.secretGet, set: secretSet };
+
+    let registration: GoogleClientRegistration;
+    if (action === 'connect.clientFile') {
+      const path = readString(rawArgs.path);
+      if (!path) return failure('google action:"connect.clientFile" needs the path the user named.');
+      const raw = nodeGoogleFilePort.readText(path);
+      if (raw === null) return failure(`There is no readable file at ${path}. Check the path and tell me the right one.`);
+      const parsed = readClientCredentialsFromJson(raw);
+      if (!parsed.ok) return failure(`${parsed.problem} ${parsed.fix}`);
+      registration = await storeClientCredentials({ config, secrets }, parsed.credentials);
+    } else {
+      const clientId = readString(rawArgs.clientId);
+      const clientSecret = readString(rawArgs.clientSecret);
+      if (!clientId || !clientSecret) {
+        return failure('google action:"connect.client" needs both clientId and clientSecret, as the user pasted them.');
+      }
+      const result = await registerGoogleClient({ config, secrets }, { clientId, clientSecret });
+      if (!result.ok) return failure(`${result.problem} ${result.fix}`);
+      registration = result;
+    }
+
+    // Continue the flow rather than stopping at "registered". Stopping here is
+    // what produced the instruction to go and run another command.
+    const storedClientId = readString(options.configGet(GOOGLE_CONFIG_KEYS.oauthClientId));
+    const storedSecret = await options.secretGet(GOOGLE_SECRET_KEYS.oauthClientSecret);
+    if (!storedClientId || !storedSecret) {
+      return failure('The client was written but could not be read back, so no consent link was started.');
+    }
+
+    pendingConsent?.cancel();
+    const loginHint = readString(options.configGet('email.username'))
+      || readString(options.configGet('email.fromAddress'));
+    const session = beginGoogleConsent({
+      clientId: storedClientId,
+      clientSecret: storedSecret,
+      config,
+      secrets,
+      loopback,
+      fetchPort,
+      ...(loginHint ? { loginHint } : {}),
+    });
+    pendingConsent = session;
+    // The exchange finishes whenever the person approves. Nothing awaits it
+    // here: this answer is due now, and a turn that blocked for the length of
+    // a consent screen would look broken.
+    void session.completed.then((outcome) => {
+      if (session === pendingConsent) pendingConsent = null;
+      return outcome;
+    });
+
+    return ok([
+      `Registered the OAuth client ending ${registration.clientIdTail}. The secret went straight into the encrypted store and is not shown again.`,
+      '',
+      'Open this link and approve it — it asks for mail and calendar together, so one approval covers both:',
+      session.consentUrl,
+      '',
+      ...(loginHint ? [`Approve as ${loginHint}, not a personal account.`] : []),
+      'Google will warn that the app is unverified; that is expected for a client you created yourself. Once you approve, the credential lands here on its own.',
+    ].filter((line, index, all) => !(line === '' && all[index - 1] === '')).join('\n'));
+  }
+
   return {
     definition: {
       name: 'google',
-      description: 'Read and send Gmail; read and write Google Calendar.',
+      description:
+        'Read and send Gmail; read and write Google Calendar. '
+        + 'When the user pastes a Google OAuth client id and secret, call connect.client with them — that is the '
+        + 'continuation of the setup walkthrough, and it returns the consent link to hand back. When they name a path '
+        + 'to a client JSON, call connect.clientFile.',
       parameters: {
         type: 'object',
         properties: {
@@ -244,17 +383,29 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           timeMin: { type: 'string', description: 'RFC3339 lower bound for calendar.list.' },
           timeMax: { type: 'string', description: 'RFC3339 upper bound for calendar.list.' },
           maxResults: { type: 'number', description: 'How many items to return. Defaults to 10.' },
+          clientId: { type: 'string', description: 'OAuth client id the user pasted, for connect.client.' },
+          clientSecret: { type: 'string', description: 'OAuth client secret the user pasted, for connect.client. Stored encrypted, never echoed.' },
+          path: { type: 'string', description: 'Path to an OAuth client JSON the user named, for connect.clientFile.' },
           confirm: { type: 'boolean', description: 'Required true for mail.send and calendar.create.' },
         },
         required: ['action'],
       },
     },
     execute: async (rawArgs: Record<string, unknown>): Promise<ToolOutput> => {
-      const action = readString(rawArgs.action).toLowerCase();
-      if (!action) return failure(`google needs an action. Use one of: ${GOOGLE_ACTIONS.join(', ')}.`);
-      if (!GOOGLE_ACTIONS.includes(action as (typeof GOOGLE_ACTIONS)[number])) {
-        return failure(`Unknown google action "${action}". Use one of: ${GOOGLE_ACTIONS.join(', ')}.`);
+      const requested = readString(rawArgs.action);
+      if (!requested) return failure(`google needs an action. Use one of: ${GOOGLE_ACTIONS.join(', ')}.`);
+      // Matched case-insensitively but resolved to the CANONICAL spelling.
+      // Lowercasing in place used to be the whole normalisation, which quietly
+      // made every camelCase action unreachable — `connect.clientFile` arrived
+      // as `connect.clientfile` and matched nothing.
+      const action = GOOGLE_ACTIONS.find((candidate) => candidate.toLowerCase() === requested.toLowerCase());
+      if (action === undefined) {
+        return failure(`Unknown google action "${requested}". Use one of: ${GOOGLE_ACTIONS.join(', ')}.`);
       }
+
+      // Registration runs BEFORE the connection is opened, because a machine
+      // that needs it does not have one yet.
+      if (CONNECT_ACTIONS.has(action)) return await registerClient(action, rawArgs);
 
       const connection = await connect();
       if (connection === null) return failure(NOT_CONNECTED);

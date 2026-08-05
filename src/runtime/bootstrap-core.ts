@@ -44,13 +44,13 @@ import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
 import { agentBrowserProfileRoot, agentBrowserScreenshotRoot } from './agent-browser.ts';
 import { registerAgentBrowserTool } from '../tools/agent-browser-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
-import { registerAgentGoogleTool } from '../tools/agent-google-tool.ts';
 import { registerAgentAccountsTool } from '../tools/agent-accounts-tool.ts';
 import { getOutwardApprovalStore, OUTWARD_APPROVAL_GESTURE } from '../trust/outward-approvals.ts';
 import { AgentAccountRegistry } from '@pellux/goodvibes-sdk/platform/google';
 import { ACCOUNT_REGISTRY_PATH_SEGMENTS } from '@pellux/goodvibes-sdk/platform/google';
 import { containsSecretLikeText } from '../agent/memory-safety.ts';
 import { ensureGoogleConfigDefaults } from '@pellux/goodvibes-sdk/platform/google';
+import { wireAgentGoogleTool, type GoogleToolWiringDeps } from './bootstrap-google-tool.ts';
 import { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
@@ -328,23 +328,16 @@ export async function initializeBootstrapCore(
     profileRoot: agentBrowserProfileRoot(services.shellPaths.homeDirectory),
     homeDirectory: services.shellPaths.homeDirectory,
   });
-  // The native Gmail/Calendar route. The operator contract catalogs email.send
-  // and calendar.events.list with invokable:false — no daemon serves them — so
-  // this is the route the capability index points at.
   // google.* and calendar.* are app-layer sections absent from the SDK schema;
   // resolvePath throws on a section that is not there.
   ensureGoogleConfigDefaults(configManager);
   ensureCalendarConfigDefaults(configManager);
-  registerAgentGoogleTool(toolRegistry, {
+  // The native Gmail/Calendar route, wired in bootstrap-google-tool.ts — its
+  // write ports carry an argument long enough to deserve its own file.
+  wireAgentGoogleTool(toolRegistry, {
+    configManager: configManager as GoogleToolWiringDeps['configManager'],
+    secretsManager: services.secretsManager,
     homeDirectory: services.shellPaths.homeDirectory,
-    configGet: (key: string) => (configManager as { get: (key: string) => unknown }).get(key),
-    secretGet: (key: string) => services.secretsManager.get(key),
-    // The approval path, wired. It used to be absent, and the refusal invented
-    // a remedy to fill the gap — telling the owner to reply "send it now" to a
-    // mechanism no code implemented. A surface that supplies no store now gets
-    // a refusal that says so plainly instead.
-    approvals: getOutwardApprovalStore(),
-    approvalGesture: OUTWARD_APPROVAL_GESTURE,
   });
   // Accounts the agent creates are recorded here at creation time. Autonomous
   // signup is authorized; doing it invisibly is not, and this is what makes it
