@@ -225,6 +225,18 @@ describe('CalendarOAuthService config resolution', () => {
     const overrides = await service.resolveOverrides('microsoft');
     expect(overrides.clientId).toBe('ms-id');
     expect(overrides.clientSecret).toBe('ms-secret');
+
+    // The other value of the same setting: a client id with no secret
+    // reference beside it. A public client with "Allow public client flows"
+    // enabled needs no secret, so this is a real configuration rather than an
+    // error — and the overrides must carry no secret at all rather than an
+    // empty string, which the connector would try to send.
+    const noRef = new CalendarOAuthService({
+      config: mapConfig({ 'calendar.microsoft.clientId': 'ms-id' }),
+      secrets: memorySecrets(),
+      connector: throwingConnector(),
+    });
+    expect((await noRef.resolveOverrides('microsoft')).clientSecret).toBeUndefined();
   });
 
   test('the placeholder guard short-circuits connect before any connector call', async () => {

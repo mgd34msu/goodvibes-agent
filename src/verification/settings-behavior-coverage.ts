@@ -659,6 +659,122 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     test: 'src/test/input/tasks-command.test.ts',
     asserts: 'false makes the task manager refuse task creation with a refusal naming the key; true allows it; and with the key never written the effective behaviour matches true, so threading the flag manager changed whether the switch works rather than what an existing install does',
   },
+
+  // --- Mail and calendar connector (email.*, calendar.*) -------------------
+  // Platform runtime 2.0.8 promoted these from a runtime cast onto the live
+  // config object (connector-config-sections.ts) into real CONFIG_SCHEMA rows
+  // with described defaults. That is what makes them claimable at all: an
+  // evidence row has to name a live schema key. It also put 21 of them into
+  // this product's settings denominator in one step, because this repo
+  // genuinely references all 21.
+  //
+  // The rows below are the ones this repo can actually drive. Where a test
+  // already existed for a key that was not yet in the schema, it is cited as it
+  // stands; the rest are covered by src/test/verification/connector-settings-behavior.test.ts,
+  // written to the bar at the top of this file — the real consumer, two values,
+  // an observable difference — and not to a ConfigManager round-trip, which
+  // that bar rules out by name.
+  //
+  // NOT claimed, on purpose: `email.imapSecurity`, `email.mailbox` and
+  // `email.draftsMailbox` are read by readEmailConfig and acted on by the
+  // DAEMON's mail service, and this repo holds no code whose outcome differs
+  // between two of their values; `google.oauth.refreshToken`,
+  // `google.oauth.projectId`, `google.oauth.publishingStatus` and
+  // `google.credentials.migratedFrom` likewise have no consumer here (the first
+  // is named only by the support-bundle redactor's name list, which classifies
+  // keys rather than acting on values, and the last three this repo does not
+  // mention at all, so they are outside the denominator too). Claiming any of
+  // them would be exactly the padding this file exists to prevent.
+  {
+    key: 'calendar.google.clientId',
+    test: 'src/test/agent/calendar-oauth.test.ts',
+    asserts: 'unset resolves the service as not configured and short-circuits connect at the config stage with a refusal naming the key, before any connector call; a configured id resolves into the flow config and reports the service configured',
+  },
+  {
+    key: 'calendar.google.clientSecretRef',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'unset resolves no client secret into the OAuth overrides; a goodvibes:// reference resolves the value out of the secret store, which is what a confidential Web-app registration needs to exchange a code',
+  },
+  {
+    key: 'calendar.google.icsUrl',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'on a machine with no OAuth client and no on-disk Google credentials, a configured feed address makes the capability index report a calendar.read disagreement naming the feed instead of a bare needs-setup; unset reports no disagreement',
+  },
+  {
+    key: 'calendar.microsoft.clientId',
+    test: 'src/test/agent/calendar-oauth.test.ts',
+    asserts: 'unset produces the per-provider config-stage refusal naming calendar.microsoft.clientId and the Outlook next step; a configured id resolves into the flow config',
+  },
+  {
+    key: 'calendar.microsoft.clientSecretRef',
+    test: 'src/test/agent/calendar-oauth.test.ts',
+    asserts: 'a goodvibes:// reference resolves the Microsoft client secret out of the secret store into the OAuth overrides alongside the client id; without it the overrides carry no secret',
+  },
+  {
+    key: 'email.enabled',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'a mailbox that validates clean still reports not-connected while the switch is off, with no errors listed — the switch alone is the difference',
+  },
+  {
+    key: 'email.fromAddress',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'unset makes the connect card report not-connected with "email.fromAddress is required" among its reasons; set clears the reason and the card reports connected',
+  },
+  {
+    key: 'email.imapHost',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'unset makes the connect card report not-connected with "email.imapHost is required" among its reasons; set clears the reason and is the host the card shows',
+  },
+  {
+    key: 'email.imapPort',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'an out-of-range port is refused by the one persistence path with a range-naming error and nothing is written; a real port persists as a number rather than the string it arrived as',
+  },
+  {
+    key: 'email.passwordRef',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'a raw password makes the connect card report not-connected with the secret-reference rule named; a goodvibes:// reference reports connected — a settings file never holds the value',
+  },
+  {
+    key: 'email.smtpHost',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'unset makes the connect card report not-connected with "email.smtpHost is required" among its reasons; set clears the reason and the card reports connected',
+  },
+  {
+    key: 'email.smtpPasswordRef',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'empty is accepted as "submission uses the mailbox password"; a raw value is refused with the secret-reference rule named; a goodvibes:// reference is accepted',
+  },
+  {
+    key: 'email.smtpPort',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'an out-of-range port is refused by the one persistence path with a range-naming error and nothing is written; a real port persists as a number',
+  },
+  {
+    key: 'email.smtpSecurity',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'an unrecognised mode is refused with tls/starttls/auto named and nothing is written; a known mode persists',
+  },
+  {
+    key: 'email.username',
+    test: 'src/test/verification/connector-settings-behavior.test.ts',
+    asserts: 'unset makes the connect card report not-connected with "email.username is required" among its reasons; set clears the reason and is the account the card names',
+  },
+
+  // --- The two connector switches (daemon.*, hostedSessions.*) -------------
+  // Declared in the same platform round as the connector keys above, and both
+  // already had a behaviour test in this repo written when they were still
+  // undeclared paths.
+  {
+    key: 'daemon.connectedHost.enabled',
+    test: 'src/test/runtime/connected-host-dial-gate.test.ts',
+    asserts: 'false refuses to resolve a connected host with a reason naming the key and stops the verb caller entirely; left alone, a host with an operator token resolves and the caller probes available',
+  },
+  {
+    key: 'hostedSessions.routeConversationTurns',
+    test: 'src/test/runtime/remote-conversation.test.ts',
+    asserts: 'false routes no turn to the daemon and dials nothing, answering in this process instead; absent behaves as on, which is the ruled default',
+  },
 ];
 
 /**

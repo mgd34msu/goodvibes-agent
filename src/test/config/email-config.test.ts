@@ -153,10 +153,32 @@ describe('email config integration: ensureEmailConfigDefaults + real ConfigManag
     expect(emailGet(cm, 'email.passwordRef')).toBe(ref);
   });
 
-  test('get throws without ensureEmailConfigDefaults injection', () => {
+  test('get resolves the declared schema default without any injection', () => {
+    // Platform 2.0.8 promoted every email.* key into CONFIG_SCHEMA
+    // (schema-domain-connectors.ts) with real defaults in DEFAULT_CONFIG, so a
+    // ConfigManager built the normal way already carries the section: a read
+    // now answers with the declared default instead of throwing "Invalid config
+    // path". ensureEmailConfigDefaults stays a backstop for config objects
+    // assembled some other way, not a precondition for reading.
     const cm = createConfigManager(tmpDir);
-    // Without calling ensureEmailConfigDefaults first, email.* get must throw
-    expect(() => emailGet(cm, 'email.enabled')).toThrow();
+
+    expect(emailGet(cm, 'email.enabled')).toBe(false);
+    expect(emailGet(cm, 'email.imapPort')).toBe(993);
+    expect(emailGet(cm, 'email.imapSecurity')).toBe('tls');
+    expect(emailGet(cm, 'email.smtpPort')).toBe(587);
+    expect(emailGet(cm, 'email.smtpSecurity')).toBe('auto');
+    for (const key of [
+      'email.imapHost',
+      'email.smtpHost',
+      'email.username',
+      'email.passwordRef',
+      'email.smtpPasswordRef',
+      'email.fromAddress',
+      'email.mailbox',
+      'email.draftsMailbox',
+    ]) {
+      expect(emailGet(cm, key)).toBe('');
+    }
   });
 });
 

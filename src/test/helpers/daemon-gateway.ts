@@ -41,6 +41,7 @@
  * home, and a suite that does not is reaching the machine's real profile.
  */
 import { GatewayMethodCatalog } from '@pellux/goodvibes-sdk/platform/control-plane';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { attachWsOnlyGatewayVerbHandlers } from '@pellux/goodvibes-terminal-shell';
 import { createSessionConversationRewindPort } from '../../runtime/conversation-rewind-port.ts';
 import type { RuntimeServices } from '../../runtime/services.ts';
@@ -72,6 +73,9 @@ export function buildDaemonGatewayCatalog(
   const catalog = new GatewayMethodCatalog();
   const view = services.asDaemonGradeView();
   attachWsOnlyGatewayVerbHandlers(catalog, {
+    // Platform runtime 2.0.8: the control-plane store resolver refuses a blank
+    // surface segment, so this helper names its surface like any host.
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     processRegistry: services.processRegistry,
     sessionLiveTurnControls: services.sessionLiveTurnControls,
     powerManager: services.powerManager,

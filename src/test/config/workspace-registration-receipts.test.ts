@@ -39,12 +39,17 @@ function legacyRegistryPath(home: string): string {
   return join(home, '.goodvibes', 'agent', 'checkpoints', 'registered-workspaces.json');
 }
 
+// Both receipts are this repo's OWN state, not shared platform state, so they
+// ride the agent's surface root (~/.goodvibes/agent/control-plane/) rather than
+// the pre-split unscoped ~/.goodvibes/control-plane/ the shared register used to
+// live in. See migrationReceiptPath / checkpointEligibilityBackfillReceiptPath
+// in src/config/workspace-registration.ts.
 function migrationReceiptPath(home: string): string {
-  return join(home, '.goodvibes', 'control-plane', 'workspace-registration-migration-receipt.json');
+  return join(home, '.goodvibes', 'agent', 'control-plane', 'workspace-registration-migration-receipt.json');
 }
 
 function backfillReceiptPath(home: string): string {
-  return join(home, '.goodvibes', 'control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
+  return join(home, '.goodvibes', 'agent', 'control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
 }
 
 /** Seed the legacy per-user registry with one explicitly-registered root. */

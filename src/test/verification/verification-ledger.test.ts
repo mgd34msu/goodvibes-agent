@@ -51,12 +51,24 @@ describe('verification ledger', () => {
     //
     // The floor is 84, not 70. Restoring 70 put it back where it belonged
     // before the last round moved it, but with the denominator corrected the
-    // honest measurement is 84.5% — and a floor thirteen points below reality
+    // honest measurement was 84.5% — and a floor thirteen points below reality
     // is not a ratchet, it is thirteen points of room for exactly the silent
     // decay this whole change exists to stop. It sits just under the measured
     // value and never above it: a floor that claims more than the ledger
     // reports would fail on arithmetic rather than on quality, which is the
     // same confusion in the other direction.
+    //
+    // The measurement is 84.1% now, and the floor did NOT move to meet it.
+    // Platform runtime 2.0.8 declared the mail and calendar connector keys
+    // (email.*, calendar.*, google.*) as real schema rows, and 21 of them are
+    // referenced by this repo, so they joined the denominator the same way
+    // surfaces.email.* once did. The response was the one this comment already
+    // names as legitimate — itemised evidence rows — not a lower floor:
+    // seventeen keys earned a row in settings-behavior-coverage.ts, twelve of
+    // them backed by src/test/verification/connector-settings-behavior.test.ts,
+    // which drives each one through the real consumer in this repo. The seven
+    // connector keys this repo has no consumer for earned nothing and are said
+    // so by name there.
     //
     // Never lower this. If it is ever at risk, the two legitimate moves are to
     // add itemised evidence rows or to correct what the denominator measures —

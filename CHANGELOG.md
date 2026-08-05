@@ -2,6 +2,17 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.6 - 2026-08-05
+
+- **Fixed: the platform can tell you what it knows about you again.** Profile reads failed against an up-to-date daemon because its answers carried more than its published contract allowed — the assistant asked where you live while your address was on file. The contract and the answers agree now, and a conformance test keeps them agreeing.
+- **Added: what the assistant finds while answering you gets kept.** A flight itinerary found in your mail during an answer is proposed as a plan on the spot with every detail pre-filled and the source named — your one word files it. Recording what you tell it is part of answering, never an offer; a capture that cannot complete says so plainly.
+- **Added: your conversations run on the platform's own host.** The agent's turns are hosted by the daemon by default (with a stated-reason local fallback), so your conversations are visible from every surface with their messages, not as empty rows. A settings split also fixes machines where one legacy flag silently disabled half the platform's connections.
+- **Changed: connecting Google is one action.** Discovery picks the path before anything runs; one consent carries mail read, send, and calendar together; a signed-in gcloud CLI is a first-class source; a dead credential is diagnosed in plain words instead of retried; removing a stored credential asks you first; and a finished run proves itself by reading your mail and calendar live.
+- **Fixed: browser automation cannot touch your browser.** Automated launches use the platform's own profile — never yours, never a window storm — one live session is reused, and sign-in pages are handed back to you as a URL to open yourself.
+- **Fixed: search answers with what exists.** Method catalog search understands plain words ("google" finds the calendar, mail, and account methods), the settings catalog carries the connector keys the daemon really reads, unknown-tool errors name the tools that do exist, and the agent files its own sessions under its own name.
+- Changed: a personal conversation never turns into editing the platform's own source code — diagnosing the platform is proposed in one sentence and waits for your yes.
+- Changed: the bundled platform runtime is 2.0.8 and the daemon this Agent installs alongside itself is 1.28.10.
+
 ## 2.0.5 - 2026-08-02
 
 - **Fixed: a chat message gets an answer, never workflow paperwork.** A conversational message — over Telegram or in the main conversation — could be turned into a full write-review-fix-confirm chain by a keyword heuristic that matched wording like "review the route" inside the transcript, and the reply sent back was the chain's status line ("passed (review 10/10); commit skipped: not a git repository"). The conversation gate's decision is now authoritative: conversation is answered, work is proposed and waits for agreement, and when a chain does legitimately run its reply carries what the agent actually found or did. Duplicate replies from the two completion reporters are gone (platform runtime 2.0.6).

@@ -75,7 +75,24 @@ export type SettingsCategory =
   | 'device'
   | 'cluster'
   | 'memory'
-  | 'payments';
+  | 'payments'
+  // email.* / calendar.* / google.* — the connector keys the daemon really
+  // reads for its mail and calendar services (platform runtime 2.0.8 registered
+  // all 22 of them as described schema rows; before that they were cast onto
+  // the live config at runtime, so this surface answered "Unknown setting" for
+  // a key the daemon reads and writes every time it composes mail or refreshes
+  // a calendar).
+  //
+  // Both this entry AND the SETTINGS_CATEGORY_GROUPS membership below are
+  // mandatory: a setting's category is its key's first segment and every push
+  // is guarded by `if (groups.has(cat))`, so a root with an entry here but no
+  // group membership — or the reverse — is dropped from the workspace entirely
+  // and reachable only by hand-editing a settings file. That is exactly what
+  // happened to push.* and cluster.*, which is why they are cross-listed in
+  // CROSS_LISTED_SETTING_ROOTS above rather than left silently unreachable.
+  | 'email'
+  | 'calendar'
+  | 'google';
 
 export type SettingsFocusPane = 'categories' | 'settings';
 
@@ -135,7 +152,13 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'profile', 'occasions', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power', 'payments'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
-  { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'hostedSessions', 'device', 'mcp', 'automation', 'checkin', 'integrations'] },
+  // `email`, `calendar` and `google` sit beside `surfaces` for the reason
+  // `surfaces` is here at all: they configure where the daemon's services reach
+  // the world — the mailbox it composes and sends through, the calendars it
+  // reads and writes, and the Google OAuth record the two share — rather than
+  // anything about how this terminal presents them. Daemon-owned, like several
+  // other categories in this group.
+  { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'hostedSessions', 'device', 'email', 'calendar', 'google', 'mcp', 'automation', 'checkin', 'integrations'] },
   // `danger` sits with the other listener/binding categories because that is
   // what it is: danger.httpListener opens an inbound webhook listener. It is
   // rendered like any other setting rather than hidden — the write is gated by

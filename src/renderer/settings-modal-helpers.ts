@@ -131,6 +131,9 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   device: 'Paired Phone Capabilities',
   memory: 'Memory Governance',
   payments: 'Payments',
+  email: 'Email Connection',
+  calendar: 'Calendar Connections',
+  google: 'Google Connection',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {

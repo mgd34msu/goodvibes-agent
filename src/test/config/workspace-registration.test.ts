@@ -90,7 +90,7 @@ describe('workspace-registration: legacy registry migration', () => {
     const { shellPaths, home } = makeShellPaths();
     const result = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
     expect(result).toBeNull();
-    expect(existsSync(join(home, '.goodvibes', 'control-plane', 'workspace-registration-migration-receipt.json'))).toBe(false);
+    expect(existsSync(join(home, '.goodvibes', 'agent', 'control-plane', 'workspace-registration-migration-receipt.json'))).toBe(false);
   });
 
   test('a legacy file with records migrates once into the shared store and writes a receipt', async () => {
@@ -179,7 +179,7 @@ describe('workspace-registration: legacy registry migration', () => {
 
     const result = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
     expect(result?.recordsMigrated).toBe(0);
-    expect(existsSync(join(home, '.goodvibes', 'control-plane', 'workspace-registration-migration-receipt.json'))).toBe(true);
+    expect(existsSync(join(home, '.goodvibes', 'agent', 'control-plane', 'workspace-registration-migration-receipt.json'))).toBe(true);
 
     const second = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
     expect(second).toBeNull();
@@ -187,8 +187,10 @@ describe('workspace-registration: legacy registry migration', () => {
 });
 
 describe('workspace-registration: checkpoint-eligibility boundary', () => {
+  // The agent's own receipt, under the agent's surface root — not the shared
+  // (unscoped) tier the workspace register itself lives in.
   function backfillReceiptPath(home: string): string {
-    return join(home, '.goodvibes', 'control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
+    return join(home, '.goodvibes', 'agent', 'control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
   }
 
   test('a TUI-shaped self-record (plain store.add, no flag) is registered but NOT checkpoint-eligible', async () => {
