@@ -940,6 +940,16 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     providerRegistryFactory: buildAgentProviderRegistry,
     modelDiscovery: shouldRefreshModels(options.modelDiscovery) ? 'run' : 'skip',
     hookAgentManager: 'withhold',
+    // One live agent per home. This product is a singleton: one agent per
+    // machine, holding one `.goodvibes/agent/` tree with one session store,
+    // one state file and one transcript. A second copy booted onto the same
+    // home — a fork out of a turn is how it happened — gave that tree two
+    // writers, which is what tore a temp file and left a session marked
+    // "active" by a process that no longer existed. With `claim`, the second
+    // boot stops at the claim and says which pid holds the home instead of
+    // racing it. The terminal deliberately stays 'off': one project opened in
+    // two windows is a shape people use every day.
+    homeSingleWriter: 'claim',
   });
   const {
     shellPaths,

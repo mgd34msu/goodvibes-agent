@@ -39,9 +39,38 @@
  * No second SSE implementation. `openServerSentEventStream` is the SDK's, with
  * its reconnect policy and auth handling already proven by the approvals
  * stream, and it is what this opens.
+ *
+ * ── Why this file states a position and a turn ────────────────────────────
+ *
+ * This router opens a FRESH stream per turn (see `watch`), which is exactly the
+ * client shape the daemon's catch-up replay hurts: a stream that claims no
+ * position is handed the tail of the previous turn, that turn's
+ * `TURN_COMPLETED` included, and the renderer — new, and therefore having never
+ * seen that turn run — finishes on it. Every real frame of the turn actually
+ * running is then dropped as post-terminal noise, on a turn that has already
+ * been billed for.
+ *
+ * The SDK ships both halves of the answer, but they live on
+ * `createEventSourceConnector` — the runtime-event connector, which addresses
+ * `/api/control-plane/events` and hands typed envelopes to a store. This router
+ * addresses one session's own stream and renders it into a conversation, so it
+ * opens the raw stream directly and states the same two things itself:
+ *
+ *  1. POSITION. Every `id:` this router reads is remembered for the life of the
+ *     ROUTER, not the life of one stream, and presented as `Last-Event-ID` when
+ *     the next turn's stream opens. The daemon then replays only what this
+ *     router has not already been given.
+ *  2. TURN IDENTITY. `createTurnLifecycleGate` is the second line, for the
+ *     replays position cannot prevent — a daemon that predates the resume, a
+ *     position that has aged out of the ring, a frame that genuinely arrives
+ *     twice. A terminal frame addressed to a turn this renderer is not
+ *     rendering is refused instead of ending the turn that is. A daemon that
+ *     sends no `turnId` yet makes the gate inert rather than wrong — no turn id
+ *     reads as "not a turn frame", which is accepted.
  */
 
 import { transport } from '@pellux/goodvibes-sdk/platform/runtime';
+import { createTurnLifecycleGate, readTurnLifecycleFrame } from '@pellux/goodvibes-sdk/transport-realtime';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
@@ -185,6 +214,15 @@ export function createRemoteConversationRouter(
   let hostedId: string | null = null;
   let closeStream: (() => void) | null = null;
   let renderer: ReturnType<typeof createHostedFrameRenderer> | null = null;
+  /**
+   * The `id:` of the last frame this router was given, per stream URL, across
+   * every stream it has opened. Held here rather than inside `watch` because
+   * that is the whole point: the next turn's stream resumes where the closed
+   * one stopped. Keyed by URL — the same key the SDK's connector uses — so a
+   * router rebound to a different hosted session starts that session's stream
+   * from nothing rather than from another session's position.
+   */
+  const streamPositions = new Map<string, string>();
 
   const refuse = (reason: string, chosen = false): RemoteTurnOutcome => ({
     routed: false,
@@ -229,11 +267,26 @@ export function createRemoteConversationRouter(
     stopWatching();
     const turnRenderer = createHostedFrameRenderer(options.conversation, options.requestRender);
     renderer = turnRenderer;
+    // A gate per RENDERER, not per router.
+    //
+    // The SDK's connector keeps one gate for its whole life, which is right for
+    // its consumer: a long-lived store that renders every turn in turn. This
+    // router's consumer is a new renderer per turn, and a gate carried across
+    // turns would still be bound to the PREVIOUS one — so a replayed terminal
+    // frame for that turn would match the binding and finish a renderer that
+    // has not yet seen its own turn start. Starting unbound is what puts the
+    // replayed tail under the gate's third rule: a terminal frame for a turn
+    // this renderer never saw run is refused outright rather than allowed to
+    // bind.
+    const gate = createTurnLifecycleGate();
     const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+    const streamUrl = hostedSessionEventStreamUrl(baseUrl, sessionId);
     closeStream = await transport.openServerSentEventStream(
       fetchImpl,
-      hostedSessionEventStreamUrl(baseUrl, sessionId),
+      streamUrl,
       {
+        // Every id, as it is read. This is what the NEXT stream presents.
+        onEventId: (id: string) => { streamPositions.set(streamUrl, id); },
         onEvent: (_domain: string, payload: unknown) => {
           if (!payload || typeof payload !== 'object') return;
           const frame = payload as HostedSessionFrame;
@@ -242,6 +295,18 @@ export function createRemoteConversationRouter(
           // client half of the same guarantee, so a daemon that has not been
           // updated yet cannot bleed another session into this transcript.
           if (frame.sessionId !== undefined && frame.sessionId !== sessionId) return;
+          // The turn identity lives on the envelope's payload — the same place
+          // the SDK's own connector reads it — and a frame carrying none is
+          // never withheld.
+          const lifecycle = readTurnLifecycleFrame(frame.sessionId, frame.payload);
+          if (lifecycle && !gate.accepts(lifecycle)) {
+            logger.debug('[remote-conversation] a frame for another turn was not applied', {
+              type: frame.type,
+              turnId: lifecycle.turnId ?? '(none)',
+              rendering: gate.boundTurnId(frame.sessionId) ?? '(unbound)',
+            });
+            return;
+          }
           try {
             options.onFrame?.(frame);
           } catch (error) {
@@ -273,6 +338,10 @@ export function createRemoteConversationRouter(
       },
       {
         getAuthToken: () => token,
+        // Null on the first stream of a session — there is nothing to resume
+        // past, and the daemon's catch-up window is what a client attaching to
+        // a session already in flight legitimately wants.
+        lastEventId: streamPositions.get(streamUrl) ?? null,
         ...(options.reconnect ? { reconnect: options.reconnect } : {}),
       },
     );

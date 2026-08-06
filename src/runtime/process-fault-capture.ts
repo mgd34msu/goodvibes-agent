@@ -27,156 +27,29 @@
  * the process survives — but now also leaves a crash record, because "the agent
  * misbehaved but stayed up" was equally invisible after the fact.
  *
- * WHY THE RECORD LOGIC LIVES HERE rather than being imported from the SDK: the
- * canonical implementation DOES now live in the SDK
- * (platform/runtime/crash-capture.ts), where it is also registered with the
- * append-only retention registry so the platform janitor bounds it by age and
- * size for every surface. This repo pins a PUBLISHED SDK, so it cannot import
- * an unpublished export and stay green — and the whole point of this change is
- * that the agent stops dying silently NOW, not one release train from now. When
- * the SDK release carrying `crash-capture.ts` lands, this file's record
- * builder, reader and bounded appender should be deleted in favour of the SDK's
- * (the shapes and the caps were written to match exactly); the handler wiring
- * below stays.
+ * WHERE THE RECORD LOGIC LIVES: in the SDK
+ * (platform/runtime/crash-capture.ts, reached through
+ * platform/runtime/operations), which is also where the append-only retention
+ * registry knows about it, so the platform janitor bounds the file by age and
+ * total size for every surface rather than only by the record count enforced on
+ * write. The agent carried its own copy of the builder, reader and bounded
+ * appender for exactly one release — the SDK export was not published yet and
+ * the agent needed to stop dying silently that day — and this file now imports
+ * the canonical one. The shapes and the caps were written to match, so this is
+ * a substitution, not a behaviour change. What stays here is the wiring: which
+ * handlers get registered, what the agent writes to stderr on the way out, and
+ * the order the three sinks are attempted in.
  */
-import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import {
+  appendCrashRecord,
+  buildCrashRecord,
+  CRASH_LOG_FILENAME,
+} from '@pellux/goodvibes-sdk/platform/runtime/operations';
 import { createUnhandledRejectionHandler } from './unhandled-rejection-guard.ts';
 import { writeFatalLine } from '../utils/fatal-boot-write.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { VERSION } from '../version.ts';
-
-/** Filename of the crash log within the agent's home-anchored surface root. */
-export const CRASH_LOG_FILENAME = 'crashes.jsonl';
-
-/**
- * Count cap on retained crash records. Small on purpose: the newest crashes are
- * the ones under investigation, and a human reads this file.
- */
-export const CRASH_LOG_MAX_RECORDS = 25;
-
-/** Cap on one record's stack, so a runaway recursion cannot evict the history around it. */
-export const CRASH_STACK_MAX_CHARS = 8_000;
-
-/** One captured process-level fault. */
-export interface CrashRecord {
-  readonly timestamp: string;
-  readonly kind: 'uncaughtException' | 'unhandledRejection';
-  readonly message: string;
-  readonly stack: string | null;
-  readonly version: string;
-  readonly pid: number;
-  readonly sessionId: string | null;
-  readonly surface: string;
-}
-
-/**
- * Build a crash record from a thrown value. Never throws — a crash handler that
- * itself throws loses the very report it exists to produce, so every field
- * extraction is defensive against exotic throw values.
- */
-export function buildCrashRecord(
-  kind: 'uncaughtException' | 'unhandledRejection',
-  thrown: unknown,
-  context: { version: string; surface: string; sessionId: string | null; pid?: number; now?: () => Date },
-): CrashRecord {
-  let message: string;
-  let stack: string | null = null;
-  try {
-    if (thrown instanceof Error) {
-      message = thrown.message;
-      stack = typeof thrown.stack === 'string'
-        ? (thrown.stack.length > CRASH_STACK_MAX_CHARS
-          ? `${thrown.stack.slice(0, CRASH_STACK_MAX_CHARS)}\n… stack truncated at ${CRASH_STACK_MAX_CHARS} characters`
-          : thrown.stack)
-        : null;
-    } else {
-      message = String(thrown);
-    }
-  } catch {
-    message = '<unrepresentable throw value>';
-  }
-  return {
-    timestamp: (context.now?.() ?? new Date()).toISOString(),
-    kind,
-    message,
-    stack,
-    version: context.version,
-    pid: context.pid ?? process.pid,
-    sessionId: context.sessionId,
-    surface: context.surface,
-  };
-}
-
-function isCrashRecord(value: unknown): value is CrashRecord {
-  if (typeof value !== 'object' || value === null) return false;
-  const record = value as Record<string, unknown>;
-  return (
-    typeof record['timestamp'] === 'string' &&
-    (record['kind'] === 'uncaughtException' || record['kind'] === 'unhandledRejection') &&
-    typeof record['message'] === 'string' &&
-    (record['stack'] === null || typeof record['stack'] === 'string') &&
-    typeof record['version'] === 'string' &&
-    typeof record['pid'] === 'number' &&
-    (record['sessionId'] === null || typeof record['sessionId'] === 'string') &&
-    typeof record['surface'] === 'string'
-  );
-}
-
-/**
- * Read every well-formed record, oldest first. Content-validated, never
- * existence-validated: a line that does not parse or does not carry the record
- * shape is SKIPPED, so the torn tail line a crash-mid-write leaves behind still
- * yields every record before it.
- */
-export function readCrashRecords(filePath: string): CrashRecord[] {
-  let raw: string;
-  try {
-    raw = readFileSync(filePath, 'utf-8');
-  } catch {
-    return [];
-  }
-  const records: CrashRecord[] = [];
-  for (const line of raw.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed.length === 0) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(trimmed);
-    } catch {
-      continue;
-    }
-    if (isCrashRecord(parsed)) records.push(parsed);
-  }
-  return records;
-}
-
-/**
- * Append one record, enforcing the count cap. Best-effort by contract: returns
- * false instead of throwing, because the caller still owes an activity-log line,
- * a stderr line and an exit code even on a full or read-only disk.
- */
-export function appendCrashRecord(filePath: string, record: CrashRecord): boolean {
-  try {
-    mkdirSync(dirname(filePath), { recursive: true });
-    appendFileSync(filePath, `${JSON.stringify(record)}\n`, { mode: 0o600 });
-  } catch {
-    return false;
-  }
-  try {
-    // Only pay for a read+rewrite once the file could plausibly exceed the cap.
-    if (statSync(filePath).size < CRASH_LOG_MAX_RECORDS * 1024) return true;
-    const records = readCrashRecords(filePath);
-    if (records.length <= CRASH_LOG_MAX_RECORDS) return true;
-    const kept = records.slice(records.length - CRASH_LOG_MAX_RECORDS);
-    writeFileSync(filePath, kept.map((entry) => `${JSON.stringify(entry)}\n`).join(''), { mode: 0o600 });
-  } catch {
-    // The record itself landed; failing to trim is not worth losing it.
-    return true;
-  }
-  return true;
-}
 
 export interface ProcessFaultCaptureDeps {
   /** Surface a high-priority message in the running UI. */

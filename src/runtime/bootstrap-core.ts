@@ -77,6 +77,7 @@ import { installToolExecutionSafetyGuard } from '../tools/tool-execution-safety.
 import { installPermissionManagerSafetyGuard } from './tool-permission-safety.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentRuntimeEvents } from './agent-runtime-events.ts';
+import { AGENT_OWNER_TERMINAL_GUARD } from './agent-exec-posture.ts';
 
 export interface BootstrapCoreState {
   readonly userSessionId: string;
@@ -321,6 +322,9 @@ export async function initializeBootstrapCore(
     // would read an unbound holder of its own while the real source sits on a
     // different instance nothing reads.
     contextAccountingHolder: services.contextAccountingHolder,
+    // A local turn reaches the owner's tmux through the same exec tool a hosted
+    // turn does, so the rule is stated here too — see agent-exec-posture.ts.
+    ownerTerminalGuard: AGENT_OWNER_TERMINAL_GUARD,
   });
   registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
   registerAgentBrowserTool(toolRegistry, {

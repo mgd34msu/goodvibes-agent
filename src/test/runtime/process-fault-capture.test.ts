@@ -13,14 +13,18 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { createProcessFaultHandlers } from '../../runtime/process-fault-capture.ts';
+// The record builder, reader and bounded appender are the SDK's now — the agent
+// carried a copy only until the export was published. These assertions are
+// unchanged: they still describe what the agent's crash log must contain, and
+// they now run against the implementation that actually writes it.
 import {
   appendCrashRecord,
   buildCrashRecord,
   CRASH_LOG_FILENAME,
   CRASH_LOG_MAX_RECORDS,
-  createProcessFaultHandlers,
   readCrashRecords,
-} from '../../runtime/process-fault-capture.ts';
+} from '@pellux/goodvibes-sdk/platform/runtime/operations';
 
 function tempHome(): string {
   // The repo's own helper: scratch directories live under the project, not
