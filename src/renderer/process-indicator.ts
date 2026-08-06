@@ -113,6 +113,9 @@ const VOICE_CAPTURE_LABELS: Record<VoiceCaptureIndicatorState['kind'], string> =
   'wake-capturing': 'wake heard — recording what follows',
   'wake-restarting': 'capture stream ended — restarting',
   'wake-latched': 'wake detection stopped',
+  'wake-starting': 'opening the microphone — not listening yet',
+  'wake-no-audio': 'microphone open, but no audio is arriving',
+  'wake-no-microphone': 'no microphone on this machine — nothing is listening',
 };
 
 /**

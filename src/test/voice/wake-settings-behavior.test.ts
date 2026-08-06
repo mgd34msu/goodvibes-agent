@@ -948,6 +948,13 @@ describe('voice.wake.enabled and voice.wake.surfaces.agent are a DOUBLE gate on 
     const on = makeCaptureHarness({ config: { 'voice.wake.enabled': true } });
     await on.runtime.refresh();
     expect(on.spawns.calls.length).toBe(1);
+    // A recorder was SPAWNED, which is not the same as hearing anything: until
+    // audio actually arrives the row says so. Claiming to listen here is the
+    // defect that showed a listening banner over a microphone producing
+    // nothing, for a whole boot.
+    expect(on.runtime.status()?.kind).toBe('wake-no-audio');
+    on.spawns.processes[0]!.emitBytes(pcmBytes(silentFrame()));
+    await flush(2);
     expect(on.runtime.status()?.kind).toBe('wake-listening');
   });
 
@@ -1268,9 +1275,12 @@ describe('the capture rows choose the device, the recorder, and what is refused'
     expect(banner.runtime.status()?.indicator).toBe('banner');
 
     const hidden = makeCaptureHarness({ config: { 'voice.wake.indicator': 'off' } });
-    await startListening(hidden);
-    // Still listening — the device is open, the ROW is what is hidden.
+    const hiddenRecorder = await startListening(hidden);
+    // Still listening — the device is open, the ROW is what is hidden. Frames
+    // have to arrive before "listening" is a true thing to say, so they do.
     expect(hidden.spawns.calls.length).toBe(1);
+    hiddenRecorder.emitBytes(pcmBytes(silentFrame()));
+    await flush(2);
     expect(hidden.runtime.status()?.kind).toBe('wake-listening');
     expect(voiceCaptureRowVisible(hidden.runtime.status())).toBe(false);
   });

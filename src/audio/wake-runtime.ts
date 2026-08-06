@@ -32,6 +32,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  describeWakeListening,
   recordVoiceDiagnostic,
   WakeListener,
   encodeWavPcm16,
@@ -43,6 +44,7 @@ import {
   wakeProvisionStatus,
   type AudioCaptureOpener,
   type CapturedUtterance,
+  type AudioInputDeviceEnumerator,
   type WakeListenerOptions,
   type WakeListenerState,
   type WakeRuntimeSettings,
@@ -58,14 +60,28 @@ import { describeTranscriptionFailure } from '../core/voice-stt-gateway.ts';
 // name and must not pull the inference runtime in behind it (see wake-surface.ts).
 export { AGENT_WAKE_SURFACE } from './wake-surface.ts';
 
-/** Indicator kind per listener phase. `idle`/`stopped` render nothing. */
-const PHASE_INDICATOR: Partial<Record<WakeListenerState['phase'], VoiceCaptureIndicatorState['kind']>> = {
-  starting: 'wake-listening',
-  listening: 'wake-listening',
-  'capturing-utterance': 'wake-capturing',
-  restarting: 'wake-restarting',
-  latched: 'wake-latched',
-};
+/**
+ * The row for a listener state, derived from CAPTURE TRUTH.
+ *
+ * This used to be a map from the listener's PHASE, with `starting` pointing at
+ * the listening row. A start that never finished therefore rendered "listening
+ * for the wake phrase" for an entire boot on a machine with no capture stream,
+ * no recorder process and nothing in the log. The SDK now answers what may be
+ * claimed — `describeWakeListening`, which requires a stream open AND frames
+ * arriving — and this only chooses which row shows it.
+ */
+function indicatorFor(state: WakeListenerState): VoiceCaptureIndicatorState['kind'] | null {
+  const claim = describeWakeListening(state);
+  if (claim.kind === 'listening') {
+    return state.phase === 'capturing-utterance' ? 'wake-capturing' : 'wake-listening';
+  }
+  if (claim.kind === 'starting') return 'wake-starting';
+  if (claim.kind === 'no-audio') return 'wake-no-audio';
+  if (state.phase === 'restarting') return 'wake-restarting';
+  if (state.phase === 'latched') return 'wake-latched';
+  if (state.deviceBinding?.state === 'no-microphone') return 'wake-no-microphone';
+  return null;
+}
 
 export interface WakeRuntimeDeps {
   /** Reads a config key. Live-read on every refresh, never frozen at startup. */
@@ -91,6 +107,12 @@ export interface WakeRuntimeDeps {
    * provisioner, where the honest report is that they are missing.
    */
   readonly ensureProvisioned?: (() => Promise<{ readonly ready: boolean; readonly message: string }>) | undefined;
+  /**
+   * Lists this host's input devices so the SDK can validate
+   * `voice.wake.inputDevice` rather than believe it. Omitted, the pin is used
+   * as written — the behaviour before any of this existed.
+   */
+  readonly enumerateInputDevices?: AudioInputDeviceEnumerator | undefined;
   /** Plays the resolved activation sound at the moment of a wake. */
   readonly playActivationSound: (sound: WakeRuntimeSettings['activationSound']) => void;
   /** Submits the recognised text as a turn (`voice.wake.autoSubmit` on). */
@@ -157,6 +179,12 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
    * this surface has actually confirmed it has the gate.
    */
   let vadReady = false;
+  /**
+   * Why the last start refused, kept so the row can say it after the listener
+   * is gone. A machine with no microphone refuses, and rendering nothing there
+   * is the silence this whole change exists to end.
+   */
+  let refusal: { kind: VoiceCaptureIndicatorState['kind']; message: string } | null = null;
 
   const readProvision = deps.provisionStatus ?? ((root: string) => wakeProvisionStatus({ managedRoot: root }));
 
@@ -167,9 +195,45 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
   );
 
   const status = (): VoiceCaptureIndicatorState | null => {
-    const kind = PHASE_INDICATOR[phase];
-    if (kind === undefined) return null;
-    return { kind, deviceLabel, indicator: resolve().indicator, ...(detail !== undefined ? { detail } : {}) };
+    const active = listener;
+    if (active === null) {
+      // Refused to start: the row still has something honest to say, and a
+      // machine with no microphone must not simply render nothing.
+      if (refusal === null) return null;
+      return {
+        kind: refusal.kind,
+        deviceLabel: null,
+        indicator: resolve().indicator,
+        detail: refusal.message,
+      };
+    }
+    // Asked of the LIVE listener rather than remembered from the last state
+    // change: whether frames are still arriving is a question about now, and a
+    // cached answer is how "listening" outlives the audio.
+    const state = active.state();
+    const kind = indicatorFor(state);
+    if (kind === null) return null;
+    return {
+      kind,
+      deviceLabel,
+      indicator: resolve().indicator,
+      detail: describeWakeListening(state).message,
+    };
+  };
+
+  /** Write one capture-path fact to the surface's voice diagnostics. */
+  const recordDiagnostic = (ok: boolean, operation: string, error: string | undefined, detailText: string): void => {
+    recordVoiceDiagnostic(deps.managedRoot, {
+      at: new Date().toISOString(),
+      operation,
+      route: 'in-process',
+      ok,
+      provider: 'wake capture',
+      configSource: `voice.wake.inputDevice=${String(deps.readConfig('voice.wake.inputDevice') ?? '')|| '(system default)'}, `
+        + `voice.wake.captureCommand=${String(deps.readConfig('voice.wake.captureCommand') ?? 'auto')}`,
+      ...(error !== undefined ? { error } : {}),
+      detail: detailText,
+    });
   };
 
   const retainClip = (utterance: CapturedUtterance): void => {
@@ -314,8 +378,21 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
           deps.render();
         },
         onUtterance: (utterance) => { void transcribeUtterance(utterance, settings); },
+        onDeviceBinding: (binding) => {
+          // A device rollover in either direction is one line the user sees,
+          // and one entry on disk: a pin that silently stopped being honoured
+          // is exactly how wake went deaf without anyone being told.
+          if (binding.state !== 'pinned' && binding.state !== 'default') {
+            deps.notify(`[Wake] ${binding.message}`);
+            recordDiagnostic(binding.usable, 'wake-input-device', undefined, binding.message);
+          } else if (binding.state === 'pinned') {
+            deps.notify(`[Wake] ${binding.message}`);
+          }
+          deps.render();
+        },
         onFailure: (error, restarting, failureDetail) => {
           detail = failureDetail;
+          recordDiagnostic(false, 'wake-capture', error.message, failureDetail);
           // Reported to the user, not only logged: a detector that stopped
           // listening is exactly the thing a silent log entry hides.
           deps.notify(restarting
@@ -325,6 +402,8 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
         },
       },
       warn: deps.warn,
+      // Lets the SDK CHECK voice.wake.inputDevice instead of believing it.
+      ...(deps.enumerateInputDevices !== undefined ? { enumerateInputDevices: deps.enumerateInputDevices } : {}),
       ...(deps.now !== undefined ? { now: deps.now } : {}),
       ...(deps.setTimeout !== undefined ? { setTimeout: deps.setTimeout } : {}),
       ...(deps.clearTimeout !== undefined ? { clearTimeout: deps.clearTimeout } : {}),
@@ -334,8 +413,17 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
     if (!outcome.started) {
       listener = null;
       phase = 'idle';
+      // A start that failed at boot has no caller reading its return value.
+      // It is shown, and it is written down, because the whole failure class
+      // here was a microphone that never opened and never said so.
+      refusal = {
+        kind: outcome.refusal === 'no-microphone' ? 'wake-no-microphone' : 'wake-latched',
+        message: outcome.detail,
+      };
+      recordDiagnostic(false, 'wake-capture-start', outcome.detail, `the wake detector did not start (${outcome.refusal})`);
       deps.notify(`[Wake] The wake-word detector did not start (${outcome.refusal}): ${outcome.detail}`);
     } else {
+      refusal = null;
       const limitations = describeWakeLimitations(settings);
       if (limitations.length > 0) {
         deps.notify([`[Wake] Listening on ${outcome.deviceLabel}, with these rows not in force:`, ...limitations].join('\n'));

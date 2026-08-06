@@ -17,6 +17,7 @@
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ConfigKey, ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
+import type { AudioInputDeviceEnumerator } from '@pellux/goodvibes-sdk/platform/voice/capture';
 import type { VoiceCaptureIndicatorState } from '../core/voice-capture-status.ts';
 import { createAgentCaptureOpener } from './capture.ts';
 import { playActivationSound } from './activation-sound.ts';
@@ -24,6 +25,7 @@ import { LocalStreamingAudioPlayer } from './player.ts';
 import type { StreamingAudioPlayer } from './player.ts';
 import { createVoiceSttGateway } from '../core/voice-stt-gateway.ts';
 import { startWakeRuntime, wireWakeRuntime } from './wake-runtime.ts';
+import { createInputDeviceEnumerator } from './input-devices.ts';
 import type { DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 
 export interface VoiceCaptureWiringDeps {
@@ -55,6 +57,8 @@ export interface VoiceCaptureWiringDeps {
    * host without them completes rather than reporting a chore.
    */
   readonly ensureWakeProvisioned?: (() => Promise<{ readonly ready: boolean; readonly message: string }>) | undefined;
+  /** Injected in tests; defaults to listing this host's sources with pactl. */
+  readonly enumerateInputDevices?: AudioInputDeviceEnumerator | undefined;
   /** Injected in tests; defaults to a real streaming player for the activation sound. */
   readonly player?: StreamingAudioPlayer;
 }
@@ -106,6 +110,8 @@ export function wireVoiceCapture(deps: VoiceCaptureWiringDeps): VoiceCaptureWiri
     sessionId: deps.sessionId,
     warn,
     ...(deps.ensureWakeProvisioned !== undefined ? { ensureProvisioned: deps.ensureWakeProvisioned } : {}),
+    // A configured device is checked against what this host can actually see.
+    enumerateInputDevices: deps.enumerateInputDevices ?? createInputDeviceEnumerator(),
   });
 
   return {

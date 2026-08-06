@@ -28,7 +28,19 @@ export type VoiceCaptureIndicatorKind =
   /** The detector's stream died and a restart is scheduled. */
   | 'wake-restarting'
   /** The supervisor gave up; the detector is off until the feature is toggled. */
-  | 'wake-latched';
+  | 'wake-latched'
+  /**
+   * Opening the device. NOT listening — and it used to render as if it were.
+   *
+   * `starting` was mapped straight onto the listening row, so a start that hung
+   * showed "listening for the wake phrase" through an entire boot on a machine
+   * with no capture stream at all. Its own state, with its own words.
+   */
+  | 'wake-starting'
+  /** The device is open and no audio is coming through it. */
+  | 'wake-no-audio'
+  /** This host has no microphone — no input sources, or only output monitors. */
+  | 'wake-no-microphone';
 
 /** One live capture row. Absent (null) means no microphone is open and no row renders. */
 export interface VoiceCaptureIndicatorState {
