@@ -59,7 +59,7 @@ import { applyInitialTuiCliState, getInteractiveTerminalLaunchError, reportFatal
 import { writeFatalLine } from './utils/fatal-boot-write.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { installVoiceCapture } from './shell/voice-capture-shell.ts';
-import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
+import { createProcessFaultHandlers } from './runtime/process-fault-capture.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
 import { allowTerminalWrite, createShellLayout, installFullScreenTerminalOutputGuard } from '@pellux/goodvibes-terminal-shell';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
@@ -253,9 +253,9 @@ async function main() {
   let terminalRestored = false;
 
   const sigintHandler = (): void => input.feed('\x03');
-  const unhandledRejectionHandler = createUnhandledRejectionHandler({
-    notifyHigh: (message) => systemMessageRouter.high(message),
-    render: () => render(),
+  const processFaults = createProcessFaultHandlers({
+    notifyHigh: (message) => systemMessageRouter.high(message), render: () => render(),
+    shellPaths: ctx.services.shellPaths, activeSessionId: () => runtime.sessionId,
   });
   const resizeHandler = (): void => {
     input.setContentWidth(getPromptContentWidth());
@@ -294,7 +294,7 @@ async function main() {
     stdin.removeAllListeners('data');
     stdout.removeListener('resize', resizeHandler);
     process.removeListener('SIGINT', sigintHandler);
-    process.removeListener('unhandledRejection', unhandledRejectionHandler);
+    processFaults.dispose();
     allowTerminalWrite(() => stdout.write(buildExitSequence(cli.flags.noAltScreen)));
     terminalOutputGuard.dispose();
     stdin.setRawMode(false);
@@ -760,7 +760,7 @@ async function main() {
     input.feed(data);
   });
   process.on('SIGINT', sigintHandler);
-  process.on('unhandledRejection', unhandledRejectionHandler);
+  processFaults.register();
   stdout.on('resize', resizeHandler);
 
   conversation.rebuildHistory();

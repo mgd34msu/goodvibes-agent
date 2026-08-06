@@ -679,10 +679,14 @@ function recordingSpawn(): {
 }
 
 /** Encode int16 magnitudes as the little-endian PCM a recorder writes. */
-function pcmBytes(samples: readonly number[]): Uint8Array {
-  const bytes = new Uint8Array(samples.length * 2);
+// Accepts a Float32Array as well as a plain sample array: silentFrame() hands
+// back the Float32Array shape the recorder actually emits, and the callers that
+// feed it here were failing typecheck:test against a number[]-only signature.
+function pcmBytes(samples: readonly number[] | Float32Array): Uint8Array {
+  const values = Array.from(samples);
+  const bytes = new Uint8Array(values.length * 2);
   const view = new DataView(bytes.buffer);
-  samples.forEach((value, index) => view.setInt16(index * 2, value, true));
+  values.forEach((value, index) => view.setInt16(index * 2, value, true));
   return bytes;
 }
 

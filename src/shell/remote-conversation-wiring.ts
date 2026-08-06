@@ -12,6 +12,9 @@
  */
 
 import { createRemoteConversationRouter } from '../runtime/client/remote-conversation.ts';
+import { mirrorHostedSessionToStore, recoverUnmirroredHostedSessions } from '../runtime/client/hosted-session-mirror.ts';
+import { persistConversation } from '@/runtime/index.ts';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { BootstrapContext } from '../runtime/bootstrap.ts';
 import type { HostedSessionFrame, HostedTurnCompletion } from '../runtime/client/hosted-frame-render.ts';
 import { createHostedTurnActivity, type HostedTurnActivity } from './hosted-turn-activity.ts';
@@ -79,6 +82,55 @@ export function installRemoteConversationRouting(
     turnState: ctx.orchestrator,
     requestRender: options.render,
   });
+  const clientId = `goodvibes-agent:${ctx.runtime.sessionId}`;
+  /**
+   * Put the daemon's authoritative transcript into this agent's session store
+   * and move last-session.json onto it, so the conversation is resumable from
+   * the surface that started it. Failures are reported, never thrown: a turn
+   * that answered the person correctly must not look failed because the mirror
+   * could not be written.
+   */
+  const mirrorHostedSession = async (hostedSessionId: string): Promise<void> => {
+    const outcome = await mirrorHostedSessionToStore(hostedSessionId, {
+      verbs: ctx.services.daemonVerbs,
+      clientId,
+      persist: (sessionId, snapshot, model, provider, title) => {
+        persistConversation(sessionId, snapshot, model, provider, title, { surface: ctx.services.surface }, 'auto');
+      },
+      fallbackModel: ctx.runtime.model,
+      fallbackProvider: ctx.runtime.provider,
+    });
+    if (!outcome.mirrored) {
+      logger.warn('[remote-conversation] a hosted conversation was not mirrored into the session store', {
+        hostedSessionId,
+        reason: outcome.reason,
+      });
+    }
+  };
+  // The crash path, run once at install: a surface that died mid-turn was never
+  // handed a completion, so nothing mirrored at turn end. The daemon still has
+  // those transcripts. Fire-and-forget — a daemon that is slow or absent at
+  // boot must not delay the shell coming up.
+  void recoverUnmirroredHostedSessions({
+    verbs: ctx.services.daemonVerbs,
+    clientId,
+    persist: (sessionId, snapshot, model, provider, title) => {
+      persistConversation(sessionId, snapshot, model, provider, title, { surface: ctx.services.surface }, 'auto');
+    },
+    fallbackModel: ctx.runtime.model,
+    fallbackProvider: ctx.runtime.provider,
+    workspaceRoot: ctx.services.workingDirectory,
+    knownSessionIds: () => {
+      try {
+        return ctx.services.sessionManager.list().map((info) => info.name);
+      } catch {
+        // An unreadable store means "nothing known", which is the safe answer:
+        // it can only cause a re-mirror, never a lost conversation.
+        return [];
+      }
+    },
+  }).catch(() => undefined);
+
   const router = createRemoteConversationRouter({
     verbs: ctx.services.daemonVerbs,
     configManager: ctx.services.configManager,
@@ -89,7 +141,7 @@ export function installRemoteConversationRouting(
     requestRender: options.render,
     // The hosted session's tools operate where this surface is working.
     workspaceRoot: ctx.services.workingDirectory,
-    clientId: `goodvibes-agent:${ctx.runtime.sessionId}`,
+    clientId,
     onFrame: (frame: HostedSessionFrame) => {
       // Real counts only, and only once the daemon has sent any.
       if (frame.type === 'LLM_RESPONSE_RECEIVED') {
@@ -124,7 +176,14 @@ export function installRemoteConversationRouting(
         conversation.addUserMessage(text);
         options.render();
         // The waiting state ends when the TURN ends, however it ends.
-        void outcome.completion.then(() => activity.end(), () => activity.end());
+        // The MIRROR runs on every terminal status, including 'abandoned' —
+        // that is the stream dropping before an end frame, i.e. the closest
+        // signal this surface gets to "the conversation went on without me",
+        // and precisely the case that previously left nothing in sessions/.
+        void outcome.completion.then(
+          () => { activity.end(); void mirrorHostedSession(outcome.hostedSessionId); },
+          () => { activity.end(); void mirrorHostedSession(outcome.hostedSessionId); },
+        );
         return { hostedSessionId: outcome.hostedSessionId, completion: outcome.completion };
       }
       // Not routed: the local turn owns the indicator from here.
