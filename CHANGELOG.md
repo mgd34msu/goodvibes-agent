@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.10 - 2026-08-06
+
+- **Fixed: the screen comes up whole and goes back clean.** One frame was painted a few milliseconds before the Agent entered its own screen. That single early frame left a copy of the interface on the shell's screen — which is what reappeared, instead of your prompt, on quit — and it convinced the renderer that content was already on the fresh screen, so the first real paint skipped the header, the sidebar frame, and stray characters mid-word until something forced a repaint. The Agent now paints only while it owns the screen, from the moment it enters to the moment it gives the terminal back.
+- **Fixed: an unnamed transcription or synthesis request goes to the voice provider the user configured** (platform runtime 2.0.11). The provider picker used to answer "use whatever is configured" with the first name on its internal list — a cloud provider — even when that provider had no key and this machine carried fully provisioned local engines. Wake-word transcription on a local-voice machine failed "OpenAI API key missing" while the working local whisper was never asked. Configured providers now win, local engines first: free, offline, no key. This covers both the daemon route and this Agent's own in-process fallback.
+- Changed: the bundled platform runtime is 2.0.11 and the daemon this Agent installs alongside itself is 1.28.13.
+
 ## 2.0.9 - 2026-08-05
 
 - **Fixed: a turn hosted by the daemon looks like a turn.** The thinking indicator and its 80ms waiting state ran only for turns this process answered itself, so a hosted turn showed a still screen from the moment you pressed Enter until the whole answer arrived at once. A hosted turn now drives the same waiting state, streams its text as it is written, names the tool it is running, and counts the tokens it actually spent.
