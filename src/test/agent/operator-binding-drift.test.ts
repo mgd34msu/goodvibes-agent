@@ -22,7 +22,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
-import { OPERATOR_ACTIONS, OPERATOR_ACTION_IDS } from '../../agent/operator-actions.ts';
+import { getOperatorActions, OPERATOR_ACTION_IDS } from '../../agent/operator-actions.ts';
 import {
   OPERATOR_BRIEFING_METHOD_IDS,
   operatorBriefingRoutes,
@@ -88,7 +88,7 @@ describe('operator action bindings', () => {
   test('every action sends the verb and path the contract publishes', () => {
     for (const id of EXPECTED_ACTION_IDS) {
       const binding = contractBinding(id)!;
-      const descriptor = OPERATOR_ACTIONS[id];
+      const descriptor = getOperatorActions()[id];
       expect(descriptor.pathTemplate, `${id} path`).toBe(binding.path);
       expect(String(descriptor.httpMethod ?? 'POST'), `${id} verb`).toBe(binding.method);
     }
@@ -100,7 +100,7 @@ describe('operator action bindings', () => {
     // is told it worked. DELETE-with-no-suffix included: the id is still in the
     // path, it is just the last segment.
     for (const id of EXPECTED_ACTION_IDS) {
-      const descriptor = OPERATOR_ACTIONS[id];
+      const descriptor = getOperatorActions()[id];
       expect(descriptor.pathTemplate, `${id} must interpolate ${descriptor.targetField}`)
         .toContain(`{${descriptor.targetField}}`);
     }

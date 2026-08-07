@@ -135,6 +135,8 @@ function buildOperatorActions(): Record<OperatorActionId, OperatorActionDescript
   return built;
 }
 
+let operatorActionsCache: Record<OperatorActionId, OperatorActionDescriptor> | null = null;
+
 /**
  * The actions this product will perform on the connected host, each bound to
  * the route the contract publishes for it.
@@ -144,10 +146,21 @@ function buildOperatorActions(): Record<OperatorActionId, OperatorActionDescript
  * feature. `requireOperatorHttpBinding` throws for an id the contract no longer
  * serves — a build compiled against a contract that dropped one of these is
  * broken, and the drift test says so before it ships.
+ *
+ * Resolved on first use rather than at module load: the old module-scope
+ * `buildOperatorActions()` call chained into the contract binding, and the
+ * single-file compiler's nondeterministic module order could evaluate this
+ * module before the contract's — the binary then died at load with a
+ * TypeError (the same build-order lottery class fixed at runtime 2.0.13).
  */
-export const OPERATOR_ACTIONS: Record<OperatorActionId, OperatorActionDescriptor> = buildOperatorActions();
+export function getOperatorActions(): Record<OperatorActionId, OperatorActionDescriptor> {
+  operatorActionsCache ??= buildOperatorActions();
+  return operatorActionsCache;
+}
 
-export const OPERATOR_ACTION_IDS = Object.keys(OPERATOR_ACTIONS) as readonly OperatorActionId[];
+// From the local spec literal, not the built actions: the id set needs no
+// contract lookup, so it stays safe to read at module scope.
+export const OPERATOR_ACTION_IDS = Object.keys(OPERATOR_ACTION_SPECS) as readonly OperatorActionId[];
 
 export function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -162,7 +175,7 @@ export function readOperatorActionBoolean(value: unknown): boolean {
 }
 
 export function isOperatorActionId(value: unknown): value is OperatorActionId {
-  return typeof value === 'string' && value in OPERATOR_ACTIONS;
+  return typeof value === 'string' && value in OPERATOR_ACTION_SPECS;
 }
 
 export function targetValue(args: OperatorActionArgs, descriptor: OperatorActionDescriptor): string {
@@ -181,7 +194,7 @@ export function operatorActionHttpMethod(descriptor: OperatorActionDescriptor): 
 function approvalBody(args: OperatorActionArgs): ApprovalActionInput {
   const note = readOperatorActionString(args.note);
   const body: ApprovalActionInput = {
-    approvalId: targetValue(args, OPERATOR_ACTIONS['approvals.approve']),
+    approvalId: targetValue(args, getOperatorActions()['approvals.approve']),
   };
   if (note) body.note = note;
   if (args.remember !== undefined) body.remember = readOperatorActionBoolean(args.remember);
@@ -206,7 +219,7 @@ export function buildOperatorActionRequest(rawArgs: unknown): OperatorActionPars
       error: `action must be one of: ${OPERATOR_ACTION_IDS.join(', ')}`,
     };
   }
-  const descriptor = OPERATOR_ACTIONS[args.action];
+  const descriptor = getOperatorActions()[args.action];
   const targetId = targetValue(args, descriptor);
   if (!targetId) {
     return {

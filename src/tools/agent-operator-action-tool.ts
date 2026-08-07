@@ -9,7 +9,7 @@ import {
   formatOperatorActionSuccess,
   formatOperatorActionToolPreview,
   isRecord,
-  OPERATOR_ACTIONS,
+  getOperatorActions,
   postOperatorAction,
   readOperatorActionBoolean,
   readOperatorActionString,
@@ -41,7 +41,7 @@ export function createAgentOperatorActionTool(
         properties: {
           action: {
             type: 'string',
-            enum: Object.keys(OPERATOR_ACTIONS),
+            enum: Object.keys(getOperatorActions()),
             description: 'Exact allowlisted public operator method id to execute.',
           },
           targetId: {

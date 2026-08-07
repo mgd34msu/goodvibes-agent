@@ -50,7 +50,15 @@ export function operatorBriefingRoutes(): readonly OperatorRouteDescriptor[] {
   }));
 }
 
-const OPERATOR_BRIEFING_ROUTES: readonly OperatorRouteDescriptor[] = operatorBriefingRoutes();
+// Resolved on first use, not at module load: the route lookup walks into the
+// contract binding, and the single-file compiler's nondeterministic module
+// order could evaluate this module before the contract's (the build-order
+// lottery class fixed at runtime 2.0.13).
+let operatorBriefingRoutesCache: readonly OperatorRouteDescriptor[] | null = null;
+function briefingRoutes(): readonly OperatorRouteDescriptor[] {
+  operatorBriefingRoutesCache ??= operatorBriefingRoutes();
+  return operatorBriefingRoutesCache;
+}
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -210,7 +218,7 @@ export function createAgentOperatorBriefingTool(
         };
       }
       const results: OperatorRouteResult[] = [];
-      for (const route of OPERATOR_BRIEFING_ROUTES) {
+      for (const route of briefingRoutes()) {
         results.push(await fetchOperatorRoute(connection.baseUrl, connection.token, route));
       }
       return {

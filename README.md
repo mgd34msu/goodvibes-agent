@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/mgd34msu/goodvibes-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mgd34msu/goodvibes-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0.11-blue.svg)](https://github.com/mgd34msu/goodvibes-agent)
+[![Version](https://img.shields.io/badge/version-2.0.12-blue.svg)](https://github.com/mgd34msu/goodvibes-agent)
 
 GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness — route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes — instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
 

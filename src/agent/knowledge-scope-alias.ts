@@ -5,7 +5,15 @@ import {
 
 type JsonRecord = Record<string, unknown>;
 
-const AGENT_KNOWLEDGE_PUBLIC_SPACE_ID = goodVibesAgentKnowledgeSpaceId();
+// Resolved on first use, not at module load: the SDK helper reads its own
+// module's constants, and the single-file compiler's nondeterministic module
+// order could run this line before they exist — silently yielding an
+// "undefined"-prefixed space id (the build-order lottery class, 2.0.13).
+let agentKnowledgePublicSpaceIdCache: string | null = null;
+function agentKnowledgePublicSpaceId(): string {
+  agentKnowledgePublicSpaceIdCache ??= goodVibesAgentKnowledgeSpaceId();
+  return agentKnowledgePublicSpaceIdCache;
+}
 const AGENT_KNOWLEDGE_SCOPE_FIELDS = new Set(['spaceId', 'knowledgeSpaceId', 'namespace']);
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -33,7 +41,7 @@ export function normalizeAgentKnowledgeScopeAliases<TValue>(value: TValue): TVal
   const output: JsonRecord = {};
   for (const [key, nested] of Object.entries(value)) {
     if (AGENT_KNOWLEDGE_SCOPE_FIELDS.has(key) && isDefaultScopeValue(nested)) {
-      output[key] = AGENT_KNOWLEDGE_PUBLIC_SPACE_ID;
+      output[key] = agentKnowledgePublicSpaceId();
       changed = true;
       continue;
     }
