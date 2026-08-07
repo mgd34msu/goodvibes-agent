@@ -72,6 +72,7 @@ import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts
 import { installRemoteConversationRouting } from './shell/remote-conversation-wiring.ts';
 import { applyAtModelSwitches } from './input/at-model-switch.ts';
 import { createCommandContextUi } from './shell/command-context-ui.ts';
+import { createTerminalPaintWindow } from './shell/terminal-paint-window.ts';
 
 // Escape bytes and enter/exit sequencing live in renderer/terminal-escapes.ts (re-exported from @pellux/goodvibes-terminal-shell) so this file never holds its own drifting copy.
 
@@ -249,8 +250,8 @@ async function main() {
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   // sessionId of the offered recovery snapshot, or null when none is pending.
   let recoveryPending: string | null = null, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
-  // Set by exitApp before the terminal-restore write; render() checks this so no late frame can paint over the screen after the terminal has been handed back.
-  let terminalRestored = false;
+  // The window in which this app owns the screen: opened by the enter sequence below, closed by exitApp before the terminal-restore write. render() paints only inside it — see shell/terminal-paint-window.ts for what the early frames did to the boot surface and to the shell's screen.
+  const paintWindow = createTerminalPaintWindow({ enter: () => allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write(buildEnterSequence(cli.flags.noAltScreen)); }), discardCompositorState: () => compositor.resetDiff() });
 
   const sigintHandler = (): void => input.feed('\x03');
   const processFaults = createProcessFaultHandlers({
@@ -272,7 +273,7 @@ async function main() {
     if (exiting) return;
     exiting = true;
     // Gate render() before anything else so no late frame follows the terminal-restore write below.
-    terminalRestored = true;
+    paintWindow.close();
     // Exit lets the spoken audio the user is already hearing finish inside a
     // short bounded window (capped inside stopForExit) instead of killing the
     // player mid-drain; queued-but-unplayed speech is dropped. Deliberate
@@ -503,8 +504,8 @@ async function main() {
   // access 'render' before initialization" as an unhandled rejection, which killed
   // that wiring, so the surface never repainted from any async source again.
   function render(): void {
-    // The terminal has already been handed back to the shell; never paint another frame over it.
-    if (terminalRestored) return;
+    // Outside the window where this app owns the screen: the alternate screen does not exist yet, or the terminal has already been handed back. Never paint in either case.
+    if (!paintWindow.isOpen()) return;
     const { width, height } = getTerminalSize(stdout);
 
     // Fire-and-forget refresh for the 'Coming up' sidebar section.
@@ -713,10 +714,8 @@ async function main() {
     render,
   });
 
-  stdin.setRawMode(true);
-  stdin.resume();
-  stdin.setEncoding('utf8');
-  allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write(buildEnterSequence(cli.flags.noAltScreen)); });
+  stdin.setRawMode(true); stdin.resume(); stdin.setEncoding('utf8'); // one line, as in the TUI's identical boot statement
+  paintWindow.open();
 
   // Forced dark/light before first paint; auto (TTY) probes + repaints once if light.
   const themeProbe = installStartupThemeProbe({
