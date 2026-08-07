@@ -4,6 +4,7 @@ import type { SessionSnapshot } from '@/runtime/index.ts';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import { readConversationMessageSnapshots } from '../core/conversation-message-snapshot.ts';
 import { answerWorkspaceRegistrationPrompt, type StoreShellPaths } from '../config/workspace-registration.ts';
+import type { DaemonRepairPrompt } from './daemon-repair-prompt.ts';
 
 export type PendingPermissionState = PermissionRequest & {
   resolve: (approved: boolean, remember?: boolean) => void;
@@ -25,6 +26,13 @@ export type BlockingInputHandlerOptions = {
   pendingPermission: PendingPermissionState | null;
   /** The sessionId of the offered recovery snapshot, or null when none is pending. Callers key consumeRecovery/removeRecoveryPoint to this exact id — see BlockingInputHandlerResult.recoveryPending. */
   recoveryPending: string | null;
+  /**
+   * The one-touch daemon repair offer, when this launch made one. A
+   * self-contained controller (shell/daemon-repair-prompt.ts) rather than a
+   * state field plus callbacks: it owns the awaiting-answer state, the wording
+   * and the follow-up, so nothing here has to be threaded back out.
+   */
+  daemonRepairPrompt: DaemonRepairPrompt | null;
   pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
   abortTurn: () => void;
   conversation: ConversationManager;
@@ -41,6 +49,9 @@ export type BlockingInputHandlerResult = {
   pendingPermission: PendingPermissionState | null;
   recoveryPending: string | null;
   pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
+  // Deliberately no daemonRepairPrompt: the controller owns its own
+  // awaiting-answer state, so unlike the fields above there is nothing for the
+  // shell to carry back and reassign.
 };
 
 export function handleBlockingShellInput(
@@ -50,6 +61,7 @@ export function handleBlockingShellInput(
     data,
     pendingPermission,
     recoveryPending,
+    daemonRepairPrompt,
     pendingWorkspaceRegistration,
     abortTurn,
     conversation,
@@ -113,6 +125,15 @@ export function handleBlockingShellInput(
     removeRecoveryPoint();
     render();
     return { handled: false, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
+  }
+
+  // One-touch daemon repair: 'y' repairs, EVERY other key declines — default
+  // no, matching the workspace prompt below and every other boot-time offer.
+  // Declining changes nothing whatsoever and is remembered for the rest of the
+  // session, so the question is asked once and never turn after turn.
+  if (daemonRepairPrompt?.pending()) {
+    daemonRepairPrompt.answer(data);
+    return { handled: true, pendingPermission: null, recoveryPending, pendingWorkspaceRegistration };
   }
 
   // First-start registration prompt: 'y' registers, EVERY other key (Escape,

@@ -33,7 +33,7 @@ import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
 import type { HITLMode } from '@pellux/goodvibes-sdk/platform/state';
-import { startFirstRenderFollowups } from './shell/first-render-followups.ts';
+import { startFirstRenderFollowups, type DaemonRepairPrompt } from './shell/first-render-followups.ts';
 import { localModelCookbook } from './tools/agent-harness-model-routing.ts';
 import { localModelSetupStatus } from './tools/agent-harness-setup-model-helpers.ts';
 import {
@@ -249,7 +249,7 @@ async function main() {
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   // sessionId of the offered recovery snapshot, or null when none is pending.
-  let recoveryPending: string | null = null, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
+  let recoveryPending: string | null = null, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null, daemonRepairPrompt: DaemonRepairPrompt | null = null;
   // The window in which this app owns the screen: opened by the enter sequence below, closed by exitApp before the terminal-restore write. render() paints only inside it — see shell/terminal-paint-window.ts for what the early frames did to the boot surface and to the shell's screen.
   const paintWindow = createTerminalPaintWindow({ enter: () => allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write(buildEnterSequence(cli.flags.noAltScreen)); }), discardCompositorState: () => compositor.resetDiff() });
 
@@ -740,7 +740,7 @@ async function main() {
     const blocking = handleBlockingShellInput({
       data,
       pendingPermission,
-      recoveryPending,
+      recoveryPending, daemonRepairPrompt,
       pendingWorkspaceRegistration,
       abortTurn: () => orchestrator.abort(),
       conversation,
@@ -764,10 +764,10 @@ async function main() {
 
   conversation.rebuildHistory();
   render();
-  ({ recoveryInterval, recoveryPending, pendingWorkspaceRegistration } = startFirstRenderFollowups({
+  ({ recoveryInterval, recoveryPending, pendingWorkspaceRegistration, daemonRepairPrompt } = startFirstRenderFollowups({
     shellPaths: ctx.services.shellPaths,
     providerRegistry,
-    commandContext,
+    commandContext, daemonRepair: { config: configManager },
     autonomy,
     buildCurrentSessionSnapshot,
     runtime,

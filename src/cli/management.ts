@@ -18,6 +18,11 @@ import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { conversationMessagesAsSessionRecords } from '../core/conversation-message-snapshot.ts';
 import { executeRunTurn, writeRunTurnResult } from './run-turn.ts';
+import {
+  createDaemonRepairSessionMemory,
+  describeDaemonRepairForHeadless,
+  diagnoseDaemonRepair,
+} from '../runtime/daemon-repair.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { writeFatalLine } from '../utils/fatal-boot-write.ts';
 import { listProviderRuntimeSnapshots } from '@pellux/goodvibes-sdk/platform/providers';
@@ -240,6 +245,24 @@ export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promis
   }
 
   const outputFormat = runtime.cli.flags.outputFormat;
+
+  // A machine wedged the way the incident laptop was — daemon service stopped
+  // AND daemon.enabled false — is diagnosed here too, but never prompted on.
+  // Run mode has no person at the keyboard and stdout is a machine-readable
+  // contract, so the diagnosis and the offer this Agent would have made go to
+  // STDERR and the run proceeds exactly as it did before. Staying silent is how
+  // the original incident lasted weeks; interrupting a scripted run to ask a
+  // question nobody is there to answer would be worse.
+  const wedged = diagnoseDaemonRepair({
+    config: runtime.configManager,
+    session: createDaemonRepairSessionMemory(),
+  });
+  if (wedged) {
+    for (const line of describeDaemonRepairForHeadless(wedged)) {
+      process.stderr.write(`${line}\n`);
+    }
+  }
+
   const ctx = await bootstrapRuntime(process.stdout, {
     configManager: runtime.configManager,
     workingDir: runtime.workingDirectory,

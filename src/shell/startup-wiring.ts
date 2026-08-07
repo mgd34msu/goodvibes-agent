@@ -16,6 +16,9 @@ import { deriveOnboardingState } from '../runtime/onboarding/onboarding-state.ts
 import { buildSetupIncompleteHint } from '../core/setup-incomplete-hint.ts';
 import { isBroadWorkspaceRoot, normalizeWorkspaceRoot, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
 import type { PendingWorkspaceRegistrationState } from './blocking-input.ts';
+import { createDaemonRepairPrompt, type DaemonRepairPrompt } from './daemon-repair-prompt.ts';
+import { createDaemonRepairSessionMemory, diagnoseDaemonRepair, type DaemonRepairConfig, type DaemonRepairSessionMemory } from '../runtime/daemon-repair.ts';
+import type { DaemonCliRunner } from '../runtime/daemon-cli-service.ts';
 
 export interface SessionPersistenceAndRecoveryDeps {
   readonly buildCurrentSessionSnapshot: () => SessionSnapshot;
@@ -37,6 +40,20 @@ export interface SessionPersistenceAndRecoveryDeps {
    * (which owns the render closure) can keep the value up to date.
    */
   readonly onStreamSpeedUpdate: (tokensPerSecond: number) => void;
+  /**
+   * The wedged-machine check (runtime/daemon-repair.ts). Absent in the narrow
+   * test fixtures that only exercise persistence/recovery; when present, a
+   * machine whose daemon is off in both places is offered the one-touch repair.
+   */
+  readonly daemonRepair?: {
+    readonly config: DaemonRepairConfig;
+    /** Defaults to a fresh per-process memory; injected only by tests that assert re-offer behaviour. */
+    readonly session?: DaemonRepairSessionMemory | undefined;
+    /** Injectable so a test never spawns the real daemon CLI. */
+    readonly runDaemonCli?: DaemonCliRunner | undefined;
+    /** Injectable repair, so a test drives accept without touching a service manager. */
+    readonly repair?: Parameters<typeof createDaemonRepairPrompt>[0]['repair'];
+  } | undefined;
 }
 
 export interface SessionPersistenceAndRecoveryResult {
@@ -52,6 +69,12 @@ export interface SessionPersistenceAndRecoveryResult {
   recoveryPending: string | null;
   /** Set when the first-start registration prompt was shown this launch (see below). */
   pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
+  /**
+   * The one-touch daemon repair controller when this launch offered a repair,
+   * null otherwise. Handed straight to handleBlockingShellInput; it owns its
+   * own awaiting-answer state, so the shell never reassigns it.
+   */
+  daemonRepairPrompt: DaemonRepairPrompt | null;
 }
 
 /**
@@ -79,6 +102,7 @@ export function wireSessionPersistenceAndRecovery(
     uiServicesTurns,
     hookDispatcher,
     onStreamSpeedUpdate,
+    daemonRepair,
   } = deps;
   const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory });
 
@@ -152,9 +176,43 @@ export function wireSessionPersistenceAndRecovery(
   // already claimed this launch's ambient attention, and while onboarding is
   // still incomplete — the full-screen onboarding wizard would otherwise
   // compete with this prompt for the very next keypress the owner types.
-  let pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
   const onboardingDone = Boolean(readOnboardingCompletionMarker(shellPaths, 'user').payload);
-  if (!recoveryPending && onboardingDone) {
+
+  // One-touch daemon repair, offered before the workspace prompt below because
+  // the two compete for the very next keypress and this one is about a machine
+  // that cannot reach the platform at all. Same guards as that prompt: skipped
+  // when a recovery offer already claimed this launch's attention, and while
+  // onboarding is still incomplete. The check itself costs nothing on a healthy
+  // machine — it reads one setting and returns, and only consults the daemon's
+  // CLI once that setting is already false. See runtime/daemon-repair.ts.
+  let daemonRepairPrompt: DaemonRepairPrompt | null = null;
+  if (!recoveryPending && onboardingDone && daemonRepair) {
+    const daemonRepairSession = daemonRepair.session ?? createDaemonRepairSessionMemory();
+    const offer = diagnoseDaemonRepair({
+      config: daemonRepair.config,
+      session: daemonRepairSession,
+      ...(daemonRepair.runDaemonCli ? { runDaemonCli: daemonRepair.runDaemonCli } : {}),
+    });
+    if (offer) {
+      // One line: what is wrong, then the offer. Both come from the policy
+      // module so the interactive wording and headless run's stderr wording
+      // cannot drift apart.
+      systemMessageRouter.high(`[Daemon] ${offer.diagnosis} ${offer.offer}`);
+      render();
+      daemonRepairPrompt = createDaemonRepairPrompt({
+        offer,
+        config: daemonRepair.config,
+        session: daemonRepairSession,
+        systemMessageRouter,
+        render,
+        runDaemonCli: daemonRepair.runDaemonCli,
+        repair: daemonRepair.repair,
+      });
+    }
+  }
+
+  let pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
+  if (!recoveryPending && !daemonRepairPrompt && onboardingDone) {
     const resolution = resolveWorkspaceRegistrationSync(shellPaths, workingDir);
     if (resolution.status === 'unknown' && !isBroadWorkspaceRoot(shellPaths, workingDir)) {
       systemMessageRouter.high(`[Workspace] "${workingDir}" is not a registered workspace, so automatic (turn-end) checkpoints are off here. Register it? Press "y" to register, any other key to decline (won't ask again for this location).`);
@@ -163,7 +221,7 @@ export function wireSessionPersistenceAndRecovery(
     }
   }
 
-  return { recoveryInterval, recoveryPending, pendingWorkspaceRegistration };
+  return { recoveryInterval, recoveryPending, pendingWorkspaceRegistration, daemonRepairPrompt };
 }
 
 /**

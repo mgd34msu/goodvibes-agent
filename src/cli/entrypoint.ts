@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../config/index.ts';
 import { ensureDaemonConfigMigrated } from '../config/ensure-daemon-config-migrated.ts';
+import { ensureDaemonEnabledMigrated } from '../config/ensure-daemon-enabled-migrated.ts';
 import { formatProviderModel, getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
 import { readOnboardingCheckMarkers } from '../runtime/onboarding/index.ts';
 import { GlobalNetworkTransportInstaller } from '@/runtime/index.ts';
@@ -134,6 +135,17 @@ export async function prepareShellCliRuntime(
   // daemon-owned key from a stale surface copy. Idempotent; announces once.
   const daemonConfigNotice = ensureDaemonConfigMigrated(bootstrapHomeDirectory);
   if (daemonConfigNotice) console.log(`[goodvibes] ${daemonConfigNotice}`);
+  // A `daemon.enabled: false` left over from when the key meant "do not embed a
+  // daemon in this process" now means "do not look for a daemon at all", which
+  // is how a machine ends up unable to reach the platform with no way to say
+  // so. Reset it ONCE, with a receipt, before the config manager reads it —
+  // after this pass a false the user sets is theirs and is kept. Idempotent;
+  // announces once.
+  const daemonEnabledNotice = ensureDaemonEnabledMigrated({
+    homeDir: bootstrapHomeDirectory,
+    workingDir: bootstrapWorkingDir,
+  });
+  if (daemonEnabledNotice) console.log(`[goodvibes] ${daemonEnabledNotice}`);
   const configManager = new ConfigManager({
     workingDir: bootstrapWorkingDir,
     homeDir: bootstrapHomeDirectory,
