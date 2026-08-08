@@ -366,6 +366,10 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
         ...(deps.loadSession !== undefined ? { loadSession: deps.loadSession } : {}),
       }),
       ...(deps.createNoiseSuppression !== undefined ? { createNoiseSuppression: deps.createNoiseSuppression } : {}),
+      // Every completed capture leaves a receipt (floor, stop reason, timings)
+      // in the shared voice diagnostics, so "it kept listening" is a number,
+      // not a mystery.
+      recordDiagnostic: (entry) => recordVoiceDiagnostic(deps.managedRoot, entry),
       handlers: {
         onStateChange: (state) => {
           phase = state.phase;

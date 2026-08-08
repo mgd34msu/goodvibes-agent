@@ -17,6 +17,7 @@ import { persistConversation } from '@/runtime/index.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { BootstrapContext } from '../runtime/bootstrap.ts';
 import type { HostedSessionFrame, HostedTurnCompletion } from '../runtime/client/hosted-frame-render.ts';
+import { bridgeHostedFrameOntoRuntimeBus } from '../runtime/client/hosted-turn-bus-bridge.ts';
 import { createHostedTurnActivity, type HostedTurnActivity } from './hosted-turn-activity.ts';
 
 export interface RemoteConversationWiringOptions {
@@ -158,6 +159,16 @@ export function installRemoteConversationRouting(
       } else if (frame.type === 'TOOL_SUCCEEDED' || frame.type === 'TOOL_FAILED') {
         activity.noteTool(null);
       }
+      // Republish onto this process's own runtime bus — see
+      // hosted-turn-bus-bridge.ts. Without this, a daemon-hosted turn never
+      // fires TURN_SUBMITTED/STREAM_DELTA/TURN_COMPLETED locally, so anything
+      // that only watches events.turns (spoken output today) stays silent for
+      // it.
+      bridgeHostedFrameOntoRuntimeBus(frame, {
+        runtimeBus: ctx.runtimeBus,
+        sessionId: ctx.runtime.sessionId,
+        source: 'goodvibes-agent',
+      });
       options.onFrame?.(frame);
     },
   });

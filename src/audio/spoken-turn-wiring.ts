@@ -26,6 +26,15 @@ export interface WireSpokenTurnRuntimeOptions {
   readonly playerFactory?: () => StreamingAudioPlayer;
 }
 
+/**
+ * wireSpokenTurnRuntime — wires the spoken-turn pipeline against the runtime
+ * event bus.
+ *
+ * Always-speak mode: when `ui.voiceEnabled` is true in config, every
+ * TURN_SUBMITTED event arms the turn for spoken output automatically — the
+ * user does not need to arm each turn individually. The availability check
+ * inside SpokenTurnController still gates gracefully when no player is found.
+ */
 export function wireSpokenTurnRuntime(options: WireSpokenTurnRuntimeOptions): SpokenTurnRuntime {
   const player = options.playerFactory ? options.playerFactory() : new LocalStreamingAudioPlayer();
   const controller = new SpokenTurnController({
@@ -38,7 +47,13 @@ export function wireSpokenTurnRuntime(options: WireSpokenTurnRuntimeOptions): Sp
 
   const turns = options.events.turns;
   const unsubs = [
-    turns.on('TURN_SUBMITTED', (event) => controller.handleTurnEvent(event)),
+    turns.on('TURN_SUBMITTED', (event) => {
+      // Always-speak mode: auto-arm when ui.voiceEnabled is set.
+      if (options.configManager.get('ui.voiceEnabled')) {
+        controller.submitNextTurn(event.prompt);
+      }
+      controller.handleTurnEvent(event);
+    }),
     turns.on('PREFLIGHT_FAIL', (event) => controller.handleTurnEvent(event)),
     turns.on('STREAM_DELTA', (event) => controller.handleTurnEvent(event)),
     turns.on('STREAM_END', (event) => controller.handleTurnEvent(event)),

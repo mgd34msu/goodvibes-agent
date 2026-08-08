@@ -2,6 +2,14 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.13 - 2026-08-08
+
+- **Fixed: enabling voice makes the Agent actually speak.** Two defects stacked. The always-speak rule — voice enabled means every response is spoken, no per-turn arming — existed in the terminal app and had never been ported here. And deeper: the Agent's conversations run inside the daemon, and a daemon-hosted turn's events never reached the local bus the speech pipeline listens to — so even explicitly-armed spoken turns were silent. Hosted turn frames are now bridged onto the runtime bus through the platform's typed emitters, and `ui.voiceEnabled` arms every submitted turn. Turn voice on; every reply is read aloud.
+- **Fixed: spoken output reads prose, not markdown** (platform runtime 2.0.14). Formatting marks — bold and italic asterisks, heading hashes, link syntax, list bullets, table pipes — are stripped before synthesis, and fenced code blocks are announced ("Code block omitted.") instead of being read character by character.
+- **Fixed: post-wake capture ends when you stop talking, on real microphones** (platform runtime 2.0.14). A headset's automatic gain control ramping back up after speech no longer holds the microphone open — the silence floor follows the room through the whole capture — and breath ticks shorter than `voice.wake.speechRetriggerMs` (new setting, default 150 ms) no longer restart the silence countdown. The pause window is unchanged: a natural mid-sentence pause under `voice.wake.silenceStopMs` never cuts you off, sustained speech always resets the clock, and the floor can never rise into your voice (capped at a third of your tracked speech level).
+- **Every completed wake capture now leaves a receipt** in the voice diagnostics: the floor it started with, where it ended, why the capture stopped, how long it ran, and how many short bursts it absorbed — so capture behavior is a set of numbers, not a feeling.
+- Changed: the bundled platform runtime is 2.0.14 and the daemon installed alongside this Agent is 1.28.17, which carry the same capture and spoken-output behavior.
+
 ## 2.0.12 - 2026-08-07
 
 - **Supersedes 2.0.11, whose release never published.** Its compiled-binary check failed on one build leg, and the failure was real. Everything listed under 2.0.11 ships here, plus the fix for what stopped it.
