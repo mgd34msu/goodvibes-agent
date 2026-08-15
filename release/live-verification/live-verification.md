@@ -1,6 +1,6 @@
 # GoodVibes Agent Live Verification
 
-Generated: 2026-08-05T16:00:32.471Z
+Generated: 2026-08-15T22:56:23.462Z
 Home: `[goodvibes-home]`
 Binary: `[agent-binary]`
 Connected host: `http://127.0.0.1:3421`
@@ -14,7 +14,7 @@ Connected host: `http://127.0.0.1:3421`
 
 | Check | Status | Summary |
 |---|---|---|
-| Verification inventory ledger | pass | 99.6% local verification signal across 988 inventory items. |
+| Verification inventory ledger | pass | 99.6% local verification signal across 989 inventory items. |
 | Compiled GoodVibes Agent CLI binary | pass | Found [agent-binary]. |
 | Agent CLI version command | pass | Agent CLI version returned successfully. |
 | Agent CLI status JSON command | pass | Agent CLI status returned parseable JSON. |
@@ -24,7 +24,7 @@ Connected host: `http://127.0.0.1:3421`
 | CLI doctor command | pass | Doctor completed; 2 operator-configuration risk advisory(ies) noted (intentional trust posture, not a release defect). |
 | Authenticated connected-host /status | pass | /status returned 200 with parseable JSON. |
 | Authenticated connected-host /api/health | pass | Health overall=healthy. |
-| OpenAI-compatible /v1/models route | pass | /v1/models returned 735 model(s). |
+| OpenAI-compatible /v1/models route | pass | /v1/models returned 758 model(s). |
 | Agent Knowledge isolated /status | pass | Agent Knowledge status route returned parseable isolated JSON. |
 | Agent Knowledge isolated ask | pass | Agent Knowledge ask stayed on the isolated Agent route. |
 | Agent Knowledge isolated search | pass | Agent Knowledge search stayed on the isolated Agent route. |
@@ -39,13 +39,13 @@ Connected host: `http://127.0.0.1:3421`
 ### Verification inventory ledger
 
 ```text
-84.1% local behavior verified; 123 item(s) require external outcomes.
+84% local behavior verified; 124 item(s) require external outcomes.
 ```
 
 ### Agent CLI version command
 
 ```text
-goodvibes-agent 2.0.6
+goodvibes-agent 2.0.14
 ```
 
 ### Agent CLI status JSON command
@@ -59,7 +59,7 @@ Status JSON command completed; provider/model identifiers omitted from release a
 ```text
 {
   "ok": true,
-  "packageVersion": "2.0.6",
+  "packageVersion": "2.0.14",
   "connectedHost": {
     "baseUrl": "http://127.0.0.1:3421",
     "status": 200,
@@ -95,9 +95,9 @@ Status JSON command completed; provider/model identifiers omitted from release a
     "extractionCount": 0,
     "jobRunCount": 500,
     "refinementTaskCount": 0,
-    "usageCount": 4,
+    "usageCount": 6,
     "candidateCount": 1,
-    "reportCount": 55,
+    "reportCount": 67,
     "scheduleCount": 3,
     "note": "Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."
   }
@@ -119,7 +119,7 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Authenticated connected-host /status
 
 ```text
-{"status":"running","version":"1.28.9","buildVersion":"1.28.9","platformVersion":"2.0.7","cluster":{"enabled":false,"role":"master","nodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","version":"1.28.9","uptimeMs":0,"consumersRunning":true,"heldSurfaceCount":7,"signed":false,"surfaces":[{"surfaceId":"6e9bf353efb32e17c43b5881204f9a20","label":"inbox:6e9bf353","kind":"inbox","role":"master","holderNodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","consuming":true,"lastHolderHeartbeatAt":null},{"surfaceId":"89c112b2dc732cef71afa8c9df8fdc6f","label":"inbox:89c112b2","kind":"inbox","role":"master","holderNodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","consuming":true,"lastHolderHeartbeatAt":null},{"surfaceId":"93b73cdc72c58e86297104412a7769bb","label":"inbox:93b73cdc","kind":"inbox","role":"master","holderNodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","consuming":true,"lastHolderHear... [truncated]
+{"status":"running","version":"1.28.17","buildVersion":"1.28.17","platformVersion":"2.0.14","cluster":{"enabled":false,"role":"master","nodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","version":"1.28.17","uptimeMs":0,"consumersRunning":true,"heldSurfaceCount":7,"signed":false,"surfaces":[{"surfaceId":"6e9bf353efb32e17c43b5881204f9a20","label":"inbox:6e9bf353","kind":"inbox","role":"master","holderNodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","consuming":true,"lastHolderHeartbeatAt":null},{"surfaceId":"89c112b2dc732cef71afa8c9df8fdc6f","label":"inbox:89c112b2","kind":"inbox","role":"master","holderNodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","consuming":true,"lastHolderHeartbeatAt":null},{"surfaceId":"93b73cdc72c58e86297104412a7769bb","label":"inbox:93b73cdc","kind":"inbox","role":"master","holderNodeId":"59a6a335-d62a-486d-a4a0-7e64e3ff4944","consuming":true,"lastHolder... [truncated]
 ```
 
 ### Authenticated connected-host /api/health
@@ -131,13 +131,13 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### OpenAI-compatible /v1/models route
 
 ```text
-/v1/models returned 735 model(s); model identifiers omitted from release artifact.
+/v1/models returned 758 model(s); model identifiers omitted from release artifact.
 ```
 
 ### Agent Knowledge isolated /status
 
 ```text
-{"ready":true,"storagePath":"[goodvibes-home]/tui/knowledge-agent.sqlite","sourceCount":0,"nodeCount":4,"edgeCount":3,"issueCount":0,"extractionCount":0,"jobRunCount":500,"refinementTaskCount":0,"usageCount":4,"candidateCount":1,"reportCount":55,"scheduleCount":3,"note":"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."}
+{"ready":true,"storagePath":"[goodvibes-home]/tui/knowledge-agent.sqlite","sourceCount":0,"nodeCount":4,"edgeCount":3,"issueCount":0,"extractionCount":0,"jobRunCount":500,"refinementTaskCount":0,"usageCount":6,"candidateCount":1,"reportCount":67,"scheduleCount":3,"note":"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."}
 ```
 
 ### Agent Knowledge isolated ask
@@ -173,7 +173,7 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Agent Knowledge isolated map
 
 ```text
-{"ok":true,"title":"Knowledge Map","generatedAt":1785945632469,"width":1280,"height":920,"nodeCount":4,"edgeCount":3,"totalNodeCount":4,"totalEdgeCount":3,"facets":{"recordKinds":[{"value":"node","count":4}],"nodeKinds":[{"value":"topic","count":3},{"value":"memory","count":1}],"sourceTypes":[],"sourceStatuses":[],"nodeStatuses":[{"value":"active","count":4}],"issueCodes":[],"issueStatuses":[],"issueSeverities":[],"edgeRelations":[{"value":"memory_tagged_with","count":3}],"tags":[]},"nodes":[{"id":"node-f02b3f1c","recordKind":"node","kind":"topic","title":"autonomy","summary":"Topic tag autonomy.","x":720,"y":277,"radius":23,"metadata":{"tag":"autonomy","knowledgeSpaceId":"default","namespace":"default","reviewProvenance":{"state":"auto-accepted","reason":"auto-accepted: confidence 70 >= auto-accept threshold 40","decidedAt":1785104923908,"threshold":40}}},{"id":"node-a21... [truncated]
+{"ok":true,"title":"Knowledge Map","generatedAt":1786834583461,"width":1280,"height":920,"nodeCount":4,"edgeCount":3,"totalNodeCount":4,"totalEdgeCount":3,"facets":{"recordKinds":[{"value":"node","count":4}],"nodeKinds":[{"value":"topic","count":3},{"value":"memory","count":1}],"sourceTypes":[],"sourceStatuses":[],"nodeStatuses":[{"value":"active","count":4}],"issueCodes":[],"issueStatuses":[],"issueSeverities":[],"edgeRelations":[{"value":"memory_tagged_with","count":3}],"tags":[]},"nodes":[{"id":"node-f02b3f1c","recordKind":"node","kind":"topic","title":"autonomy","summary":"Topic tag autonomy.","x":720,"y":277,"radius":23,"metadata":{"tag":"autonomy","knowledgeSpaceId":"default","namespace":"default","reviewProvenance":{"state":"auto-accepted","reason":"auto-accepted: confidence 70 >= auto-accept threshold 40","decidedAt":1785104923908,"threshold":40}}},{"id":"node-a21... [truncated]
 ```
 
 ### Agent Knowledge isolated connectors list

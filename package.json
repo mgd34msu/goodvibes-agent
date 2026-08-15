@@ -1,6 +1,6 @@
 {
   "name": "@pellux/goodvibes-agent",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "private": false,
   "description": "GoodVibes personal operator assistant TUI with a proactive Agent product brain, isolated Agent Knowledge, local profiles, routines, skills, personas, and explicit build delegation.",
   "type": "module",
@@ -94,11 +94,11 @@
     "bun": ">=1.3.10"
   },
   "dependencies": {
-    "@pellux/goodvibes-daemon": "1.28.17"
+    "@pellux/goodvibes-daemon": "1.28.18"
   },
   "devDependencies": {
-    "@pellux/goodvibes-sdk": "2.0.14",
-    "@pellux/goodvibes-terminal-shell": "2.0.14",
+    "@pellux/goodvibes-sdk": "2.0.15",
+    "@pellux/goodvibes-terminal-shell": "2.0.15",
     "onnxruntime-web": "^1.27.0",
     "sql.js": "^1.14.1",
     "sqlite-vec": "^0.1.9",
