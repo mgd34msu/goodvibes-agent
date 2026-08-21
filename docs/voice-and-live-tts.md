@@ -20,7 +20,11 @@ GoodVibes Agent supports spoken turns as an Agent TUI feature. Text output remai
 
 `/config tts` opens the fullscreen configuration workspace for streaming provider, voice, and spoken-turn model routing.
 
-The model can inspect the same settings through `settings action:"list|get"`, use `device action:"voice|provider"` for voice/media posture and provider inspection, open the visible TTS provider or voice picker through `device action:"open_tts_provider|open_tts_voice"` with confirmation, and change Agent-owned TTS settings with `settings action:"set"` plus explicit confirmation. Lower-level `mode:"media_posture"` is compact by default; use `includeParameters:true` or `mode:"media_provider"` for full provider readiness, generation route hints, picker routes, and media policy detail. It also returns a voice workflow map for push-to-talk input, voice memo transcription, spoken responses, and wake-word capture, with ready/attention/setup-needed/not-published states, exact setup routes, and certified SDK/daemon permission-scoped live records when published. The wake row reports THIS surface's capture host: whether both enablement rows are on, which recorder is configured, whether a row is refusing to start it. It also keeps the paired-phone half in its own evidence field. Workspace action discovery includes compact `modelRoute` hints for TTS prompts, image input, and confirmed media generation; generated image/video requests use `agent_media_generate` when the user asks for that effect. Connected-host listener or lifecycle settings remain outside Agent ownership.
+The model can inspect the same settings through `settings action:"list|get"`, use `device action:"voice|provider"` for voice/media posture and provider inspection, open the visible TTS provider or voice picker through `device action:"open_tts_provider|open_tts_voice"` with confirmation, and change Agent-owned TTS settings with `settings action:"set"` plus explicit confirmation. Lower-level `mode:"media_posture"` is compact by default; use `includeParameters:true` or `mode:"media_provider"` for full provider readiness, generation route hints, picker routes, and media policy detail. It also returns a voice workflow map for push-to-talk input, voice memo transcription, spoken responses, and wake-word capture, with ready/attention/setup-needed/not-published states, exact setup routes, and certified SDK/daemon permission-scoped live records when published.
+
+The wake row reports THIS surface's capture host: whether both enablement rows are on, which recorder is configured, whether a row is refusing to start it. It also keeps the paired-phone half in its own evidence field.
+
+Workspace action discovery includes compact `modelRoute` hints for TTS prompts, image input, and confirmed media generation; generated image/video requests use `agent_media_generate` when the user asks for that effect. Connected-host listener or lifecycle settings remain outside Agent ownership.
 
 ## Wake-word capture
 
@@ -135,6 +139,7 @@ standard `ConfigManager.get`/`set` API that every other Agent setting uses. Chan
 `tts.provider` through `/config tts.provider` or `settings action:"set"` changes the
 exact same key a TUI user would change through its own `/config` surface. The
 key name, type, and default are one contract, not two independently-maintained ones.
+
 `src/test/audio/voice-config-cohesion.test.ts` is the regression guard: it fails if
 the Agent ever reads a tts.* key that isn't in the shared schema, or if a tts.*
 reader stops importing `ConfigManager` from the shared SDK package.
@@ -142,7 +147,9 @@ reader stops importing `ConfigManager` from the shared SDK package.
 What "shared" does **not** mean here: each surface still persists its *values* to its
 own settings file (Agent's under its own surface root, TUI's under its own). That is
 the existing, general-purpose per-surface config storage model, not something voice-
-specific, and changing it is out of scope for this ruling. "Shared" means the
+specific, and changing it is out of scope for this ruling.
+
+"Shared" means the
 schema/contract (the key names, types, and defaults) is one definition used by every
 surface, so the same key always means the same thing and takes the same kind of
 value everywhere. A user (or an operator script) setting `tts.voice` on one surface
@@ -165,7 +172,9 @@ Two related rulings, made for this parity pass:
   grow a partial one. That ruling has been revisited exactly as it said to: the
   platform now owns the low-level capture routine, the recorder argv, the framing arithmetic
   and the post-wake utterance policy, so this surface composes them rather than
-  building a partial flow of its own (see "Wake-Word Capture" above). What is still
+  building a partial flow of its own (see "Wake-Word Capture" above).
+
+  What is still
   deliberately absent is PUSH-TO-TALK: no key here opens a microphone, because the
   wake phrase is the intended way to speak to the Agent and a second capture entry
   point would be a second thing to hold the device. `voice.wake.captureMaxSeconds`
