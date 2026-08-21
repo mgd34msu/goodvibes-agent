@@ -1,15 +1,15 @@
 /**
- * SystemMessageRouter — routes system messages to the right surfaces.
+ * SystemMessageRouter, routes system messages to the right surfaces.
  *
  * Every message lands in the ActivityFeed (the ambient "Recent" record shown
- * in the Activity sidebar). High-priority messages — errors, confirmations the
- * user explicitly caused, session lifecycle — additionally land in the main
+ * in the Activity sidebar). High-priority messages, errors, confirmations the
+ * user explicitly caused, session lifecycle, additionally land in the main
  * conversation so they are impossible to miss.
  *
  * Two tiers:
- *   - 'high' — conversation AND activity feed. Use for: fatal errors,
+ *   - 'high', conversation AND activity feed. Use for: fatal errors,
  *     model/provider confirmations, session save/load, compaction events.
- *   - 'low'  — activity feed only. Use for: scan results, provider discovery,
+ *   - 'low' , activity feed only. Use for: scan results, provider discovery,
  *     plugin load/unload, tool execution status, permission decisions,
  *     health events, debug/operational info.
  *
@@ -67,7 +67,7 @@ export class SystemMessageRouter {
     priority: SystemMessagePriority,
     kind: SystemMessageKind,
   ): void {
-    // Noise gate — keep first-run plumbing out of the Recent feed / transcript
+    // Noise gate, keep first-run plumbing out of the Recent feed / transcript
     // while the information stays reachable via other live surfaces (activity
     // log, /health, /model). Dropped noise is drop-from-the-feed, not delete.
     const verdict = classifyNoise(message, this.noiseDeps);
@@ -104,7 +104,7 @@ export class SystemMessageRouter {
    * buffer. The boot-only "— from last session" burst stays out of the Recent
    * feed; the persisted-provider set it summarizes is reachable on demand via
    * /health and /model, and the fold line is logged for diagnosis. Only the
-   * boot burst folds — mid-session provider-discovery lines never match
+   * boot burst folds, mid-session provider-discovery lines never match
    * PROVIDER_REPLAY_RE, so they still reach the feed as live product signal.
    */
   flushProviderReplay(): void {
@@ -129,12 +129,12 @@ export class SystemMessageRouter {
     this.routeTypedSystemMessage(message, priority, classifySystemMessageKind(message));
   }
 
-  /** High-priority shortcut — conversation + activity feed. */
+  /** High-priority shortcut, conversation + activity feed. */
   high(message: string): void {
     this.routeSystemMessage(message, 'high');
   }
 
-  /** Low-priority shortcut — activity feed only. */
+  /** Low-priority shortcut, activity feed only. */
   low(message: string): void {
     this.routeSystemMessage(message, 'low');
   }

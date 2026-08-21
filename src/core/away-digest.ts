@@ -1,5 +1,5 @@
 /**
- * Away digest — a friendly "while you were away" summary shown once at launch.
+ * Away digest, a friendly "while you were away" summary shown once at launch.
  *
  * This module is intentionally pure: buildAwayDigest() takes a plain snapshot
  * object and returns a structured digest (or null when nothing happened). No
@@ -30,14 +30,14 @@ export interface AwayDigestRunItem {
 }
 
 export interface AwayDigestInput {
-  /** Epoch ms when the user last used the app. null = first run — digest is suppressed. */
+  /** Epoch ms when the user last used the app. null = first run, digest is suppressed. */
   readonly lastSeenAt: number | null;
   /** Schedules that ran since lastSeenAt. */
   readonly schedules: readonly AwayDigestScheduleItem[];
   /** Tasks whose status changed since lastSeenAt. */
   readonly tasks: readonly AwayDigestTaskItem[];
   /**
-   * Number of approvals currently waiting — the daemon's record unioned with
+   * Number of approvals currently waiting, the daemon's record unioned with
    * whatever this process still holds, never one half of that.
    */
   readonly pendingApprovals: number;
@@ -53,14 +53,14 @@ export interface AwayDigestInput {
   /** Optional channel deliveries since lastSeenAt. */
   readonly deliveries?: readonly AwayDigestDeliveryItem[];
   /**
-   * Connected-host automation runs that failed since lastSeenAt — read from the
+   * Connected-host automation runs that failed since lastSeenAt, read from the
    * host's automation.runs.list outcome, never the agent's local automation
    * manager (local execution is disabled by design).
    */
   readonly failedRuns?: readonly AwayDigestRunItem[];
   /**
    * Connected-host automation runs that were missed (the host was asleep past
-   * the scheduled time) since lastSeenAt — same wire source as failedRuns.
+   * the scheduled time) since lastSeenAt, same wire source as failedRuns.
    */
   readonly missedRuns?: readonly AwayDigestRunItem[];
 }
@@ -94,7 +94,6 @@ export function formatDigestTime(at: number, from: number = Date.now()): string 
 
   if (sameDay) return time;
 
-  // Check if it was yesterday
   const yesterday = new Date(from);
   yesterday.setDate(yesterday.getDate() - 1);
   const wasYesterday =
@@ -202,7 +201,7 @@ export function buildAwayDigest(input: AwayDigestInput): AwayDigest | null {
   }
 
   // Nothing to report at all: stay silent. An unreadable approval record is not
-  // by itself news — the panel and /health approvals are where that is asked
+  // by itself news, the panel and /health approvals are where that is asked
   // and answered, and announcing it at every launch of an agent with no host
   // configured would be noise, not honesty.
   if (lines.length === 0) return null;
@@ -210,7 +209,7 @@ export function buildAwayDigest(input: AwayDigestInput): AwayDigest | null {
   // But once the digest IS rendering, the approvals count in it must not be
   // read as complete when it is not. The line goes LAST so it qualifies the
   // count above rather than displacing anything, and it is emitted whether the
-  // count is zero or not — a short count and an absent one are equally
+  // count is zero or not, a short count and an absent one are equally
   // misleading if the owner cannot tell which they are looking at.
   const qualified = input.approvalsUnavailableReason
     ? [...lines.slice(0, MAX_LINES - 1), `Approvals on the connected host could not be read, so any approval count above may be short: ${input.approvalsUnavailableReason}`]

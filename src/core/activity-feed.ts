@@ -1,5 +1,5 @@
 /**
- * ActivityFeed — the single ambient record of what the assistant has been doing.
+ * ActivityFeed, the single ambient record of what the assistant has been doing.
  *
  * Replaces the old multi-panel system's SystemMessagesPanel as the sink for
  * operational traffic (model switches, provider discovery, delivery results,
@@ -9,7 +9,7 @@
  *
  * Design rules:
  * - Append-only ring buffer (oldest entries dropped past MAX_ENTRIES).
- * - No focus, no selection, no scrolling state — this is a glanceable feed,
+ * - No focus, no selection, no scrolling state, this is a glanceable feed,
  *   not an interactive widget. History beyond the visible window is available
  *   through the conversation (high priority) and logs.
  * - Subscribers are render invalidators only; they receive no payload.

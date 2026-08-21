@@ -22,7 +22,7 @@ type ModelPickerRouteState = {
 
 /**
  * The user's REQUESTED reasoning level for this session, or undefined when the
- * command context is not attached. Read from config through the shared helper —
+ * command context is not attached. Read from config through the shared helper,
  * never from `session.runtime.reasoningEffort`, which holds the EFFECTIVE level
  * for whichever model is serving and would re-seed a resolution with an already
  * snapped-down value.
@@ -37,7 +37,7 @@ function readRequestedEffort(state: ModelPickerRouteState): string | undefined {
  * The level the effort step should open on for a model about to be selected:
  * the requested level SNAPPED to that model. Opening on the raw requested level
  * would miss the list entirely whenever the target model caps lower, and
- * showEffortPicker falls back to index 0 — landing the cursor on the LOWEST
+ * showEffortPicker falls back to index 0, landing the cursor on the LOWEST
  * level rather than on what pressing Enter would actually give you.
  */
 function effortStepPreselect(state: ModelPickerRouteState, model: { id: string; provider?: string; displayName?: string }): string {
@@ -93,7 +93,7 @@ export function handleModelPickerToken(state: ModelPickerRouteState, token: Inpu
             state.commandContext?.openProviderPicker?.();
             return true;
           }
-          // Local fit rec: the model is not installed — do not commit it as the
+          // Local fit rec: the model is not installed, do not commit it as the
           // active model. Print a plain-language guide and close the picker.
           if (isLocalFitRecommendation(selected)) {
             state.modelPicker.close();

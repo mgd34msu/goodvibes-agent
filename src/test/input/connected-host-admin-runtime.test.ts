@@ -1,6 +1,6 @@
 /**
  * The /ci, /principals, and /channel-profiles TUI slash commands are thin
- * bridges onto the same CLI handlers the terminal commands use — these tests
+ * bridges onto the same CLI handlers the terminal commands use, these tests
  * prove the bridge end-to-end without a live connected host: the command is
  * registered, dispatches through the real CLI parser + handler, and reports
  * the honest auth_required failure (no operator token on disk) instead of

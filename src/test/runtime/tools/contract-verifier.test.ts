@@ -1,5 +1,5 @@
 /**
- * GC-TOOLS-001 — Tests for ToolContractVerifier and ToolContractsPanel.
+ * GC-TOOLS-001, Tests for ToolContractVerifier and ToolContractsPanel.
  *
  * Covers:
  *   - All 5 dimension checkers (schema, timeout-cancellation, permission-class,
@@ -116,7 +116,7 @@ describe('checkSchema', () => {
   it('warns when object schema has no properties', () => {
     const result = verifier.verify(makeTool({ parameters: { type: 'object' } }));
     expectViolation(result, { dimension: 'schema', severity: 'warn', messageIncludes: 'properties' });
-    // warn only — still passes
+    // warn only, still passes
     expect(result.passed).toBe(true);
   });
 

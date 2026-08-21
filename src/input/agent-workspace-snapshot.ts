@@ -67,7 +67,7 @@ export interface AgentWorkspaceLiveMemoryCounters {
 /**
  * Reads the Agent memory count + items directly from the live memory API
  * (no caching). Throws if the read itself fails (e.g. the memory API errors
- * mid-call) rather than swallowing it — callers that need a best-effort,
+ * mid-call) rather than swallowing it, callers that need a best-effort,
  * never-throws default (the full runtime snapshot builder below) should use
  * buildAgentWorkspaceMemorySnapshot instead. The render-path live-counter
  * refresh (AgentWorkspace.syncLiveCountersForRender) calls this
@@ -97,7 +97,7 @@ export function readLiveAgentMemoryCounters(context: CommandContext): AgentWorks
   return {
     count: records.length,
     reviewQueueCount: memory.reviewQueue(100).length,
-    // Bound to one arg — a bare `.filter(isPromptActiveMemory)` leaks the
+    // Bound to one arg, a bare `.filter(isPromptActiveMemory)` leaks the
     // array index in as Array.filter's second (index) argument, which lands
     // in isPromptActiveMemory's `now` param and silently breaks the
     // temporal-validity check for every record past index 0.
@@ -105,7 +105,7 @@ export function readLiveAgentMemoryCounters(context: CommandContext): AgentWorks
     temporallyPendingCount,
     temporallyExpiredCount,
     // Each item carries the honest, per-record eligibility reason straight from
-    // describeMemoryPromptEligibility — the same wording source
+    // describeMemoryPromptEligibility, the same wording source
     // prompt-context-receipts.ts and agent-harness-prompt-context.ts use for prompt
     // recall. No locally invented "not reviewed"/"outside prompt limit" paraphrase here.
     items: records.map((record) => ({
@@ -137,12 +137,12 @@ export interface AgentWorkspaceLiveRoutineCounters {
 /**
  * Reads the Agent routine count + items (including each routine's live
  * startCount) directly from the on-disk routine store (no caching). Throws
- * if the store read fails (e.g. a corrupt/unreadable routines.json —
+ * if the store read fails (e.g. a corrupt/unreadable routines.json,
  * AgentRoutineRegistry.snapshot() itself throws in that case) rather than
  * swallowing it; see readLiveAgentMemoryCounters above for why the
  * render-path live-counter refresh wants that.
  *
- * NOTE (observability flag): see readLiveAgentMemoryCounters above —
+ * NOTE (observability flag): see readLiveAgentMemoryCounters above,
  * the same flag applies to these routine counters.
  */
 export function readLiveAgentRoutineCounters(context: CommandContext): AgentWorkspaceLiveRoutineCounters {

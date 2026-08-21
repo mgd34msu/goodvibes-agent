@@ -1,16 +1,16 @@
 /**
- * fatal-boot-write.ts — the two descriptor writes, with nothing else attached.
+ * fatal-boot-write.ts, the two descriptor writes, with nothing else attached.
  *
  * This file imports `node:fs` and nothing more, deliberately, because
  * `bin/goodvibes-agent.ts` routes through it and that shim must keep working
- * on a real npm install. This package declares NO runtime dependencies —
+ * on a real npm install. This package declares NO runtime dependencies,
  * `@pellux/goodvibes-sdk` is a devDependency and reaches an installed user
- * only inlined inside the bundled `dist/package/main.js` — so any module the
+ * only inlined inside the bundled `dist/package/main.js`, so any module the
  * shim imports that statically reaches the SDK would fail to resolve on the
  * exact installs the shim exists to explain.
  *
- * The SDK-dependent half this file does not carry — `reportFatalBootFailure`,
- * previously mirrored locally in `utils/fatal-boot-report.ts` — is the SDK's
+ * The SDK-dependent half this file does not carry, `reportFatalBootFailure`,
+ * previously mirrored locally in `utils/fatal-boot-report.ts`, is the SDK's
  * own `@pellux/goodvibes-sdk/platform/daemon` export, which adopted this
  * file's own byte-accepting write loop as the shared implementation. Every
  * non-`bin/` caller of `writeFatalLine`/`writeExitingStdoutLine` imports them
@@ -30,7 +30,7 @@ const STDERR_FD = 2;
  * one `writeSync` because it only ever carries a short fatal line. This repo
  * also routes `--help`, `--version`, completion scripts and the whole `status`
  * render through these functions, and a single `writeSync` of several kilobytes
- * into a pipe can return a short count — which would truncate the output rather
+ * into a pipe can return a short count, which would truncate the output rather
  * than silence it, a quieter version of the same defect. Keep the loop when the
  * SDK export is adopted, or move it upstream.
  */
@@ -61,7 +61,7 @@ export function writeFatalLine(line: string): void {
 }
 
 /**
- * The stdout twin, for output that must survive an exit that follows it —
+ * The stdout twin, for output that must survive an exit that follows it,
  * `--help`, `--version` and `completion` all print and then exit immediately,
  * which is the same race.
  */

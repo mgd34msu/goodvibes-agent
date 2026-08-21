@@ -1,18 +1,18 @@
 /**
- * ensure-daemon-enabled-migrated.ts — retiring a `daemon.enabled: false` that
+ * ensure-daemon-enabled-migrated.ts, retiring a `daemon.enabled: false` that
  * was written when the key meant something else.
  *
  * ── What the key used to mean, and what it means now ───────────────────────
  *
  * Before the daemon became its own product, a surface that could not find a
  * daemon SOLVED that by being one: it embedded a daemon server in its own
- * process. `daemon.enabled: false` was how a user declined THAT — "do not run a
+ * process. `daemon.enabled: false` was how a user declined THAT, "do not run a
  * daemon inside this app". It was a reasonable thing to want, it was the
  * documented way to want it, and on a laptop that has not been touched since,
  * it is still sitting in settings.json.
  *
  * After the split there is no embedded daemon to decline. The key now answers a
- * different question — "does this surface adopt a session daemon of its own" —
+ * different question, "does this surface adopt a session daemon of its own",
  * and answering it `false` disables host discovery entirely: `startHostServices`
  * returns `mode: 'disabled'` without probing anything, and the boot-time
  * autostart that would otherwise start an installed-but-stopped daemon
@@ -27,7 +27,7 @@
  * ── Why this is a once-only marker and not a rule ──────────────────────────
  *
  * A user must be able to turn this off and have it STAY off. The settings file
- * carries no per-key provenance — no timestamp, no writer stamp, nothing that
+ * carries no per-key provenance, no timestamp, no writer stamp, nothing that
  * distinguishes a value written two years ago from one written this morning
  * (the file-level `$goodvibes` reader floor records only when the whole file
  * was last rewritten by a migration, which says nothing about any one key). So
@@ -39,7 +39,7 @@
  * is the whole mechanism: after that run the pass never looks at the key again,
  * so a `false` the user writes tomorrow is theirs and is honored forever. The
  * one value this can override is one that was already on disk before this build
- * ever ran — which is precisely the population that predates the meaning
+ * ever ran, which is precisely the population that predates the meaning
  * change.
  *
  * ── Boundaries ─────────────────────────────────────────────────────────────
@@ -49,11 +49,12 @@
  * - Only `daemon.enabled` is written. Nothing else in the file is reordered,
  *   reformatted beyond re-serialisation, or dropped.
  * - A failure never blocks startup. The pass reports null and the machine
- *   behaves exactly as it did before — which is the pre-migration state, and
+ *   behaves exactly as it did before, which is the pre-migration state, and
  *   safe.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from './surface.ts';
 
@@ -67,7 +68,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Where the one-time receipt lives — this product's own surface root. */
+/** Where the one-time receipt lives, this product's own surface root. */
 export function daemonEnabledMigrationReceiptPath(homeDir: string): string {
   return join(homeDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'daemon-enabled-split-migration-receipt.json');
 }
@@ -88,27 +89,6 @@ function settingsFilePaths(options: DaemonEnabledMigrationOptions): readonly { r
   return files;
 }
 
-/**
- * Write JSON through a pid-suffixed temp file and an atomic rename, so no
- * reader ever sees a torn settings file and two processes cannot share a temp
- * name. Mirrors config/workspace-registration.ts's writer for the same reason.
- */
-function atomicWriteJson(path: string, data: unknown): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.${process.pid}.tmp`;
-  try {
-    writeFileSync(tempPath, `${JSON.stringify(data, null, 2)}\n`, 'utf-8');
-    renameSync(tempPath, path);
-  } catch (error) {
-    try {
-      rmSync(tempPath, { force: true });
-    } catch {
-      // The temp file is inert; a failed cleanup must not mask the real error.
-    }
-    throw error;
-  }
-}
-
 /** How the one-time receipt read. */
 type ReceiptState =
   | { readonly kind: 'absent' }
@@ -116,7 +96,7 @@ type ReceiptState =
   | { readonly kind: 'damaged'; readonly reason: string };
 
 /**
- * Read the receipt by PARSING it, never by its mere existence — a zero-byte or
+ * Read the receipt by PARSING it, never by its mere existence, a zero-byte or
  * truncated file exists just as happily as a good one, and this receipt is the
  * only memory that the correction already ran.
  */
@@ -186,7 +166,7 @@ function resetToTrue(parsed: Record<string, unknown>, shape: 'nested' | 'flat'):
 
 /**
  * Run the once-only correction, and return the one-line boot notice the FIRST
- * time a value actually changes — null otherwise, so a caller prints it once
+ * time a value actually changes, null otherwise, so a caller prints it once
  * without re-announcing on every launch.
  *
  * Safe to call on every startup: once the receipt is on disk the fast path is
@@ -229,7 +209,7 @@ export function ensureDaemonEnabledMigrated(options: DaemonEnabledMigrationOptio
     const shape = readExplicitFalse(parsed);
     if (!shape) continue;
     try {
-      atomicWriteJson(file.path, resetToTrue(parsed, shape));
+      writeStoreJson(file.path, resetToTrue(parsed, shape));
       resets.push({ scope: file.scope, path: file.path });
     } catch (error) {
       logger.warn(`[config] could not reset ${DAEMON_ENABLED_KEY} in ${file.path}`, { error: summarizeError(error) });
@@ -253,7 +233,7 @@ export function ensureDaemonEnabledMigrated(options: DaemonEnabledMigrationOptio
   };
 
   try {
-    atomicWriteJson(receiptPath, receiptBody);
+    writeStoreJson(receiptPath, receiptBody);
   } catch (error) {
     // Without a receipt this would run again next boot. Say so plainly rather
     // than reporting a completed migration that did not record itself.

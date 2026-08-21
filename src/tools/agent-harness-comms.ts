@@ -37,7 +37,7 @@ import {
  * The connected-host caller for the comms modes, or null when this shell has
  * no platform to resolve one from.
  *
- * Null is not a failure state — it is a shell (a test harness, an early boot)
+ * Null is not a failure state, it is a shell (a test harness, an early boot)
  * with no daemon address to call. The stores treat it as "not offered" rather
  * than as a daemon that refused, because those are different facts.
  */
@@ -96,7 +96,7 @@ function readStringArray(value: unknown): string[] | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// INBOX — unified_inbox
+// INBOX, unified_inbox
 // ---------------------------------------------------------------------------
 
 export async function unifiedInboxSummary(
@@ -130,7 +130,7 @@ export async function unifiedInboxSummary(
 }
 
 // ---------------------------------------------------------------------------
-// DRAFTS — channel_drafts (read)
+// DRAFTS, channel_drafts (read)
 // ---------------------------------------------------------------------------
 
 export async function channelDraftsSummary(
@@ -206,7 +206,7 @@ export async function channelDraftsSummary(
 }
 
 // ---------------------------------------------------------------------------
-// DRAFTS — channel_draft_save (effect)
+// DRAFTS, channel_draft_save (effect)
 // ---------------------------------------------------------------------------
 
 export async function channelDraftSaveHandoff(
@@ -254,7 +254,7 @@ export async function channelDraftSaveHandoff(
 }
 
 // ---------------------------------------------------------------------------
-// DRAFTS — channel_draft_send (effect)
+// DRAFTS, channel_draft_send (effect)
 // ---------------------------------------------------------------------------
 
 export async function channelDraftSendHandoff(
@@ -318,7 +318,7 @@ export async function channelDraftSendHandoff(
 }
 
 // ---------------------------------------------------------------------------
-// ROUTING — channel_routing (read)
+// ROUTING, channel_routing (read)
 // ---------------------------------------------------------------------------
 
 export function channelRoutingSummary(
@@ -367,7 +367,7 @@ export function channelRoutingSummary(
 }
 
 // ---------------------------------------------------------------------------
-// ROUTING — channel_routing_assign (effect)
+// ROUTING, channel_routing_assign (effect)
 // ---------------------------------------------------------------------------
 
 export async function channelRoutingAssignHandoff(
@@ -414,7 +414,7 @@ export async function channelRoutingAssignHandoff(
 }
 
 // ---------------------------------------------------------------------------
-// ROUTING — channel_routing_remove (effect)
+// ROUTING, channel_routing_remove (effect)
 // ---------------------------------------------------------------------------
 
 export function channelRoutingRemoveHandoff(

@@ -1,16 +1,16 @@
 /**
- * calendar-oauth-service.ts — the agent's bridge to the SDK calendar OAuth connector.
+ * calendar-oauth-service.ts, the agent's bridge to the SDK calendar OAuth connector.
  *
  * It wires the SDK CalendarConnector with the REAL runtime adapters the SDK module
  * deliberately leaves injected (so the SDK stays pure and testable): the runtime
  * fetch, and a loopback redirect listener built on the SDK's createOAuthLocalListener.
  * Tokens persist through the Agent secret manager. The OAuth app is the operator's
- * own — no client id ships with the product — so the client id is read from config
+ * own, no client id ships with the product, so the client id is read from config
  * and the client secret from the secret store, under the keys the SDK profile names.
  * With none set, every connect returns an honest config-stage refusal naming the key.
  *
- * Every connect returns an honest STAGED result ({ ok, stage, error }) — config,
- * authorize, or token — the same honesty shape the email connect wizard uses. The
+ * Every connect returns an honest STAGED result ({ ok, stage, error }), config,
+ * authorize, or token, the same honesty shape the email connect wizard uses. The
  * connector is injectable so tests drive the whole flow against fakes with no real
  * network, port, or browser.
  */
@@ -55,7 +55,7 @@ export interface CalendarConfigReader {
  * The narrow secret slice used for token storage + reading a stored client secret.
  *
  * `set` takes the store's write options because the OAuth token set has to be
- * filed where the DAEMON can read it — see `daemonScopedSecrets` below. Tests
+ * filed where the DAEMON can read it, see `daemonScopedSecrets` below. Tests
  * that pass a Map-backed fake can keep ignoring the second argument; the
  * parameter is optional so the fake's two-argument shape still satisfies this.
  */
@@ -70,7 +70,7 @@ export interface CalendarSecretSlice {
  * credential's reader actually reads from.
  *
  * The SDK's `CalendarTokenStore` writes `GOODVIBES_CALENDAR_<PROVIDER>_TOKENS`,
- * `_ACCOUNT` and `_STATUS` through a two-argument `set(key, value)` — it has no
+ * `_ACCOUNT` and `_STATUS` through a two-argument `set(key, value)`, it has no
  * scope parameter to pass, and nothing in the chain from
  * `/calendar connect google` down to that call ever named one. The store's own
  * default for a name it does not recognize is the project tier, so an OAuth
@@ -79,7 +79,7 @@ export interface CalendarSecretSlice {
  * the terminal, and the daemon reports no calendar account connected.
  *
  * Wrapping at this seam rather than changing the call is what makes it work
- * without an SDK change — the token store keeps its two-argument call and the
+ * without an SDK change, the token store keeps its two-argument call and the
  * scope is decided by the name, one layer down, where the answer is known.
  * `resolveCredentialWriteScope` is what holds that answer, for these names and
  * for the SDK-derived ones alike.
@@ -115,7 +115,7 @@ export interface AccountStatus {
   readonly state: ConnectionState;
 }
 
-/** The real loopback factory — binds 127.0.0.1 and waits for the browser callback. */
+/** The real loopback factory, binds 127.0.0.1 and waits for the browser callback. */
 const realLoopbackFactory: LoopbackListenerFactory = async ({ expectedState, host, port, timeoutMs }) => {
   const listener = await createOAuthLocalListener({
     expectedState,
@@ -162,8 +162,8 @@ export class CalendarOAuthService {
 
   constructor(options: CalendarOAuthServiceOptions) {
     this.config = options.config;
-    // Every write this service makes — its own, and the token store's inside the
-    // connector — goes through the scope-pinning wrapper, so the refresh token
+    // Every write this service makes, its own, and the token store's inside the
+    // connector, goes through the scope-pinning wrapper, so the refresh token
     // lands where the daemon reads it. Wrapping here rather than at each call
     // means a future write added inside the SDK connector is covered too.
     this.secrets = daemonScopedSecrets(options.secrets);
@@ -283,7 +283,7 @@ export class CalendarOAuthService {
         begun.waiter.close();
       }
     } catch {
-      // No loopback available — fall back to the headless device-code flow.
+      // No loopback available, fall back to the headless device-code flow.
       return this.connectDeviceCode(provider, hooks);
     }
   }
@@ -331,7 +331,7 @@ export class CalendarOAuthService {
       ok: false,
       stage: 'config',
       error:
-        `No ${label} client id is configured. GoodVibes ships none of its own — register your own OAuth app ` +
+        `No ${label} client id is configured. GoodVibes ships none of its own: register your own OAuth app ` +
         `with the provider and set ${config.clientIdConfigKey} to its client id. ` +
         `Run /calendar connect for the provider-console steps, or open "${cardLabel}" under /agent personal-ops and paste your client id in.`,
     };
@@ -339,7 +339,7 @@ export class CalendarOAuthService {
 
   private readString(key: string): string | undefined {
     // get() throws when the config section does not exist yet (nothing has seeded
-    // 'calendar'). Treat that as "unset" — an environment where nobody has registered
+    // 'calendar'). Treat that as "unset", an environment where nobody has registered
     // an OAuth app yet is a normal state that reads as not-configured, not a schema
     // error surfaced to the operator.
     let value: unknown;

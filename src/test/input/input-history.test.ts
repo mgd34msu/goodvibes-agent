@@ -77,7 +77,7 @@ describe('InputHistory.add', () => {
     for (let i = 0; i < 510; i++) {
       h.add(`entry ${i}`);
     }
-    // Navigate to end — should stop at 500
+    // Navigate to end, should stop at 500
     let count = 0;
     let result: string | null = '';
     while ((result = h.up(result ?? '')) !== null) {
@@ -255,7 +255,7 @@ describe('InputHistory.isBrowsing', () => {
 });
 
 // ===========================================================================
-// save() / load() — persistence round-trip
+// save() / load(), persistence round-trip
 // ===========================================================================
 
 describe('InputHistory persistence', () => {

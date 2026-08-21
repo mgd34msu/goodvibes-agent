@@ -2218,11 +2218,11 @@ describe('agent_harness tool', () => {
     const fixture = makeFixture();
     try {
       // 11 eligible records (confidence 100 down to 90, all reviewed) so the top-10
-      // prompt slice cuts exactly one — that one must read as "eligible ... but outside
+      // prompt slice cuts exactly one, that one must read as "eligible ... but outside
       // the top-10 prompt slice ... budget-limited, not a trust problem", never the old
       // coarse "outside prompt limit". A genuinely low-confidence record must still read
       // as ineligible via describeMemoryPromptEligibility's own reason, never "not
-      // reviewed" (its reviewState here IS reviewed — confidence is why it fails).
+      // reviewed" (its reviewState here IS reviewed, confidence is why it fails).
       const eligibleRecords = Array.from({ length: 11 }, (_, index) => makeMemoryRecord({
         id: `mem-eligible-${index}`,
         confidence: 100 - index,
@@ -3416,8 +3416,8 @@ describe('agent_harness tool', () => {
       // Capability-advertisement honesty, after the mail and calendar services
       // became platform capability and the daemon started serving email.* and
       // calendar.*: the lanes no longer read as gaps, because the methods are
-      // genuinely dispatchable now. They read PARTIAL rather than ready — the
-      // routes exist, but no account is connected in this fixture — which is
+      // genuinely dispatchable now. They read PARTIAL rather than ready, the
+      // routes exist, but no account is connected in this fixture, which is
       // the distinction that keeps this from claiming a working mailbox.
       expect(summary.personalOps?.gap).toBe(0);
       expect(summary.personalOps?.ready).toBeGreaterThan(0);
@@ -3551,7 +3551,7 @@ describe('agent_harness tool', () => {
       expect(missingIntake.preferred.status).toBe('ready');
       expect(missingIntake.preferred.modelRoute).toContain('host action:"methods"');
       // Every inspect route names a real, dispatchable method now. The
-      // unified inbox verb (channels.inbox.list — it merges Slack/Discord/
+      // unified inbox verb (channels.inbox.list, it merges Slack/Discord/
       // email threads into one feed, see src/agent/unified-inbox.ts) sorts
       // first alphabetically among the matched email-lane methods, ahead of
       // email.inbox.list itself.
@@ -8069,7 +8069,7 @@ describe('agent_harness tool', () => {
         explicitUserRequest: 'Promote the reviewed learnings from this session.',
       });
 
-      // Shape assertions — the mode must always return these fields.
+      // Shape assertions, the mode must always return these fields.
       expect(typeof result.eligible).toBe('number');
       expect(typeof result.promoted).toBe('number');
       expect(typeof result.skipped).toBe('number');
@@ -9330,7 +9330,7 @@ describe('agent_harness tool', () => {
       expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'voice-memo-transcription')?.status).toBe('ready');
       expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'spoken-responses')?.status).toBe('ready');
       // Wake capture IS shipped on this surface, and its delivery row ships off, so
-      // the honest posture at defaults is setup-needed with the exact rows to flip —
+      // the honest posture at defaults is setup-needed with the exact rows to flip,
       // not the "not-published" it read while nothing captured audio anywhere. The
       // phone half is still unpublished and says so in its own evidence field.
       const wake = posture.voiceWorkflows.find((workflow) => workflow.id === 'wake-and-speak');
@@ -10708,7 +10708,7 @@ describe('agent_harness tool', () => {
       expect(missing.success).toBe(false);
       expect(missing.error).toContain('Unknown model tool');
       // The names of the real, registered tools are right there in the
-      // refusal — not a pointer to go look them up somewhere else.
+      // refusal, not a pointer to go look them up somewhere else.
       expect(missing.error).toContain('Known tools:');
 
       // The exact incident, with no "mcp" tool registered: the refusal says
@@ -14017,7 +14017,7 @@ describe('agent_harness tool', () => {
       // Every recipe with a known stack (ollama, llama-cpp, vllm) must carry a
       // hardwareFit string when the hardware verdict is deterministic. When the
       // machine returns 'unknown' (null totalRamBytes and no GPU), fitVerdictLabel
-      // returns '' and hardwareFit is absent — that is tolerated here.
+      // returns '' and hardwareFit is absent, that is tolerated here.
       const knownStackIds = new Set(['ollama', 'llama-cpp', 'vllm']);
       for (const recipe of recipes) {
         if (knownStackIds.has(recipe.id)) {
@@ -14043,7 +14043,7 @@ describe('agent_harness tool', () => {
 // hundreds of entries reported to exist, none named, and no echo of the filter
 // that excluded them. These pin that every catalog echoes its applied filters
 // and explains an empty page, and that an UNQUALIFIED call still returns the
-// full catalog — the three modes below had no unqualified-call coverage at all.
+// full catalog, the three modes below had no unqualified-call coverage at all.
 
 interface CatalogPage {
   readonly returned: number;

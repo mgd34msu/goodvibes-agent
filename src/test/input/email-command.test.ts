@@ -4,7 +4,7 @@
  * Registers the command via registerEmailRuntimeCommands(registry), builds a
  * real CommandContext backed by a tmp-dir ConfigManager and an in-memory
  * SecretsManager stub, then invokes the actual command handler via
- * registry.get('email')!.handler([...], ctx) — mirroring the pattern used by
+ * registry.get('email')!.handler([...], ctx), mirroring the pattern used by
  * mcp-runtime-command.test.ts and other sibling command tests.
  *
  * Covers:
@@ -98,7 +98,7 @@ function makeContext(
  * The daemon tier is one of them: email runs in the daemon, so
  * email.passwordRef is daemon-owned and the daemon's store is its only home.
  * Reading only the surface files reported the reference missing when it had
- * simply been routed to its owner — while the assertion that matters, that no
+ * simply been routed to its owner, while the assertion that matters, that no
  * raw password reaches any of these files, is unchanged.
  */
 function persistedSettingsFiles(root: string): readonly string[] {
@@ -116,7 +116,7 @@ function readPersistedSettings(root: string): string {
 }
 
 /**
- * The same files, PARSED — one object per file that exists.
+ * The same files, PARSED, one object per file that exists.
  *
  * `readPersistedSettings` concatenates them, which is right for the assertion
  * it was written for ("no raw password appears in any of these") and wrong for
@@ -160,7 +160,7 @@ describe('/email command handler: end-to-end real handler dispatch', () => {
     await registry.get('email')!.handler(['set', 'email.passwordRef', 'raw-secret-value'], ctx);
 
     const output = out.join('\n');
-    // Must refuse — some form of "without --yes" or "--yes to apply"
+    // Must refuse, some form of "without --yes" or "--yes to apply"
     expect(output).toMatch(/--yes/);
     // SecretsManager must not have been called
     expect(store.size).toBe(0);
@@ -218,7 +218,7 @@ describe('/email command handler: end-to-end real handler dispatch', () => {
     await registry.get('email')!.handler(['set', 'email.bogus', 'somevalue'], ctx);
 
     const output = out.join('\n');
-    // Plain-language rejection — must mention the unknown key
+    // Plain-language rejection, must mention the unknown key
     expect(output.toLowerCase()).toContain('unknown email config key');
     // No secret side-effect
     expect(store.size).toBe(0);
@@ -268,7 +268,7 @@ describe('/email command handler: end-to-end real handler dispatch', () => {
 
     // Persisted settings must store the number (JSON does not quote it).
     // email.imapPort is daemon-owned, so the file carrying it is the daemon
-    // store rather than the surface one — hence looking across every settings
+    // store rather than the surface one, hence looking across every settings
     // file rather than assuming which of them holds it.
     const sections = readPersistedSettingsObjects(tmpDir)
       // May be nested under "email" or flat, depending on ConfigManager shape.

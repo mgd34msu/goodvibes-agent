@@ -1,5 +1,5 @@
 /**
- * `goodvibes-agent browser …` — the scriptable mirror of the `browser` model
+ * `goodvibes-agent browser …`, the scriptable mirror of the `browser` model
  * tool.
  *
  * It exists because of how the 1.18.1 browser failure was found and how long it
@@ -8,8 +8,8 @@
  * try, and the only thing the owner got back was the model's paraphrase of a
  * capability line. There was no way to ask the binary itself.
  *
- * This is that way. It builds the SAME tool the model calls — not a parallel
- * implementation — and prints its JSON, so what this reports and what the model
+ * This is that way. It builds the SAME tool the model calls, not a parallel
+ * implementation, and prints its JSON, so what this reports and what the model
  * gets are the same bytes by construction. `browser status` answers "is the
  * driver there, where, and what happens if it is not"; `browser provision`
  * performs the one-act setup with its steps visible; `browser open <url>` proves
@@ -81,7 +81,7 @@ function renderStatus(payload: Record<string, unknown>): string {
  * Runs one browser tool action and prints the result.
  *
  * The engine is shut down before returning so a CLI invocation never leaves a
- * browser process behind — and, per the engine's ownership rule, only browsers
+ * browser process behind, and, per the engine's ownership rule, only browsers
  * this call launched are ever closed.
  */
 export async function handleBrowserCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {

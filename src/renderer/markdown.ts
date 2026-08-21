@@ -15,7 +15,7 @@ export { renderInlineMarkdown, type InlineToken };
 // of each render function below) so a dark→light repaint re-resolves with no
 // module reload. Dark values are byte-identical to the agent's prior static
 // reads; the only dark change is inline code losing its dark background box (it
-// gains bold instead — the near-black box was unreadable on a light terminal).
+// gains bold instead, the near-black box was unreadable on a light terminal).
 
 export interface MarkdownRenderOptions {
   codeBlockLineNumbers?: boolean;

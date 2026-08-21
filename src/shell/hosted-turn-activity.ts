@@ -1,5 +1,5 @@
 /**
- * hosted-turn-activity.ts — making a daemon-hosted turn look exactly like a
+ * hosted-turn-activity.ts, making a daemon-hosted turn look exactly like a
  * local one to the interface.
  *
  * ── The failure this closes ────────────────────────────────────────────────
@@ -10,20 +10,20 @@
  * preview), the rows the render loop reserves for it, and the activity
  * sidebar's busy lamp are all gated on it.
  *
- * A local turn sets that state and — this is the part that mattered most —
+ * A local turn sets that state and, this is the part that mattered most,
  * starts an 80ms interval that advances the animation frame and calls
  * `requestRender()`. THAT timer is what repaints the shell during a turn. Frame
  * arrival is not the pump; the animation is.
  *
  * A daemon-hosted turn runs in the daemon's process and set none of it. So the
  * shell went blind for the whole turn: no spinner, no waiting phrase, no token
- * speed, and — because nothing was scheduling repaints — no visible output
+ * speed, and, because nothing was scheduling repaints, no visible output
  * until the next keystroke happened to drive a render. Three reported symptoms,
  * one cause.
  *
  * ── Why it drives the existing state rather than adding its own ────────────
  *
- * The presentation was not being changed — it was being restored — so the
+ * The presentation was not being changed, it was being restored, so the
  * safest possible fix is the one that cannot alter a phrase, a glyph or a
  * layout: feed the SAME fields the UI already reads, and let every existing
  * consumer keep working unchanged. `getSpinner()` derives its glyph from
@@ -35,7 +35,7 @@
  *
  * It never invents token numbers. A hosted turn's usage arrives once, on the
  * daemon's `LLM_RESPONSE_RECEIVED` frame, so the counts stay at zero until
- * there is a real number to show — and the waiting fragment already omits a
+ * there is a real number to show, and the waiting fragment already omits a
  * zero rather than printing one. A fabricated live token speed would be worse
  * than an absent one.
  */
@@ -44,7 +44,7 @@
  * The mutable turn-indicator state the shell renders from.
  *
  * Structurally the orchestrator's own public fields, so the real orchestrator
- * IS this — which is the point: there is one state, not a parallel copy that
+ * IS this, which is the point: there is one state, not a parallel copy that
  * could disagree with it.
  */
 export interface ThinkingUiState {
@@ -68,7 +68,7 @@ export interface HostedTurnActivity {
    *
    * The shell's tool preview and its activity sidebar both read a LOCAL
    * session snapshot, which stays empty for a hosted turn because the tools
-   * are executing in the daemon's process — a turn making thirty tool calls
+   * are executing in the daemon's process, a turn making thirty tool calls
    * reported "No runtime activity". The frames say what is running; this is
    * where that is kept so the same two consumers can show it.
    */

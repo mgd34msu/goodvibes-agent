@@ -67,7 +67,7 @@ describe('wireShellUiOpeners', () => {
 
   // Fix-everywhere convention: the TUI's picker re-checks each provider's live
   // model list on open (goodvibes-tui ui-openers), and the agent's picker must
-  // do exactly the same — a freshly-opened picker reflects models the provider
+  // do exactly the same, a freshly-opened picker reflects models the provider
   // started or stopped serving, without blocking the open.
   describe('live model discovery re-check on picker open', () => {
     function wirePickerWithRegistry(refreshLiveModelDiscovery: ReturnType<typeof mock>): void {

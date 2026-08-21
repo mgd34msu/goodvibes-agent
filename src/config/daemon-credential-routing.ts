@@ -1,5 +1,5 @@
 /**
- * daemon-credential-routing.ts — where a secret-backed setting is written when
+ * daemon-credential-routing.ts, where a secret-backed setting is written when
  * the runtime that USES it is not this one.
  *
  * ── The pair that must not split ───────────────────────────────────────────
@@ -23,9 +23,9 @@
  *
  * ── Why the client is installed rather than threaded ──────────────────────
  *
- * Five call sites write secret-backed settings — the settings modal, the
+ * Five call sites write secret-backed settings, the settings modal, the
  * payment-card intake, the email setup command, the calendar OAuth editor and
- * the harness settings tool — and only two of them have a runtime graph in
+ * the harness settings tool, and only two of them have a runtime graph in
  * scope to thread a client down from. The composition root installs it once
  * (see runtime/services.ts) and every writer routes through the same one, which
  * is the same registration idiom this repo already uses for the live
@@ -80,7 +80,7 @@ export interface CredentialRouteOutcome {
 /**
  * Route one secret-backed setting write.
  *
- * Returns `null` when this write is NOT the daemon's to make — the caller then
+ * Returns `null` when this write is NOT the daemon's to make, the caller then
  * runs its own local path unchanged. Returns an outcome when the daemon took
  * it. Throws when the daemon owns the key and could not be reached, carrying
  * the refusal reason: a credential that configures nothing must not report

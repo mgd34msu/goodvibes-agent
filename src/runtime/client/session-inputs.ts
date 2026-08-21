@@ -1,5 +1,5 @@
 /**
- * session-inputs.ts — the inbound half of the session wire, for this product.
+ * session-inputs.ts, the inbound half of the session wire, for this product.
  *
  * The SDK's `createWireSessionDispatch` takes a `SessionInputsWireClient`: two
  * methods over `sessions.inputs.list` and `sessions.inputs.deliver`. It is

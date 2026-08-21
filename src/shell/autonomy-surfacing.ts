@@ -3,9 +3,9 @@
  *
  * HISTORY: this factory was extracted from main.ts to keep that file under the
  * 800-line cap. After extraction it gained two capabilities:
- *   1. Calendar merging — listCalendarEvents callback merges upcoming events
+ *   1. Calendar merging, listCalendarEvents callback merges upcoming events
  *      into the Coming-up sidebar alongside scheduled jobs (buildCalendarEventsLister).
- *   2. Skill-draft accrual — onAwayDigest callback runs skill-draft proposal
+ *   2. Skill-draft accrual, onAwayDigest callback runs skill-draft proposal
  *      once per away-digest pass and appends a feed line when drafts are created
  *      (buildSkillDraftProposer).
  * These additions are NOT "no behavior change" refactors; they add real surface.
@@ -40,7 +40,7 @@ interface AutonomyMessageRouter {
 
 export interface AutonomySurfacingOptions {
   readonly shellPaths: Parameters<typeof LastSeenStore.fromShellPaths>[0];
-  /** Feeds the Coming-up sidebar's next-run entries only — the local automation
+  /** Feeds the Coming-up sidebar's next-run entries only, the local automation
    * manager's job list (local execution is disabled by design; see
    * src/runtime/bootstrap.ts). The away digest's run OUTCOMES never read this;
    * see listAutomationRunsSince below. */
@@ -53,7 +53,7 @@ export interface AutonomySurfacingOptions {
    */
   readonly listAutomationRunsSince: (since: number) => Promise<AutomationRunsSinceResult>;
   /**
-   * Every ask waiting for this owner — the daemon's record unioned with the
+   * Every ask waiting for this owner, the daemon's record unioned with the
    * asks still held in this process, NOT the local broker alone. A surface
    * counting only its own broker reports zero while the daemon holds three.
    */
@@ -87,7 +87,7 @@ const LAST_SEEN_REFRESH_MS = 5 * 60_000;
 
 /**
  * Group completed connected-host runs by job name into the digest's
- * { name, lastRunAt, runCount } shape — the same shape the digest previously
+ * { name, lastRunAt, runCount } shape, the same shape the digest previously
  * derived from the local automation manager's per-job runCount/lastRunAt,
  * but now counting only runs that actually completed since lastSeenAt on the
  * connected host.
@@ -111,7 +111,7 @@ function aggregateFiredSchedules(
 /**
  * Ambient autonomy surfacing for the shell: the launch "While you were away"
  * digest and the sidebar's Coming up entries. Everything here is best-effort
- * and offline-tolerant — failures are silent and renders are never blocked.
+ * and offline-tolerant, failures are silent and renders are never blocked.
  */
 export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
   const lastSeenStore = LastSeenStore.fromShellPaths(options.shellPaths);
@@ -142,7 +142,7 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
           .map((job) => {
             const when = job.nextRunAt ? formatRelativeTime(job.nextRunAt, now) : '';
             const name = job.name.length > 22 ? `${job.name.slice(0, 20)}…` : job.name;
-            return { label: when ? `${name} — ${when}` : name, sortKey: job.nextRunAt ?? 0 };
+            return { label: when ? `${name}, ${when}` : name, sortKey: job.nextRunAt ?? 0 };
           });
 
         const calItems: Array<{ label: string; sortKey: number }> = [];
@@ -152,7 +152,7 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
               calItems.push({ label: ev.label, sortKey: ev.start });
             }
           } catch {
-            // Calendar unavailable — skip silently.
+            // Calendar unavailable, skip silently.
           }
         }
 
@@ -162,7 +162,7 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
           .map((item) => item.label);
         comingUpCache.fetchedAt = Date.now();
       } catch {
-        // Offline or manager unavailable — leave cache as-is.
+        // Offline or manager unavailable, leave cache as-is.
       } finally {
         comingUpCache.fetching = false;
       }
@@ -252,13 +252,13 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
             const drafted = options.onAwayDigest();
             if (drafted > 0) {
               options.router.getFeed()?.push(
-                `[Status] I drafted ${drafted} skill${drafted !== 1 ? 's' : ''} from recent work — review them under Memory`,
+                `[Status] I drafted ${drafted} skill${drafted !== 1 ? 's' : ''} from recent work, review them under Memory`,
                 'low',
                 'schedule',
               );
             }
           } catch {
-            // Skill draft hook failed — skip silently.
+            // Skill draft hook failed, skip silently.
           }
         }
       } catch (err) {
@@ -332,7 +332,7 @@ export function buildCalendarEventsLister(
         const when = allDay
           ? e.start   // date-only string, no time component to misformat
           : formatDigestTime(startMs, now);
-        return { label: `${label} — ${when}`, start: sortMs };
+        return { label: `${label}, ${when}`, start: sortMs };
       });
   };
 }

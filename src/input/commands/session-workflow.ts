@@ -82,7 +82,7 @@ function buildTranscriptReviewLines(
   return [
     `Transcript Events${kind === 'all' ? '' : ` ${kind}`}`,
     `  events ${events.length}`,
-    ...events.slice(0, 16).map((event) => `  #${String(event.messageIndex).padStart(3)}  ${event.kind.padEnd(20)} ${event.title} — ${event.detail}`),
+    ...events.slice(0, 16).map((event) => `  #${String(event.messageIndex).padStart(3)}  ${event.kind.padEnd(20)} ${event.title}, ${event.detail}`),
     ...(events.length > 16 ? [`  … ${events.length - 16} more event(s)`] : []),
   ];
 }
@@ -149,8 +149,8 @@ function printSessionExport(
   // A transcript is the one place a value the model was handed becomes a
   // durable document. redactSensitiveData carries the platform's credential
   // patterns AND, in a process that has loaded the owner profile, that
-  // profile's closed-tier values — his address, his contact details, the People
-  // section — so an exported session cannot become the copy of the dossier that
+  // profile's closed-tier values, his address, his contact details, the People
+  // section, so an exported session cannot become the copy of the dossier that
   // the file itself is careful not to be (docs/owner-profile.md §10, §11.3).
   // Where no profile is loaded this behaves exactly as it did before.
   ctx.print(redactSensitiveData(lines.join('\n')));
@@ -228,7 +228,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
           timestamp: Date.now(),
           titleSource: ctx.session.conversationManager.getTitleSource(),
           // Backfilling a save so /session rename has a file to rename is still
-          // user-directed (the user typed /session rename) — stamp 'user' so
+          // user-directed (the user typed /session rename), stamp 'user' so
           // retention never reclaims it. See saveSource's doc comment on SessionMeta.
           saveSource: 'user',
         });
@@ -269,7 +269,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       ctx.session.conversationManager.fromJSON({ messages: readConversationMessageSnapshots(messages), title: meta.title, titleSource: meta.titleSource });
       ctx.session.conversationManager.rebuildHistory();
       ctx.session.runtime.sessionId = found.name;
-      // The live session is now homed on the resumed id — write the
+      // The live session is now homed on the resumed id, write the
       // last-session pointer through the surface-bound closure so the next
       // launch's "resume last session" reads this session, not a stale one.
       ctx.session.writeLastSessionPointer?.(found.name);
@@ -340,14 +340,14 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       provider: ctx.session.runtime.provider,
       timestamp: Date.now(),
       titleSource: ctx.session.conversationManager.getTitleSource(),
-      // /session fork is user-directed — stamp 'user' so retention never
+      // /session fork is user-directed, stamp 'user' so retention never
       // reclaims the forked file. See saveSource's doc comment on SessionMeta.
       saveSource: 'user',
     };
     try {
       sm.save(newId, messages, meta);
       ctx.session.runtime.sessionId = newId;
-      // Fork re-homes the live session onto the new id — write the
+      // Fork re-homes the live session onto the new id, write the
       // last-session pointer through the surface-bound closure, same as
       // /session resume, so the next launch resumes the fork, not the source.
       ctx.session.writeLastSessionPointer?.(newId);
@@ -375,7 +375,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       provider: ctx.session.runtime.provider,
       timestamp: Date.now(),
       titleSource: ctx.session.conversationManager.getTitleSource(),
-      // /session save is user-directed — stamp 'user' so retention never
+      // /session save is user-directed, stamp 'user' so retention never
       // reclaims it. See saveSource's doc comment on SessionMeta.
       saveSource: 'user',
     };
@@ -515,13 +515,13 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
 // NOTE (core-verb pass): this file used to also export
 // registerSessionWorkflowCommands(), a second top-level `/session` (alias
 // `sess`) registration with its own usage text. It was NEVER called from
-// startup — commands.ts only registers `sessionCommand` from ./session.ts —
+// startup, commands.ts only registers `sessionCommand` from ./session.ts,
 // so it was dead code (would throw a CommandRegistry collision error if
 // anyone ever did call it, since sessionCommand already owns the name). It
 // has been deleted; there is no functional change, because sessionCommand's
 // own default-branch fallback already calls handleSessionWorkflowCommand
 // above for every subcommand this dead registrar advertised, including
-// events/groups/hotspots — see ./session.ts's usage text, which now documents
+// events/groups/hotspots, see ./session.ts's usage text, which now documents
 // them too. See docs/decisions/2026-07-06-core-verb-spec.md (agent /session
 // orphan, worst-class collision #4) and
 // src/test/input/session-single-registration.test.ts for the regression

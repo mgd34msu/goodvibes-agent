@@ -1,5 +1,5 @@
 /**
- * surface-authority.ts — which surfaces can tell the agent what to do.
+ * surface-authority.ts, which surfaces can tell the agent what to do.
  *
  * The owner's ruling this module encodes, verbatim:
  *
@@ -17,13 +17,13 @@
  *
  * Two values, and the difference is who can write to the surface:
  *
- *   'command'    — the owner is the only party who can put a message here.
+ *   'command'   , the owner is the only party who can put a message here.
  *                  Messages can request work, agree to it, and confirm it.
  *                  The local terminal, Telegram, and ntfy are declared this
  *                  way because reaching them means holding the owner's
  *                  device or credentials.
  *
- *   'input-only' — anyone can put a message here. Content is EVIDENCE ABOUT
+ *   'input-only', anyone can put a message here. Content is EVIDENCE ABOUT
  *                  THE WORLD, never a directive. The agent reads it,
  *                  understands it, and decides what to propose; the decision
  *                  to act is the owner's, made on a 'command' surface.
@@ -67,7 +67,7 @@ export const DEFAULT_SURFACE_COMMAND_AUTHORITY: SurfaceCommandAuthority = 'input
 
 /**
  * The declaration table. Adding a surface here with 'command' grants it the
- * ability to start, approve, and confirm work — treat such an edit as a
+ * ability to start, approve, and confirm work, treat such an edit as a
  * change to the trust boundary, not as configuration.
  *
  * Surface ids match this repo's existing surface vocabulary (the delivery
@@ -162,8 +162,8 @@ export type ConfirmationAuthorityDecision =
  * Whether a message on this surface may serve as agreement or confirmation.
  *
  * Named "assert" for the shape of the check, but it returns rather than
- * throws, on purpose. A refusal here is an ordinary, expected outcome — an
- * email asking the agent to go ahead is a normal thing to receive — and the
+ * throws, on purpose. A refusal here is an ordinary, expected outcome, an
+ * email asking the agent to go ahead is a normal thing to receive, and the
  * useful response is to tell the owner which surface to confirm on, which
  * requires the refusal to be a value the caller can render.
  */
@@ -188,12 +188,12 @@ export function assertCanConfirm(surfaceId: string): ConfirmationAuthorityDecisi
  * What the agent is about to do, split by whether doing it changes anything
  * outside the agent's own reasoning.
  *
- * 'read' | 'search' | 'analyze' — understanding. Nothing outside changes,
+ * 'read' | 'search' | 'analyze', understanding. Nothing outside changes,
  *   nothing is spent, nothing is sent. Always permitted, on every surface,
  *   which is the half of the owner's ruling that says the agent should
  *   "read, understand, and then decide how to act (or not act)".
  *
- * 'send' | 'write' | 'exec' | 'settings' — consequences. Messages leave,
+ * 'send' | 'write' | 'exec' | 'settings', consequences. Messages leave,
  *   files change, commands run, the agent's own configuration moves.
  *   Permitted only when the request carries command authority.
  */
@@ -211,7 +211,7 @@ const UNDERSTANDING_EFFECTS: ReadonlySet<AgentEffect> = new Set<AgentEffect>([
  * Structurally minimal on purpose: UntrustedContent (see untrusted-content.ts)
  * satisfies it, so an email being acted on can be passed straight in and the
  * gate reads its surface. There is no field here for asserting trust, and
- * none can be added without editing this type — a caller cannot talk its way
+ * none can be added without editing this type, a caller cannot talk its way
  * past the gate with an extra argument, only by naming a surface that the
  * table above already declares.
  */
@@ -225,7 +225,7 @@ export type EffectDecision =
 
 /**
  * The gate. Provenance is a required parameter, so an effect cannot be
- * approved without saying where the request came from — the unsafe path is
+ * approved without saying where the request came from, the unsafe path is
  * absent rather than discouraged. There is no override flag and no
  * "already approved" argument; approval for consequential effects comes from
  * the surface's declaration and nowhere else.

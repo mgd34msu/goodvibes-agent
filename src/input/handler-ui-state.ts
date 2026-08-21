@@ -131,7 +131,7 @@ export type ModalOpenOps = {
  * popped (so the one beneath it can resurface).
  *
  * INVARIANT: modals omitted from this switch are intentionally absent because
- * they remain `.active` as underlays when something stacks above them — they
+ * they remain `.active` as underlays when something stacks above them, they
  * never close themselves on stack push, so they need no explicit reopen.
  * Only the self-closing set (help, shortcuts, bookmark, process,
  * contextInspector, mcpWorkspace, agentWorkspace, command) is handled here.

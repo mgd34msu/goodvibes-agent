@@ -1,16 +1,16 @@
 /**
- * Launch-time self-update — the agent lands on the newest release at startup
+ * Launch-time self-update, the agent lands on the newest release at startup
  * so an installed binary never drifts behind. At interactive launch (before
  * any runtime bootstrap or terminal mode change) this runs a quick version
  * check and, when a newer release exists, installs it through the SAME
  * checksum-verified download/verify/swap path `/update apply` uses
- * (src/input/commands/update-runtime.ts — there is deliberately no second
+ * (src/input/commands/update-runtime.ts, there is deliberately no second
  * updater), then asks the caller to restart onto the new binary.
  *
  * Honesty rules, in both directions:
  *   - the check gets a short timeout; when it cannot complete (offline, slow
  *     network) the CURRENT version starts with exactly one line saying the
- *     check was skipped — launch is never held hostage by the network.
+ *     check was skipped, launch is never held hostage by the network.
  *   - a successful update restarts into the new binary and the restarted
  *     process prints a receipt naming both versions, so the swap is never
  *     silent.
@@ -20,16 +20,16 @@
  * The feature is a real configurable setting (`update.autoUpdateAtLaunch` in
  * settings.json, read via readUpdateSettings): default ON, off with an
  * explicit false. That false is the off switch for this install replacing its
- * own binary at all — it also stops the while-running updater unless
+ * own binary at all, it also stops the while-running updater unless
  * `update.auto` is set explicitly (see runtime/periodic-update.ts), because a
  * switch that stopped only this path left the binary being swapped half a
- * minute later anyway. Only binary installs self-update — a package-managed
+ * minute later anyway. Only binary installs self-update, a package-managed
  * install or a from-source dev checkout skips with one honest line naming
  * why (a swap there would fight the package manager, or there is no compiled
  * file to swap; see detectInstallKind).
  *
  * Everything effectful is injectable; tests drive the decision logic with a
- * stubbed fetch, a stubbed apply, and pinned fixture versions — never the
+ * stubbed fetch, a stubbed apply, and pinned fixture versions, never the
  * live build VERSION and never the real network.
  */
 import { spawnSync } from 'node:child_process';
@@ -120,7 +120,7 @@ export async function runLaunchAutoUpdate(options: RunLaunchAutoUpdateOptions): 
     // in place, and the skip should never look like an update happened.
     options.print(installKind === 'source'
       ? 'auto-update skipped: running from source (dev checkout)'
-      : 'auto-update skipped: package-managed install — update with: bun add -g @pellux/goodvibes-agent');
+      : 'auto-update skipped: package-managed install, update with: bun add -g @pellux/goodvibes-agent');
     return { action: 'continue', reason: 'not-swappable-install' };
   }
 
@@ -159,11 +159,11 @@ export async function runLaunchAutoUpdate(options: RunLaunchAutoUpdateOptions): 
       toVersion: check.latestTag,
       trigger: 'launch',
     });
-    options.print(`auto-update: ${check.latestTag} installed — restarting onto the new version`);
+    options.print(`auto-update: ${check.latestTag} installed, restarting onto the new version`);
     return { action: 'restart', latestTag: check.latestTag };
   } catch (error) {
     options.print(
-      `auto-update failed: ${error instanceof Error ? error.message : String(error)} — starting the current version v${normalizeVersion(options.currentVersion)}`,
+      `auto-update failed: ${error instanceof Error ? error.message : String(error)}, starting the current version v${normalizeVersion(options.currentVersion)}`,
     );
     return { action: 'continue', reason: 'update-failed' };
   }
@@ -180,7 +180,7 @@ export interface SelfUpdateAtLaunchParams {
  * binary and EXIT THIS PROCESS with the new instance's exit code (this call
  * never returns in that case); otherwise return the honest lines that were
  * printed (receipt / skipped check / failed update) so the caller can
- * re-surface them through the system message router once it exists — the
+ * re-surface them through the system message router once it exists, the
  * stdout copies written here are wiped by the agent's alternate screen.
  */
 export async function selfUpdateAtLaunch(params: SelfUpdateAtLaunchParams): Promise<readonly string[]> {
@@ -215,7 +215,7 @@ export interface RestartOntoUpdatedBinaryOptions {
   readonly execPath: string;
   readonly argv: readonly string[];
   readonly env: NodeJS.ProcessEnv;
-  /** The version that performed the update — the restarted process prints it in its receipt line. */
+  /** The version that performed the update, the restarted process prints it in its receipt line. */
   readonly fromVersion: string;
   /** Injectable so tests observe the restart instead of spawning a process. */
   readonly spawn?: (execPath: string, argv: readonly string[], env: NodeJS.ProcessEnv) => number | null;

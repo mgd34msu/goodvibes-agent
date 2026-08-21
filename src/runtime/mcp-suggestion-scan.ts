@@ -1,11 +1,11 @@
 /**
- * mcp-suggestion-scan.ts — the "you have this MCP server installed, add it to
+ * mcp-suggestion-scan.ts, the "you have this MCP server installed, add it to
  * mcp.json" advice, without the boot-time server spawn that used to come with
  * it.
  *
  * The SDK's `scheduleBackgroundMcpDiscovery()` does two unrelated things: it
- * calls `connectAll()` — spawning every configured server the moment the agent
- * launches — and, two seconds later, it scans for INSTALLED-but-unconfigured
+ * calls `connectAll()`, spawning every configured server the moment the agent
+ * launches, and, two seconds later, it scans for INSTALLED-but-unconfigured
  * servers and prints suggestions. The suggestions are useful. The eager spawn
  * is what put `npm exec @playwright/mcp` and a browser aimed at a cloud console
  * into a bare boot's process tree.
@@ -46,7 +46,7 @@ export function scheduleMcpSuggestionScanOnFirstUse(
   let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
     timer = null;
     if (stopped) return;
-    // Reading configured names starts no server — that is the whole point of
+    // Reading configured names starts no server, that is the whole point of
     // keeping this method off the connect-on-use list.
     const registered = new Set(options.mcpRegistry.serverNames);
     void scanMcpServers({ ...options.shellPaths, surfaceRoot: options.surfaceRoot }, registered)

@@ -3,6 +3,7 @@ import { readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentPromptContextReceiptStore, type PromptContextReceiptDraft } from '../../agent/prompt-context-receipts.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { leftoverStoreTempFiles } from '../helpers/store-temp-files.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -220,7 +221,7 @@ describe('prompt context receipt journal housekeeping', () => {
       const store = new AgentPromptContextReceiptStore(journalPath, 5);
       expect(store.lastCompaction()?.rewritten).toBe(true);
       expect(readFileSync(journalPath, 'utf-8').length).toBeGreaterThan(0);
-      expect(() => statSync(`${journalPath}.tmp`)).toThrow();
+      expect(leftoverStoreTempFiles(journalPath)).toEqual([]);
     });
   });
 });

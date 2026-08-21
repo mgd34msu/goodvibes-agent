@@ -2,7 +2,7 @@
  * The VIBE.md → memory migration is strictly ONE-TIME (a persisted marker
  * prevents re-import, which would create near-duplicate persona records), and the VIBE
  * prompt is a PROJECTION of those persona records that preserves the precedence caveat.
- * Hermetic — temp home/workspace + a throwaway MemoryStore; no daemon, no network.
+ * Hermetic, temp home/workspace + a throwaway MemoryStore; no daemon, no network.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -65,7 +65,7 @@ describe('VIBE.md persona migration', () => {
     expect(firstRun).toBe(2);
     expect(registry.getAll().filter((r) => r.cls === 'constraint')).toHaveLength(2);
 
-    // Second run is a no-op — the marker keeps the same VIBE.md from re-importing.
+    // Second run is a no-op, the marker keeps the same VIBE.md from re-importing.
     const secondRun = await importVibeFilesIntoMemoryOnce(memorySpine, shellPaths);
     expect(secondRun).toBe(0);
     expect(registry.getAll().filter((r) => r.cls === 'constraint')).toHaveLength(2);
@@ -82,7 +82,7 @@ describe('VIBE.md persona migration', () => {
     const projection = buildVibeProjectionPrompt(registry) ?? '';
     expect(projection).toContain('## GoodVibes Agent VIBE.md');
     expect(projection).toContain('Ask before sending messages.');
-    // Precedence caveat preserved verbatim — persona never overrides explicit/safety.
+    // Precedence caveat preserved verbatim, persona never overrides explicit/safety.
     expect(projection).toContain('Follow them only when they do not conflict with explicit user instructions');
   });
 

@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
-// render-perf.test.ts — Unit tests for Tier 1 render performance fixes
+// render-perf.test.ts, Unit tests for Tier 1 render performance fixes
 //
-// R1: Render coalescing — burst of requestRender() calls produces one render
+// R1: Render coalescing, burst of requestRender() calls produces one render
 // ---------------------------------------------------------------------------
 
 import { describe, test, expect } from 'bun:test';
@@ -97,17 +97,17 @@ describe('R1: render coalescing via setImmediate', () => {
       });
     };
 
-    // First burst at t=1000 — immediate branch (elapsed since 0 > 16ms)
+    // First burst at t=1000, immediate branch (elapsed since 0 > 16ms)
     now = 1000;
     requestRender();
     await new Promise<void>(resolve => setImmediate(resolve));
     expect(renderTimestamps).toEqual([1000]);
 
-    // Second burst at t=1005 (5ms later) — throttle branch, should delay 11ms
+    // Second burst at t=1005 (5ms later), throttle branch, should delay 11ms
     now = 1005;
     requestRender();
     await new Promise<void>(resolve => setImmediate(resolve));
-    // setImmediate has fired but setTimeout hasn't — still only 1 render recorded
+    // setImmediate has fired but setTimeout hasn't, still only 1 render recorded
     expect(renderTimestamps).toEqual([1000]);
 
     // Wait for the setTimeout to fire (tick the clock forward; real timer awaits its own delay)
@@ -147,12 +147,12 @@ describe('R3: TerminalBuffer.reset()', () => {
 });
 
 // ---------------------------------------------------------------------------
-// R3: Compositor buffer identity — verifies the "2 TerminalBuffer instances
+// R3: Compositor buffer identity, verifies the "2 TerminalBuffer instances
 // per session" invariant the review flagged as claimed-but-untested.
 // Rather than spying on the class constructor (fragile across bundlers),
 // we drive the Compositor through N frames and assert the set of buffer
 // instances observed via `frontBuffer`/`backBuffer` across frames has
-// cardinality 2 — i.e. the same two instances keep swapping.
+// cardinality 2, i.e. the same two instances keep swapping.
 // ---------------------------------------------------------------------------
 
 describe('R3: Compositor front/back buffer identity across frames', () => {
@@ -178,7 +178,7 @@ describe('R3: Compositor front/back buffer identity across frames', () => {
 
     // Drive 10 frames. After the first 2 frames, both slots are populated and
     // the compositor swaps between exactly 2 TerminalBuffer instances.
-    // Note: backBuffer is briefly null after the first swap — filter nulls so
+    // Note: backBuffer is briefly null after the first swap, filter nulls so
     // we count only real TerminalBuffer identities.
     for (let i = 0; i < 10; i++) {
       compositor.composite(req);

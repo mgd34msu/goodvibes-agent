@@ -98,7 +98,7 @@ describe('buildResumeRelaunchNotice', () => {
 
   // F5: a 0-message session has nothing to resume into. Offering a resume
   // action for it is a dead end like the stale-pointer case, so it is
-  // treated the same as "no pointer at all" — silent, not even the honest
+  // treated the same as "no pointer at all", silent, not even the honest
   // stale-pointer wording.
   test('stays silent for a resolvable but 0-message session (nothing to resume into)', () => {
     const notice = buildResumeRelaunchNotice({
@@ -210,7 +210,7 @@ describe('surfaceResumeRelaunchNotice', () => {
       findSession: (id) => ({ sessionId: id, title: 'x', timestamp: Date.now(), messageCount: 1 }),
       print: (text) => { printed.push(text); },
     });
-    // Nothing in this module can call a resume action directly — resumeCalls
+    // Nothing in this module can call a resume action directly, resumeCalls
     // stays 0 because there is no resume-invoking dependency to call.
     expect(resumeCalls).toBe(0);
     expect(printed).toHaveLength(1);

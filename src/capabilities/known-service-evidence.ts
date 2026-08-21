@@ -10,7 +10,7 @@ import type { CapabilityProbe } from './capability-types.ts';
  * registered, email is not one of this product's channel surfaces, and the
  * daemon serves no email route, so every inventory honestly returned nothing.
  * The gap was that "nothing here is wired up" and "you cannot do this" came out
- * as the same answer, and the credentials sitting on disk went unmentioned —
+ * as the same answer, and the credentials sitting on disk went unmentioned,
  * no code path in this product reads that directory.
  *
  * This list closes that gap. When the ingredients for a capability are present
@@ -51,7 +51,7 @@ export function knownServiceEvidence(homeDirectory: string, _workingDirectory = 
     join(homeDirectory, '.config', 'gcloud', 'application_default_credentials.json'),
   ];
   const googleFix = [
-    'These are Google credentials this build reads natively — no MCP server and no hand-made credential file is involved.',
+    'These are Google credentials this build reads natively, no MCP server and no hand-made credential file is involved.',
     'Take them up with: /google adopt',
     'That copies them into the encrypted store and makes mail and calendar usable through the built-in google tool.',
     'To connect a different account instead, run: /google connect',

@@ -30,7 +30,7 @@ mkdirSync(TEST_TMP_ROOT, { recursive: true });
 // Sweep stale entries in .test-tmp (created by makeProjectTempDir in test
 // helpers) and this project's own known-prefixed scratch directories in the
 // real os.tmpdir() (a handful of tests still need a location that is
-// guaranteed outside any git repo — see scripts/stale-tmp-sweep.ts). Both run
+// guaranteed outside any git repo, see scripts/stale-tmp-sweep.ts). Both run
 // before and after the suite to prevent accumulation from a killed process.
 function sweepAll(): void {
   sweepProjectTestTmpRoot();

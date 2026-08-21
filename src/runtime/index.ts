@@ -9,7 +9,7 @@
 // `security` is the ONLY namespace object imported as a value: its members are
 // read inside function bodies (evaluateSegmentNode / evaluateCommandAST below),
 // which run after the module graph settles. Everything else re-exports from the
-// SDK's registered runtime subpaths as grouped live re-exports — an eager
+// SDK's registered runtime subpaths as grouped live re-exports, an eager
 // `export const X = ns.X` is a module-scope read off a lazy namespace object,
 // and Bun's single-file compiler orders module bodies nondeterministically, so
 // on some builds the read landed before the defining module and the compiled
@@ -75,7 +75,7 @@ export type {
   WorkflowEvent,
 } from '@pellux/goodvibes-sdk/events';
 
-// Bootstrap compatibility aliases — grouped live re-exports (see the import
+// Bootstrap compatibility aliases, grouped live re-exports (see the import
 // comment above for why these must not be eager namespace reads).
 export {
   scheduleBackgroundMcpDiscovery,
@@ -90,7 +90,7 @@ export {
   registerHostRuntimeEvents,
   // Shared adopt-or-spawn policy (daemon-adoption-policy.ts): probes the
   // configured host/port, band-checks any GoodVibes daemon found there, and
-  // only ever ADOPTS a compatible one — Agent passes `adoptOnly: true` at the
+  // only ever ADOPTS a compatible one, Agent passes `adoptOnly: true` at the
   // call site (bootstrap-external-services.ts) so it never spawns or embeds a
   // daemon itself. A daemon that is INSTALLED on this machine but stopped is
   // handled separately at boot: one start through the platform service manager,
@@ -144,7 +144,7 @@ export type OperatorClient = Bootstrap.OperatorClient;
 export type PeerClient = Bootstrap.PeerClient;
 export type OpsApi = Bootstrap.OpsApi;
 
-// Transport compatibility aliases — grouped live re-exports.
+// Transport compatibility aliases, grouped live re-exports.
 export {
   createDirectTransport,
   createDirectTransportFromServices,
@@ -223,12 +223,12 @@ export type SerializedRuntimeEnvelope = Transport.SerializedRuntimeEnvelope;
 // `export const X = operations.X` module-scope reads off the `operations`
 // namespace object: those reads evaluated the namespace getter while the
 // compiled single-file bundle could still be mid-cycle, and the binding they
-// reached for was not defined yet — source execution hid this, the compiled
+// reached for was not defined yet, source execution hid this, the compiled
 // binary died on it at load. A grouped `export { ... } from '<subpath>'` is a
 // live binding resolved by the module system, not a module-scope value read,
 // so it is cycle-safe.
 // (OpsControlPlane and its error classes are deliberately NOT re-exported:
-// the Agent never constructs the ops intervention plane — connected-host
+// the Agent never constructs the ops intervention plane, connected-host
 // tasks are read-only by product policy, with mutations routed to
 // /workplan and /delegate.)
 export {
@@ -260,7 +260,7 @@ export {
   // The last-session pointer writer, bound to one SessionSurface so a caller in a
   // (sessionId) => void slot cannot silently drop the surface argument.
   bindWriteLastSessionPointerToSurface,
-  // "Is this the build you are actually reaching, and is it the current one" —
+  // "Is this the build you are actually reaching, and is it the current one",
   // the PATH shadow scan, the install-kind answer it depends on, and the wording
   // it produces. A product supplies its own command/package name and release
   // lookup (runtime/path-shadow-startup.ts) and nothing else.
@@ -268,7 +268,7 @@ export {
   buildReachabilityNotices, reachabilityNoticeLines, INSTALLED_COMMANDS, removeRecoveryPoint, exportRemoteArtifactForAgent, importRemoteArtifact,
   RemoteRunnerRegistry, RemoteSupervisor, DistributedRuntimeManager, getDistributedNodeHostContract, CURRENT_PROTOCOL_VERSION, VersionMismatchError,
   negotiateProtocolVersion,
-  // Protocol version types — re-exported for transport compatibility tests.
+  // Protocol version types, re-exported for transport compatibility tests.
   // ProtocolVersion, VersionNegotiationResult, NegotiatedProtocol are available
   // via operations namespace (operations.ProtocolVersion etc.) but cannot be
   // re-exported here without a registered subpath. Tests that need these types
@@ -364,7 +364,7 @@ export type ToolExecutionPhase = Operations.ToolExecutionPhase;
 export type PhaseResult = Operations.PhaseResult;
 export type ToolExecutionRecord = Operations.ToolExecutionRecord;
 
-// Runtime shell compatibility aliases — grouped live re-exports.
+// Runtime shell compatibility aliases, grouped live re-exports.
 // WorktreeRegistry is a class: the value re-export carries its instance type,
 // so the old separate `export type WorktreeRegistry` alias is gone (TS2484).
 export {
@@ -428,7 +428,7 @@ export type EcosystemCatalogBundle = Shell.EcosystemCatalogBundle;
 export type EcosystemCatalogEntry = Shell.EcosystemCatalogEntry;
 export type EcosystemEntryKind = Shell.EcosystemEntryKind;
 
-// Runtime security compatibility aliases — grouped live re-exports. The class
+// Runtime security compatibility aliases, grouped live re-exports. The class
 // re-exports (PolicyRegistry, PolicyRuntimeState, …) carry their instance
 // types, so the old separate `export type` aliases for those names are gone.
 export {
@@ -492,11 +492,11 @@ const AGENT_OBFUSCATION_CHECKS: Array<{ description: string; test: (raw: string)
  * `/%[0-9a-fA-F]{2}/` therefore denied ordinary formatting commands as
  * "obfuscation". Two independent narrowings replace that test:
  *
- *  1. Shape — percent-encoding only counts when the word carries it the way a
+ *  1. Shape, percent-encoding only counts when the word carries it the way a
  *     URI does: an explicit `scheme://`, or an encoded path separator / NUL
  *     (`%2F`, `%5C`, `%00`), which is the evasion this check exists to catch.
  *     `%02d:%02d` and `+%ad` carry neither and are left alone.
- *  2. Consumer — the printf family legitimately emits `%2f` (float, width 2),
+ *  2. Consumer, the printf family legitimately emits `%2f` (float, width 2),
  *     so its own arguments are exempt from the shape rule.
  *
  * This only narrows an existing detector. No new denial class is introduced:
@@ -504,7 +504,7 @@ const AGENT_OBFUSCATION_CHECKS: Array<{ description: string; test: (raw: string)
  */
 const PERCENT_ESCAPE = /%[0-9a-fA-F]{2}/;
 const URI_SCHEME = /[A-Za-z][A-Za-z0-9+.-]*:\/\//;
-/** Encoded `/`, `\` and NUL — separators that change path or argument meaning once decoded. */
+/** Encoded `/`, `\` and NUL, separators that change path or argument meaning once decoded. */
 const ENCODED_SEPARATOR = /%(?:2[fF]|5[cC]|00)/;
 const FORMAT_SPECIFIER_COMMANDS = new Set(['printf', 'awk', 'gawk', 'mawk', 'nawk', 'seq']);
 const ENV_ASSIGNMENT_PREFIX = /^[A-Za-z_][A-Za-z0-9_]*=/;

@@ -1,5 +1,5 @@
 /**
- * wake-surface.ts — which `voice.wake.surfaces.*` row this product listens on.
+ * wake-surface.ts, which `voice.wake.surfaces.*` row this product listens on.
  *
  * One line of code in its own file for a load-bearing reason: this constant is
  * needed by the SETTINGS path, and wake-runtime.ts (where it used to live)

@@ -1,23 +1,23 @@
 /**
- * device-settings-behavior.test.ts — behaviour verification for the twelve
+ * device-settings-behavior.test.ts, behaviour verification for the twelve
  * `device.*` settings.
  *
  * Every test here drives ONE setting to at least two distinct values (the
  * schema default and a clearly different non-default), runs the real consuming
  * code, and asserts an outcome that differs between the two. Nothing in this
  * file asserts that a key exists, has a description, or round-trips through
- * ConfigManager — a test like that would still pass if the consuming code threw
+ * ConfigManager, a test like that would still pass if the consuming code threw
  * the value away, which is exactly the failure this suite exists to prevent.
  *
  * WHOSE code this is, precisely, because it changed. The runtime under test is
- * the platform's `createDevicePostureRuntime` — the grants ledger, the capture
+ * the platform's `createDevicePostureRuntime`, the grants ledger, the capture
  * store, the capability service, the housekeeping cadence, and the mapping from
  * every `device.*` key onto them. That runtime is the DAEMON's now. This agent
  * composes no second copy of it: a second `createDevicePostureRuntime` writing
  * the same grants ledger would be the second-writer hazard this file exists
  * to prevent.
  *
- * So this file no longer holds "the agent's end" of the mapping — the agent has
+ * So this file no longer holds "the agent's end" of the mapping, the agent has
  * no end of it, and asserting otherwise would be a claim this repo cannot back.
  * What it holds is the CONTRACT the agent's phone tool now depends on across a
  * process boundary: every refusal code, every authority path, every retention
@@ -25,7 +25,7 @@
  * keys stops being honoured, the agent's phone tool silently starts doing
  * something else, and this is the suite that catches it.
  *
- * The agent's own end — that it forwards and re-decides nothing — is pinned in
+ * The agent's own end, that it forwards and re-decides nothing, is pinned in
  * agent-phone-tool.test.ts beside it.
  *
  * The config side is a real ConfigManager over a temp home directory, so every
@@ -156,7 +156,7 @@ interface DispatchCall {
   readonly command: string;
   readonly waitMs: number | undefined;
   readonly timeoutMs: number | undefined;
-  /** `timeoutMs` inside the work payload — the deadline the device is told. */
+  /** `timeoutMs` inside the work payload, the deadline the device is told. */
   readonly payloadTimeoutMs: number | undefined;
 }
 
@@ -230,8 +230,8 @@ function harness(configManager: ConfigManager, stateDirectory: string): Harness 
   };
 
   const service = createDevicePostureRuntime({
-    // The runtime reaches exactly two members of a peer transport — listPeers
-    // and invokePeer — so the stub implements those two and is cast once here.
+    // The runtime reaches exactly two members of a peer transport, listPeers
+    // and invokePeer, so the stub implements those two and is cast once here.
     // A real DistributedRuntimeManager would need a live peer process to claim
     // and complete the work item.
     transport: transport as unknown as DistributedRuntimeManager,
@@ -388,7 +388,7 @@ describe('device.* settings — behaviour', () => {
     expect(label(await honor.run(SCREEN))).toBe('ok:existing-grant');
     expect(honor.approvals).toHaveLength(1);
 
-    // Same grant on disk, same capability, same node — only the setting differs.
+    // Same grant on disk, same capability, same node, only the setting differs.
     const askConfig = freshConfig();
     askConfig.set('device.capabilities.mode', 'ask-every-time');
     const ask = harness(askConfig, shared);
@@ -435,7 +435,7 @@ describe('device.* settings — behaviour', () => {
     standardConfig.set('device.capabilities.allowAlwaysOffer', 'standard-only');
     const standard = harness(standardConfig, join(root, 'state-standard-notify'));
     standard.answer('always');
-    // notify is standard sensitivity, so standard-only leaves it grantable —
+    // notify is standard sensitivity, so standard-only leaves it grantable,
     // the setting discriminates by sensitivity rather than switching grants off.
     expect(label(await standard.run(NOTIFY))).toBe('ok:confirmed-always');
     expect(standard.approvals[0].metadata?.allowAlwaysOffered).toBe(true);
@@ -759,7 +759,7 @@ describe('device.* settings — behaviour', () => {
     // WHICH grant is reaped is asserted against the timestamps the store
     // actually recorded, not against the order these three calls were made in.
     // The clock this file drives is process-wide state, and the reap order is
-    // the store's own `grantedAt` ordering — reading it back keeps the assertion
+    // the store's own `grantedAt` ordering, reading it back keeps the assertion
     // about the cap (the behaviour under test) instead of about this file's
     // clock still being the only thing writing timestamps. A stable sort over
     // the stored order reproduces the store's own choice exactly, including how
@@ -782,7 +782,7 @@ describe('device.* settings — behaviour', () => {
     const survivingGrants = await capped.service.grants.list();
     expect(survivingGrants.map((grant) => grant.capabilityId).sort()).toEqual(expectedSurvivors);
     expect(survivingGrants.filter((grant) => grant.nodeId === 'phone-1')).toHaveLength(2);
-    // The reaped capability — whichever one it was — has to be asked about again.
+    // The reaped capability, whichever one it was, has to be asked about again.
     const approvalsBefore = capped.approvals.length;
     expect(label(await capped.run(reapedGrant.capabilityId))).toBe('ok:confirmed-always');
     expect(capped.approvals).toHaveLength(approvalsBefore + 1);

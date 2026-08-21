@@ -1,10 +1,10 @@
 /**
- * credential-scope.ts — which secret-store tier a credential belongs in, for
+ * credential-scope.ts, which secret-store tier a credential belongs in, for
  * the credential names this product invents.
  *
  * The platform rule is the owner's: a capability configured on ANY surface is
  * the daemon's to use afterwards, with that surface's process closed. For a
- * credential that means one home — the daemon tier — because the daemon reads
+ * credential that means one home, the daemon tier, because the daemon reads
  * only its own tier and a surface silo is a place the daemon never looks.
  *
  * The SDK already answers this for every credential whose name DERIVES from a
@@ -20,8 +20,8 @@
  *
  *   - the per-subscription iCalendar feed URL
  *     (`GOODVIBES_CALENDAR_SUB_<NAME>`, agent/calendar-subscription-registry.ts).
- *     The URL is a credential in its own right — a Google "secret address"
- *     grants read access to the whole calendar to anyone holding it — and the
+ *     The URL is a credential in its own right, a Google "secret address"
+ *     grants read access to the whole calendar to anyone holding it, and the
  *     refresh loop that fetches it runs unattended.
  *
  *   - the calendar OAuth token set, the account record and the
@@ -80,7 +80,7 @@ export { CALENDAR_SUBSCRIPTION_SECRET_PREFIX };
 
 /**
  * True when the daemon is a reader of this credential, so the daemon tier is
- * its home — whether the SDK's derivation already knew that or this product
+ * its home, whether the SDK's derivation already knew that or this product
  * had to say so.
  */
 export function isDaemonNeededSecretKey(key: string): boolean {
@@ -97,7 +97,7 @@ export function isDaemonNeededSecretKey(key: string): boolean {
  * scope on every call (`/secrets set` defaults one, the settings modal used to
  * hardcode one), so honouring the request would mean the flag an operator never
  * thought about decides whether their calendar keeps working overnight. The
- * write is relocated, never refused — a wall in front of the credentials people
+ * write is relocated, never refused, a wall in front of the credentials people
  * most need to set is worse than a credential filed somewhere they did not name.
  */
 export function resolveCredentialWriteScope(key: string, requested?: SecretScope | undefined): SecretScope {
@@ -115,7 +115,7 @@ export function credentialWriteScopeWasRelocated(key: string, requested?: Secret
  *
  * `undefined` means "every tier". A daemon-read credential lives in the daemon
  * tier even when the caller passed `--project`, so a delete narrowed to the
- * requested scope would report success and leave the live copy in place — a
+ * requested scope would report success and leave the live copy in place, a
  * credential the operator believes is revoked and is not.
  */
 export function resolveCredentialDeleteScope(key: string, requested?: SecretScope | undefined): SecretScope | undefined {

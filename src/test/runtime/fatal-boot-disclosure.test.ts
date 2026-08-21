@@ -1,5 +1,5 @@
 /**
- * fatal-boot-disclosure.test.ts — the Agent says why it will not start.
+ * fatal-boot-disclosure.test.ts, the Agent says why it will not start.
  *
  * ── What happened ─────────────────────────────────────────────────────────
  *
@@ -12,7 +12,7 @@
  * `src/main.ts` installs a terminal output guard
  * (@pellux/goodvibes-terminal-shell's terminal output guard) that REPLACES `process.stdout.write`,
  * `process.stderr.write` and every `console` method so stray output cannot
- * corrupt a rendered screen — an intercepted write is recorded to the activity
+ * corrupt a rendered screen, an intercepted write is recorded to the activity
  * log and swallowed. `reportFatalStartupError` was handed
  * `(chunk) => process.stderr.write(chunk)` as its sink, so any startup failure
  * raised after that install had its explanation intercepted and never reached a
@@ -44,7 +44,7 @@ const RUN_TIMEOUT_MS = 60_000;
 
 /**
  * A throwaway HOME for ONE test, under `<repo>/.test-tmp` (the repo's own test
- * scratch root — see helpers/project-temp.ts). The global afterEach sweeps it
+ * scratch root, see helpers/project-temp.ts). The global afterEach sweeps it
  * as soon as the test that made it finishes.
  */
 function makeHomeDir(label: string): string {
@@ -93,8 +93,8 @@ interface AgentRun {
 /**
  * Run a compiled entry against a throwaway HOME.
  *
- * The environment is built from nothing — `PATH`, `HOME`, `GOODVIBES_WORKING_DIR`
- * and nothing else — so no ambient `GOODVIBES_*` from a developer's shell can
+ * The environment is built from nothing, `PATH`, `HOME`, `GOODVIBES_WORKING_DIR`
+ * and nothing else, so no ambient `GOODVIBES_*` from a developer's shell can
  * decide the outcome. stdin/stdout are pipes, never a TTY.
  */
 function runAgent(binary: string, home: string, args: readonly string[] = []): AgentRun {

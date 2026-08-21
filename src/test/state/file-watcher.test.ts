@@ -140,7 +140,6 @@ describe('FileWatcher', () => {
     watcher.start();
     watcher.addPath(file);
 
-    // Trigger change
     writeFileSync(file, 'const x = 2;');
     await sleep(250); // wait for debounce + handler
 
@@ -266,7 +265,7 @@ describe('FileWatcher', () => {
   it('rejects paths outside project root', () => {
     const watcher = new FileWatcher(fileCache, projectIndex, { projectRoot: tmpDir });
     // A sibling makeProjectTempDir() call, not tmpDir itself or any path
-    // under it — FileWatcher.addPath's boundary check is a plain
+    // under it, FileWatcher.addPath's boundary check is a plain
     // startsWith(projectRoot) prefix test (confirmed by reading
     // dist/platform/state/file-watcher.js), so any directory outside
     // tmpDir satisfies "outside project root" just as well as real

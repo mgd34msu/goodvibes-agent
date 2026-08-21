@@ -1,13 +1,13 @@
 /**
- * feed-context-factory.ts — Construction and mutable-field sync for InputFeedContext.
+ * feed-context-factory.ts, Construction and mutable-field sync for InputFeedContext.
  *
  * Extracted from handler.ts (0.18.23) to keep handler.ts under the
  * 800-line architecture cap.
  *
  * Two exported functions:
- *   - `buildInitialFeedContext` — assembles the long-lived InputFeedContext from
+ *   - `buildInitialFeedContext`, assembles the long-lived InputFeedContext from
  *     pre-built field groups. Called once at InputHandler construction time.
- *   - `syncFeedContextMutableFields` — copies mutable scalar fields into the
+ *   - `syncFeedContextMutableFields`, copies mutable scalar fields into the
  *     already-allocated context before each feed() dispatch.
  */
 import type { InputFeedContext } from './handler-feed.ts';
@@ -44,14 +44,14 @@ import type { FocusTracker } from '@/runtime/index.ts';
  *
  * **Mutable fields** (synced per-feed via syncFeedContextMutableFields or inside
  * action closures that call syncFeedContextMutableFields):
- *   - `prompt`, `cursorPos` — current text buffer state
- *   - `commandMode`, `indicatorFocused` — focus-mode flags
- *   - `helpOverlayActive`, `helpScrollOffset` — help overlay state
- *   - `shortcutsOverlayActive`, `shortcutsScrollOffset` — shortcuts overlay state
- *   - `nextPasteId`, `nextImageId` — monotonically increasing ID counters
- *   - `mouseDownRow`, `mouseDownCol` — drag-tracking coordinates
- *   - `contentWidth` — reflow width, updated by setContentWidth()
- *   - `selectionCallback` — current selection modal callback (nullable)
+ *   - `prompt`, `cursorPos`, current text buffer state
+ *   - `commandMode`, `indicatorFocused`, focus-mode flags
+ *   - `helpOverlayActive`, `helpScrollOffset`, help overlay state
+ *   - `shortcutsOverlayActive`, `shortcutsScrollOffset`, shortcuts overlay state
+ *   - `nextPasteId`, `nextImageId`, monotonically increasing ID counters
+ *   - `mouseDownRow`, `mouseDownCol`, drag-tracking coordinates
+ *   - `contentWidth`, reflow width, updated by setContentWidth()
+ *   - `selectionCallback`, current selection modal callback (nullable)
  */
 export interface FeedContextMutableInit {
   prompt: string;
@@ -75,17 +75,17 @@ export interface FeedContextMutableInit {
  * Stable (readonly) service references for InputFeedContext.
  *
  * **Stable references** (set once at construction, never reallocated):
- *   - `pasteRegistry`, `imageRegistry` — owned Maps, never replaced
+ *   - `pasteRegistry`, `imageRegistry`, owned Maps, never replaced
  *   - `selectionModal`, `bookmarkModal`, `settingsModal`, `sessionPickerModal`,
- *     `profilePickerModal` — modal objects constructed once
+ *     `profilePickerModal`, modal objects constructed once
  *   - `filePicker`, `modelPicker`, `processModal`, `liveTailModal`,
- *     `contextInspectorModal`, `blockActionsMenu`, `searchManager`, `historySearch` —
+ *     `contextInspectorModal`, `blockActionsMenu`, `searchManager`, `historySearch`,
  *     service objects constructed once
- *   - `keybindingsManager` — from uiServices, stable
- *   - `modalStack` — reference to the handler's shared array
- *   - `getHistory`, `getViewportHeight`, `getScrollTop`, `scroll`, `exitApp` — callbacks
+ *   - `keybindingsManager`, from uiServices, stable
+ *   - `modalStack`, reference to the handler's shared array
+ *   - `getHistory`, `getViewportHeight`, `getScrollTop`, `scroll`, `exitApp`, callbacks
  *   - `commandRegistry`, `commandContext`, `autocomplete`, `inputHistory`,
- *     `conversationManager` — wired after construction; synced at feed() entry only
+ *     `conversationManager`, wired after construction; synced at feed() entry only
  *     (not per-action) since no in-feed action changes them
  *
  * **Rationale:** per-feed mutation on a single object avoids per-keystroke GC pressure
@@ -168,12 +168,12 @@ export interface FeedContextClosures {
 }
 
 /**
- * buildInitialFeedContext — Allocate the single InputFeedContext that lives for the
+ * buildInitialFeedContext, Allocate the single InputFeedContext that lives for the
  * lifetime of the InputHandler.
  *
  * Accepts pre-built field groups from handler.ts where private access is available.
  * The resulting context object is mutated in place on every feed() call via
- * syncFeedContextMutableFields — no re-allocation occurs per keystroke.
+ * syncFeedContextMutableFields, no re-allocation occurs per keystroke.
  *
  * @param mutable  Initial mutable scalar values (synced per-feed).
  * @param stable   Stable service references (set once, never replaced).
@@ -202,31 +202,31 @@ export function buildInitialFeedContext(
 }
 
 /**
- * syncFeedContextMutableFields — Copy mutable scalar fields into the reused
+ * syncFeedContextMutableFields, Copy mutable scalar fields into the reused
  * InputFeedContext object.
  *
  * **Fields synced (updated on every call):**
- *   - `prompt` — current prompt text buffer
- *   - `cursorPos` — caret position within prompt
- *   - `commandMode` — whether command-mode prefix is active
+ *   - `prompt`, current prompt text buffer
+ *   - `cursorPos`, caret position within prompt
+ *   - `commandMode`, whether command-mode prefix is active
 
- *   - `indicatorFocused` — whether the status indicator owns focus
- *   - `helpOverlayActive` / `helpScrollOffset` — help overlay visibility and scroll
- *   - `shortcutsOverlayActive` / `shortcutsScrollOffset` — shortcuts overlay state
- *   - `selectionCallback` — the current in-flight selection modal callback
- *   - `nextPasteId` / `nextImageId` — monotonically increasing allocation counters
- *   - `mouseDownRow` / `mouseDownCol` — drag-start coordinates
+ *   - `indicatorFocused`, whether the status indicator owns focus
+ *   - `helpOverlayActive` / `helpScrollOffset`, help overlay visibility and scroll
+ *   - `shortcutsOverlayActive` / `shortcutsScrollOffset`, shortcuts overlay state
+ *   - `selectionCallback`, the current in-flight selection modal callback
+ *   - `nextPasteId` / `nextImageId`, monotonically increasing allocation counters
+ *   - `mouseDownRow` / `mouseDownCol`, drag-start coordinates
  *
  * **Fields intentionally excluded (synced only at feed() entry, not here):**
- *   - `contentWidth` — semi-stable; only changes on terminal resize via setContentWidth().
+ *   - `contentWidth`, semi-stable; only changes on terminal resize via setContentWidth().
  *     Synced at feed() entry because it is only relevant for layout, not action-reaction
  *     sequences within a single feed.
- *   - `commandRegistry`, `commandContext` — wired after construction via
+ *   - `commandRegistry`, `commandContext`, wired after construction via
  *     setCommandRegistry(); synced at feed() entry since no in-feed action changes them.
- *   - `autocomplete` — wired after construction; synced at feed() entry.
- *   - `inputHistory`, `conversationManager` — late-wired service handles; stable within
+ *   - `autocomplete`, wired after construction; synced at feed() entry.
+ *   - `inputHistory`, `conversationManager`, late-wired service handles; stable within
  *     a feed. Synced at feed() entry only.
- *   - `requestRender` — swapped to a buffered version at feed() entry and restored in
+ *   - `requestRender`, swapped to a buffered version at feed() entry and restored in
  *     the finally block; not managed by this function.
  *
  * Called from within action closures (`handleEscape`, `handleCtrlC`, `handleUndo`,

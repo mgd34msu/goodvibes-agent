@@ -86,7 +86,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (sub === 'list' || sub === 'schema') {
-        // `total` is what matched, not what fits on the page — the formatter
+        // `total` is what matched, not what fits on the page, the formatter
         // needs both so a short page can name itself as short.
         const listFilters = parseSettingListArgs(commandArgs.slice(1));
         const listed = await listEffectiveHarnessSettings(ctx.platform.configManager, listFilters);
@@ -300,12 +300,12 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
 
       ctx.print(
         'Usage: /mode [quiet|balanced|operator --yes|show|set-domain <domain> <verbosity> --yes]\n'
-        + '  /mode                          — show current mode and settings\n'
-        + '  /mode show                     — show current mode and settings\n'
-        + '  /mode quiet --yes              — suppress all non-critical notifications\n'
-        + '  /mode balanced --yes           — show warnings, batch info noise (default)\n'
-        + '  /mode operator --yes           — full verbosity, no suppression\n'
-        + '  /mode set-domain <d> <v> --yes — per-domain verbosity override (minimal|normal|verbose)'
+        + '  /mode                         , show current mode and settings\n'
+        + '  /mode show                    , show current mode and settings\n'
+        + '  /mode quiet --yes             , suppress all non-critical notifications\n'
+        + '  /mode balanced --yes          , show warnings, batch info noise (default)\n'
+        + '  /mode operator --yes          , full verbosity, no suppression\n'
+        + '  /mode set-domain <d> <v> --yes, per-domain verbosity override (minimal|normal|verbose)'
       );
     },
   });

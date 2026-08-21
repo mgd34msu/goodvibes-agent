@@ -1,10 +1,10 @@
 /**
- * outward-approvals.ts — the agent's answer to "what actually clears this?"
+ * outward-approvals.ts, the agent's answer to "what actually clears this?"
  *
  * The refusal the owner met named a remedy that did not exist: reply "send it
  * now". He replied. It refused again, in the same words. Nothing in the whole
- * product had ever minted an `OwnerApproval` — the factory had test callers
- * only — so the advice was fiction, and the retry could not have worked.
+ * product had ever minted an `OwnerApproval`, the factory had test callers
+ * only, so the advice was fiction, and the retry could not have worked.
  *
  * The tempting repair is to make the phrase work. That would be worse than the
  * bug. A boundary cleared by a sentence in the conversation is cleared by
@@ -21,14 +21,14 @@
  *  - It is handled by the surface's input layer, not by the model. The words
  *    never become tokens the model chooses to emit; they are keystrokes the
  *    process read off its own input widget.
- *  - The one path by which a model CAN reach a slash command —
- *    `agent_harness mode:"run_command"` — marks its context `invokedByModel`,
+ *  - The one path by which a model CAN reach a slash command,
+ *    `agent_harness mode:"run_command"`, marks its context `invokedByModel`,
  *    and the approval route refuses on that flag. Without this the fix would
  *    have been theatre: injected text steers the model, the model runs the
  *    command, the approval appears, and the send goes.
  *
  * The approval that results is bound to the exact message it was shown, single
- * use, and expires in minutes — see the SDK's security/owner-approval.ts for
+ * use, and expires in minutes, see the SDK's security/owner-approval.ts for
  * why an approval naming only an action id is a standing permit rather than an
  * approval of the deed.
  */
@@ -71,7 +71,7 @@ export interface PendingOutwardAction {
  * Remember what was just refused.
  *
  * The owner approves an action he has been SHOWN, so the thing he approves has
- * to be recorded at the moment of refusal — otherwise `/google approve` would
+ * to be recorded at the moment of refusal, otherwise `/google approve` would
  * be approving whatever came next, which is a blank cheque.
  */
 export function rememberRefusedOutwardAction(input: Omit<PendingOutwardAction, 'at'>): void {

@@ -1,5 +1,5 @@
 /**
- * operator-contract-routes.ts — one place that turns an operator method id into
+ * operator-contract-routes.ts, one place that turns an operator method id into
  * the HTTP request that reaches the daemon.
  *
  * The daemon's operator contract already carries, per method, the verb and the
@@ -9,13 +9,13 @@
  * Why this module exists rather than a table per caller: a hand-written table
  * is a copy of the contract that nothing re-checks. The path moves in the
  * daemon, the contract moves with it, and the copy keeps pointing at a route
- * that now 404s — which reads to an operator as a broken feature rather than as
+ * that now 404s, which reads to an operator as a broken feature rather than as
  * a stale binding. Deriving means the two cannot disagree, and the drift test
  * beside this module pins the ids so a method that DISAPPEARS from the contract
  * fails loudly instead of resolving to nothing at runtime.
  *
  * `substituteOperatorPath` consumes the parameters it fills, so what remains in
- * the payload is exactly the body (or the query string, for a read) — the same
+ * the payload is exactly the body (or the query string, for a read), the same
  * split every caller needs and none of them should re-derive.
  */
 
@@ -194,7 +194,7 @@ export function operatorMethodIsReadOnly(methodId: string): boolean {
 }
 
 /**
- * The full request path for a prepared request — query string included for a
+ * The full request path for a prepared request, query string included for a
  * read verb, untouched for a write.
  */
 export function operatorRequestPath(request: PreparedOperatorRequest): string {

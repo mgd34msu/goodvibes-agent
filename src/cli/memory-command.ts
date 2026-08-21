@@ -202,9 +202,9 @@ function timestamp(value: number): string {
 // The CLI no longer opens a private per-surface agent/memory.sqlite. It opens the
 // ONE canonical cross-surface store (~/.goodvibes/shared/memory.sqlite) so a memory
 // added via `goodvibes-agent memory add` is visible to the runtime, the TUI, and the
-// SDK — and vice-versa. The old CLI-written store is folded into the canonical store
+// SDK, and vice-versa. The old CLI-written store is folded into the canonical store
 // (loss-free, idempotent) by the runtime's foldAgentLegacyMemory at boot, since that
-// fold already sources shellPaths.resolveUserPath('agent', 'memory.sqlite') — the exact
+// fold already sources shellPaths.resolveUserPath('agent', 'memory.sqlite'), the exact
 // path this function used to write to.
 function memoryDbPath(runtime: CliCommandRuntime): string {
   return resolveCanonicalMemoryDbPath(runtime.homeDirectory);
@@ -649,7 +649,7 @@ export async function handleMemoryCommand(runtime: CliCommandRuntime): Promise<C
     const normalized = sub.toLowerCase();
     if (normalized === 'handoff-inspect' || normalized === 'inspect') return handleInspect(runtime, rest);
     // Wire-first: try the memory spine when a daemon is reachable and the
-    // subcommand has a wire-covered equivalent — see the CLI ruling in
+    // subcommand has a wire-covered equivalent, see the CLI ruling in
     // memory-command-wire.ts. Falls through (null) to the unchanged local-direct
     // path below for everything else, or when no daemon answers.
     const wireResult = await tryWireMemoryCommand(runtime, normalized, rest);

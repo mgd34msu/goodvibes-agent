@@ -15,7 +15,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 describe('tool breadth additions', () => {
   const originalCwd = process.cwd();
   let root = '';
-  // Task-ref ownership is the HOST's session identity, resolved per call — not
+  // Task-ref ownership is the HOST's session identity, resolved per call, not
   // the model-supplied `sessionId` argument, which now only selects which
   // session's refs a list/show reads. Standing in as the host, this suite owns
   // 'sess-a', so its writes and its reads agree.

@@ -1,5 +1,5 @@
 /**
- * settings-modal-theme-mode.test.ts — the display.themeMode settings-modal
+ * settings-modal-theme-mode.test.ts, the display.themeMode settings-modal
  * entry.
  *
  * Proves: (1) the display group carries the schema-driven enum entry (auto|
@@ -103,7 +103,7 @@ describe('display.themeMode settings-modal entry (schema-driven)', () => {
         return { message: 'ok' };
       },
     });
-    // Select the themeMode entry by key — the same path ui-openers' selectTarget uses.
+    // Select the themeMode entry by key, the same path ui-openers' selectTarget uses.
     modal.selectTarget(THEME_MODE_CONFIG_KEY);
     expect(modal.focusPane).toBe('settings');
     expect(String(modal.getSelected()?.setting.key)).toBe(THEME_MODE_CONFIG_KEY);

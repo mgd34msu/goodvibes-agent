@@ -26,8 +26,8 @@ interface RecordedCall {
 
 /**
  * The invoker is generic per verb now, so a recorded body arrives as a union of
- * the real per-verb inputs rather than a loose record. That is the point — it
- * is what makes a stale field a compile error at the call site — so the test
+ * the real per-verb inputs rather than a loose record. That is the point, it
+ * is what makes a stale field a compile error at the call site, so the test
  * harness widens deliberately at the one place it inspects bodies, instead of
  * the production seam widening for everyone.
  */
@@ -212,7 +212,7 @@ describe('profile tool — forgetting something that was not there', () => {
     expect(result.output).toContain('contact.phone was not deleted');
     expect(result.output).toContain('there was nothing to forget');
     expect(result.output).toContain('never report this as done');
-    expect(result.output ?? '').not.toContain('Forgotten —');
+    expect(result.output ?? '').not.toContain('Forgotten:');
   });
 
   test('an actual deletion is reported as one', async () => {
@@ -581,8 +581,8 @@ describe('profile tool — the declared field catalog', () => {
   }
 
   // The drift test. The live failure was a free-form `fieldId` filled with
-  // `full_name`, `preferred_name`, `home_address`, `timezone` and `wife` — none
-  // of them fields — so the declaration must now be the registry itself, in
+  // `full_name`, `preferred_name`, `home_address`, `timezone` and `wife`, none
+  // of them fields, so the declaration must now be the registry itself, in
   // registry order, and must stay that way when the SDK adds or renames one.
   test('declares exactly the SDK field registry ids, in registry order', () => {
     expect(fieldIdProperty().enum).toEqual(PROFILE_FIELDS.map((field) => field.id));

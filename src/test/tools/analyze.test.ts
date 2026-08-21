@@ -61,7 +61,7 @@ beforeEach(async () => {
 
   await mkdir(join(dir, 'src'), { recursive: true });
 
-  // src/index.ts — exports: greet(), helper()
+  // src/index.ts, exports: greet(), helper()
   await writeTempFile(
     dir,
     'src/index.ts',
@@ -78,7 +78,7 @@ beforeEach(async () => {
     ].join('\n'),
   );
 
-  // src/utils.ts — exports: format(), unused()
+  // src/utils.ts, exports: format(), unused()
   await writeTempFile(
     dir,
     'src/utils.ts',
@@ -95,7 +95,7 @@ beforeEach(async () => {
     ].join('\n'),
   );
 
-  // src/types.ts — exports: User, Config
+  // src/types.ts, exports: User, Config
   await writeTempFile(
     dir,
     'src/types.ts',
@@ -124,7 +124,7 @@ afterEach(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// dependencies — analyze
+// dependencies, analyze
 // ---------------------------------------------------------------------------
 
 describe('dependencies mode', () => {
@@ -161,7 +161,7 @@ describe('dependencies mode', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // dependencies — circular
+  // dependencies, circular
   // ---------------------------------------------------------------------------
 
   test('circular: detects no cycles in acyclic project', async () => {
@@ -450,7 +450,7 @@ describe('impact mode', () => {
 });
 
 // ---------------------------------------------------------------------------
-// coverage — graceful missing file handling
+// coverage, graceful missing file handling
 // ---------------------------------------------------------------------------
 
 describe('coverage mode', () => {
@@ -519,7 +519,7 @@ describe('coverage mode', () => {
 });
 
 // ---------------------------------------------------------------------------
-// bundle — graceful missing file handling
+// bundle, graceful missing file handling
 // ---------------------------------------------------------------------------
 
 describe('bundle mode', () => {
@@ -664,7 +664,7 @@ describe('diff mode', () => {
   });
 
   test('non-existent repo path returns error', async () => {
-    // Not migrated to makeProjectTempDir: nothing ever creates this path —
+    // Not migrated to makeProjectTempDir: nothing ever creates this path,
     // that's the point of the test (a project root that genuinely does not
     // exist), so there is nothing here to leak.
     const result = await analyzeMayFail({
@@ -965,7 +965,7 @@ describe('upgrade mode', () => {
   });
 
   test('reads packages from package.json when no packages specified', async () => {
-    // package.json already has { name: 'analyze-test', version: '1.0.0' } — no deps
+    // package.json already has { name: 'analyze-test', version: '1.0.0' }, no deps
     const result = await analyze({
       mode: 'upgrade',
       projectRoot: dir,

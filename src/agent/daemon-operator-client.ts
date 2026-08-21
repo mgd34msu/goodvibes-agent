@@ -1,13 +1,13 @@
 /**
- * daemon-operator-client.ts — calling an operator method on the connected host.
+ * daemon-operator-client.ts, calling an operator method on the connected host.
  *
  * The route comes from the contract (operator-contract-routes.ts); this module
  * is the wire: the bearer token, the verb, the body-or-query split, and an
  * honest classification of what came back.
  *
  * Every failure is a VALUE, never a throw. The callers are stores that must
- * keep working when the daemon is not reachable — a laptop away from the LAN, a
- * daemon mid-restart, a token that has not been minted yet — and a store that
+ * keep working when the daemon is not reachable, a laptop away from the LAN, a
+ * daemon mid-restart, a token that has not been minted yet, and a store that
  * threw on an unreachable peer would take the whole feature down with it. The
  * four kinds are the same ones the read-route helper and the operator-action
  * poster already report, so a caller that can render one can render all of them.
@@ -35,7 +35,7 @@ export type DaemonInvokeFailureKind =
 export interface DaemonInvokeSuccess {
   readonly ok: true;
   readonly methodId: string;
-  /** "POST /api/channels/routing" — what was actually called. */
+  /** "POST /api/channels/routing", what was actually called. */
   readonly route: string;
   readonly body: unknown;
 }
@@ -57,7 +57,7 @@ export interface DaemonInvokeOptions {
    * The daemon's confirmation gate wants two things: `confirm: true` in the
    * body, saying the CALL was reviewed, and this, saying a person asked. It
    * travels as the `x-goodvibes-explicit-user-request` header. Set it only
-   * where that is true — a store syncing itself in the background is honestly
+   * where that is true, a store syncing itself in the background is honestly
    * not a user request and should not claim to be one.
    */
   readonly explicitUserRequest?: boolean;
@@ -97,7 +97,7 @@ function summarize(error: unknown): string {
  * Where the daemon is and what proves this process may talk to it.
  *
  * Same host/port config keys and same token file the read-route helper and the
- * schedule promoter already read — one daemon, one address, one token.
+ * schedule promoter already read, one daemon, one address, one token.
  */
 export function resolveDaemonOperatorConnection(
   configManager: DaemonOperatorConfigReader,

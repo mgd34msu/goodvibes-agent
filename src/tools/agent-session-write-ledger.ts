@@ -1,5 +1,5 @@
 /**
- * Session write ledger — which absolute paths this session's own tools wrote.
+ * Session write ledger, which absolute paths this session's own tools wrote.
  *
  * The read guard treats any dotted path segment as hidden and refuses it. That
  * is right for a user's `~/.netrc`, and wrong for a file the agent itself just
@@ -13,7 +13,7 @@
  * the call reports success. A write that failed never created a file, so it
  * never earns a waiver.
  *
- * Session-scoped and in memory — nothing here is persisted or restored, so a
+ * Session-scoped and in memory, nothing here is persisted or restored, so a
  * new process starts with an empty ledger and no path outlives the session
  * that wrote it. Both maps are bounded and evict oldest-first.
  */
@@ -38,7 +38,7 @@ const pending = new Map<string, readonly string[]>();
  * directory: this module is reusable code with no owned root, and guessing one
  * could waive the read guard for a file the session never wrote. A relative
  * write therefore only matches a relative read of the same spelling, which is
- * the conservative direction — an unmatched path stays blocked.
+ * the conservative direction, an unmatched path stays blocked.
  */
 function canonicalPath(path: string): string {
   return path
@@ -52,7 +52,7 @@ function isWriteTool(tool: string): boolean {
   const name = tool.toLowerCase();
   // Deliberately narrower than the execution ledger's route classifier: only
   // tools that put file content on disk can grant a read waiver. Shell and
-  // browser tools are excluded — their writes did not pass through the model.
+  // browser tools are excluded, their writes did not pass through the model.
   if (name.includes('exec') || name.includes('shell') || name.includes('bash')) return false;
   return name.includes('write') || name.includes('edit') || name.includes('patch');
 }

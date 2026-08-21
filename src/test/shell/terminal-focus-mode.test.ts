@@ -1,11 +1,11 @@
 /**
- * terminal-focus-mode.ts tests — the ?1004h teardown safety net and
+ * terminal-focus-mode.ts tests, the ?1004h teardown safety net and
  * the approval-alert wiring that consumes the ported FocusTracker.
  *
  * TEARDOWN PROOF (named top-5 risk in the risk matrix): ?1004h MUST be disabled on
  * every exit path or the user's shell inherits focus-reporting escape
  * garbage. installFocusModeExitGuard registers a real `process.on('exit', ...)`
- * listener — Node/Bun fire 'exit' listeners synchronously for EVERY process
+ * listener, Node/Bun fire 'exit' listeners synchronously for EVERY process
  * termination path this app can take, including the default uncaughtException
  * termination, without this file registering an explicit uncaughtException
  * handler of its own. These tests invoke the registered listener directly
@@ -71,7 +71,7 @@ describe('installFocusModeExitGuard — ?1004h teardown proof', () => {
     // This test documents the crash-path coverage claim rather than actually
     // crashing the process: Node's documented 'exit' event contract fires for
     // ANY process termination reachable via process.exit() internally,
-    // including the default uncaughtException handler's exit(1) — so the same
+    // including the default uncaughtException handler's exit(1), so the same
     // listener that covers normal exit and SIGINT (via this app's existing
     // sigintHandler -> eventual exitApp() -> process.exit()) covers the
     // crash-path too, with no separate uncaughtException/SIGTERM handler
@@ -133,7 +133,7 @@ describe('wrapRequestPermissionWithApprovalAlert', () => {
 
     expect(notified.length).toBe(1);
     expect(notified[0]!.message).toBe('shell (shell) is waiting for approval');
-    // PRIVACY: no args, no command strings — only tool name + category.
+    // PRIVACY: no args, no command strings, only tool name + category.
     expect(notified[0]!.message).not.toContain('args');
     expect((result as { approved: boolean }).approved).toBe(true); // original handler's resolution is unchanged
   });

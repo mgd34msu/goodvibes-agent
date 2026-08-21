@@ -1,5 +1,5 @@
 /**
- * GC-PERM-010 — Tokenizer fuzz and pathological-input guards.
+ * GC-PERM-010, Tokenizer fuzz and pathological-input guards.
  *
  * Test suite verifies that:
  *  1. MAX_INPUT_LENGTH truncation prevents the tokenizer from processing
@@ -18,7 +18,7 @@ import {
 } from '@/runtime/index.ts';
 
 // ---------------------------------------------------------------------------
-// Fuzz seed corpus — pathological inputs that commonly expose parser hangs
+// Fuzz seed corpus, pathological inputs that commonly expose parser hangs
 // ---------------------------------------------------------------------------
 
 /** Each entry: [label, input] */
@@ -207,7 +207,7 @@ describe('GC-PERM-010: tokenizer fuzz and pathological guards', () => {
     });
 
     it('operator-heavy input respects token limit', () => {
-      // Each '; ' produces one operator token — should still cap at MAX_TOKEN_COUNT.
+      // Each '; ' produces one operator token, should still cap at MAX_TOKEN_COUNT.
       const input = '; '.repeat(MAX_TOKEN_COUNT * 2);
       const tokens = tokenize(input);
       expect(tokens.length).toBeLessThanOrEqual(MAX_TOKEN_COUNT);
@@ -220,7 +220,7 @@ describe('GC-PERM-010: tokenizer fuzz and pathological guards', () => {
     });
 
     it('mixed operator and word tokens respect limit', () => {
-      // Alternate 'word && ' — each pair is 2 tokens.
+      // Alternate 'word && ', each pair is 2 tokens.
       const input = 'word && '.repeat(MAX_TOKEN_COUNT);
       const tokens = tokenize(input);
       expect(tokens.length).toBeLessThanOrEqual(MAX_TOKEN_COUNT);

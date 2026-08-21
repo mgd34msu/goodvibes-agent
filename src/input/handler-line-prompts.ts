@@ -1,11 +1,11 @@
 /**
- * handler-line-prompts.ts — the composer's two line-prompt slots, wired.
+ * handler-line-prompts.ts, the composer's two line-prompt slots, wired.
  *
  * The InputHandler owns two mutually exclusive slots for "ask one line and
  * hand it to a callback":
  *
- *   concealedInput  — masked, for card material   (concealed-input.ts)
- *   plainLineInput  — echoed, for addresses       (plain-line-input.ts)
+ *   concealedInput , masked, for card material   (concealed-input.ts)
+ *   plainLineInput , echoed, for addresses       (plain-line-input.ts)
  *
  * Those two modules hold the state transitions so they can be driven against a
  * plain object in tests. This file holds the part that needs the handler: the

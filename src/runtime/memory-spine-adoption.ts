@@ -3,7 +3,7 @@
  *
  * The single policy for deciding whether the agent's memory spine should be
  * routing over the wire (CLIENT mode, an adopted daemon owns the store) or
- * reading/writing its own local store (LOCAL mode) — given the SAME
+ * reading/writing its own local store (LOCAL mode), given the SAME
  * daemon-reachability signal already used by the session spine
  * (services.sessionSpineClient.probeReachability()), per Mike's direction to reuse
  * the agent's existing daemon-adoption signal rather than invent a second one.
@@ -16,10 +16,10 @@
 import type { MemorySpineClient, MemoryTransport } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 
 export interface MemorySpineAdoptionOptions {
-  /** Only the three methods this policy needs — narrow on purpose so a test double is trivial to write. */
+  /** Only the three methods this policy needs, narrow on purpose so a test double is trivial to write. */
   readonly memorySpineClient: Pick<MemorySpineClient, 'active' | 'activate' | 'deactivate'>;
   readonly transport: MemoryTransport;
-  /** The existing daemon-adoption signal — reuse services.sessionSpineClient.probeReachability() in production. */
+  /** The existing daemon-adoption signal, reuse services.sessionSpineClient.probeReachability() in production. */
   readonly probeReachability: () => Promise<'unknown' | 'online' | 'offline'>;
   readonly deactivateReason?: string;
   /**
@@ -41,18 +41,18 @@ export interface MemorySpineAdoptionOptions {
   readonly mayAdopt?: () => boolean | Promise<boolean>;
   /**
    * Called exactly on the transition INTO adoption (reachable AND not yet
-   * active) — i.e. once per (re)attach to a daemon, at boot and again whenever a
+   * active), i.e. once per (re)attach to a daemon, at boot and again whenever a
    * daemon reappears after a loss. The agent wires this to the single
    * `?receipts=consume` /status read the daemon delivers its one-shot honesty
    * receipts to (see services.consumeDaemonReceipts / daemon-receipts.ts):
    * reusing the existing adoption edge instead of inventing a second signal, per
    * the same reuse this reconciler already documents for reachability. Best
-   * effort — its rejection is swallowed here so a failed receipt read can never
+   * effort, its rejection is swallowed here so a failed receipt read can never
    * undo the adoption that just happened.
    */
   readonly onAttach?: () => void | Promise<void>;
   /**
-   * Called exactly on the transition OUT of adoption — a daemon that was being
+   * Called exactly on the transition OUT of adoption, a daemon that was being
    * used stopped answering. The agent wires this to the inbound session
    * dispatch's `deactivate`, because a poller that keeps dialing a dead wire is
    * the same "guessing" this reconciler exists to avoid on the memory side. The
@@ -71,11 +71,11 @@ export interface MemorySpineAdoptionOptions {
  *    activation, no attach edge, no dispatch binding. A daemon that is there but
  *    refused leaves this process in the same state as no daemon at all.
  *  - NOT reachable AND currently active -> deactivate(reason) (hand back to owned
- *    local access — a sustained daemon loss, never guessed from a single call
+ *    local access, a sustained daemon loss, never guessed from a single call
  *    failure elsewhere; see memory-spine/client.ts's honest-failure contract).
  *  - otherwise: no-op, already in the correct mode.
  *
- * A probe rejection propagates to the caller (it does not swallow errors) — the
+ * A probe rejection propagates to the caller (it does not swallow errors), the
  * caller decides how to log a failed reachability check (see bootstrap.ts's
  * onError handling on the deferred startup task and the interval tick).
  */

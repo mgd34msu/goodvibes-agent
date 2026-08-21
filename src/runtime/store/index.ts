@@ -1,5 +1,5 @@
 /**
- * Runtime store — Zustand vanilla store for goodvibes-agent.
+ * Runtime store, Zustand vanilla store for goodvibes-agent.
  *
  * Uses `createStore` from `zustand/vanilla` (NOT the React `create` hook)
  * because goodvibes-agent is a terminal app with no React renderer.

@@ -11,7 +11,7 @@
  *   - the short list of genuinely dangerous keys asks first, and the refusal
  *     says which key and why;
  *   - no refusal is ever silent, and no refusal is ever dressed as a success;
- *   - the gate stays narrow — it must not creep back into a blanket denial.
+ *   - the gate stays narrow, it must not creep back into a blanket denial.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -242,7 +242,7 @@ describe('no denial is ever silent', () => {
 describe('the gate stays narrow', () => {
   test('it is a short enumerated list, not a general policy', () => {
     // Modelled on the frozen catastrophic exec list. Growing this materially is
-    // a decision, not a maintenance detail — see the exec-guard precedent.
+    // a decision, not a maintenance detail, see the exec-guard precedent.
     expect(AGENT_CONFIRMATION_REQUIRED_CONFIG_KEYS.length).toBeLessThanOrEqual(16);
     for (const entry of AGENT_CONFIRMATION_REQUIRED_CONFIG_KEYS) {
       expect(entry.because.length).toBeGreaterThan(20);
@@ -263,7 +263,7 @@ describe('the gate stays narrow', () => {
 
   test('every danger.* key is gated here, because none of them are hidden any more', () => {
     // danger.* used to be hidden from the settings modal outright. Hiding is a
-    // worse answer than gating — there is no visible thing to confirm — so the
+    // worse answer than gating, there is no visible thing to confirm, so the
     // prefix was un-hidden. That trade only holds while the narrow gate covers
     // every danger.* key: visible AND ungated is the one combination that would
     // let an unattended write open this machine up with nothing asked.
@@ -282,7 +282,7 @@ describe('the gate stays narrow', () => {
   test('the credential protection is left to the value check, not duplicated as a key gate', () => {
     // The original guard's stated concern included secrets. That half still runs
     // in the SDK tool, which refuses a raw credential value and names the
-    // goodvibes:// reference instead — so token keys are not gated here.
+    // goodvibes:// reference instead, so token keys are not gated here.
     expect(findConfirmationRequiredConfigKey('surfaces.telegram.botToken')).toBeNull();
     expect(findConfirmationRequiredConfigKey('surfaces.slack.appToken')).toBeNull();
   });

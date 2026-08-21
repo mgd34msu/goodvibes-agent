@@ -10,8 +10,8 @@
  *
  * Values are read from the shipped CONFIG_SCHEMA rows rather than hardcoded, so
  * each test drives the setting a user actually gets, and the second value in
- * every pair is derived from it. The one bridge assertion — that the detector's and
- * supervisor's own defaults equal the shipped config defaults — is what makes
+ * every pair is derived from it. The one bridge assertion, that the detector's and
+ * supervisor's own defaults equal the shipped config defaults, is what makes
  * "drive the detector with the config default" mean the same thing as "drive
  * the shipped setting"; it sits beside real behaviour, never in place of it.
  *
@@ -31,16 +31,16 @@
  * `noiseSuppression`, `vadThreshold`, `activationSound`, `activationSoundPath`,
  * `indicator`, `captureMaxSeconds`, `silenceStopMs`, `autoSubmit`, `retainAudio`
  * and `customModelDir` all reach real code here and are driven to two values
- * against it in "the capture host on this surface" below — through the REAL SDK
+ * against it in "the capture host on this surface" below, through the REAL SDK
  * listener, the REAL capture opener and the REAL engine, over an injected recorder
  * subprocess and stub inference sessions.
  *
  * TWO OF THOSE ROWS USED TO REFUSE, AND NOW RUN
  *
  * `noiseSuppression: speex` and `vadThreshold` above 0 both stopped the detector
- * rather than pretending, because neither stage existed. Both exist now — the
+ * rather than pretending, because neither stage existed. Both exist now, the
  * platform carries SpeexDSP's preprocessor as a WebAssembly module, and the speech
- * gate is a pinned head provisioned beside the wake models — so the tests for them
+ * gate is a pinned head provisioned beside the wake models, so the tests for them
  * assert the stage RUNNING and the gate SCREENING, not the refusal text.
  *
  * `vadThreshold` keeps one refusal, moved rather than removed: it is honoured when
@@ -50,10 +50,10 @@
  *
  * STILL NOT COVERED, DELIBERATELY:
  *
- *   - `surfaces.tui` and `surfaces.webui` — other surfaces' delivery rows. This
+ *   - `surfaces.tui` and `surfaces.webui`, other surfaces' delivery rows. This
  *     repository resolves settings for `agent` and nothing here reads either one;
  *     a test would be asserting the terminal's behaviour from the Agent's suite.
- *   - `browserBackend` — chooses a WASM or WebGPU execution provider inside a
+ *   - `browserBackend`, chooses a WASM or WebGPU execution provider inside a
  *     browser tab. There is no tab here, and this surface's inference runtime pins
  *     `wasm` because it is a host process, so no value of the row changes anything
  *     this repo does.
@@ -103,7 +103,7 @@ import {
  * value actually in the product. (DEFAULT_CONFIG would be the more direct
  * route, but the SDK's `voice` config augmentation is declared in a domain
  * module that its published typings never pull in, so `DEFAULT_CONFIG.voice`
- * does not typecheck for a consumer — worth fixing in the SDK, not worth
+ * does not typecheck for a consumer, worth fixing in the SDK, not worth
  * casting around here.)
  */
 function shippedNumber(key: ConfigKey): number {
@@ -233,7 +233,7 @@ async function driveEngine(
   return { detections, calls };
 }
 
-/* Narrowing helpers — TypeScript strict, no casts, no `any`. */
+/* Narrowing helpers, TypeScript strict, no casts, no `any`. */
 
 function asFired(outcome: WakeFrameOutcome): Extract<WakeFrameOutcome, { kind: 'fired' }> {
   if (outcome.kind !== 'fired') throw new Error(`expected a fired frame, got "${outcome.kind}"`);
@@ -274,7 +274,7 @@ function detectorFromSettings(overrides: Partial<WakeDetectorTuning> = {}): Wake
 
 describe('the voice.wake tuning rows drive the detector', () => {
   test('the detector and supervisor defaults ARE the shipped voice.wake defaults (bridge for the behaviour tests below)', () => {
-    // Wiring, not behaviour — stated as such. Its only job is to make the
+    // Wiring, not behaviour, stated as such. Its only job is to make the
     // behaviour tests below, which drive DEFAULT_CONFIG values, equivalent to
     // driving the code's own defaults. If these ever diverge, a user changing
     // nothing gets different behaviour from a user who explicitly typed the
@@ -348,7 +348,7 @@ describe('the voice.wake tuning rows drive the detector', () => {
     // One bad frame immediately before the run would have completed.
     expect(detector.push(0.1, patienceFrames * 80).kind).toBe('idle');
     // The count restarted from zero, so the very next good frame cannot fire
-    // unless patience is 1 — and at this setting it is not.
+    // unless patience is 1, and at this setting it is not.
     for (let frame = 1; frame < patienceFrames; frame += 1) {
       expect(detector.push(0.99, (patienceFrames + frame) * 80).kind).toBe('building');
     }
@@ -430,7 +430,7 @@ describe('the voice.wake.models list decides what is scored', () => {
       ],
       { tuning: { threshold: WAKE.threshold, patienceFrames: WAKE.patienceFrames, cooldownMs: 0 } },
     );
-    // Listing a second model costs a second classifier run per frame — that is
+    // Listing a second model costs a second classifier run per frame, that is
     // the observable difference between a one-id and a two-id setting.
     expect(run.calls.get('hey_goodvibes')).toBe(4);
     expect(run.calls.get('custom_phrase')).toBe(4);
@@ -464,7 +464,7 @@ describe('the voice.wake.models list decides what is scored', () => {
     }
     expect(wouldHaveFired.calls).toBe(0);
 
-    // The same audio and the same scores, with the model listed, does fire —
+    // The same audio and the same scores, with the model listed, does fire,
     // so the empty result above is the setting, not the harness.
     const listed = await driveEngine([{ id: 'hey_goodvibes', scores: [0.99, 0.99, 0.99, 0.99] }], {
       tuning: { threshold: WAKE.threshold, patienceFrames: WAKE.patienceFrames, cooldownMs: 0 },
@@ -517,7 +517,7 @@ describe('the voice.wake supervisor rows bound a crashing detector', () => {
     expect(supervisor.noteCrashed(1000).kind).toBe('latched');
     supervisor.clearLatch();
     expect(supervisor.latched).toBe(false);
-    // One restart again, then latched again — the budget is the setting's, not
+    // One restart again, then latched again, the budget is the setting's, not
     // a one-off allowance.
     expect(asRestart(supervisor.noteCrashed(2000)).attempt).toBe(1);
     expect(supervisor.noteCrashed(3000).kind).toBe('latched');
@@ -577,7 +577,7 @@ describe('the wake capability is operable on this surface', () => {
     // The inverse of the assertion this test used to make. While nothing captured
     // audio, `deriveFeatureState` hard-returned 'disabled' for both values and the
     // gate refused the capability outright. Capture exists here now, so the row
-    // decides the state — and `featureInoperability` must be null, because a
+    // decides the state, and `featureInoperability` must be null, because a
     // blanket "not available in this build" declaration re-added over a working
     // capture host would be a lie shown at every settings surface.
     const binding = FEATURE_SETTINGS_BINDINGS.find((entry) => entry.key === 'voice.wake.enabled');
@@ -595,8 +595,8 @@ describe('the wake capability is operable on this surface', () => {
 // The capture host on this surface.
 //
 // Everything below drives a `voice.wake.*` row to two values through the REAL
-// pieces — the SDK listener and engine, the SDK capture opener, this surface's
-// wake runtime — with only two things faked: the recorder subprocess and the
+// pieces, the SDK listener and engine, the SDK capture opener, this surface's
+// wake runtime, with only two things faked: the recorder subprocess and the
 // inference sessions. No microphone is opened, no recorder is spawned, no model
 // file is read, no clock is real.
 //
@@ -690,7 +690,7 @@ function pcmBytes(samples: readonly number[] | Float32Array): Uint8Array {
   return bytes;
 }
 
-/** A run of loud audio — well above the SDK's silence floor. */
+/** A run of loud audio, well above the SDK's silence floor. */
 function loudSamples(count: number, seed = 1): number[] {
   return Array.from({ length: count }, (_unused, index) => (index % 2 === 0 ? 9000 + seed : -9000 - seed));
 }
@@ -795,7 +795,7 @@ interface CaptureHarnessOptions {
   readonly ensureProvisioned?: () => Promise<{ readonly ready: boolean; readonly message: string }>;
   /** A provision read that can change between calls, for the fetch-then-recheck path. */
   readonly provisionStatusOverride?: () => { readonly ready: boolean; readonly reason: string | null; readonly vadReady: boolean };
-  /** No transcription available at all — the honest refusal path. */
+  /** No transcription available at all, the honest refusal path. */
   readonly noTranscriber?: string;
   /** Which recorders the PATH scan should claim are installed. */
   readonly installed?: readonly string[];
@@ -823,7 +823,7 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
   /**
    * The speech gate, stubbed: shape-correct over the same embedding the classifiers
    * read, returning one scripted probability and counting every consultation. The
-   * count is the assertion that matters — a gate that is wired but never asked is
+   * count is the assertion that matters, a gate that is wired but never asked is
    * indistinguishable from no gate at all.
    */
   const vadSession: WakeInferenceSession = {
@@ -884,7 +884,7 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
         : { ready: true, reason: null, vadReady: options.vadReady ?? false }),
     ...(options.ensureProvisioned !== undefined ? { ensureProvisioned: options.ensureProvisioned } : {}),
     // The stage the SDK listener wraps this surface's opener with. Injected so the
-    // wiring is asserted without instantiating WebAssembly — what is under test here
+    // wiring is asserted without instantiating WebAssembly, what is under test here
     // is that the stage is built and every frame goes through it, which is this
     // surface's half; the filter's own arithmetic is the platform's.
     createNoiseSuppression: async (request) => {
@@ -981,7 +981,7 @@ describe('voice.wake.enabled and voice.wake.surfaces.agent are a DOUBLE gate on 
   test('the rows are read LIVE through the shipped subscription: flipping either one takes or releases the device', async () => {
     const harness = makeCaptureHarness({ config: { 'voice.wake.enabled': false } });
     // startWakeRuntime is exactly what main.ts installs, including WHICH rows it
-    // subscribes to — a subscription pointed at another surface's row would leave
+    // subscribes to, a subscription pointed at another surface's row would leave
     // this test flipping a setting that changes nothing.
     const unsubs = startWakeRuntime(harness.runtime, { subscribeConfig: harness.config.subscribe });
     await flush();
@@ -1023,7 +1023,7 @@ describe('voice.wake.enabled and voice.wake.surfaces.agent are a DOUBLE gate on 
 
   test('missing models are FETCHED when a provisioner is wired, and the detector then starts', async () => {
     let fetched = 0;
-    // Not provisioned on the first read, provisioned once the fetch has run —
+    // Not provisioned on the first read, provisioned once the fetch has run,
     // the runtime re-reads from disk rather than taking the provisioner's word.
     let provisioned = false;
     const harness = makeCaptureHarness({
@@ -1089,8 +1089,8 @@ describe('a confirmed wake lands in this surface\'s conversation input', () => {
   });
 
   test('voice.wake.activationSound: the configured kind is the one handed to the player at the moment of the wake', async () => {
-    // The row's audible outcome — "none" produces no playback, "chime" produces a
-    // WAV — is asserted against the real player path in
+    // The row's audible outcome, "none" produces no playback, "chime" produces a
+    // WAV, is asserted against the real player path in
     // src/test/audio/player-playback.test.ts. What this asserts is the other half:
     // the row reaches the wake handler at all, and differs between two values.
     const silent = makeCaptureHarness({ config: { 'voice.wake.activationSound': 'none' }, scores: [0.99] });
@@ -1180,7 +1180,7 @@ describe('the capture rows choose the device, the recorder, and what is refused'
   test('voice.wake.noiseSuppression: "speex" RUNS the stage over every frame; "none" builds no stage at all', async () => {
     // This row used to refuse on this surface. The platform carries SpeexDSP's
     // preprocessor now and the SDK listener wraps this surface's opener with it, so
-    // the row's outcome is a filter that runs — and what this asserts is the wiring
+    // the row's outcome is a filter that runs, and what this asserts is the wiring
     // this surface owns: the stage is built for the frame size the engine wants, and
     // every captured frame goes through it before anything scores it.
     const speex = makeCaptureHarness({ config: { 'voice.wake.noiseSuppression': 'speex' } });
@@ -1198,7 +1198,7 @@ describe('the capture rows choose the device, the recorder, and what is refused'
     none.runtime.settings();
     plain.emitBytes(pcmBytes(loudSamples(WAKE_CHUNK_SAMPLES)));
     await flush(3);
-    // "none" is NO stage, not a stage that does nothing — nothing was built to skip.
+    // "none" is NO stage, not a stage that does nothing, nothing was built to skip.
     expect(none.suppressionStages).toEqual([]);
     expect(none.runtime.settings().blockers).toEqual([]);
   });
@@ -1280,7 +1280,7 @@ describe('the capture rows choose the device, the recorder, and what is refused'
 
     const hidden = makeCaptureHarness({ config: { 'voice.wake.indicator': 'off' } });
     const hiddenRecorder = await startListening(hidden);
-    // Still listening — the device is open, the ROW is what is hidden. Frames
+    // Still listening, the device is open, the ROW is what is hidden. Frames
     // have to arrive before "listening" is a true thing to say, so they do.
     expect(hidden.spawns.calls.length).toBe(1);
     hiddenRecorder.emitBytes(pcmBytes(silentFrame()));

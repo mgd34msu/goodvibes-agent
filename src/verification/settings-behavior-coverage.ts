@@ -1,5 +1,5 @@
 /**
- * settings-behavior-coverage.ts — the per-key evidence behind the settings
+ * settings-behavior-coverage.ts, the per-key evidence behind the settings
  * behaviour-coverage numerator used by the verification ledger.
  *
  * ## Why this file exists
@@ -23,7 +23,7 @@
  * names one config key and the test that would fail if that setting stopped
  * being honoured. The numerator is the length of that list plus a documented
  * legacy baseline. To raise the number you have to add a row, and a row is
- * only accepted if the test it names exists and actually exercises that key —
+ * only accepted if the test it names exists and actually exercises that key,
  * see settings-behavior-coverage.test.ts, which enforces exactly that.
  *
  * ## The bar an entry has to clear
@@ -49,7 +49,7 @@
  *
  * SETTINGS_BEHAVIOR_COVERAGE_BASELINE is the 184 established in commit
  * 0ea661ea (2026-06-10, "honest coverage ledger"), where it was recorded as a
- * defensible judgement call over the then-244-row schema — an earlier attempt
+ * defensible judgement call over the then-244-row schema, an earlier attempt
  * to pad it to 244 was rejected at certification. It has no per-key list and
  * this file does not invent one for it; enumerating it retroactively is a
  * separate piece of work. It is carried forward unchanged and every later
@@ -78,7 +78,7 @@ export interface SettingsBehaviorCoverageEntry {
 
 /**
  * The un-itemised inherited count. See "The legacy baseline" above. Do not
- * raise this number — new claims go in SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE,
+ * raise this number, new claims go in SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE,
  * where they can be audited one by one.
  */
 export const SETTINGS_BEHAVIOR_COVERAGE_BASELINE = 184;
@@ -102,11 +102,11 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   //
   // WHOSE consumer that is, stated plainly: the device-posture runtime is the
   // DAEMON's. This agent composes no second copy of it writing the same
-  // grants ledger — it holds the `phone` tool and reaches the runtime over
+  // grants ledger, it holds the `phone` tool and reaches the runtime over
   // the `devices.*` verbs. So these rows attest the contract this agent
   // depends on across a process boundary, not a mapping this repo implements.
-  // The agent's own end —
-  // that it forwards every one of these decisions and re-decides none of them —
+  // The agent's own end,
+  // that it forwards every one of these decisions and re-decides none of them,
   // is pinned in src/test/tools/agent-phone-tool.test.ts.
   {
     key: 'device.capabilities.mode',
@@ -171,7 +171,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // applying 22 mutants that make the consuming code ignore one setting: 21 killed. The
   // 22nd (deleting the enabled-guard from supervisionTick) is behaviourally equivalent
   // to the original because pollProcesses() and tick() each carry their own identical
-  // guard, both killed by other tests — defence-in-depth in the SDK, not a test hole.
+  // guard, both killed by other tests, defence-in-depth in the SDK, not a test hole.
   {
     key: 'watchers.triggers.enabled',
     test: 'src/test/watchers/trigger-settings-behavior.test.ts',
@@ -230,12 +230,12 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'watchers.triggers.sweepIntervalMs',
     test: 'src/test/watchers/trigger-settings-behavior.test.ts',
-    asserts: 'the housekeeping sweep is scheduled at the configured cadence and the captured callback really sweeps (verified at the scheduling seam, not end to end — see the weaker-evidence note below)',
+    asserts: 'the housekeeping sweep is scheduled at the configured cadence and the captured callback really sweeps (verified at the scheduling seam, not end to end, see the weaker-evidence note below)',
   },
   {
     key: 'watchers.triggers.supervisionTickMs',
     test: 'src/test/watchers/trigger-settings-behavior.test.ts',
-    asserts: 'the supervision tick is scheduled at the configured cadence and the captured callback really supervises (verified at the scheduling seam, not end to end — see the weaker-evidence note below)',
+    asserts: 'the supervision tick is scheduled at the configured cadence and the captured callback really supervises (verified at the scheduling seam, not end to end, see the weaker-evidence note below)',
   },
   {
     key: 'watchers.triggers.streamQueueLimit',
@@ -275,15 +275,15 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // 22 of the 25 voice.wake.* rows are here now. It used to be 8, and the reason for
   // the other 17 was written down at the time: nothing captured microphone audio on
   // any surface, so the SDK declared the whole capability notOperable and those rows
-  // configured nothing. That is no longer true. This surface has a capture host — it
+  // configured nothing. That is no longer true. This surface has a capture host, it
   // opens a recorder subprocess (src/audio/capture.ts), runs the SDK listener and
   // engine over it through onnxruntime-web (src/audio/wake-inference.ts,
   // src/audio/wake-runtime.ts), plays the activation sound, draws the listening row
   // in the footer, and hands the utterance after a wake to this process's own
-  // speech-to-text service — so 14 further rows reach real code and are driven to two
+  // speech-to-text service, so 14 further rows reach real code and are driven to two
   // values against it.
   //
-  // Two of those 14 were counted as REFUSALS when this list was first written —
+  // Two of those 14 were counted as REFUSALS when this list was first written,
   // `noiseSuppression: speex` and `vadThreshold` above 0 both stopped the detector
   // because neither stage existed anywhere. Both stages ship now (the platform's
   // embedded SpeexDSP preprocessor, and a pinned speech gate provisioned beside the
@@ -301,7 +301,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // Mutation-checked on the gate itself, which is the row most worth breaking, and
   // the third result is recorded because it is not what was expected:
   //   - resolving for surface 'tui' instead of 'agent' failed 2 tests, including the
-  //     one that asserts surfaces.agent:false opens no device — which is the evidence
+  //     one that asserts surfaces.agent:false opens no device, which is the evidence
   //     that "no device" assertion is not vacuous.
   //   - subscribing to voice.wake.surfaces.tui instead of this surface's row failed
   //     the live-flip test.
@@ -355,7 +355,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'voice.wake.enabled',
     test: 'src/test/voice/wake-settings-behavior.test.ts',
-    asserts: 'false spawns no capture process at all and shows no listening row; true spawns a recorder and shows one — and flipping it at runtime through the shipped subscription releases and re-takes the device',
+    asserts: 'false spawns no capture process at all and shows no listening row; true spawns a recorder and shows one, and flipping it at runtime through the shipped subscription releases and re-takes the device',
   },
   {
     key: 'voice.wake.surfaces.agent',
@@ -425,7 +425,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
 
   // --- Chat-surface credentials (surfaces.*.botToken) ----------------------
   // Covered by src/test/config/credential-daemon-scope.test.ts. Each key is
-  // driven to two distinct values — a token, then cleared/reset — through the
+  // driven to two distinct values, a token, then cleared/reset, through the
   // real writing path (the settings modal's secret write, the harness setting
   // path, and the shared secret-backed config write) against a real
   // ConfigManager and a real SecretsManager over a temp home. The observable
@@ -481,7 +481,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'payments.defaultCardId',
     test: 'src/test/renderer/settings-modal-payments.test.ts',
-    asserts: 'renders as a plain visible id both empty and set — never routed through the secret-masking path a real credential key goes through, which matters because this key names a card without ever holding its number, expiry or CVV',
+    asserts: 'renders as a plain visible id both empty and set, never routed through the secret-masking path a real credential key goes through, which matters because this key names a card without ever holding its number, expiry or CVV',
   },
   {
     key: 'payments.cvvHandling',
@@ -496,7 +496,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
 
   // --- Payments addresses (payments.{billing,shipping}Address.*) -----------
   // The fourteen address keys entered this repo's settings denominator when the
-  // SDK grew them AND this repo grew a consumer for them — the guided
+  // SDK grew them AND this repo grew a consumer for them, the guided
   // `/payments address` flow in commands/payment-card-intake.ts. They are
   // covered by driving that real flow, not the schema: each key is taken to two
   // distinct values in turn and the outcome is asserted per key in both the
@@ -582,7 +582,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'payments.windows.approvalMinutes',
     test: 'src/test/input/settings-modal-payments.test.ts',
-    asserts: 'edits as a plain integer rather than major units — the field opens at the stored 60, and typing 45 then 90 stores exactly 45 then 90, so a key wrongly classified as money (which would store 4500) fails here',
+    asserts: 'edits as a plain integer rather than major units, the field opens at the stored 60, and typing 45 then 90 stores exactly 45 then 90, so a key wrongly classified as money (which would store 4500) fails here',
   },
   {
     key: 'payments.windows.vetoMinutes',
@@ -602,7 +602,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'payments.shipping.preferredTier',
     test: 'src/test/input/settings-modal-payments.test.ts',
-    asserts: 'activating it walks normal -> fast -> fastest -> normal, every intermediate value is one the schema declares, and the cycle returns to where it started — so this screen cannot store a tier the checkout does not rank',
+    asserts: 'activating it walks normal -> fast -> fastest -> normal, every intermediate value is one the schema declares, and the cycle returns to where it started, so this screen cannot store a tier the checkout does not rank',
   },
   {
     key: 'payments.enabled',
@@ -611,7 +611,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   },
 
   // --- Route binding (integrations.routeBinding) -----------------------------
-  // This key was already in the denominator — five test files name it — and had
+  // This key was already in the denominator, five test files name it, and had
   // no row, because until now there was no behaviour to claim: this fork built
   // its RouteBindingManager without a flag manager, and isFeatureGateEnabled is
   // permissive without one, so the setting rendered, accepted a write, reported
@@ -627,20 +627,20 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // Exactly ONE row, and that is the honest count. This repo reads exactly one
   // `occasions.*` key: the nudge surface's enablement check
   // (src/runtime/bootstrap.ts). The other eleven are read by the daemon's
-  // occasions sweep — the lead window, the cadence, quiet hours, the calendar
-  // mirror, the interview length — and no line of this repository mentions any of
+  // occasions sweep, the lead window, the cadence, quiet hours, the calendar
+  // mirror, the interview length, and no line of this repository mentions any of
   // them, deliberately, so they stay out of this product's denominator entirely
   // (src/verification/settings-consumed-keys.ts's rule, and the same treatment
   // profile.*'s parity test documents for its own key names).
   {
     key: 'occasions.enabled',
     test: 'src/test/runtime/occasions-nudge-surface.test.ts',
-    asserts: 'false stops the pull before the verb is called at all and true resumes it with no restart, driven through the real createOccasionsNudgeSurface consumer — so a leftover open item is not raised by a surface that had not noticed the feature was turned off',
+    asserts: 'false stops the pull before the verb is called at all and true resumes it with no restart, driven through the real createOccasionsNudgeSurface consumer, so a leftover open item is not raised by a surface that had not noticed the feature was turned off',
   },
 
   // NOT COVERED, deliberately: device.nodes.maxPaired. The key is declared in
   // schema-domain-device.ts and associated with the paired-device feature in
-  // flag-config-map.ts, but nothing reads it — no pairing path bounds the number of
+  // flag-config-map.ts, but nothing reads it, no pairing path bounds the number of
   // device nodes. Verified by searching both this repo and the SDK source. It is a
   // setting the product offers and does not yet enforce; a test would be asserting a
   // behaviour that does not exist, so it earns no point here.
@@ -671,8 +671,8 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // The rows below are the ones this repo can actually drive. Where a test
   // already existed for a key that was not yet in the schema, it is cited as it
   // stands; the rest are covered by src/test/verification/connector-settings-behavior.test.ts,
-  // written to the bar at the top of this file — the real consumer, two values,
-  // an observable difference — and not to a ConfigManager round-trip, which
+  // written to the bar at the top of this file, the real consumer, two values,
+  // an observable difference, and not to a ConfigManager round-trip, which
   // that bar rules out by name.
   //
   // NOT claimed, on purpose: `email.imapSecurity`, `email.mailbox` and
@@ -713,7 +713,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'email.enabled',
     test: 'src/test/verification/connector-settings-behavior.test.ts',
-    asserts: 'a mailbox that validates clean still reports not-connected while the switch is off, with no errors listed — the switch alone is the difference',
+    asserts: 'a mailbox that validates clean still reports not-connected while the switch is off, with no errors listed, the switch alone is the difference',
   },
   {
     key: 'email.fromAddress',
@@ -733,7 +733,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'email.passwordRef',
     test: 'src/test/verification/connector-settings-behavior.test.ts',
-    asserts: 'a raw password makes the connect card report not-connected with the secret-reference rule named; a goodvibes:// reference reports connected — a settings file never holds the value',
+    asserts: 'a raw password makes the connect card report not-connected with the secret-reference rule named; a goodvibes:// reference reports connected, a settings file never holds the value',
   },
   {
     key: 'email.smtpHost',

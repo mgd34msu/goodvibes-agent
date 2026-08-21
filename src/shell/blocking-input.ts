@@ -14,7 +14,7 @@ export type PendingPermissionState = PermissionRequest & {
  * First-start registration prompt (owner-approved design): the root that was
  * offered, and the shellPaths needed to answer it (register or decline)
  * against the shared registration store without threading a separate
- * callback through every caller — see answerWorkspaceRegistrationPrompt.
+ * callback through every caller, see answerWorkspaceRegistrationPrompt.
  */
 export type PendingWorkspaceRegistrationState = {
   readonly root: string;
@@ -24,7 +24,7 @@ export type PendingWorkspaceRegistrationState = {
 export type BlockingInputHandlerOptions = {
   data: string;
   pendingPermission: PendingPermissionState | null;
-  /** The sessionId of the offered recovery snapshot, or null when none is pending. Callers key consumeRecovery/removeRecoveryPoint to this exact id — see BlockingInputHandlerResult.recoveryPending. */
+  /** The sessionId of the offered recovery snapshot, or null when none is pending. Callers key consumeRecovery/removeRecoveryPoint to this exact id, see BlockingInputHandlerResult.recoveryPending. */
   recoveryPending: string | null;
   /**
    * The one-touch daemon repair offer, when this launch made one. A
@@ -101,7 +101,7 @@ export function handleBlockingShellInput(
   if (recoveryPending) {
     if (data === '\x12') {
       // consumeRecovery only retires the snapshot file once the load actually
-      // succeeds — a bad read leaves it on disk instead of silently
+      // succeeds, a bad read leaves it on disk instead of silently
       // destroying data that was never actually recovered.
       const recovery = consumeRecovery();
       if (recovery) {
@@ -127,7 +127,7 @@ export function handleBlockingShellInput(
     return { handled: false, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
   }
 
-  // One-touch daemon repair: 'y' repairs, EVERY other key declines — default
+  // One-touch daemon repair: 'y' repairs, EVERY other key declines, default
   // no, matching the workspace prompt below and every other boot-time offer.
   // Declining changes nothing whatsoever and is remembered for the rest of the
   // session, so the question is asked once and never turn after turn.
@@ -137,7 +137,7 @@ export function handleBlockingShellInput(
   }
 
   // First-start registration prompt: 'y' registers, EVERY other key (Escape,
-  // Enter-through, Ctrl+C, any stray key) declines — default no, matching the
+  // Enter-through, Ctrl+C, any stray key) declines, default no, matching the
   // owner-approved design. Subtree-scoped: never asks again at this root
   // either way, since both add() and decline() are recorded against it.
   if (pendingWorkspaceRegistration) {
@@ -145,8 +145,8 @@ export function handleBlockingShellInput(
     const accepted = data.toLowerCase().trim() === 'y';
     answerWorkspaceRegistrationPrompt(shellPaths, root, accepted);
     systemMessageRouter.high(accepted
-      ? `[Workspace] Registered ${root} — automatic checkpoints are now allowed here.`
-      : `[Workspace] Not registered — automatic checkpoints stay off here (won't ask again for this location).`);
+      ? `[Workspace] Registered ${root}, automatic checkpoints are now allowed here.`
+      : `[Workspace] Not registered, automatic checkpoints stay off here (won't ask again for this location).`);
     render();
     return { handled: true, pendingPermission: null, recoveryPending, pendingWorkspaceRegistration: null };
   }

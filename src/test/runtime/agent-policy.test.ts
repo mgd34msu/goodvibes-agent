@@ -65,7 +65,7 @@ describe('Agent user-first autonomy policy', () => {
     // The same guarantee, one layer out: a continuation for a session THIS
     // process hosts must reach the loop and become a tracked agent run. It
     // arrives from `sessions.inputs.list` on the adopted daemon, not a
-    // register this process wrote into itself — so the wire is what this
+    // register this process wrote into itself, so the wire is what this
     // drives.
     const services = makeRuntimeServices();
     const sessionId = 'session-agent-policy';
@@ -98,7 +98,7 @@ describe('Agent user-first autonomy policy', () => {
     });
 
     // The composed dispatch polls on its own interval, so this waits for the
-    // OUTCOME rather than sleeping a fixed span past it — a bounded wait that
+    // OUTCOME rather than sleeping a fixed span past it, a bounded wait that
     // fails with a real assertion instead of timing out.
     const deadline = Date.now() + 8_000;
     while (delivered.length === 0 && Date.now() < deadline) await Bun.sleep(50);
@@ -117,8 +117,8 @@ describe('Agent user-first autonomy policy', () => {
     // reply) and once on completion (`consumed: true`, carrying the answer).
     // Locally the run is not usually done yet when this happens; how quickly
     // it finishes is a race, not a contract, so this asserts the one
-    // guarantee this test is actually for — the dispatch-time delivery that
-    // binds the reply — by membership rather than requiring the array to
+    // guarantee this test is actually for, the dispatch-time delivery that
+    // binds the reply, by membership rather than requiring the array to
     // stop at exactly one entry.
     expect(delivered.length).toBeGreaterThanOrEqual(1);
     for (const entry of delivered) {
@@ -152,7 +152,7 @@ describe('Agent user-first autonomy policy', () => {
   test('generic operator method bridge previews and confirmation-gates write routes', async () => {
     // Not migrated to makeProjectTempDir: `root` is empty for this specific
     // test (makeRuntimeServices() is never called here), so `tmpdir()` is
-    // genuinely reached — but every call below is dryRun:true or a write
+    // genuinely reached, but every call below is dryRun:true or a write
     // route that stops at "confirmationRequired" before executing, so
     // nothing is ever written under this homeDirectory.
     const tool = createAgentOperatorMethodTool(

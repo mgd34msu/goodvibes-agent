@@ -1,5 +1,5 @@
 /**
- * channel-draft-daemon.test.ts — drafts reach the daemon's store, and survive a
+ * channel-draft-daemon.test.ts, drafts reach the daemon's store, and survive a
  * daemon that will not take them.
  *
  * A draft is composed on one surface and finished on another: the phone writes

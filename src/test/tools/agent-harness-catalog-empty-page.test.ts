@@ -3,7 +3,7 @@
  *
  * `workspace action:"actions"` answered `{"actions": [], "returned": 0,
  * "total": 463}`: it reported that hundreds of entries exist, named none of
- * them, and never echoed the filter that had excluded them — so a caller whose
+ * them, and never echoed the filter that had excluded them, so a caller whose
  * own `category` argument matched nothing had no way to see that, and the only
  * way forward was to keep guessing. Every catalog now echoes the filters it
  * applied and, when a page is empty while the catalog is not, states what to
@@ -62,8 +62,8 @@ describe('catalog envelope — an empty page explains itself', () => {
 
 describe('catalog envelope — a non-empty page is left alone', () => {
   test('a SHORTENED page says so rather than passing for the whole catalog', () => {
-    // This assertion used to require the opposite — that a populated page carry
-    // no note — on the reasoning that it speaks for itself. It does not.
+    // This assertion used to require the opposite, that a populated page carry
+    // no note, on the reasoning that it speaks for itself. It does not.
     // "Showing 2 of 463" read as a complete answer is the same failure as an
     // empty page read as "no such capability", only slower, and `returned` and
     // `total` sitting two fields apart are easy to miss in a way a sentence is
@@ -86,7 +86,7 @@ describe('catalog envelope — a non-empty page is left alone', () => {
   });
 
   test('a genuinely empty catalog is not treated as a filter problem', () => {
-    // Still not a filter problem — but no longer silent about it. This used to
+    // Still not a filter problem, but no longer silent about it. This used to
     // assert `note` was undefined, which left `{"x": [], "returned": 0,
     // "total": 0}` as a complete answer, and that shape is exactly what a model
     // reads as "this platform has none of these, ever". Zero rows and zero

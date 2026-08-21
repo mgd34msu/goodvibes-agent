@@ -117,7 +117,7 @@ export class AgentWorkspace {
 
   get categories(): readonly AgentWorkspaceCategory[] {
     if (this._onlyGroup === 'ONBOARDING') {
-      // Pure read — reveal set is updated at every _onboardingState assignment
+      // Pure read, reveal set is updated at every _onboardingState assignment
       // (open, onSubscriptionLoginSuccess), not here. Recompute is O(categories)
       // and intentionally simple; the list is small and no caching is needed.
       const onboarding = AGENT_WORKSPACE_CATEGORIES.filter((c) => c.group === 'ONBOARDING');

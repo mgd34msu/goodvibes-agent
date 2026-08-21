@@ -3,8 +3,8 @@
  *
  * The failure this pins: asked about paying for something, the assistant
  * searched the harness catalogs for "payment", "commerce", "credit card" and
- * "spending limit", got nothing back from any of them — including a settings
- * page reading `{"settings": [], "returned": 0, "total": 0}` — and told the
+ * "spending limit", got nothing back from any of them, including a settings
+ * page reading `{"settings": [], "returned": 0, "total": 0}`, and told the
  * owner the platform has no payment capability. It has thirty-two `payments.*`
  * settings, a `/payments` command with a guided card-entry flow, and a daemon
  * that prices and charges.

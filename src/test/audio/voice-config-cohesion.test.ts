@@ -3,7 +3,7 @@
  *
  * Mike's ruling #6 ("tts works well in all areas" + "one shared voice
  * config") requires that the Agent's spoken-output pipeline read the SAME
- * tts.* config contract every other surface (TUI, daemon, and — once built —
+ * tts.* config contract every other surface (TUI, daemon, and, once built,
  * the web UI) reads, rather than a private Agent-only voice-config schema
  * that could silently drift out of shape.
  *
@@ -13,20 +13,20 @@
  *     spoken-turn-wiring.ts constructs, plus tts.llmProvider/tts.llmModel in
  *     spoken-turn-model-routing.ts and tts.provider/tts.voice in
  *     tts-settings-actions.ts) exist in the SDK's shared CONFIG_SCHEMA with
- *     the shared defaults — not a schema the Agent invented for itself.
+ *     the shared defaults, not a schema the Agent invented for itself.
  *  2. A real ConfigManager, constructed the exact way the Agent's entrypoint
  *     constructs it (surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT, a fresh temp
  *     home directory, no local overrides on disk), resolves tts.* to those
  *     same shared defaults out of the box.
  *  3. The source files that read/write tts.* import ConfigManager's type
- *     from the shared SDK package, not a local reimplementation — so a
+ *     from the shared SDK package, not a local reimplementation, so a
  *     future change can't quietly introduce an Agent-local voice-config
  *     silo without this test's import-scan catching it.
  *
  * See docs/voice-and-live-tts.md ("Platform Voice-Config Cohesion") for the
  * accompanying rulings: local (non-daemon) synthesis stays local so the
  * Agent keeps working offline, and microphone input arrives through the wake
- * word and only through it — the platform owns the capture primitive, so this
+ * word and only through it, the platform owns the capture primitive, so this
  * surface composes it rather than building a partial mic flow of its own, and
  * push-to-talk is still deliberately absent here.
  *
@@ -56,7 +56,7 @@ const AGENT_VOICE_CONFIG_KEYS = [
 /**
  * Source files in the Agent that read or write tts.* config, or that carry a
  * ConfigManager down into the SDK-owned SpokenTurnController (which reads
- * tts.provider/tts.voice/tts.speed itself — see @pellux/goodvibes-sdk's own
+ * tts.provider/tts.voice/tts.speed itself, see @pellux/goodvibes-sdk's own
  * voice-config coverage for that half of the contract).
  */
 const AGENT_VOICE_CONFIG_READERS = [
@@ -80,7 +80,7 @@ describe('Voice config cohesion — Agent reads the shared tts.* contract, not a
   });
 
   test('the shared schema default values match the platform default voice posture', () => {
-    // These are the SDK's schema-domain-core.ts defaults — asserted here so
+    // These are the SDK's schema-domain-core.ts defaults, asserted here so
     // an unnoticed change to the shared defaults is caught from the Agent
     // side too, not only from the SDK's own suite.
     expect(DEFAULT_CONFIG.tts.provider).toBe('elevenlabs');
@@ -145,10 +145,10 @@ describe('Voice config cohesion — Agent reads the shared tts.* contract, not a
 
       // Guard against a future local shadow schema: a file that reads tts.*
       // must never also declare its own `{ key: 'tts....', ..., default: ... }`
-      // schema-setting object — that would be exactly the private-silo
+      // schema-setting object, that would be exactly the private-silo
       // regression this suite exists to catch. (A plain type annotation like
       // `key: 'tts.llmProvider' | 'tts.llmModel'` on a function parameter is
-      // fine and does not trip this — it has no nearby `default:`.)
+      // fine and does not trip this, it has no nearby `default:`.)
       const lines = source.split('\n');
       lines.forEach((line, index) => {
         if (!/key:\s*['"]tts\./.test(line)) return;
@@ -174,19 +174,19 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
   test('a tts.voice value set under surfaceRoot "tui" resolves in a fresh ConfigManager built under surfaceRoot "agent"', () => {
     const homeDir = makeProjectTempDir('goodvibes-agent-voice-cross-surface');
     try {
-      // The TUI/daemon surface — same construction shape as the TUI's own
+      // The TUI/daemon surface, same construction shape as the TUI's own
       // entrypoint (surfaceRoot: 'tui'), sharing this test's temp homeDir.
       const tuiConfigManager = new ConfigManager({ homeDir, surfaceRoot: 'tui' });
       tuiConfigManager.set('tts.voice', 'shimmer');
 
       // A brand-new Agent ConfigManager, constructed AFTER the TUI-side write
-      // and loading from disk for the first time — nothing is shared in
+      // and loading from disk for the first time, nothing is shared in
       // memory between the two instances, only the shared-tier file on disk.
       const agentConfigManager = new ConfigManager({ homeDir, surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT });
 
       expect(agentConfigManager.get('tts.voice')).toBe('shimmer');
       // Confirm it actually resolved from the shared tier, not a coincidental
-      // default or a stray Agent-local settings.json — the whole point of
+      // default or a stray Agent-local settings.json, the whole point of
       // the proof is which TIER carried the value across surfaces.
       expect(agentConfigManager.describeConfigKeySource('tts.voice').tier).toBe('shared');
     } finally {
@@ -206,7 +206,7 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
       expect(sharedTierRaw.tts?.voice).toBe('onyx');
 
       // The Agent's own surface-local settings.json must NOT carry the value
-      // — a value present in both places would still pass the read-side
+      //, a value present in both places would still pass the read-side
       // assertion above by accident while quietly keeping the old per-surface
       // silo alive underneath.
       const agentLocalSettingsPath = join(homeDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json');
@@ -216,7 +216,7 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
       }
 
       // And a second surface (e.g. the TUI) constructed fresh against the
-      // same homeDir sees the Agent-originated write too — the sharing is
+      // same homeDir sees the Agent-originated write too, the sharing is
       // bidirectional, not an Agent-reads-TUI-writes one-way street.
       const tuiConfigManager = new ConfigManager({ homeDir, surfaceRoot: 'tui' });
       expect(tuiConfigManager.get('tts.voice')).toBe('onyx');
@@ -230,7 +230,7 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
 /**
  * The wake engine's inference runtime needs its two onnxruntime-web assets as real
  * files at a path it is pointed at. A compiled binary cannot satisfy the runtime's
- * dynamic import of them, which is why they are embedded and extracted — and a
+ * dynamic import of them, which is why they are embedded and extracted, and a
  * failure here is silent in the worst way: session creation throws "Cannot find
  * module" at the moment a user turns the wake word on.
  */
@@ -263,7 +263,7 @@ describe('the onnxruntime assets the wake engine loads from disk', () => {
 
 /**
  * Speech-to-text for a captured utterance goes through the SAME call the
- * `voice.stt` verb is served from — this process owns that VoiceService instance,
+ * `voice.stt` verb is served from, this process owns that VoiceService instance,
  * so a loopback HTTP request to ask itself a question it already holds the answer
  * to would be the private-silo shape this file exists to prevent.
  */
@@ -302,7 +302,7 @@ describe('the wake path transcribes through the platform voice service', () => {
 
   test('no speech-to-text ANYWHERE is a reason reported BEFORE audio is captured, not a throw after', () => {
     // "No provider registered" is only ever true of THIS process, so the
-    // refusal now requires both routes to be absent — no local provider AND no
+    // refusal now requires both routes to be absent, no local provider AND no
     // connected host. It also names no command: the platform provisions.
     const resolution = createVoiceSttGateway({
       voiceService: {} as never,

@@ -1,10 +1,10 @@
 /**
- * Integration tests — the paste-flood guard and the OS-focus tracker as
+ * Integration tests, the paste-flood guard and the OS-focus tracker as
  * wired into feedInputTokens (handler-feed.ts). This agent has no
  * `src/panels/` directory (see the porting parity matrix's focus-tracking row), so unlike
  * the TUI (which guards a focused PANEL via handlePanelFocusToken), this
  * guard sits above command-mode's key-driven dispatch (handleCommandModeToken)
- * — never the composer's free-text capture (handlePromptTextToken), which
+ *, never the composer's free-text capture (handlePromptTextToken), which
  * stays exempt exactly as the TUI's own "capturing panel" carve-out does (see
  * panel-focus-route.test.ts's "receives the full burst untouched" case).
  * These tests drive the real handler.feed() -> InputTokenizer ->
@@ -152,7 +152,7 @@ describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
     // A quiet gap (> PANEL_PASTE_FLOOD_WINDOW_MS since the last qualifying token) clears it.
     clock = 4_000_000 + 15 + 200;
     ih.feed('\x1b[A');
-    expect(printed.some((line) => /flood cleared — suppressed \d+ keystroke/.test(line))).toBe(true);
+    expect(printed.some((line) => /flood cleared: suppressed \d+ keystroke/.test(line))).toBe(true);
   });
 });
 

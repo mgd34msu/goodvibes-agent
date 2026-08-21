@@ -32,7 +32,7 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'All risky effects are confirmation-gated with visible scope, durable receipts, and plain-language rollback routes before any effect fires.',
     goodVibesStatus: 'leading',
     owners: ['agent', 'release'],
-    goodVibesNow: 'GoodVibes ships a deliberate review-first autonomy posture: every confirmed action produces a typed receipt, visible work queues show pending and completed effects, the permission policy is inspectable via `security action:"status|finding|explain"`, and the release gate bans superlatives and requires plain-language evidence before any capability claim. No silent side effects are permitted — even background processes, channel sends, and connector reads have explicit confirmation boundaries. This is a product stance, not a gap: competitors offer faster autonomy by removing review steps; GoodVibes keeps review as a first-class surface so users can trust what the assistant did.',
+    goodVibesNow: 'GoodVibes ships a deliberate review-first autonomy posture: every confirmed action produces a typed receipt, visible work queues show pending and completed effects, the permission policy is inspectable via `security action:"status|finding|explain"`, and the release gate bans superlatives and requires plain-language evidence before any capability claim. No silent side effects are permitted, even background processes, channel sends, and connector reads have explicit confirmation boundaries. This is a product stance, not a gap: competitors offer faster autonomy by removing review steps; GoodVibes keeps review as a first-class surface so users can trust what the assistant did.',
     nextMoves: [
       'Reduce unnecessary friction for already-approved low-risk workflows while keeping the confirmation boundary for irreversible effects.',
       'Attach every autonomous task to audit logs, artifact receipts, and cancel/rollback affordances as new daemon-backed work surfaces ship.',
@@ -46,9 +46,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
   },
   {
     id: 'blind-model-comparison',
-    userOutcome: 'The user can run the same prompt against multiple models without knowing which is which, then reveal results, record a judgment, and apply a confirmed route change — all from one workflow with durable artifacts.',
+    userOutcome: 'The user can run the same prompt against multiple models without knowing which is which, then reveal results, record a judgment, and apply a confirmed route change, all from one workflow with durable artifacts.',
     targetStandard: 'better',
-    bestInClassRequirement: 'Blind comparison produces a durable JSON artifact, a reviewer-ready side-by-side view, a confirmed winner apply route, and a leave-unchanged receipt — so every route decision has an evidence trail.',
+    bestInClassRequirement: 'Blind comparison produces a durable JSON artifact, a reviewer-ready side-by-side view, a confirmed winner apply route, and a leave-unchanged receipt, so every route decision has an evidence trail.',
     goodVibesStatus: 'leading',
     owners: ['agent'],
     goodVibesNow: 'Agent ships a confirmed blind comparison runner with delayed reveal, durable JSON comparison artifacts, saved review boards, split-pane reviewer handoff diffs with section-jump focus, saved judgment artifacts, task/document/benchmark-filtered preference analytics and cross-session synthesis, confirmed apply-winner route-decision receipts, confirmed leave-unchanged route-decision receipts, and one-click reviewer handoff ZIP archives that bundle comparison evidence, matching route-decision receipt bytes, README, and manifest ids. The review packet wizard surfaces these artifacts in a chronological timeline with preflight badges that flag unrevealed comparisons or hidden judgments before export or archive.',
@@ -103,12 +103,12 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
   },
   {
     id: 'profiles-as-starter-templates',
-    userOutcome: 'The user can set up an isolated assistant home with a personality file, pre-loaded skills, and a channel configuration in one step by applying a starter template — without needing to understand underlying registry plumbing.',
+    userOutcome: 'The user can set up an isolated assistant home with a personality file, pre-loaded skills, and a channel configuration in one step by applying a starter template, without needing to understand underlying registry plumbing.',
     targetStandard: 'better',
     bestInClassRequirement: 'Profiles are isolated agent homes that can be exported, imported, shared as templates, and applied without ceremony or hidden side effects.',
     goodVibesStatus: 'leading',
     owners: ['agent'],
-    goodVibesNow: 'GoodVibes ships Profiles as isolated Agent homes with starter templates. The VIBE.md opt-in import/export lets users start with a friendly personality file without persona-registry ceremony. Setup wizard history records stable timestamped entries per profile. Profile starter export/import/application is confirmed and preview-gated. This pattern — isolated homes with shareable starter bundles — is not present in any of the three tracked competitors at the agent-home isolation level.',
+    goodVibesNow: 'GoodVibes ships Profiles as isolated Agent homes with starter templates. The VIBE.md opt-in import/export lets users start with a friendly personality file without persona-registry ceremony. Setup wizard history records stable timestamped entries per profile. Profile starter export/import/application is confirmed and preview-gated. This pattern, isolated homes with shareable starter bundles, is not present in any of the three tracked competitors at the agent-home isolation level.',
     nextMoves: [
       'Add a profile gallery or catalog so users can discover and apply community starter templates from within the setup wizard.',
       'Extend profile export to include the full channel configuration and permission posture so a shared profile is fully reproducible.',
@@ -169,7 +169,7 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'One guided flow verifies dependencies, installs or starts the host, configures auth, pairs channels, and leaves a working assistant.',
     goodVibesStatus: 'parity',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'Agent ships a setup wizard that orders connected-host readiness, auth, provider/model access, install smoke, local model readiness, Agent Knowledge, behavior, channels, Browser/PWA readiness, automation review, browser/desktop control, delegation, and finish state — with progress, current-step route hints, backtracking, and saved checkpoints that resume across restarts. Setup receipt artifacts auto-advance matching rows. All three tracked competitors also ship guided first-run flows that handle runtime dependencies and assistant configuration.',
+    goodVibesNow: 'Agent ships a setup wizard that orders connected-host readiness, auth, provider/model access, install smoke, local model readiness, Agent Knowledge, behavior, channels, Browser/PWA readiness, automation review, browser/desktop control, delegation, and finish state, with progress, current-step route hints, backtracking, and saved checkpoints that resume across restarts. Setup receipt artifacts auto-advance matching rows. All three tracked competitors also ship guided first-run flows that handle runtime dependencies and assistant configuration.',
     nextMoves: [
       'Keep per-step setup receipt schemas aligned with any new SDK/daemon first-run receipt versions before release evidence accepts them.',
       'Add real connected-host CI fixtures for ordered setup receipt event streams once the daemon publishes stable stream snapshots outside unit tests.',
@@ -235,7 +235,7 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'OpenClaw showcases web research, bookmarks, project research, and personal knowledge workflows.' },
       { competitor: 'hermes', evidence: 'Hermes has web tools, session search, trajectory tooling, and research-ready batch workflows.' },
-      { competitor: 'odysseus', evidence: 'Odysseus ships Deep Research that gathers, reads, and synthesizes sources into a visual report — functionally comparable to GoodVibes research workflow.' },
+      { competitor: 'odysseus', evidence: 'Odysseus ships Deep Research that gathers, reads, and synthesizes sources into a visual report, functionally comparable to GoodVibes research workflow.' },
     ],
   },
 
@@ -287,9 +287,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Learning is automatic enough to be useful, but every durable behavior has provenance, review, rollback, and quality scoring.',
     goodVibesStatus: 'partial',
     owners: ['agent'],
-    goodVibesNow: 'Agent ships local memory, notes, personas, skills, routines, learned-behavior capture, safe VIBE.md personality discovery, project context injection with secret-content scanning, a learning curator with score-driven prompt plans, ranked review/stale/consolidation candidates, confirmed duplicate-consolidation phases, and formal promotion gating at or above the durable confidence threshold. Learning is review-first by design: behaviors do not become durable without user confirmation. Hermes and OpenClaw ship fully autonomous skill creation — agents write reusable skills during use without a staged confirmation boundary, and Hermes also ships skill self-improvement and the agentskills.io open standard for cross-agent skill sharing. GoodVibes is deliberately divergent here, but the divergence does cost autonomy speed.',
+    goodVibesNow: 'Agent ships local memory, notes, personas, skills, routines, learned-behavior capture, safe VIBE.md personality discovery, project context injection with secret-content scanning, a learning curator with score-driven prompt plans, ranked review/stale/consolidation candidates, confirmed duplicate-consolidation phases, and formal promotion gating at or above the durable confidence threshold. Learning is review-first by design: behaviors do not become durable without user confirmation. Hermes and OpenClaw ship fully autonomous skill creation, agents write reusable skills during use without a staged confirmation boundary, and Hermes also ships skill self-improvement and the agentskills.io open standard for cross-agent skill sharing. GoodVibes is deliberately divergent here, but the divergence does cost autonomy speed.',
     nextMoves: [
-      'Ship skill-standard import/export (agentskills.io-compatible) so review-first skills can still be shared and discovered across agents — see skill-standard-interop item.',
+      'Ship skill-standard import/export (agentskills.io-compatible) so review-first skills can still be shared and discovered across agents, see skill-standard-interop item.',
       'Add a fast-path confirmation mode for low-risk skill additions that have already been reviewed in a prior session to reduce ceremony without removing review.',
       'Keep Honcho, Mem0, Supermemory, and similar provider schema fixtures current as SDK/daemon contracts add provider-owned receipt fields.',
     ],
@@ -325,9 +325,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Voice, mobile, notifications, wake word, talk mode, camera, screen, location, and device commands are paired, permission-aware, and reliable.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'companion'],
-    goodVibesNow: 'Agent ships `device action:"status|capability|voice|provider|open_tts_provider|open_tts_voice"` UX over companion pairing, mobile/PWA compatibility, voice/TTS, notifications, TTS provider/voice picker, and `computer action:"status|plan|control|browser|setup"` for browser/PWA readiness and desktop-control workflow planning. TTS, image input, and media generation are shipped. A wake word is shipped and listening on this surface: `voice.wake.enabled` plus `voice.wake.surfaces.agent` opens a recorder subprocess on the host, scores every 80 ms frame against the pinned "hey goodvibes" classifier, plays an activation sound, shows a persistent listening row in the footer, and sends the utterance that follows to speech-to-text — into the conversation input, or submitted outright with `voice.wake.autoSubmit`. Its delivery row is off by default because two terminal surfaces acting on one spoken utterance is a confusing default, and its published recall figures are measured on synthesised speech only. No Talk Mode (continuous conversation) is available. OpenClaw ships voice wake words on macOS/iOS and a continuous Talk Mode on Android via ElevenLabs and system TTS.',
+    goodVibesNow: 'Agent ships `device action:"status|capability|voice|provider|open_tts_provider|open_tts_voice"` UX over companion pairing, mobile/PWA compatibility, voice/TTS, notifications, TTS provider/voice picker, and `computer action:"status|plan|control|browser|setup"` for browser/PWA readiness and desktop-control workflow planning. TTS, image input, and media generation are shipped. A wake word is shipped and listening on this surface: `voice.wake.enabled` plus `voice.wake.surfaces.agent` opens a recorder subprocess on the host, scores every 80 ms frame against the pinned "hey goodvibes" classifier, plays an activation sound, shows a persistent listening row in the footer, and sends the utterance that follows to speech-to-text, into the conversation input, or submitted outright with `voice.wake.autoSubmit`. Its delivery row is off by default because two terminal surfaces acting on one spoken utterance is a confusing default, and its published recall figures are measured on synthesised speech only. No Talk Mode (continuous conversation) is available. OpenClaw ships voice wake words on macOS/iOS and a continuous Talk Mode on Android via ElevenLabs and system TTS.',
     nextMoves: [
-      'Extend wake-word capture to a companion platform (macOS or Android) — the host surfaces listen, a phone in the user\'s pocket does not.',
+      'Extend wake-word capture to a companion platform (macOS or Android), the host surfaces listen, a phone in the user\'s pocket does not.',
       'Design a continuous Talk Mode that integrates TTS output with push-to-talk input into a single conversation loop with latency-aware turn detection.',
       'Keep companion device capability certification fixtures current as SDK/daemon records add camera, screen, location, notification, wake, and device-command fields.',
     ],

@@ -1,23 +1,23 @@
 /**
- * hosted-session-mirror.ts — putting a daemon-hosted conversation into the
+ * hosted-session-mirror.ts, putting a daemon-hosted conversation into the
  * agent's own session store.
  *
  * The gap this closes: an evening's conversation ran as a hosted session and
  * NEVER landed in `sessions/`. It existed only as a preview-grade recovery
  * journal (tool results truncated to ~100 characters) plus the daemon-side
  * record, and `sessions/last-session.json` still pointed at an OLDER local
- * session — so resuming would have opened the wrong conversation and the real
+ * session, so resuming would have opened the wrong conversation and the real
  * one was unreachable from the surface that started it.
  *
  * Why it was missing: a local turn is persisted off `TURN_COMPLETED`
  * (shell/startup-wiring.ts), and a hosted turn emits no local `TURN_COMPLETED`
- * — its turn runs daemon-side. Every durable-write path hung off an event that
+ *, its turn runs daemon-side. Every durable-write path hung off an event that
  * hosted conversations never fire.
  *
  * Where the content comes from: the DAEMON's record is authoritative, not this
  * process's screen mirror. `sessions.hosted.attach` returns the transcript the
  * daemon actually holds, which is also the only source that still exists after
- * this process has crashed — which is exactly when the mirror matters most.
+ * this process has crashed, which is exactly when the mirror matters most.
  * That makes one function serve both moments the brief names: completion (the
  * conversation is finished and belongs in the store) and reconnect (this
  * process died mid-turn and is now catching up on what happened without it).
@@ -52,7 +52,7 @@ export interface HostedSessionMirrorDeps {
   readonly clientId: string;
   /**
    * Writes the conversation to the agent's session store AND moves
-   * last-session.json onto it — the SDK's `persistConversation`.
+   * last-session.json onto it, the SDK's `persistConversation`.
    */
   readonly persist: (
     sessionId: string,
@@ -108,7 +108,7 @@ export async function mirrorHostedSessionToStore(
       clientId: deps.clientId,
     });
   } catch (error) {
-    const reason = `the connected host would not hand back hosted session ${sessionId} — ${summarizeError(error)}`;
+    const reason = `the connected host would not hand back hosted session ${sessionId}, ${summarizeError(error)}`;
     logger.warn('[hosted-mirror] could not read the hosted transcript to mirror it', { sessionId, error: summarizeError(error) });
     return { mirrored: false, reason };
   }
@@ -131,7 +131,7 @@ export async function mirrorHostedSessionToStore(
       title,
     );
   } catch (error) {
-    const reason = `writing hosted session ${sessionId} to the session store failed — ${summarizeError(error)}`;
+    const reason = `writing hosted session ${sessionId} to the session store failed, ${summarizeError(error)}`;
     logger.warn('[hosted-mirror] persisting the mirrored hosted session failed', { sessionId, error: summarizeError(error) });
     return { mirrored: false, reason };
   }
@@ -166,13 +166,13 @@ export const DEFAULT_MAX_RECOVERED_HOSTED_SESSIONS = 5;
  * Completion-time mirroring cannot cover the case that actually lost the
  * conversation: the surface died mid-turn, so no completion was ever delivered
  * to it and no callback ran. On the next start the daemon still holds the
- * transcript, and this pass is what goes and gets it — any hosted session for
+ * transcript, and this pass is what goes and gets it, any hosted session for
  * this workspace that the agent's own store has never heard of is pulled in and
  * becomes resumable, newest last so the last-session pointer ends up on the
  * most recent conversation.
  *
  * Bounded and quiet: at most `maxRecovered` sessions per boot, sessions with no
- * transcript skipped, and every failure logged rather than thrown — a daemon
+ * transcript skipped, and every failure logged rather than thrown, a daemon
  * that is not reachable at boot must not stop the agent from starting.
  */
 export async function recoverUnmirroredHostedSessions(

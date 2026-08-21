@@ -4,7 +4,7 @@
  * Self-replacement was effectively invisible. Both updaters print a line, but
  * the launch line is written to a stdout the agent's alternate screen wipes a
  * moment later, and the periodic line goes to a running session's notifications
- * — so a swap that happened thirty seconds into a run left no trace a person
+ *, so a swap that happened thirty seconds into a run left no trace a person
  * would find afterwards except a `.previous` file whose meaning is not obvious.
  *
  * That is not only a UX gap. It silently invalidates verification: a check run
@@ -20,7 +20,7 @@
  * it sits in the same directory as the evidence a person already stumbles over.
  *
  * Recording is best-effort by construction. An install directory that is not
- * writable must never turn a successful update into a failed one — the update
+ * writable must never turn a successful update into a failed one, the update
  * is the operation that matters, and the receipt is an observation of it.
  */
 import { appendFileSync, readFileSync } from 'node:fs';

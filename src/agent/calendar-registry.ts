@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { writeStoreFile } from '@/utils/store-file.ts';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
@@ -12,7 +13,7 @@ import { parseIcs, renderIcs } from './ics-calendar.ts';
 export interface AgentCalendarEvent {
   readonly id: string;
   readonly title: string;
-  /** ISO-8601 start — YYYY-MM-DD for all-day, YYYY-MM-DDTHH:MM:SS[Z] for timed */
+  /** ISO-8601 start, YYYY-MM-DD for all-day, YYYY-MM-DDTHH:MM:SS[Z] for timed */
   readonly start: string;
   /** ISO-8601 end, optional */
   readonly end?: string;
@@ -314,9 +315,6 @@ export class AgentCalendarRegistry {
   }
 
   private writeStore(store: CalendarStoreFile): void {
-    mkdirSync(dirname(this.storePath), { recursive: true });
-    const tmpPath = `${this.storePath}.tmp`;
-    writeFileSync(tmpPath, formatStore(store), 'utf-8');
-    renameSync(tmpPath, this.storePath);
+    writeStoreFile(this.storePath, formatStore(store));
   }
 }

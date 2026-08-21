@@ -103,8 +103,8 @@ async function classifyOperatorGatewayError(
  * This used to take `payload: unknown` and call `invoke(methodId, payload as never)`.
  * That was a total opt-out: no operator body the agent sent was ever checked
  * against its declared input, for any method. Two breaking contract changes
- * landed during one round — `authority` becoming required on the profile write
- * verbs, then `profile.forget` dropping `lineIndex` — and both compiled clean
+ * landed during one round, `authority` becoming required on the profile write
+ * verbs, then `profile.forget` dropping `lineIndex`, and both compiled clean
  * here and were caught only by reading the platform source.
  *
  * The SDK's typed overload was correct all along. The escape is the loose one
@@ -139,7 +139,7 @@ export async function invokeOperatorGatewayMethod<TMethodId extends OperatorMeth
     // The SDK's typed overload takes a CONDITIONAL argument tuple
     // (`MethodArgs` makes the input optional when every key is optional), and a
     // conditional type cannot be resolved against a still-generic `TMethodId`
-    // inside this function. So the tuple shape — and only the tuple shape — is
+    // inside this function. So the tuple shape, and only the tuple shape, is
     // asserted here, at the single seam, with both ends of it still bound to
     // `TMethodId`. Every caller is checked: a wrong body or a wrong expected
     // output is a compile error at the call site, which is exactly what the old

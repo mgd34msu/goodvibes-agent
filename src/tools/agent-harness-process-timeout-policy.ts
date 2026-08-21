@@ -1,5 +1,5 @@
 /**
- * Background-process lifetime policy — how long a tracked process runs, and
+ * Background-process lifetime policy, how long a tracked process runs, and
  * whether its deadline is allowed to end it.
  *
  * Split out of agent-harness-background-processes.ts, which sits at the
@@ -55,7 +55,7 @@ export type BackgroundProcessClass = 'command' | 'long_lived';
  *
  * `terminal` is documented as "start visible tracked background shell
  * commands", and its `timeoutMs` used to SIGKILL whatever it had started. A
- * routine 120s value therefore destroyed a running browser — a user-facing
+ * routine 120s value therefore destroyed a running browser, a user-facing
  * application torn down as the ordinary outcome of a normal parameter. A
  * long-lived process now keeps running past its deadline unless the caller
  * explicitly opts in to being killed.

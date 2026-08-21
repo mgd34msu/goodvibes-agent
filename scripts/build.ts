@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Production build — compiles standalone binaries across the target matrix.
+ * Production build, compiles standalone binaries across the target matrix.
  *
  * The compile matrix, the sqlite-vec native-addon copy (same-host) and
  * cross-target npm-pack fetch, and the prebuild step now live in the shared

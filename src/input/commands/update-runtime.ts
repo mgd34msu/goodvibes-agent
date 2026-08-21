@@ -1,5 +1,5 @@
 /**
- * `/update` — a real self-update path for binary installs. The
+ * `/update`, a real self-update path for binary installs. The
  * download-verify-swap mechanics are the SDK's canonical update policy module
  * (platform/runtime/self-update), the same mechanism the TUI's `/update` and
  * the daemon's hourly loop follow: one update mechanism everywhere. This file
@@ -7,24 +7,24 @@
  * asset layout, and the printed report.
  *
  * Subcommands:
- *   /update [check]   — resolve the latest release tag and report whether this
+ *   /update [check]  , resolve the latest release tag and report whether this
  *                       build is already current.
- *   /update apply     — for a binary install (a directly-downloaded release
+ *   /update apply    , for a binary install (a directly-downloaded release
  *                       binary), download + verify + atomically swap the agent
  *                       binary, and refresh the sqlite-vec native addon in
  *                       lockstep so the vector index never goes stale beside a
  *                       new binary. Every swap parks the outgoing file at
  *                       `<path>.previous`, so the replaced version is always
  *                       kept. For any other install kind, prints the exact
- *                       command to run instead — it never attempts a swap it
+ *                       command to run instead, it never attempts a swap it
  *                       can't do safely.
- *   /update rollback  — exchange each installed file with its kept `.previous`
+ *   /update rollback , exchange each installed file with its kept `.previous`
  *                       counterpart: one command back to the version that ran
  *                       before the last update (and, being an exchange, one
  *                       more command forward again).
  *
  * The agent ships ONE binary and no daemon binary, and its addon travels as a
- * tar.gz ARCHIVE asset (see release-artifacts.ts) rather than a bare file —
+ * tar.gz ARCHIVE asset (see release-artifacts.ts) rather than a bare file,
  * so the addon bytes are downloaded and checksum-verified as the archive,
  * extracted in memory, and only then swapped with the same keep-previous
  * mechanics as the binary. Verification order is strict: the addon archive is
@@ -36,7 +36,7 @@
  * is a DIRECTORY (`playwright-core/`), not a file, so it cannot go through
  * swapFileAtomically. It is extracted into `playwright-core.incoming`, and only
  * a complete extraction is moved into place, with the outgoing directory parked
- * at `playwright-core.previous`. Refreshing it here is not optional polish — an
+ * at `playwright-core.previous`. Refreshing it here is not optional polish, an
  * in-place binary swap that left the old driver behind would pair a new build
  * with a driver version it was never tested against, and a swap that left none
  * behind would silently remove browser control from a working install.
@@ -82,7 +82,7 @@ function releaseDownloadBaseUrl(tag: string): string {
 }
 
 /**
- * Suffix under which every swap keeps the file it replaced — re-exported from
+ * Suffix under which every swap keeps the file it replaced, re-exported from
  * the SDK's canonical update policy module so rollback and swap share one
  * definition everywhere.
  */
@@ -176,9 +176,9 @@ export interface ApplyUpdateOptions {
  * the SDK's canonical update policy module. For a binary install: resolve the
  * latest tag, compare to the running version, and if newer, verify and stage
  * the addon archive first (bytes in memory, no writes), run the binary
- * download-verify-swap, then swap the extracted addon file — each swap keeps
+ * download-verify-swap, then swap the extracted addon file, each swap keeps
  * the outgoing file at `<path>.previous`. For any other install kind, never
- * attempts a swap — it prints the exact command for that install method
+ * attempts a swap, it prints the exact command for that install method
  * instead.
  */
 export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
@@ -214,7 +214,7 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
   // The sqlite-vec native addon travels with the binary as a tar.gz archive
   // asset: refresh it in the same update so /update never leaves a new binary
   // beside a stale addon. The manifest entry decides whether the target
-  // release ships it — an entry that IS present makes the download, checksum,
+  // release ships it, an entry that IS present makes the download, checksum,
   // and extraction mandatory (any failure is fatal, verified before the
   // binary swap begins), while an absent entry means the target predates the
   // addon archives and is skipped rather than blocking an otherwise-valid
@@ -230,7 +230,7 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
     verifyChecksum(addon.assetName, sha256(archiveBytes), checksums.get(addon.assetName));
     addonFileBytes = extractTarGzEntry(archiveBytes, addon.entryPath);
     if (addonFileBytes === null) {
-      throw new Error(`addon archive ${addon.assetName} verified but holds no ${addon.entryPath} — refusing a partial update`);
+      throw new Error(`addon archive ${addon.assetName} verified but holds no ${addon.entryPath}, refusing a partial update`);
     }
     addonTargetPath = join(dirname(appBinaryPath), 'lib', addon.dirName, addon.fileName);
   }
@@ -248,7 +248,7 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
     verifyChecksum(BROWSER_DRIVER_ARCHIVE_NAME, sha256(driverArchiveBytes), checksums.get(BROWSER_DRIVER_ARCHIVE_NAME));
     for (const required of BROWSER_DRIVER_REQUIRED_ENTRIES) {
       if (extractTarGzEntry(driverArchiveBytes, required) === null) {
-        throw new Error(`browser driver archive ${BROWSER_DRIVER_ARCHIVE_NAME} verified but holds no ${required} — refusing a partial update`);
+        throw new Error(`browser driver archive ${BROWSER_DRIVER_ARCHIVE_NAME} verified but holds no ${required}, refusing a partial update`);
       }
     }
     driverTargetPath = join(dirname(appBinaryPath), BROWSER_DRIVER_DIR_NAME);
@@ -278,10 +278,10 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
       `  agent binary:  ${appBinaryPath}`,
       ...(addonTargetPath
         ? [`  vector addon:  ${addonTargetPath}`]
-        : [`  vector addon:  the ${latestTag} release ships no ${addon?.assetName ?? 'addon archive'} for this platform — left untouched`]),
+        : [`  vector addon:  the ${latestTag} release ships no ${addon?.assetName ?? 'addon archive'} for this platform, left untouched`]),
       ...(driverTargetPath
         ? [`  browser driver: ${driverTargetPath}`]
-        : [`  browser driver: the ${latestTag} release ships no ${BROWSER_DRIVER_ARCHIVE_NAME} — left untouched; the browser tool installs a driver for itself on first use`]),
+        : [`  browser driver: the ${latestTag} release ships no ${BROWSER_DRIVER_ARCHIVE_NAME}, left untouched; the browser tool installs a driver for itself on first use`]),
       '',
       'Restart goodvibes-agent to run the new version.',
     ].join('\n'),
@@ -318,7 +318,7 @@ export function rollbackDirectory(targetPath: string, io: UpdateDirectoryIo): bo
  * One-command rollback to the version that ran before the last update,
  * delegating the exchange mechanics to the SDK's rollbackKeptPrevious (the
  * same module the swap uses): every installed file (agent binary, vector
- * addon) that has a kept `.previous` counterpart is EXCHANGED with it — the
+ * addon) that has a kept `.previous` counterpart is EXCHANGED with it, the
  * previous version becomes live, and the version being rolled back is itself
  * kept at `.previous`, so a second `/update rollback` rolls forward again.
  * Files without a kept counterpart are reported and left untouched; nothing

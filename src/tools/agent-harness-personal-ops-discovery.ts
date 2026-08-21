@@ -37,7 +37,7 @@ export function methodSearchText(method: OperatorContractMethod): string {
 
 /**
  * Capability honesty: a method whose contract entry carries
- * invokable:false is cataloged but NOT dispatchable — no daemon route or
+ * invokable:false is cataloged but NOT dispatchable, no daemon route or
  * handler serves it. Counting it toward "workflow ready" would repeat the
  * dogfood finding (a lane card claiming readiness backed only by methods a
  * caller cannot actually invoke). Absent flag = invokable (older contracts).
@@ -57,7 +57,7 @@ function matchingContractMethods(tokens: readonly string[]): readonly OperatorCo
 /**
  * Method ids matching the tokens that are actually DISPATCHABLE. Readiness
  * (workflowStatus, lane status, capability counts) must be computed from
- * this list only — advertised-but-unavailable methods are returned
+ * this list only, advertised-but-unavailable methods are returned
  * separately by unavailableMethodIdsMatching for honest degraded wording.
  */
 export function methodIdsMatching(tokens: readonly string[]): readonly string[] {

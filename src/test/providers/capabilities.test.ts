@@ -34,7 +34,7 @@ type ProviderCapabilityRegistryTestAccess = {
 };
 
 // ---------------------------------------------------------------------------
-// ProviderCapabilityRegistry — merge order
+// ProviderCapabilityRegistry, merge order
 // ---------------------------------------------------------------------------
 
 describe('ProviderCapabilityRegistry.getCapability — merge order', () => {
@@ -67,7 +67,7 @@ describe('ProviderCapabilityRegistry.getCapability — merge order', () => {
     const selfDeclared: ProviderWithCapabilities = {
       capabilities: { toolCalling: false } as Partial<ProviderCapability>,
     };
-    // anthropic has toolCalling: true — self-declared false should win
+    // anthropic has toolCalling: true, self-declared false should win
     const cap = registry.getCapability('anthropic', 'claude-3-haiku-20240307', selfDeclared);
     expect(cap.toolCalling).toBe(false);
   });
@@ -81,7 +81,7 @@ describe('ProviderCapabilityRegistry.getCapability — merge order', () => {
     const cap = registry.getCapability('anthropic', 'claude-opus-4-5', selfDeclared);
     expect(cap.reasoningControls).toBe(true);
     // The ceiling itself is the SDK's number and moves when the model's real
-    // ceiling moves — it went from 32,000 to 64,000 in one platform release,
+    // ceiling moves, it went from 32,000 to 64,000 in one platform release,
     // and pinning it here only produced a red gate that said nothing about
     // this repo. What this test owns is the precedence.
     expect(cap.maxOutputTokens).not.toBe(1);
@@ -116,7 +116,7 @@ describe('ProviderCapabilityRegistry.getCapability — merge order', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ProviderCapabilityRegistry — canHandle
+// ProviderCapabilityRegistry, canHandle
 // ---------------------------------------------------------------------------
 
 describe('ProviderCapabilityRegistry.canHandle', () => {
@@ -182,7 +182,7 @@ describe('ProviderCapabilityRegistry.canHandle', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ProviderCapabilityRegistry — getRouteExplanation
+// ProviderCapabilityRegistry, getRouteExplanation
 // ---------------------------------------------------------------------------
 
 describe('ProviderCapabilityRegistry.getRouteExplanation', () => {

@@ -25,7 +25,7 @@ export async function runCommand(deps: AgentHarnessToolDeps, args: AgentHarnessT
     ...deps.commandContext,
     // This is the model running a command, not the owner typing one. Said out
     // loud because a command that grants authority must be able to tell the
-    // difference, and everything reaching this function is a model tool call —
+    // difference, and everything reaching this function is a model tool call,
     // including one a model made after reading a page that suggested it.
     invokedByModel: true,
     print: (text: string) => {

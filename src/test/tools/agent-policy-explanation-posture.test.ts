@@ -1,6 +1,6 @@
 /**
  * The policy-explain surface (security action:"explain") must display the
- * SAME approval posture as cli/status.ts and the footer — computed via the
+ * SAME approval posture as cli/status.ts and the footer, computed via the
  * shared helper (src/permissions/approval-posture.ts), not re-derived
  * locally. This is one of the four surfaces named in the A2 brief.
  */
@@ -51,7 +51,7 @@ describe('agent-policy-explanation: approval posture agreement', () => {
     expect(posture.bypassesPrompts).toBe(true);
     expect(posture.label.toLowerCase()).toContain('auto-approve');
 
-    // Must match the shared helper's output exactly — not a locally-worded approximation.
+    // Must match the shared helper's output exactly, not a locally-worded approximation.
     const expected = computeApprovalPosture({ autoApprove: true, mode: 'prompt' });
     expect(posture.label).toBe(expected.label);
 

@@ -15,7 +15,7 @@ function makeProvider(): OpenAICompatProvider {
 }
 
 // The provider calls `(await this.client()).chat.completions.create(...).withResponse()`
-// (added so success-path rate-limit headers are readable, not only on 429s) — the real
+// (added so success-path rate-limit headers are readable, not only on 429s), the real
 // openai SDK's `create()` returns an APIPromise with a `.withResponse()` method that
 // resolves to `{ data, response }`. A bare async function standing in for `create` returns
 // a plain Promise with no `.withResponse()`, so calling it throws a TypeError before the
@@ -23,7 +23,7 @@ function makeProvider(): OpenAICompatProvider {
 // to it.
 //
 // `client` is a lazily-memoizing METHOD on the class (`client(): OpenAI { this.openaiClient
-// ??= ...; return this.openaiClient; }`), not a plain object built in the constructor —
+// ??= ...; return this.openaiClient; }`), not a plain object built in the constructor,
 // shadowing it with a data property here must therefore assign a FUNCTION, or `this.client()`
 // at the real call site throws "this.client is not a function" before the stub is ever
 // reached.

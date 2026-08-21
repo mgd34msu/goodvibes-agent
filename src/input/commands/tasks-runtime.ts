@@ -1,8 +1,8 @@
 /**
- * `/tasks` — the Agent's read-only view of runtime tasks.
+ * `/tasks`, the Agent's read-only view of runtime tasks.
  *
  * The rows come from two places. This process's own registry holds the exec,
- * agent and ACP tasks the loop here spawned; the daemon holds the rest —
+ * agent and ACP tasks the loop here spawned; the daemon holds the rest,
  * scheduled work, channel-driven runs, tasks other surfaces submitted. The
  * SDK's tasks client unions them, local rows winning on a shared id because
  * they are the live copy, and reports the daemon's half as missing rather than

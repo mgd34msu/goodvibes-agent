@@ -4,11 +4,11 @@
  * detection.
  *
  * Version comparison and the release-tag lookup are re-exported from the
- * SDK's canonical update policy module (platform/runtime/self-update) — one
+ * SDK's canonical update policy module (platform/runtime/self-update), one
  * mechanism everywhere, the same module the TUI and the daemon's hourly loop
  * consume. Install-kind detection comes from the SDK too
- * (platform/runtime/install-kind): the same three-way answer — compiled
- * binary, package-managed vendored binary, or a source run — everywhere. What
+ * (platform/runtime/install-kind): the same three-way answer, compiled
+ * binary, package-managed vendored binary, or a source run, everywhere. What
  * stays here is this product's own answer to "then what should I run
  * instead", which names this package.
  *
@@ -33,7 +33,7 @@ import type { InstallKind } from '@/runtime/index.ts';
  * The exact command to tell the user to run instead of an in-place swap.
  *
  * The Agent's supported managed install path is the Bun global package (see
- * README), and a source checkout is a developer running this repo — both are
+ * README), and a source checkout is a developer running this repo, both are
  * moved by the package manager, so both point there rather than at the suite
  * installer.
  */

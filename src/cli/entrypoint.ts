@@ -138,7 +138,7 @@ export async function prepareShellCliRuntime(
   // A `daemon.enabled: false` left over from when the key meant "do not embed a
   // daemon in this process" now means "do not look for a daemon at all", which
   // is how a machine ends up unable to reach the platform with no way to say
-  // so. Reset it ONCE, with a receipt, before the config manager reads it —
+  // so. Reset it ONCE, with a receipt, before the config manager reads it,
   // after this pass a false the user sets is theirs and is kept. Idempotent;
   // announces once.
   const daemonEnabledNotice = ensureDaemonEnabledMigrated({
@@ -213,7 +213,7 @@ export async function prepareShellCliRuntime(
       configManager,
       homeDirectory: bootstrapHomeDirectory,
     });
-    // Only probe host metrics when the host is actually reachable — otherwise
+    // Only probe host metrics when the host is actually reachable, otherwise
     // the unreachability is already reported in the connected-host block above,
     // and skipping the call avoids a second connect-timeout wait. When reachable,
     // the probe classifies token/scope/route state honestly (including the

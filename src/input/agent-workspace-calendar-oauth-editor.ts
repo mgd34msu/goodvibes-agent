@@ -10,7 +10,7 @@
  * to run the connect command to authorize.
  *
  * Security: like the email connect wizard, this is a DIRECT host action, not a slash
- * command — the client secret never travels through the command-dispatch pipeline
+ * command, the client secret never travels through the command-dispatch pipeline
  * that echoes the command string into the rendered result. The OAuth network dance
  * (auth URL / device code) lives in the /calendar connect command, which can print
  * the URL/code immediately; this card only persists credentials.
@@ -36,7 +36,7 @@ export interface AgentWorkspaceCalendarOAuthEditorHost {
   lastActionResult: AgentWorkspaceActionResult | null;
 }
 
-/** Honest, no-I/O calendar-OAuth build state per provider — true once a client id override is stored (F1c). */
+/** Honest, no-I/O calendar-OAuth build state per provider, true once a client id override is stored (F1c). */
 export interface AgentWorkspaceCalendarOAuthConfigStatus {
   readonly google: boolean;
   readonly microsoft: boolean;
@@ -55,7 +55,7 @@ const CONNECT_HINT: Record<Provider, string> = { google: '/calendar connect goog
 function cardMessage(label: string, isConfigured: boolean): string {
   if (!isConfigured) {
     return (
-      `This build needs a client id to connect ${label} — it ships no project default yet. ` +
+      `This build needs a client id to connect ${label}, it ships no project default yet. ` +
       'Enter your own below, or follow these steps: register a free OAuth app with the provider ' +
       '(Google Cloud Console, or the Azure portal for Microsoft), copy the client id it gives you ' +
       '(no client secret needed for the desktop/public-client flow), then paste it in here. ' +
@@ -125,7 +125,7 @@ export async function submitAgentWorkspaceCalendarOAuthEditor(
       setDynamic: (key: ConfigKey, value: unknown) => void;
       save: () => void;
     };
-    // Client id is not a secret — a plain config value.
+    // Client id is not a secret, a plain config value.
     cm.setDynamic(CALENDAR_OAUTH_CLIENT_ID_KEYS[provider] as unknown as ConfigKey, clientId);
     // Client secret (if any) goes through the secret-backed path: a ref in config,
     // the raw value only in the secret manager.

@@ -24,7 +24,7 @@
 export interface ConcealedInputRequest {
   /**
    * Short label describing what is being asked for, e.g. 'CVV' or 'Card
-   * number'. Surfaced by the CALLER (as a printed system line) — the composer
+   * number'. Surfaced by the CALLER (as a printed system line), the composer
    * itself only masks; it never prints the label, and it never prints the
    * value.
    */
@@ -38,7 +38,7 @@ export interface ConcealedInputRequest {
 /**
  * Mask a composer buffer for display. Every UTF-16 code unit except a newline
  * becomes a bullet, so the masked string has the EXACT same length and line
- * structure as the plaintext — word-wrap and cursor-position math (which index
+ * structure as the plaintext, word-wrap and cursor-position math (which index
  * the string by code unit) stay correct while no plaintext character ever
  * reaches the screen buffer.
  */

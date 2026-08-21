@@ -1,12 +1,12 @@
 /**
- * settings-search-vocabulary.ts — the plain words a person uses for a settings
+ * settings-search-vocabulary.ts, the plain words a person uses for a settings
  * domain, and the guided flow that domain has when settings alone cannot finish
  * the job.
  *
  * A settings search reads the key and the description, and both are written in
  * the platform's vocabulary. `payments.budget.dailyItem` describes itself as
  * "Most that may be spent on ITEM PRICES in one calendar day, written the way
- * you would say it" — accurate, and it contains neither "spending limit" nor
+ * you would say it", accurate, and it contains neither "spending limit" nor
  * "credit card", which is what was actually asked. The catalog answered "0",
  * the model reported that the platform has no payment settings, and
  * thirty-two live keys went unmentioned.
@@ -15,7 +15,7 @@
  * aliases only: they are indexed beside the key and never displayed as if the
  * schema said them, and nothing here can add, hide, or rename a setting.
  *
- * Every domain named here must exist in CONFIG_SCHEMA — a test pins that, so an
+ * Every domain named here must exist in CONFIG_SCHEMA, a test pins that, so an
  * alias for a domain that was renamed or removed fails the build instead of
  * quietly indexing nothing.
  */
@@ -41,7 +41,7 @@ export const SETTING_DOMAIN_VOCABULARY: Readonly<Record<string, SettingDomainVoc
     ],
     relatedCommand: {
       command: '/payments card',
-      why: 'The card number, expiry and verification code are never settings — they are typed at a local terminal through a masked prompt. /payments address billing|shipping enters the two addresses; /payments status shows what is set.',
+      why: 'The card number, expiry and verification code are never settings, they are typed at a local terminal through a masked prompt. /payments address billing|shipping enters the two addresses; /payments status shows what is set.',
     },
   },
   occasions: {

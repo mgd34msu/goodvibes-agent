@@ -2,7 +2,7 @@
  * The occasions domain's registration in this surface's settings workspace.
  *
  * A config domain whose root names no settings category is dropped from the
- * workspace silently — `push.*` and `cluster.*` both vanished that way, and all
+ * workspace silently, `push.*` and `cluster.*` both vanished that way, and all
  * twelve `occasions.*` keys did too the moment the platform shipped them: present
  * in the schema, read by the daemon, reachable only by hand-editing a file. So the
  * registration is asserted rather than assumed, both structurally (the root names
@@ -33,7 +33,7 @@ import { GOODVIBES_AGENT_OPERATOR_POLICY } from '../../runtime/agent-operator-po
  * ledger's settings denominator counts a key when its literal string appears
  * anywhere in this repo's TypeScript (src/verification/settings-consumed-keys.ts),
  * and eleven of these twelve are read by the daemon's occasions sweep rather than
- * by a line of this repo — spelling them here would put eleven permanently
+ * by a line of this repo, spelling them here would put eleven permanently
  * unverifiable rows into this product's denominator, which is the decay that file
  * exists to stop. `occasions.enabled` is the exception and is covered by
  * src/test/runtime/occasions-nudge-surface.test.ts.
@@ -102,7 +102,7 @@ describe('occasions tool permission classification', () => {
     // docs/occasions.md §4.5 and the SDK's own proposeOccasion/proposePlan: a
     // proposal works out what WOULD be written and hands back the one line to put
     // to him. Classifying it as a write would put a confirmation prompt in front
-    // of the confirmation prompt — and the whole point of the two-step is that
+    // of the confirmation prompt, and the whole point of the two-step is that
     // step one is free.
     for (const action of ['propose', 'plan_propose']) {
       expect(fallbackPermissionCategoryForArgs('occasions', { action }), action).toBe('read');

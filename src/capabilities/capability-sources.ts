@@ -8,7 +8,7 @@ import type { ProbeContext } from './capability-probe-runner.ts';
  * Each one fails closed and quietly: a source that cannot be read contributes
  * nothing rather than throwing, because a capability check must never be the
  * reason a session fails to start. What it must never do is turn "I could not
- * read this" into "this is not available" without saying so — that distinction
+ * read this" into "this is not available" without saying so, that distinction
  * lives in the index, which reports an unresolved prerequisite with its reason.
  */
 

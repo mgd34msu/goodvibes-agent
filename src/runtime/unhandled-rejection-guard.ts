@@ -24,7 +24,7 @@ export function createUnhandledRejectionHandler(deps: {
     rejectionCount++;
     const msg = reason instanceof Error ? reason.message : String(reason);
     if (rejectionCount > 3) {
-      logger.error('CRITICAL: cascading unhandled rejections — consider restarting', {
+      logger.error('CRITICAL: cascading unhandled rejections, consider restarting', {
         count: rejectionCount,
         windowMs: now - windowStart,
         error: String(reason),

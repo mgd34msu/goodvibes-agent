@@ -6,14 +6,14 @@
  * proof that THIS agent's construction behaves correctly end to end:
  *
  *  - offline (no daemon configured/reachable): the spine stays local and every op
- *    lands in services.memoryRegistry directly — the hard offline-embedded
+ *    lands in services.memoryRegistry directly, the hard offline-embedded
  *    requirement.
  *  - adopted (a real daemon, bootDaemon-style on a reserved port, is reachable):
  *    reconcileMemorySpineAdoption activates the spine, every op after that goes
  *    over the wire into the DAEMON's own store, and the agent's own local store is
  *    NEVER touched again (proven with a spy wrapping memoryRegistry.add).
  *  - deactivate-on-loss: stopping the daemon and re-running the SAME reconcile
- *    check hands the spine back to local — proven by a subsequent add() landing
+ *    check hands the spine back to local, proven by a subsequent add() landing
  *    in the agent's own local store again.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -91,7 +91,7 @@ describe('agent memory-spine wiring', () => {
     mkdirSync(agentWorkingDir, { recursive: true });
     agentServices = buildAgentServices(agentHomeDir, agentWorkingDir);
     await agentServices.memoryStore.init();
-    // NEVER rely on the default controlPlane port (3421) to mean "unreachable" —
+    // NEVER rely on the default controlPlane port (3421) to mean "unreachable",
     // this is a real developer machine and a real goodvibes daemon may genuinely be
     // listening there. Point at a freshly reserved-then-released port instead, so
     // "no daemon" is verified, not assumed.
@@ -109,7 +109,7 @@ describe('agent memory-spine wiring', () => {
 
     const probeReachability = realReachabilityProbe(agentServices, agentHomeDir);
     // The reserved port above was released before this probe runs, so nothing is
-    // listening there — a genuine "no daemon" case, not an assumption about the
+    // listening there, a genuine "no daemon" case, not an assumption about the
     // default port. The check must leave the spine local, never guess it's adopted.
     await reconcileMemorySpineAdoption({
       memorySpineClient: agentServices.memorySpineClient,
@@ -207,7 +207,7 @@ describe('agent memory-spine wiring', () => {
       expect(agentServices.memorySpineClient.mode()).toBe('local');
       expect(agentServices.memorySpineClient.active).toBe(false);
 
-      // Post-loss, ops resolve locally again — never keep routing to the dead wire.
+      // Post-loss, ops resolve locally again, never keep routing to the dead wire.
       const added = await agentServices.memorySpineClient.add({ cls: 'fact', scope: 'project', summary: 'post-loss local write' });
       expect(agentServices.memoryRegistry.get(added.id)?.summary).toBe('post-loss local write');
     });

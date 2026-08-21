@@ -6,7 +6,7 @@
  * Orchestrator so the tool reports real, live session data instead of the
  * unbound-holder honesty message ("no live session context bound"). GoodVibes
  * Agent is an interactive consumer with exactly one Orchestrator driving the
- * main conversation — see bootstrap.ts, where `bindOrchestratorContextAccounting`
+ * main conversation, see bootstrap.ts, where `bindOrchestratorContextAccounting`
  * is called once, right after the Orchestrator is constructed and
  * `setCoreServices` has run.
  *
@@ -14,24 +14,24 @@
  * tracks, nothing new is measured:
  *   - Token state: Orchestrator.usage (input/output/cacheRead/cacheWrite,
  *     public fields) + Orchestrator.lastInputTokens, plus the active model's
- *     context window from providerRegistry.getContextWindowForModel — the
+ *     context window from providerRegistry.getContextWindowForModel, the
  *     exact call bootstrap.ts already makes for the system prompt.
  *   - Turn injections: Orchestrator.getTurnInjections() (public accessor).
  *   - Compaction state: Orchestrator does not expose `isCompacting` publicly
  *     (private field), so this reads runtimeStore.getState().session.compactionState
- *     instead — the SAME state the SDK's own updateSessionState reducer
+ *     instead, the SAME state the SDK's own updateSessionState reducer
  *     already derives from the 'compaction' domain's runtime-bus events (see
  *     agent-runtime-events.ts's `runtimeBus.onDomain('compaction', ...)`
  *     subscription, wired before this bind call runs). compactionCount is a
  *     local counter incremented on each applied COMPACTION_RECEIPT for THIS
- *     session — the SDK does not track a running count itself.
+ *     session, the SDK does not track a running count itself.
  */
 import type { ContextAccountingHolder, ContextAccountingSource } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import type { CompactionEvent, RuntimeEventBus } from '@/runtime/index.ts';
 import type { RuntimeStore } from './store/index.ts';
 
-/** compactionState values that mean "a compaction pass is currently running" — every non-idle, non-terminal state. */
+/** compactionState values that mean "a compaction pass is currently running", every non-idle, non-terminal state. */
 const COMPACTING_STATES: ReadonlySet<string> = new Set([
   'checking_threshold',
   'microcompact',
@@ -68,7 +68,7 @@ export function bindOrchestratorContextAccounting(
   const { orchestrator, holder, runtimeBus, runtimeStore, sessionId, getContextWindow } = options;
   const scope = options.scope ?? 'main session';
 
-  // Local running count of applied compactions for THIS session — the SDK
+  // Local running count of applied compactions for THIS session, the SDK
   // emits the mandatory COMPACTION_RECEIPT after every compaction path
   // (agent-runtime-events.ts routes the same event into the visible system
   // message; this tracks only the count, filtered to this session so a

@@ -138,9 +138,9 @@ describe('SettingsModal', () => {
         .filter((entry) => entry.key.split('.')[0] === cat)
         .map((entry) => entry.key);
       // payments additionally carries the four synthetic card-material entries.
-      // CONFIG_SCHEMA declares none of them on purpose — card material lives
+      // CONFIG_SCHEMA declares none of them on purpose, card material lives
       // write-only in the daemon secret store and config holds only a
-      // goodvibes:// reference — so they are injected by the modal from
+      // goodvibes:// reference, so they are injected by the modal from
       // input/payments-config.ts, the only synthetic-entry pattern left in
       // this modal now that display.themeMode is a real CONFIG_SCHEMA key.
       if (cat === 'payments') {
@@ -215,7 +215,7 @@ describe('SettingsModal', () => {
     // copy was an imported snapshot, so toggling relay.enabled here would not
     // start or stop the connected daemon's relay registration. relay.* is now
     // daemon-owned and Agent routes the write to the daemon that acts on it, so
-    // the refusal protects against a problem that no longer exists — it only
+    // the refusal protects against a problem that no longer exists, it only
     // blocks configuring the platform from the surface in front of you.
     for (const entry of relayEntries) {
       expect(entry.locked, `${entry.setting.key} should be writable (it routes to the daemon)`).toBe(false);
@@ -235,7 +235,7 @@ describe('SettingsModal', () => {
     expect(dangerKeys).toContain('danger.httpListener');
 
     // Visible AND writable. The hazard is handled by the narrow confirmation
-    // list, not by a second block here — one hazard, one gate.
+    // list, not by a second block here, one hazard, one gate.
     for (const entry of dangerEntries) {
       expect(entry.locked, `${entry.setting.key} should not be blanket-locked`).toBe(false);
     }

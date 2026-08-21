@@ -410,11 +410,11 @@ describe('AgentWorkspace', () => {
     expect(workspace.active).toBe(false);
   });
 
-  // DELETED: 'dispatches command actions through the shell-owned callback' — action 'model' removed.
-  // DELETED: 'dispatches operator briefing from the home workspace' — action 'brief' removed.
-  // DELETED: 'exposes doctor diagnostics from the home workspace' — action 'doctor' removed.
-  // DELETED: 'exposes connected-host compatibility from the home workspace' — action 'compat' removed.
-  // DELETED: 'sets interaction mode from home workspace forms' — action 'mode-show' removed; mode-preset is now an editor action.
+  // DELETED: 'dispatches command actions through the shell-owned callback', action 'model' removed.
+  // DELETED: 'dispatches operator briefing from the home workspace', action 'brief' removed.
+  // DELETED: 'exposes doctor diagnostics from the home workspace', action 'doctor' removed.
+  // DELETED: 'exposes connected-host compatibility from the home workspace', action 'compat' removed.
+  // DELETED: 'sets interaction mode from home workspace forms', action 'mode-show' removed; mode-preset is now an editor action.
 
   test('opens shared provider model picker from account onboarding actions', () => {
     const opened: string[] = [];
@@ -516,7 +516,7 @@ describe('AgentWorkspace', () => {
     // Escape. Before the fix, clearAgentWorkspaceActionSearch reinterpreted
     // the leftover search-result index against "setup"'s own (unrelated)
     // action list, silently landing the highlight on setup.actions[4]
-    // ("Import GoodVibes settings") — an action the user never looked at.
+    // ("Import GoodVibes settings"), an action the user never looked at.
     // The honest fix resets to the top of the list on cancel.
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);
@@ -696,7 +696,7 @@ describe('AgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-enabled');
     // `surfaces.*` is DAEMON-owned, so this write is routed to whichever runtime
-    // owns the key rather than applied inline — it needs a tick to settle. The
+    // owns the key rather than applied inline, it needs a tick to settle. The
     // agent-owned settings above are still observable synchronously.
     workspace.activateSelected();
     await Promise.resolve();
@@ -909,8 +909,8 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  // DELETED: 'opens the fullscreen MCP workspace' — mcp-workspace action removed.
-  // DELETED: 'tools workspace exposes trust and security review' — trust-review, security-review,
+  // DELETED: 'opens the fullscreen MCP workspace', mcp-workspace action removed.
+  // DELETED: 'tools workspace exposes trust and security review', trust-review, security-review,
   // security-attack-paths, security-tokens action IDs were all removed from the workspace.
 
   test('renders local persona skill and routine library workspaces from live Agent state', () => {
@@ -1022,7 +1022,7 @@ describe('AgentWorkspace', () => {
     expect(eligibleItem?.promptEligibilityReason).toBe(describeMemoryPromptEligibility(eligible).reason);
     expect(ineligibleItem?.promptEligible).toBe(false);
     expect(ineligibleItem?.promptEligibilityReason).toBe(describeMemoryPromptEligibility(ineligible).reason);
-    // Neither the old coarse wording nor a locally re-derived guess — the exact honest
+    // Neither the old coarse wording nor a locally re-derived guess, the exact honest
     // reason string, same wording source as prompt-context-receipts.ts.
     expect(ineligibleItem?.promptEligibilityReason).toContain('confidence');
     expect(ineligibleItem?.promptEligibilityReason).not.toBe('not reviewed');
@@ -4118,7 +4118,7 @@ describe('AgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.length - 1;
     expect(workspace.selectedAction?.kind).toBe('onboarding-complete');
 
-    // Activate it — should call completeOnboarding and not dispatch any command
+    // Activate it, should call completeOnboarding and not dispatch any command
     workspace.activateSelected();
 
     expect(dispatched).toEqual([]);
@@ -4162,7 +4162,7 @@ describe('AgentWorkspace', () => {
     // Dispatch an inline command through the real handler method
     dispatchInline('/help', ctx, 'inline');
 
-    // Inline does NOT close the workspace — active must remain true
+    // Inline does NOT close the workspace, active must remain true
     expect(workspace.active).toBe(true);
 
     // The print interceptor is active during executeCommand; wait for the microtask to settle
@@ -4205,7 +4205,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('error');
     expect(workspace.lastActionResult?.detail).toContain('No command dispatcher');
 
-    // context.print must NOT be clobbered — it must still route to printedByContext
+    // context.print must NOT be clobbered, it must still route to printedByContext
     ctx.print('still works');
     expect(printedByContext).toContain('still works');
   });
@@ -4341,7 +4341,7 @@ describe('AgentWorkspace', () => {
     } as unknown as CommandContext;
 
     const workspace = new AgentWorkspace();
-    // Open in ONBOARDING mode — account-model not yet revealed (provider-access blocked)
+    // Open in ONBOARDING mode, account-model not yet revealed (provider-access blocked)
     workspace.open(ctx, () => undefined, undefined, undefined, 'ONBOARDING');
     expect(workspace.selectedCategory.id).toBe('account-model'); // provider-access blocker resumes here
 
@@ -4379,7 +4379,7 @@ describe('AgentWorkspace', () => {
 
     // (a) Result confirms success.
     expect(workspace.lastActionResult?.title).toBe('Subscription session saved');
-    // (b) Status gives plain success + derived next-step — 'choose your model' is gone; derived from state.
+    // (b) Status gives plain success + derived next-step, 'choose your model' is gone; derived from state.
     expect(workspace.status).toContain('Signed in.');
     expect(workspace.status).not.toContain('choose your model');
     // (c) Workspace navigated to account-model so the user can pick a model.
@@ -4387,7 +4387,7 @@ describe('AgentWorkspace', () => {
   });
 
   // Test D (part 2): onSubscriptionLoginSuccess() when refreshed state is readyToChat=true
-  // (provider-access satisfied by subscription) — status must reflect ready-to-chat, NOT 'choose your model'.
+  // (provider-access satisfied by subscription), status must reflect ready-to-chat, NOT 'choose your model'.
   test('onSubscriptionLoginSuccess() with readyToChat=true status reflects ready-to-chat, not choose-your-model', () => {
     // Set up temp directory for shellPaths.
     const root = makeProjectTempDir('gv-onboarding-login-ready');
@@ -4443,10 +4443,9 @@ describe('AgentWorkspace', () => {
       },
     };
 
-    // Call the method under test directly.
     workspace.onSubscriptionLoginSuccess();
 
-    // Status must contain 'ready to chat' or 'Apply & close' — NOT 'choose your model'.
+    // Status must contain 'ready to chat' or 'Apply & close', NOT 'choose your model'.
     expect(workspace.status).toContain('Signed in.');
     expect(workspace.status).toContain('ready to chat');
     expect(workspace.status).not.toContain('choose your model');
@@ -4457,7 +4456,7 @@ describe('AgentWorkspace', () => {
   //
   // Setup:
   //   - phase 'in-progress' (check marker written), connected-host-auth ready,
-  //     provider-access blocked (no model) — resume target is account-model.
+  //     provider-access blocked (no model), resume target is account-model.
   //   - account-model is revealed at open() because the resume target is added
   //     by updateRevealedOnboardingCategories, but selectedCategory lands on it.
   //
@@ -4481,7 +4480,7 @@ describe('AgentWorkspace', () => {
     mkdirSync(tokenDir, { recursive: true });
     writeFileSync(connectedHostOperatorTokenPath(homeDirectory), JSON.stringify({ token: 'test-operator-token' }), 'utf-8');
 
-    // Write check marker — phase becomes 'in-progress'; provider-access is the
+    // Write check marker, phase becomes 'in-progress'; provider-access is the
     // resume target (account-model category), connected-host-auth is ready.
     writeOnboardingCheckMarker(shellPaths);
 
@@ -4546,7 +4545,7 @@ describe('AgentWorkspace', () => {
 // stale point-in-time snapshot until the user happened to trigger a workspace
 // action. These tests reproduce the dogfood repro against the REAL render
 // entry point (createAgentWorkspaceFullscreenComposite, the only production
-// call site for renderAgentWorkspace — see src/main.ts) rather than only unit
+// call site for renderAgentWorkspace, see src/main.ts) rather than only unit
 // testing the new method in isolation.
 describe('AgentWorkspace live disk-mirror counters', () => {
   test('memory count mirrors an external delete on the next repaint, not just after a workspace action', () => {
@@ -4565,7 +4564,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
     expect(linesText(renderAgentWorkspace(workspace, 160, 40))).toContain('Memory: 2;');
 
     // Simulate an external process (another shell, another Agent session)
-    // deleting a memory record on disk. No workspace action is taken here —
+    // deleting a memory record on disk. No workspace action is taken here,
     // the cached runtimeSnapshot on this instance is untouched.
     records.length = 1;
 
@@ -4596,12 +4595,12 @@ describe('AgentWorkspace live disk-mirror counters', () => {
 
     // REPRO: a separate process (the CLI `routines start` path, or another
     // Agent session) marks the routine started directly against the on-disk
-    // store — this workspace instance's cached runtimeSnapshot is untouched.
+    // store, this workspace instance's cached runtimeSnapshot is untouched.
     AgentRoutineRegistry.fromShellPaths(shellPaths).markStarted(created.id);
     const stillCachedAtZero = workspace.runtimeSnapshot?.localRoutines.find((item) => item.id === created.id);
     expect(stillCachedAtZero?.startCount).toBe(0);
 
-    // FIX: the real render entry point mirrors disk on the next repaint —
+    // FIX: the real render entry point mirrors disk on the next repaint,
     // no manual refresh action required.
     createAgentWorkspaceFullscreenComposite(workspace, 160, 40);
     const afterRepaint = workspace.runtimeSnapshot?.localRoutines.find((item) => item.id === created.id);

@@ -90,11 +90,11 @@ describe('bootstrap hook bridge session resume', () => {
   // reference directly. That reference is structurally assignable to the
   // `(sessionId: string) => void` slot this handler declares (a function with
   // an extra optional parameter satisfies a caller expecting fewer), so it
-  // compiled fine — but `resume()` below calls `options.writeLastSessionPointer(sessionId)`
+  // compiled fine, but `resume()` below calls `options.writeLastSessionPointer(sessionId)`
   // with exactly one argument, so `options` came through `undefined` on every
   // resume. writeLastSessionPointer's own try/catch swallows the resulting
   // "requires an explicit workingDirectory" failure into a logged warning, so
-  // the pointer file was silently never written after a resume — the same bug
+  // the pointer file was silently never written after a resume, the same bug
   // class that broke the TUI's resume journey. The fix is a surface-bound
   // closure (bootstrap.ts's `writeLastSessionPointerForSurface`); this test
   // exercises that exact shape end to end and proves the pointer lands on disk.
@@ -153,7 +153,7 @@ describe('bootstrap hook bridge session resume', () => {
     await Promise.resolve();
 
     // After resume: the pointer file genuinely exists on disk and names the
-    // resumed session — not just an in-memory claim.
+    // resumed session, not just an in-memory claim.
     expect(readLastSessionPointer({ surface })).toBe('resumed-session-id');
     const raw = JSON.parse(readFileSync(surface.lastSessionPointer, 'utf-8')) as { sessionId: string };
     expect(raw.sessionId).toBe('resumed-session-id');

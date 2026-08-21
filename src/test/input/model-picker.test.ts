@@ -240,7 +240,7 @@ describe('ModelPickerModal', () => {
     test('model mode inserts group headers when provider changes', () => {
       const items = picker.getItems();
       const headers = items.filter(i => i.isGroupHeader);
-      // provA, provB, provA (again — not consecutive), provC = 4 headers
+      // provA, provB, provA (again, not consecutive), provC = 4 headers
       expect(headers.length).toBe(4);
     });
 
@@ -258,7 +258,7 @@ describe('ModelPickerModal', () => {
 
     test('provider mode returns grouped list with headers', () => {
       picker.mode = 'provider';
-      // provA and provB are not in POPULAR_PROVIDERS — go to All group
+      // provA and provB are not in POPULAR_PROVIDERS, go to All group
       picker.providers = ['provA', 'provB'];
       picker.configuredProviders = new Set();
       const items = picker.getItems();
@@ -882,7 +882,7 @@ describe('ModelPickerModal', () => {
     test('appendChar clamps selectedIndex against filtered providers', () => {
       picker.selectedIndex = 3;
       picker.appendChar('g');
-      // Only 'gemini' matches — index must be 0
+      // Only 'gemini' matches, index must be 0
       expect(picker.selectedIndex).toBe(0);
     });
 

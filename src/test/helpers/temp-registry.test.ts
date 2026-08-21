@@ -7,7 +7,7 @@
  * OS temp dir plus 60 under <repo>/.test-tmp. The replacement is (a) a
  * per-process temp sandbox that `tmpdir()` resolves into, and (b) a registry
  * swept from a top-level afterAll in the preload. These tests exercise both
- * halves — including cases proving each check can still answer NO.
+ * halves, including cases proving each check can still answer NO.
  *
  * The sweep tests drive their OWN registry instance. Sweeping the shared one
  * mid-run would delete directories live test files are still using.
@@ -23,7 +23,7 @@ describe('per-process temp sandbox', () => {
   test('tmpdir() resolves inside the sandbox, not the temp dir the process inherited', () => {
     const sandbox = testTempSandbox();
     expect(tmpdir()).toBe(sandbox);
-    // A real, distinct directory UNDER the inherited temp dir — not the
+    // A real, distinct directory UNDER the inherited temp dir, not the
     // inherited dir itself, which is what "redirected" has to mean.
     expect(existsSync(sandbox)).toBe(true);
     expect(sandbox).not.toBe(outerTempDir());
@@ -39,7 +39,7 @@ describe('per-process temp sandbox', () => {
     expect(daemonHome).not.toBe('');
     expect(daemonHome.startsWith(testTempSandbox())).toBe(true);
     // NO-proof: the assertion is a real prefix test, not one every string
-    // satisfies — the pre-redirect location fails it.
+    // satisfies, the pre-redirect location fails it.
     expect(join(outerTempDir(), 'goodvibes-agent-test-daemon-home-XXXXXX').startsWith(testTempSandbox())).toBe(false);
   });
 

@@ -1,5 +1,5 @@
 /**
- * Activity sidebar — the ambient right-hand surface of the shell.
+ * Activity sidebar, the ambient right-hand surface of the shell.
  *
  * One glanceable column with at most four sections:
  *
@@ -31,7 +31,7 @@ export interface ActivitySidebarNow {
   /**
    * Background agents with their latest progress lines. `headline` is the
    * fleet read-model's per-node headline (derived from task/phase identity
-   * only, replaced in place — never a feed) and wins over the raw progress
+   * only, replaced in place, never a feed) and wins over the raw progress
    * line when present; `quietForMs` is the fleet stall tell (pure timestamp
    * comparison), rendered as a quiet-duration marker.
    */
@@ -56,11 +56,11 @@ const LIVE_FLEET_STATES: ReadonlySet<string> = new Set(['running', 'starting', '
  * nodes.
  *
  * Rows this process is running come first and carry their live progress: the
- * per-node headline (task/phase identity only — replaced in place, never a
+ * per-node headline (task/phase identity only, replaced in place, never a
  * feed) wins over the raw progress line, and the stall tell renders as a
  * quiet-duration marker. Agent-kind nodes the fleet carries that no active
- * agent here matches are work running elsewhere — the daemon's scheduled and
- * channel-driven runs — and fill whatever room is left, labeled so the two are
+ * agent here matches are work running elsewhere, the daemon's scheduled and
+ * channel-driven runs, and fill whatever room is left, labeled so the two are
  * never confused.
  */
 export function buildSidebarAgentRows(
@@ -149,7 +149,7 @@ function entryLine(width: number, entry: ActivityEntry): Line {
   const time = fmtClock(entry.at);
   const glyph = KIND_GLYPHS[entry.kind];
   const color = KIND_COLORS[entry.kind];
-  // Strip the leading "[Tag]" — the glyph and color already carry the kind,
+  // Strip the leading "[Tag]", the glyph and color already carry the kind,
   // and horizontal space is the scarcest resource in the sidebar.
   const text = entry.text.replace(/^\[[^\]]+\]\s*/, '');
   const room = Math.max(4, width - time.length - 5);
@@ -199,7 +199,7 @@ export function buildActivitySidebarLines(
     }
     for (const agent of view.now.agents.slice(0, 3)) {
       const detail = agent.headline ?? agent.progress;
-      const text = detail ? `${agent.label} — ${detail}` : agent.label;
+      const text = detail ? `${agent.label}, ${detail}` : agent.label;
       const quiet = agent.quietForMs !== undefined ? ` ${fmtQuietFor(agent.quietForMs)}` : '';
       const room = Math.max(4, width - 4 - getDisplayWidth(quiet));
       push(buildPanelLine(width, [
@@ -239,7 +239,7 @@ export function buildActivitySidebarLines(
   push(buildSectionHeader(width, 'Recent', C));
   const remaining = Math.max(0, height - lines.length);
   if (view.recent.length === 0) {
-    push(buildPanelLine(width, [[' Nothing yet — activity will show up here.', C.dim]]));
+    push(buildPanelLine(width, [[' Nothing yet, activity will show up here.', C.dim]]));
   } else {
     for (const entry of view.recent.slice(0, remaining)) {
       push(entryLine(width, entry));

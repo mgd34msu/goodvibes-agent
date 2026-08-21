@@ -3,7 +3,7 @@
  *
  *  - a captured utterance was transcribed by THIS process's voice service and
  *    nowhere else, so when its local provider threw 'local STT is not
- *    configured', the user was told speech-to-text did not exist — while the
+ *    configured', the user was told speech-to-text did not exist, while the
  *    daemon on the same machine transcribed perfectly from the same managed
  *    whisper install;
  *  - `voice.wake.enabled` was turned on for a surface whose
@@ -28,7 +28,7 @@ const audio = {
 function brokenLocalService(): { transcribe: () => Promise<{ text: string }> } {
   return {
     transcribe: async () => {
-      throw new Error('local STT is not configured — voice.local.sttEngine is not set');
+      throw new Error('local STT is not configured; voice.local.sttEngine is not set');
     },
   };
 }

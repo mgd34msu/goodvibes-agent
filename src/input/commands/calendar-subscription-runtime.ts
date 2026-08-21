@@ -12,7 +12,7 @@ import { requireShellPaths } from './runtime-services.ts';
 import { getSessionUntrustedContentLedger } from '../../trust/untrusted-content.ts';
 
 /**
- * External-calendar SUBSCRIPTION verbs for /calendar — the no-OAuth read path.
+ * External-calendar SUBSCRIPTION verbs for /calendar, the no-OAuth read path.
  * Subscriptions are iCalendar feeds (Google secret address, Outlook
  * published .ics, or any .ics URL). The parse/RRULE/fetch-status engine is the
  * SDK's platform/calendar; this file is the /calendar command surface over the
@@ -39,7 +39,7 @@ function secretStoreFrom(ctx: CommandContext): SubscriptionSecretStore | null {
 }
 
 /**
- * Build a registry for a WRITE/network verb — requires a secret manager. Returns
+ * Build a registry for a WRITE/network verb, requires a secret manager. Returns
  * null (and the caller prints the honest reason) when none is available.
  */
 export function subscriptionRegistryForWrite(ctx: CommandContext, fetcher?: FeedFetcher): CalendarSubscriptionRegistry | null {
@@ -49,7 +49,7 @@ export function subscriptionRegistryForWrite(ctx: CommandContext, fetcher?: Feed
 }
 
 /**
- * Build a registry for the READ-ONLY merged view — tolerant of a missing secret
+ * Build a registry for the READ-ONLY merged view, tolerant of a missing secret
  * manager.
  *
  * This is where the untrusted-content ledger is bound, and it is bound HERE
@@ -58,7 +58,7 @@ export function subscriptionRegistryForWrite(ctx: CommandContext, fetcher?: Feed
  * test can observe every recording by handing it a recorder of its own.
  *
  * Only the READ builder gets one. `subscriptionRegistryForWrite` above serves
- * subscribe/unsubscribe/refresh — arrival, not a turn read — and wiring a
+ * subscribe/unsubscribe/refresh, arrival, not a turn read, and wiring a
  * recorder there would let a timer-driven fetch arm the outward-effect guard for
  * whatever turn happened to be open. See the registry's class header.
  */
@@ -83,7 +83,7 @@ function parseArgs(args: readonly string[]) {
 
 function formatHealth(s: SubscriptionStatus): string {
   const base = `${s.health}`;
-  return s.detail ? `${base} — ${s.detail}` : base;
+  return s.detail ? `${base}, ${s.detail}` : base;
 }
 
 /** Render the subscribed-events section merged into /calendar list & upcoming. */
@@ -106,7 +106,7 @@ export async function runCalendarSubscriptionCommand(
   sub: string,
   args: readonly string[],
   ctx: CommandContext,
-  /** Injectable for tests — production callers pass undefined and get the real HTTP fetcher. */
+  /** Injectable for tests, production callers pass undefined and get the real HTTP fetcher. */
   fetcher?: FeedFetcher,
 ): Promise<boolean> {
   if (!CALENDAR_SUBSCRIPTION_VERBS.has(sub)) return false;
@@ -183,7 +183,7 @@ async function handleSubscribe(args: readonly string[], ctx: CommandContext, fet
   ctx.print([
     `Subscribed to '${result.name}'.`,
     `  events   ${result.eventCount} loaded`,
-    `  refresh  every ${intervalMin} min — run /calendar refresh to update now`,
+    `  refresh  every ${intervalMin} min, run /calendar refresh to update now`,
     '  These events are read-only and appear source-labeled in /calendar list.',
   ].join('\n'));
 }
@@ -241,7 +241,7 @@ async function handleRefresh(args: readonly string[], ctx: CommandContext, fetch
   ctx.print([
     `Refreshed ${outcomes.length} subscription${outcomes.length === 1 ? '' : 's'}`,
     ...outcomes.map((o) => {
-      const detail = o.detail ? ` — ${o.detail}` : '';
+      const detail = o.detail ? `, ${o.detail}` : '';
       const count = o.eventCount !== undefined ? ` (${o.eventCount} events)` : '';
       return `  ${o.name}: ${o.outcome}${count}${detail}`;
     }),

@@ -156,7 +156,7 @@ describe('loadSystemPrompt', () => {
   });
 
   test('config-specified file is appended when no CLI arg', () => {
-    // Avoid hitting real ~/.goodvibes files — just test getConfigPath injection
+    // Avoid hitting real ~/.goodvibes files, just test getConfigPath injection
     const extra = write(dir, 'extra.md', 'Extra content');
     process.argv = ['bun', 'main.ts'];
     const result = loadSystemPrompt({
@@ -171,7 +171,7 @@ describe('loadSystemPrompt', () => {
 
   test('returns empty string when no files exist and no CLI arg', () => {
     process.argv = ['bun', 'main.ts'];
-    // No config path, home files likely missing in test env — should not throw
+    // No config path, home files likely missing in test env, should not throw
     expect(() => loadSystemPrompt({
       workingDirectory: dir,
       homeDirectory: dir,

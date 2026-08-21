@@ -174,7 +174,7 @@ async function importDiscoveredSkill(args: readonly string[], ctx: CommandContex
     provenance: `Imported file (${discovered.origin}): ${discovered.path}`,
   });
   ctx.print(formatSkillReceipt('Imported Agent skill', skill, [
-    '  enabled no — imported disabled (review it, then enable it)',
+    '  enabled no, imported disabled (review it, then enable it)',
     '  review pending',
   ]));
 }

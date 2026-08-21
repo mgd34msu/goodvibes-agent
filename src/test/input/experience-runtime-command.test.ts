@@ -109,7 +109,7 @@ describe('experience runtime commands', () => {
     } as unknown as CommandContext;
 
     // The review subcommand calls requireReadModels which will reach session.getSnapshot
-    // via requireProviderApi — simulate a require* helper that throws
+    // via requireProviderApi, simulate a require* helper that throws
     const contextThrows = {
       print: (text: string) => { out.push(text); },
       platform: {},
@@ -307,7 +307,7 @@ describe('experience runtime commands', () => {
     const command = registry.get('health');
     const out: string[] = [];
     // Old-daemon mock: a platform section from a host runtime predating
-    // memory governance — no memoryGovernor field at all.
+    // memory governance, no memoryGovernor field at all.
     const context = {
       print: (text: string) => { out.push(text); },
       platform: { readModels: {} },
@@ -417,7 +417,7 @@ describe('experience runtime commands', () => {
     expect(text).toContain(`install in progress (started ${new Date(startedAt).toISOString()})`);
     expect(text).toContain('piper-engine: download (12.0 MB)');
     expect(text).toContain('piper-voice: verify (60.0 of 60.0 MB)');
-    expect(text).toContain('whisper-engine: skip — no pinned bundle for this platform');
+    expect(text).toContain('whisper-engine: skip, no pinned bundle for this platform');
     // An active install replaces the setup hint (running it again would just
     // join the same single-flight run).
     expect(text).not.toContain('next /voice setup --yes');
@@ -462,7 +462,7 @@ describe('experience runtime commands', () => {
             platform: 'linux',
             tts: { engine: 'piper', state: 'provisioned', binaryPath: '/managed/piper', modelPath: '/managed/voice.onnx' },
             // Honest terminal state for STT where goodvibes has not yet published a pinned
-            // bundle for this platform — not a fabricated success.
+            // bundle for this platform, not a fabricated success.
             stt: { engine: 'whisper.cpp', state: 'unsupported-platform', reason: 'no pinned whisper.cpp bundle published for this platform yet' },
             components: [
               { id: 'piper-engine', state: 'installed', bytes: 12_000_000 },
@@ -504,7 +504,7 @@ describe('experience runtime commands', () => {
     const command = registry.get('voice');
     const out: string[] = [];
     // A slow install (resolves after ~700ms) whose status() serves an
-    // evolving installInProgress section while it runs — the same contract a
+    // evolving installInProgress section while it runs, the same contract a
     // live daemon composition provides (sdk 5357f09e).
     let installRunning = false;
     let statusReads = 0;

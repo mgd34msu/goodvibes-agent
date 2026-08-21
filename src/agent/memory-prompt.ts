@@ -4,7 +4,7 @@ import type { MemoryRecord, MemoryRegistry, MemoryVectorStats } from '@pellux/go
 // per surface. This file re-exports them unchanged so every existing agent consumer
 // keeps importing from './memory-prompt.ts', while the SDK is the single source of the
 // floor (60, the store's own baseline), the flagged-record exclusion, and the honest
-// degraded-state distinction. The per-turn ranking below stays agent-local — it is
+// degraded-state distinction. The per-turn ranking below stays agent-local, it is
 // injection wiring on top of the contract, not the contract itself.
 import {
   MIN_PROMPT_MEMORY_CONFIDENCE,
@@ -35,7 +35,7 @@ function formatMemoryLine(record: MemoryRecord): string {
  * Per-turn semantic ranking of an already-eligible memory set.
  *
  * Eligibility (confidence + reviewState + provenance) shipped as the hard trust
- * gate but had no per-turn query to rank WITHIN that eligible set — records were only
+ * gate but had no per-turn query to rank WITHIN that eligible set, records were only
  * ever ordered by stored confidence/recency, regardless of whether they had anything to
  * do with what the user actually just asked. `rankMemoryForTurn` never touches the gate
  * itself: it only reorders the records that already cleared describeMemoryPromptEligibility,
@@ -45,11 +45,11 @@ function formatMemoryLine(record: MemoryRecord): string {
  * Degrades honestly and says why whenever it can't score: no turn text supplied, the
  * semantic index disabled/unavailable/empty, or a real query that the index has zero
  * vector matches for. In every degraded case the eligible set still gets the prior
- * confidence/recency order — never silently dropped, never silently reordered on data
+ * confidence/recency order, never silently dropped, never silently reordered on data
  * that isn't there.
  */
 export interface MemoryTurnRankingResult {
-  /** The eligible records, ranked — by relevance when `scored` is true, else by the prior confidence/recency order. */
+  /** The eligible records, ranked, by relevance when `scored` is true, else by the prior confidence/recency order. */
   readonly records: readonly MemoryRecord[];
   /** Relevance percent (0-100) per record id. Only populated when `scored` is true. */
   readonly relevanceById: ReadonlyMap<string, number>;
@@ -70,7 +70,7 @@ function describeTurnRelevanceIndexUnavailable(stats: MemoryVectorStats): string
  * Qualitative band for a 0-100 relevance-to-turn percent (F7a).
  *
  * A raw cosine-similarity percent like "28%" reads as misleadingly low out of
- * context — it can still be the single best match among the eligible set, or
+ * context, it can still be the single best match among the eligible set, or
  * a genuinely useful match on an absolute basis, but a bare number invites
  * "only 28%? that's barely relevant." Choice made here: add a qualitative
  * band NEXT TO the raw percent rather than normalizing against the turn's
@@ -101,7 +101,7 @@ export function rankMemoryForTurn(
       records: fallbackOrder(),
       relevanceById: new Map(),
       scored: false,
-      degradedReason: 'no current-turn text available for this composition — using stored confidence/recency order',
+      degradedReason: 'no current-turn text available for this composition, using stored confidence/recency order',
     };
   }
   const stats = memoryRegistry.vectorStats();
@@ -111,12 +111,12 @@ export function rankMemoryForTurn(
       records: fallbackOrder(),
       relevanceById: new Map(),
       scored: false,
-      degradedReason: `semantic index unavailable (${indexUnavailable}) — using stored confidence/recency order`,
+      degradedReason: `semantic index unavailable (${indexUnavailable}), using stored confidence/recency order`,
     };
   }
   // Request enough candidates back that every eligible record has a real chance to
   // appear with its similarity score (searchSemantic slices its return to this limit
-  // after scoring, not before) — the SDK's vector store caps the underlying KNN search
+  // after scoring, not before), the SDK's vector store caps the underlying KNN search
   // at 500 candidates regardless, so there is no point asking for more than that.
   const requestLimit = Math.min(500, Math.max(eligible.length, 50));
   const results = memoryRegistry.searchSemantic({ query: trimmedTurnText, limit: requestLimit });
@@ -126,7 +126,7 @@ export function rankMemoryForTurn(
       records: fallbackOrder(),
       relevanceById: new Map(),
       scored: false,
-      degradedReason: "no semantic match for this turn's text — using stored confidence/recency order",
+      degradedReason: "no semantic match for this turn's text, using stored confidence/recency order",
     };
   }
   const eligibleIds = new Set(eligible.map((record) => record.id));
@@ -147,15 +147,15 @@ export function rankMemoryForTurn(
 export interface BuildReviewedMemoryPromptOptions {
   readonly limit?: number;
   /** The current turn's raw text (the seam this comes from: TURN_SUBMITTED's `prompt`).
-   *  Used only to RANK the already-eligible set — never to admit an otherwise-ineligible record. */
+   *  Used only to RANK the already-eligible set, never to admit an otherwise-ineligible record. */
   readonly turnText?: string | null;
   /**
-   * Pre-fetched record set to use instead of `memoryRegistry.getAll()` — e.g. a
+   * Pre-fetched record set to use instead of `memoryRegistry.getAll()`, e.g. a
    * memory-spine recall snapshot's records (SDK 1.2.0 sync-recall seam; see
    * prompt-context-receipts.ts's `resolveMemoryRecords`). `memoryRegistry` is still
    * used for the per-turn semantic ranking query (`rankMemoryForTurn`'s
    * `vectorStats`/`searchSemantic` calls stay local-direct regardless of where the
-   * record set came from) — only the raw eligible set that ranking runs OVER is
+   * record set came from), only the raw eligible set that ranking runs OVER is
    * swappable, so the injected prompt text and any receipt describing it are always
    * derived from the exact same record set instead of two independent reads.
    */
@@ -164,7 +164,7 @@ export interface BuildReviewedMemoryPromptOptions {
 
 export function buildReviewedMemoryPrompt(memoryRegistry: MemoryRegistry, options: BuildReviewedMemoryPromptOptions = {}): string | null {
   const limit = options.limit ?? DEFAULT_LIMIT;
-  // Bound to one arg — see prompt-context-receipts.ts's resolveMemoryRecords
+  // Bound to one arg, see prompt-context-receipts.ts's resolveMemoryRecords
   // filter for why a bare `.filter(isPromptActiveMemory)` is unsafe here.
   const eligible = (options.records ?? memoryRegistry.getAll()).filter((record) => isPromptActiveMemory(record));
   const ranking = rankMemoryForTurn(memoryRegistry, eligible, options.turnText);

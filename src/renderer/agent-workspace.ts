@@ -29,7 +29,7 @@ import {
  * Rows the actions pane spends on things that are not action items or result
  * lines: its column header, the blank separator, the status line, and the two
  * possible more-above/more-below markers. Counted so the split does not promise
- * the result room that the chrome has already taken — getting this wrong is
+ * the result room that the chrome has already taken, getting this wrong is
  * what let the result be squeezed out of a short pane entirely.
  */
 const ACTION_CHROME_ROWS = 5;
@@ -651,7 +651,7 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
     : [];
   // Rows the action list and the result share, once the pane's own headers, the
   // blank separator, the status line and the two possible action markers are
-  // paid for. Reserving out of this — rather than out of the raw height — is
+  // paid for. Reserving out of this, rather than out of the raw height, is
   // what stops the reservation promising room the chrome has already spent.
   const usableRows = Math.max(0, height - ACTION_CHROME_ROWS);
   const reservedForResult = reserveForResult(resultRows.length, usableRows);

@@ -2,7 +2,7 @@
  * /calendar subscription verb + merged-view tests.
  *
  * Drives the real command surface with a fake CommandContext (tmp shellPaths +
- * in-memory secrets) and an injected FAKE fetcher — no real network. Covers the
+ * in-memory secrets) and an injected FAKE fetcher, no real network. Covers the
  * subscribe preview/save consent flow, subscriptions listing (masked URL),
  * refresh, unsubscribe, the merged read-only source-labeled list view, the
  * delete guard on subscribed ids, and the honest import report.

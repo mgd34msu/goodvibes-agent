@@ -1,5 +1,5 @@
 /**
- * GC-TOOL-004 — Runtime budget enforcement tests.
+ * GC-TOOL-004, Runtime budget enforcement tests.
  *
  * Covers per-phase budget checks for time (BUDGET_EXCEEDED_MS),
  * token consumption (BUDGET_EXCEEDED_TOKENS), and cost (BUDGET_EXCEEDED_COST).
@@ -92,7 +92,7 @@ function makeRecord(
 }
 
 // ---------------------------------------------------------------------------
-// 1. No budget — fast path (pass-through)
+// 1. No budget, fast path (pass-through)
 // ---------------------------------------------------------------------------
 
 describe('budgetPhase — no budget configured', () => {
@@ -113,7 +113,7 @@ describe('budgetPhase — no budget configured', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. BUDGET_EXCEEDED_MS — time budget
+// 2. BUDGET_EXCEEDED_MS, time budget
 // ---------------------------------------------------------------------------
 
 describe('budgetPhase — BUDGET_EXCEEDED_MS', () => {
@@ -167,7 +167,7 @@ describe('budgetPhase — BUDGET_EXCEEDED_MS', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. BUDGET_EXCEEDED_TOKENS — token budget
+// 3. BUDGET_EXCEEDED_TOKENS, token budget
 // ---------------------------------------------------------------------------
 
 describe('budgetPhase — BUDGET_EXCEEDED_TOKENS', () => {
@@ -210,7 +210,7 @@ describe('budgetPhase — BUDGET_EXCEEDED_TOKENS', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. BUDGET_EXCEEDED_COST — cost budget
+// 4. BUDGET_EXCEEDED_COST, cost budget
 // ---------------------------------------------------------------------------
 
 describe('budgetPhase — BUDGET_EXCEEDED_COST', () => {
@@ -290,7 +290,7 @@ describe('budgetPhase — error safety', () => {
     const record = makeRecord({ elapsedMs: 9999 });
     // NaN > NaN is false so no breach fires
     const result = await budgetPhase(STUB_CALL, STUB_TOOL, ctx, record, 'entry');
-    // Implementation relies on `>` — NaN comparison returns false (no breach)
+    // Implementation relies on `>`, NaN comparison returns false (no breach)
     expect(result.success).toBe(true);
   });
 });

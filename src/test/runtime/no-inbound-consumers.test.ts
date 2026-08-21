@@ -4,7 +4,7 @@
  *
  * This process never runs a daemon of its own. `src/runtime/bootstrap-external-services.ts`
  * only ever ADOPTS a connected host through the SDK's adopt-or-spawn policy
- * with `adoptOnly: true` — it never constructs, embeds, or restarts a
+ * with `adoptOnly: true`, it never constructs, embeds, or restarts a
  * DaemonServer, and there is no getUpdates/ntfy/inbox poll loop anywhere
  * under src/ outside tests.
  *
@@ -12,7 +12,7 @@
  * Constructing a daemon or starting an inbound consumer (a Telegram
  * getUpdates poll, an ntfy subscription, an inbox poller) here would be an
  * architectural change to how this process relates to the daemon it
- * connects to, and must be raised and agreed on deliberately — never made
+ * connects to, and must be raised and agreed on deliberately, never made
  * silently as a side effect of an unrelated change. These tests fail
  * loudly, with an explanation, the moment that stops being true.
  */
@@ -103,7 +103,7 @@ describe('external-services bootstrap stays adopt-only (no daemon construction)'
       'The Agent must pass { adoptOnly: true } (and no daemon-construction factory) to the SDK\'s startHostServices ' +
       'policy. adoptOnly is what stops this process from ever spawning or embedding its own DaemonServer, per the ' +
       'contract in src/runtime/bootstrap-external-services.ts. Losing this flag would let the Agent construct a ' +
-      'daemon of its own — that is an architectural change to how this process relates to the daemon it connects ' +
+      'daemon of its own; that is an architectural change to how this process relates to the daemon it connects ' +
       'to, and it must be raised and agreed on deliberately, not land as a side effect of this call site changing.',
     ).toEqual({ adoptOnly: true });
     expect(
@@ -169,7 +169,7 @@ describe('no inbound channel consumer exists anywhere under src/ (excluding test
   test('no file under src/ (excluding src/test/) starts an inbound channel consumer or constructs a daemon server', () => {
     const files: string[] = [];
     collectSourceFiles(SRC_ROOT, files);
-    expect(files.length, 'the source scan found no files at all — something is wrong with the scan itself, not the repo').toBeGreaterThan(0);
+    expect(files.length, 'the source scan found no files at all; something is wrong with the scan itself, not the repo').toBeGreaterThan(0);
 
     const violations: string[] = [];
     for (const filePath of files) {
@@ -181,7 +181,7 @@ describe('no inbound channel consumer exists anywhere under src/ (excluding test
       const relPath = relative(PROJECT_ROOT, filePath);
       for (const { needle, why } of FORBIDDEN_PATTERNS) {
         if (content.includes(needle)) {
-          violations.push(`${relPath}: contains "${needle}" — ${why}`);
+          violations.push(`${relPath}: contains "${needle}": ${why}`);
         }
       }
     }
@@ -192,7 +192,7 @@ describe('no inbound channel consumer exists anywhere under src/ (excluding test
       'per the contract in src/runtime/bootstrap-external-services.ts (startExternalServices called with ' +
       '{ adoptOnly: true }). It never constructs or embeds a daemon and never starts an inbound channel consumer ' +
       'of its own (no Telegram getUpdates poll, no ntfy subscribe, no inbox poll loop). Adding an inbound consumer ' +
-      'here is an architectural change and must be raised and agreed on deliberately, not made silently — if one ' +
+      'here is an architectural change and must be raised and agreed on deliberately, not made silently; if one ' +
       'of the violations below is intentional, stop and raise it before landing it.',
     ).toEqual([]);
   });

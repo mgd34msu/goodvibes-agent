@@ -20,7 +20,7 @@ type WrappedPromptInfo = {
  * token is handled. Paste, undo and redo are different: they delegate to
  * InputHandler methods that edit the handler's own `prompt` field. Those edits
  * used to be invisible to the caller, which then wrote its pre-action snapshot
- * of `state.prompt` back over them — a pasted image marker was inserted and
+ * of `state.prompt` back over them, a pasted image marker was inserted and
  * immediately erased, so Ctrl+V looked like it did nothing at all. Returning
  * the new prompt keeps this route state the single thing the caller reads.
  */
@@ -57,7 +57,7 @@ export type GlobalShortcutRouteState = {
   /**
    * Actions that edit the prompt on the InputHandler rather than on this
    * route state. They return where the prompt landed so the switch can copy it
-   * back — see applyPromptEdit and the note on PromptEdit.
+   * back, see applyPromptEdit and the note on PromptEdit.
    */
   handleUndo: () => PromptEdit | void;
   handleRedo: () => PromptEdit | void;

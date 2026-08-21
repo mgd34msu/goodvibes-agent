@@ -1,11 +1,11 @@
 /**
- * channel-routing-sync-receipts.ts — what happened to routing assignments that
+ * channel-routing-sync-receipts.ts, what happened to routing assignments that
  * were written before the daemon held the routing table.
  *
  * Those records were stored with `daemonSyncState: 'local_only'` and a
  * `daemonMethodNeeded: 'channels.routing.assign'` flag, which said: this
  * assignment is real, and there is no daemon method to give it to. There is
- * one now, so the flag is retired — and retiring it quietly would erase the
+ * one now, so the flag is retired, and retiring it quietly would erase the
  * only evidence an operator has that their assignment was ever in that state,
  * and whether it made it to the daemon afterwards.
  *
@@ -17,9 +17,9 @@
  * parse failure reports itself instead of taking the feature down.
  */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export type ChannelRoutingSyncOutcomeKind = 'synced' | 'refused';
@@ -141,10 +141,7 @@ export function appendChannelRoutingSyncReceipts(
     version: RECEIPT_VERSION,
     receipts: [...receipts, ...existing].slice(0, RECEIPT_LIMIT),
   };
-  mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.tmp`;
-  writeFileSync(tempPath, `${JSON.stringify(file, null, 2)}\n`, 'utf-8');
-  renameSync(tempPath, path);
+  writeStoreJson(path, file);
   return path;
 }
 

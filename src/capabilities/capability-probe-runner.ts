@@ -11,7 +11,7 @@ import type { CapabilityProbe } from './capability-types.ts';
  * A boot-time capability check must be able to tell the owner "yes, you can
  * send email" without sending one. Because probes arrive as descriptions
  * rather than functions (see CapabilityProbe), a registrant cannot smuggle an
- * effect past this boundary — adding a new kind of check means editing this
+ * effect past this boundary, adding a new kind of check means editing this
  * file deliberately.
  */
 
@@ -31,7 +31,7 @@ export interface ProbeContext {
   readonly servedOperatorMethodIds: ReadonlySet<string>;
   /**
    * Whether a configuration key holds a usable value. Takes a key and answers
-   * yes or no — it never returns the value, so a probe result can be reported
+   * yes or no, it never returns the value, so a probe result can be reported
    * to the model without leaking a password or a token.
    */
   readonly configValuePresent: (key: string) => boolean;
@@ -160,7 +160,7 @@ export function runCapabilityProbe(probe: CapabilityProbe, context: ProbeContext
       } catch {
         // Not resolvable as a module. Inside a compiled binary that is the
         // normal case rather than an answer, so the declared on-disk locations
-        // decide it — the same ones the runtime loads the package from.
+        // decide it, the same ones the runtime loads the package from.
       }
       // The completeness rule is the registrant's, so it can be the SAME rule
       // the runtime resolver applies. A directory that satisfies a weaker test

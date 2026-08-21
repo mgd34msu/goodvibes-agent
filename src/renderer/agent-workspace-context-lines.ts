@@ -59,7 +59,7 @@ function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLin
   const totalCount = snapshot.setupChecklist.length;
   const attentionCount = counts.blocked + counts.recommended;
   const progressDetail = attentionCount > 0
-    ? `${doneCount} of ${totalCount} done — ${attentionCount} need attention`
+    ? `${doneCount} of ${totalCount} done, ${attentionCount} need attention`
     : `${doneCount} of ${totalCount} done`;
   const lines: ContextLine[] = [
     { text: 'Onboarding', fg: PALETTE.title, bold: true },

@@ -110,7 +110,7 @@ describe('renderContextInspector', () => {
     // Pass a very small contextWindow so usage exceeds 80%
     const lines = renderContextInspector(conv, W, H, 4); // 4 tokens, content is ~3 tokens
     const text = linesToText(lines).join('\n');
-    // Either warning shows or doesn't depending on exact token count — just verify no crash
+    // Either warning shows or doesn't depending on exact token count, just verify no crash
     expect(lines.length).toBeGreaterThan(0);
   });
 

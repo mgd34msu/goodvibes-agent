@@ -315,7 +315,7 @@ describe('KVState.dispose', () => {
   test('dispose flushes pending data to disk', async () => {
     const kv = new KVState({ stateDir: stateDirFor(tmpDir) });
     await kv.set({ disposeKey: 'disposeVal' });
-    // Timer is pending — dispose should flush before it fires
+    // Timer is pending, dispose should flush before it fires
     await kv.dispose();
     const stateDir = join(tmpDir, '.goodvibes', 'state');
     const filePath = join(stateDir, `session_${kv.getSessionId()}.json`);

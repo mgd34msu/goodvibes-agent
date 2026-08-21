@@ -2,7 +2,7 @@
  * The `accounts` tool: the durable record of every account the agent created.
  *
  * Creating accounts autonomously, in service of work the owner asked for, is
- * authorized — it is why the agent has its own email address. What was never
+ * authorized, it is why the agent has its own email address. What was never
  * authorized is doing it invisibly. So the safety mechanism here is visibility,
  * not prohibition: every signup is recorded at creation time, the list is
  * enumerable, and every entry carries the secret-store key name that revocation
@@ -12,7 +12,7 @@
  * an account created today would leave no trace. This is the caller.
  *
  * The credential itself never reaches this tool. Only `credentialSecretKey`,
- * the NAME of the secret-store entry holding it — the registry rejects
+ * the NAME of the secret-store entry holding it, the registry rejects
  * secret-looking text in every field.
  *
  * The one boundary that does not move: an outward effect refused because
@@ -149,7 +149,7 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
             },
             ledger: getSessionUntrustedContentLedger(),
             // Enumerated rather than left to the coarse rule. Every field of a
-            // record is text a page could have supplied — the domain and the URL
+            // record is text a page could have supplied, the domain and the URL
             // most of all, since a record pointing at an attacker's host is how
             // a forged signup would be made to look like a real one. Without
             // these, recording an account after reading any page was refused
@@ -163,7 +163,7 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
             taintOptions: {
               // The domain and the URL are short and high-signal: the value
               // itself is the payload, so containment is the test rather than
-              // length. The alias is deliberately NOT here — the agent minted it
+              // length. The alias is deliberately NOT here, the agent minted it
               // for this signup, so of course it appears in the mail that signup
               // provoked, and testing it would refuse every real record.
               exactMatchFields: ['serviceDomain', 'serviceUrl'],
@@ -187,7 +187,7 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
           if (!id) return failure('accounts action:"forget" needs the record id, from accounts action:"list".');
           const removed = registry.forget(id);
           return ok(
-            `Forgot the record for ${removed.serviceDomain}. This removed the RECORD only — the account at ${removed.serviceUrl} still exists, and its credential is still under secret-store key ${removed.credentialSecretKey}.`,
+            `Forgot the record for ${removed.serviceDomain}. This removed the RECORD only, the account at ${removed.serviceUrl} still exists, and its credential is still under secret-store key ${removed.credentialSecretKey}.`,
           );
         }
 

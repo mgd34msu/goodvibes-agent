@@ -222,6 +222,19 @@ const rules: readonly Rule[] = [
     pattern: /\bprocess\.cwd\(\)|\bhomedir\(\)/,
     message: 'reusable code must not discover cwd/home implicitly; composition roots must pass owned roots explicitly',
   },
+  {
+    // Sixteen writers each hand-rolled `${path}.tmp` + rename, every one of them
+    // copied from the last. A fixed temp name is shared by every writer, so two
+    // processes splice their bytes into one file and the second rename promotes
+    // the splice. Catching the whole `${...}.tmp` shape (not just the fixed one)
+    // is deliberate: the pid-suffixed copies that got this right are exactly
+    // what the next writer would be copied from, correct-looking either way.
+    name: 'no-hand-rolled-store-temp-writes',
+    files: nonTestFiles,
+    allow: ['src/utils/store-file.ts'],
+    pattern: /\$\{[^`]*\}\.tmp`/,
+    message: 'store writes must go through writeStoreFile/writeStoreJson in src/utils/store-file.ts instead of building their own temp path',
+  },
 ];
 
 for (const rule of rules) {
@@ -239,7 +252,7 @@ for (const rule of rules) {
 // mkdtemp/mkdtempSync call, bypassing makeProjectTempDir
 // (src/test/helpers/project-temp.ts). This check is file-level, not
 // call-site-level, so a file would land here either because one call site
-// deliberately needs real os.tmpdir() (a reviewed exception — document the
+// deliberately needs real os.tmpdir() (a reviewed exception, document the
 // reason at that call site, and add its prefix to
 // scripts/stale-tmp-sweep.ts's KNOWN_TMPDIR_PREFIXES so the sweep covers
 // it), or because it merely happens to call both APIs for unrelated
@@ -247,12 +260,12 @@ for (const rule of rules) {
 // this (including git/service.test.ts's non-repo probes and its
 // git-created bare/clone/worktree targets) has been migrated onto
 // makeProjectTempDir or a location outside both the repo and TMPDIR
-// redirection — see src/test/scripts/internal-identifier-gate.test.ts's
+// redirection, see src/test/scripts/internal-identifier-gate.test.ts's
 // non-repo case and src/test/git/service.test.ts's makeExternalDir for the
 // two remaining exceptions to what "needs real os.tmpdir()" looks like,
 // neither of which combines mkdtemp with tmpdir() at the same call site.
 // Add to it only for a new, reviewed, equally-necessary case. The two entries
-// below are not consumers of the sandbox — they ARE it, so neither can be
+// below are not consumers of the sandbox, they ARE it, so neither can be
 // expressed in terms of makeProjectTempDir without pointing the mechanism at
 // itself. Its prefix is registered in scripts/stale-tmp-sweep.ts's
 // KNOWN_TMPDIR_PREFIXES so a killed run is still reclaimed.
@@ -461,7 +474,7 @@ for (const method of catalog.list()) {
 // file paths, commit hashes, or versions. See internal-identifier-rule.ts
 // (ported from goodvibes-tui/scripts/internal-identifier-rule.ts).
 // Scope: src, scripts, docs markdown, and TRACKED text under .goodvibes/
-// (git-tracked .md/.json only — runtime state there is untracked and
+// (git-tracked .md/.json only, runtime state there is untracked and
 // machine-local). The .goodvibes/audit/ decision records are scanned but
 // exempted inside the rule itself, a documented reviewed exemption.
 

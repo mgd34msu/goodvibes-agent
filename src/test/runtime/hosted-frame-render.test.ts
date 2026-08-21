@@ -2,7 +2,7 @@
  * hosted-frame-render.test.ts
  *
  * When a turn's loop runs in the daemon, this surface has no provider response
- * to render — only the hosted session's event frames. These tests hand the
+ * to render, only the hosted session's event frames. These tests hand the
  * mapping those frames directly and check what lands in the conversation, so a
  * rendering defect shows up here rather than as a turn that looked wrong on
  * someone's screen.

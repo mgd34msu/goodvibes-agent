@@ -239,7 +239,7 @@ describe('getCatalogModelDefinitionsFrom', () => {
     const reasoningModel = defs.find((def) => def.id === 'claude-sonnet-4-6');
     expect(reasoningModel?.capabilities.reasoning).toBe(true);
     // Claude Sonnet 4.6 has no reasoning_options in this fixture, so the SDK's
-    // curated family table supplies its real levels (low/medium/high/max) —
+    // curated family table supplies its real levels (low/medium/high/max),
     // not the old fixed instant/low/medium/high guess, which Anthropic never
     // actually accepted for this model.
     expect(reasoningEffortLevels(reasoningModel?.reasoningEffort)).toEqual(['low', 'medium', 'high', 'max']);
@@ -362,7 +362,7 @@ describe('nameToSlug', () => {
 });
 
 // ---------------------------------------------------------------------------
-// normalizeModelName — preserved vs stripped identifiers
+// normalizeModelName, preserved vs stripped identifiers
 // ---------------------------------------------------------------------------
 
 describe('normalizeModelName', () => {
@@ -445,7 +445,7 @@ describe('normalizeModelName', () => {
 });
 
 // ---------------------------------------------------------------------------
-// buildSyntheticCanonicalModels — slug-based merging in broad families
+// buildSyntheticCanonicalModels, slug-based merging in broad families
 // ---------------------------------------------------------------------------
 
 function makeCatalogModel(

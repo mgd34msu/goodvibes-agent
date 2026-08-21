@@ -122,14 +122,14 @@ describe('SettingsModal payments category', () => {
     // SDK 2.0.5 dropped the Cents suffix and the minor-unit storage: the
     // config now holds exactly the number a person typed ("19.99" stores as
     // 19.99, not 1999), so there is no cent-rounding math left to prove here
-    // — only that the value survives the edit buffer unchanged.
+    //, only that the value survives the edit buffer unchanged.
     test.each(['0.1', '0.29', '19.99', '1234.56'])('typing %s stores that exact amount and re-editing shows it back', (typed) => {
       while (modal.currentCategory !== 'payments') modal.nextCategory();
       modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItem');
       modal.activateSelected();
       expect(modal.editingMode).toBe(true);
       // The edit buffer opens on the raw stored default (0), not a
-      // currency-formatted string — there is no unit to format for anymore.
+      // currency-formatted string, there is no unit to format for anymore.
       expect(modal.editBuffer).toBe('0');
 
       modal.editBuffer = typed;
@@ -144,7 +144,7 @@ describe('SettingsModal payments category', () => {
 
     // Every other payments.budget.* amount key drives the identical path,
     // but each gets its own assertion here rather than inheriting
-    // dailyItem's — a wrong key name on any one of these would silently
+    // dailyItem's, a wrong key name on any one of these would silently
     // read/write the wrong config path and only its own test would catch it.
     test.each([
       ['payments.budget.dailyOverage', '0.29'],
@@ -162,7 +162,7 @@ describe('SettingsModal payments category', () => {
   });
 
   describe('payments keys that are NOT money keep their plain numeric form', () => {
-    // These four are counts and minutes, never amounts of payments.currency —
+    // These four are counts and minutes, never amounts of payments.currency,
     // config/payments-money-format.ts's isMoneyConfigKey would say so for
     // any of them, since none carries the schema's `unit: 'money'` mark. The
     // edit/commit path treats every number setting identically now (money or
@@ -189,7 +189,7 @@ describe('SettingsModal payments category', () => {
       expect(modal.commitEdit()).toBe(true);
       expect(cm.get(configKey)).toBe(firstStored as number);
 
-      // A second, different value through the same path — so this is a test of
+      // A second, different value through the same path, so this is a test of
       // the conversion rule and not of one lucky number.
       modal.activateSelected();
       expect(modal.editBuffer).toBe(String(firstStored));
@@ -231,7 +231,7 @@ describe('SettingsModal payments category', () => {
     modal.activateSelected();
     expect(cm.get('payments.enabled')).toBe(true);
 
-    // And back — a toggle that only ever turns something ON is a switch the
+    // And back, a toggle that only ever turns something ON is a switch the
     // owner cannot undo where he found it.
     modal.activateSelected();
     expect(cm.get('payments.enabled')).toBe(false);
@@ -250,7 +250,7 @@ describe('SettingsModal payments category', () => {
     // SDK 2.0.5 removed the currency-dependent minor-unit conversion this
     // used to prove (JPY's zero-decimal exponent used to change what "500"
     // meant). A money key's value is now the plain number typed, independent
-    // of payments.currency, so switching to JPY changes nothing about it —
+    // of payments.currency, so switching to JPY changes nothing about it,
     // including that a two-decimal amount still stores exactly as typed.
     while (modal.currentCategory !== 'payments') modal.nextCategory();
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.currency');
@@ -301,7 +301,7 @@ describe('SettingsModal payments category', () => {
       .map((setting) => setting.key)
       .filter((key) => /cvv|\bpan\b|cardnumber/i.test(key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`)))
       // cvvHandling is a MODE (stored/prompt), never the card verification
-      // value itself — the schema's own docs say the number/CVV never appear
+      // value itself, the schema's own docs say the number/CVV never appear
       // here at all, which this asserts structurally rather than trusting prose.
       .filter((key) => key !== 'payments.cvvHandling');
     expect(suspicious).toEqual([]);

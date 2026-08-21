@@ -1,5 +1,5 @@
 /**
- * System-message noise policy — decides whether an operational status message
+ * System-message noise policy, decides whether an operational status message
  * should reach the Recent feed / transcript unchanged, be dropped, or be folded.
  * Every noisy source these rules catch funnels through SystemMessageRouter, so
  * this one classifier is where first-run plumbing is kept out of the user's
@@ -26,9 +26,9 @@ export interface NoiseGateDeps {
 export type NoiseVerdict =
   /** Pass through to the feed/transcript unchanged. */
   | { readonly action: 'emit' }
-  /** Suppress entirely — reachable via another live surface. */
+  /** Suppress entirely, reachable via another live surface. */
   | { readonly action: 'drop' }
-  /** Provider "from last session" replay line — buffer and fold to one line. */
+  /** Provider "from last session" replay line, buffer and fold to one line. */
   | { readonly action: 'foldProviderReplay' };
 
 const EMIT: NoiseVerdict = { action: 'emit' };
@@ -57,18 +57,18 @@ const TERMINAL_CAPTURED_RE = /^\[Terminal\] Captured \d+ direct /;
  * lookup, so it is trivially testable.
  */
 export function classifyNoise(message: string, deps: NoiseGateDeps): NoiseVerdict {
-  // Agent-specific — the terminal-output guard's aggregate captured-write notice.
+  // Agent-specific, the terminal-output guard's aggregate captured-write notice.
   // Kept out of the Recent feed; the detail stays in the activity log.
   if (TERMINAL_CAPTURED_RE.test(message)) {
     return DROP;
   }
 
-  // 1b — provider-discovery replay burst ("[Local] … — from last session").
+  // 1b, provider-discovery replay burst ("[Local] …, from last session").
   if (message.startsWith('[Local]') && PROVIDER_REPLAY_RE.test(message)) {
     return FOLD;
   }
 
-  // 1d — periodic "[Agents] N running:" status snapshot. The same live detail
+  // 1d, periodic "[Agents] N running:" status snapshot. The same live detail
   // is shown in the fleet/agents surface and the footer count, so the periodic
   // transcript churn is dropped. Meaningful lifecycle lines ("[Agents] ✓ …",
   // "[Agents] Cohort …", "[Agents] ✗ …") do not match.
@@ -76,7 +76,7 @@ export function classifyNoise(message: string, deps: NoiseGateDeps): NoiseVerdic
     return DROP;
   }
 
-  // 1c — stale "[Replay] … waiting for action" for a terminal/killed chain.
+  // 1c, stale "[Replay] … waiting for action" for a terminal/killed chain.
   if (message.startsWith('[Replay]') && deps.isChainTerminal) {
     const match = REPLAY_CHAIN_RE.exec(message);
     if (match && deps.isChainTerminal(match[1])) return DROP;
@@ -85,7 +85,7 @@ export function classifyNoise(message: string, deps: NoiseGateDeps): NoiseVerdic
   return EMIT;
 }
 
-/** Provider name from a "[Local] <name> at host:port (…) — from last session" line. */
+/** Provider name from a "[Local] <name> at host:port (…), from last session" line. */
 export function providerNameFromReplay(message: string): string {
   const match = /^\[Local\]\s+(.+?)\s+at\s/.exec(message);
   if (match) return match[1];

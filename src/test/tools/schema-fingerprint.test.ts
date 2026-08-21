@@ -22,7 +22,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/tools';
 
 // ---------------------------------------------------------------------------
-// computeSchemaFingerprintSync — stability
+// computeSchemaFingerprintSync, stability
 // ---------------------------------------------------------------------------
 
 describe('computeSchemaFingerprintSync — stability', () => {
@@ -83,7 +83,7 @@ describe('computeSchemaFingerprintSync — stability', () => {
 });
 
 // ---------------------------------------------------------------------------
-// computeSchemaFingerprint (async) — stability
+// computeSchemaFingerprint (async), stability
 // ---------------------------------------------------------------------------
 
 describe('computeSchemaFingerprint (async) — stability', () => {
@@ -112,7 +112,7 @@ describe('computeSchemaFingerprint (async) — stability', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getSchemaShapeId — canonical IDs
+// getSchemaShapeId, canonical IDs
 // ---------------------------------------------------------------------------
 
 describe('getSchemaShapeId — canonical shape IDs', () => {
@@ -141,7 +141,7 @@ describe('getSchemaShapeId — canonical shape IDs', () => {
 });
 
 // ---------------------------------------------------------------------------
-// appendSchemaFingerprint — feature flag off (default)
+// appendSchemaFingerprint, feature flag off (default)
 // ---------------------------------------------------------------------------
 
 describe('appendSchemaFingerprint — flag disabled (default)', () => {
@@ -164,7 +164,7 @@ describe('appendSchemaFingerprint — flag disabled (default)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// appendSchemaFingerprint — feature flag on (mocked)
+// appendSchemaFingerprint, feature flag on (mocked)
 // ---------------------------------------------------------------------------
 
 describe('appendSchemaFingerprint — flag enabled (mocked)', () => {

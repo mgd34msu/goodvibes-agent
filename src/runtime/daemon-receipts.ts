@@ -4,7 +4,7 @@
  * The daemon keeps honesty receipts ("updated from X to Y", "restarted
  * after a crash at HH:MM", settings-migration notes) and delivers the
  * undelivered ones ONLY to a `/status` read that opts in with
- * `?receipts=consume` — a plain `/status` read is receipt-neutral. Delivery is
+ * `?receipts=consume`, a plain `/status` read is receipt-neutral. Delivery is
  * destructive at the daemon (served exactly once to the consuming reader), so
  * whichever read consumes them must render them or they are lost. The agent's
  * consuming reader is a single `?receipts=consume` read issued once per attach
@@ -18,7 +18,7 @@
  * What stays agent-local is this buffering
  * feed: it delivers receipts captured before the renderer exists (the first
  * consuming read can fire during boot, before the render sink attaches),
- * exactly once each (dedupe by id), as soon as — and whenever — a delivery
+ * exactly once each (dedupe by id), as soon as, and whenever, a delivery
  * sink is attached. That buffering/render-sink behavior is agent-specific
  * presentation, not transport.
  */

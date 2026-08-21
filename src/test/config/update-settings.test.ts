@@ -1,6 +1,6 @@
 /**
  * `update.*` settings reader: the launch-time self-update is a real
- * configurable feature — `update.autoUpdateAtLaunch: false` is the explicit
+ * configurable feature, `update.autoUpdateAtLaunch: false` is the explicit
  * persisted off switch (default ON lives in the consumer), and the check
  * timeout is user-tunable within clamped bounds.
  */

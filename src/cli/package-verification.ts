@@ -95,8 +95,8 @@ const REQUIRED_PACKAGE_FILE_EXCLUSIONS = [
  *
  * Every compiling build ends by staging the browser driver next to the binary.
  * That is not decoration: playwright-core is the one runtime dependency this
- * package has and it CANNOT be bundled — it loads browsers.json and its own
- * driver files from disk at run time — so a build that compiled without
+ * package has and it CANNOT be bundled, it loads browsers.json and its own
+ * driver files from disk at run time, so a build that compiled without
  * staging would produce a binary whose browser tool fails on first use, and
  * pass every check that only looked at the compile flags.
  */
@@ -131,7 +131,7 @@ const REQUIRED_PACKAGE_SCRIPTS: Readonly<Record<string, string>> = {
   // build runs BEFORE test, deliberately. Two release-gate cases in
   // package-verification.test.ts are skipped unless dist/package/main.js and
   // bin/goodvibes-agent.ts exist, so with the build last those two silently
-  // did not run in CI at all — a gate that reports green partly by not
+  // did not run in CI at all, a gate that reports green partly by not
   // looking. Building first costs nothing and makes them real.
   'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run typecheck:tools && bun run build && bun run test && bun run coverage:gate && bun run architecture:check && bun run workflows:check && bun run perf:check && bun run publish:check && bun run package:install-check && bun run verification:ledger',
   'build:prod': 'bun run scripts/build.ts',
@@ -202,7 +202,7 @@ const PACKAGE_FACING_FORBIDDEN_TEXT = [
   // against, not something a reader installs. The UNSCOPED `goodvibes-daemon`
   // is not banned: it is this package's one declared dependency (see
   // src/test/deps/dependency-check.test.ts), and the install instructions have
-  // to name it — `bun pm trust -g goodvibes-daemon` is the step that lets the
+  // to name it, `bun pm trust -g goodvibes-daemon` is the step that lets the
   // daemon's postinstall place its binary, and `goodvibes-daemon --version` is
   // how a reader checks both commands landed. Banning the string would make
   // the README and docs/getting-started.md unwritable.
@@ -1494,7 +1494,7 @@ function verifyGithubReleaseWorkflowPolicy(root: string): readonly string[] {
   const source = readFileSync(releaseWorkflowPath, 'utf-8');
   // By-reference validation: the release verifies the push-CI run is per-job
   // green via the shared reusable-release-verify workflow (the Agent bunx-es the
-  // published toolchain — toolchain-source: registry) instead of re-running gates.
+  // published toolchain, toolchain-source: registry) instead of re-running gates.
   const requiredMarkers = [
     'reusable-release-verify.yml',
     'workflow: ci.yml',
@@ -1861,7 +1861,7 @@ function verifyProductionBuildScriptPolicy(root: string): readonly string[] {
   // The compile matrix + sqlite-vec addon copy/cross-fetch + prebuild now live in
   // the shared @pellux/goodvibes-toolchain build-binaries; scripts/build.ts
   // forwards to it (bun build --compile, --external addon, dist/lib addon copy,
-  // cross-target npm-pack fetch — all config-driven). This policy asserts the
+  // cross-target npm-pack fetch, all config-driven). This policy asserts the
   // delegation AND that the matrix/addon layout are intact in toolchain.config.json.
   const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
     { marker: 'goodvibes-build-binaries', label: 'shared toolchain build-binaries invocation' },
@@ -2560,8 +2560,8 @@ function verifyHarnessModeRouteReferences(root: string): readonly string[] {
       // their own mode vocabularies: `agent_artifacts mode:"..."` was already
       // carved out by name, and the browser round added `mcp mode:"call"`,
       // which hit the same wall. Rather than keep a list of every other tool
-      // that ever appears here — a list whose next omission is another false
-      // failure at release time — the owning tool is read from the token
+      // that ever appears here, a list whose next omission is another false
+      // failure at release time, the owning tool is read from the token
       // immediately before `mode:`. A reference with no such token, or one
       // naming agent_harness itself, is checked; a reference naming a
       // different tool belongs to that tool.
@@ -3140,7 +3140,7 @@ function verifyModelToolRuntimeCompactionPolicy(root: string): readonly string[]
   }
 
   // bootstrap.ts delegates the tool registrations to bootstrap-agent-tools.ts,
-  // so that is where the compaction call has to be — naming bootstrap.ts here
+  // so that is where the compaction call has to be, naming bootstrap.ts here
   // would assert the presence of a line in the file that no longer registers
   // anything.
   for (const relativePath of ['src/runtime/bootstrap-core.ts', 'src/runtime/bootstrap-agent-tools.ts']) {
@@ -3373,15 +3373,15 @@ const RELEASE_NOTES_STAMP_PATTERN = /^GoodVibes Agent ([0-9]+\.[0-9]+\.[0-9]+)\s
  * against a string instead of against a whole repository on disk.
  *
  * The version check exists because this file went seven releases without being
- * rewritten — 1.15.0's notes, describing the phone tool and triggers, shipped
+ * rewritten, 1.15.0's notes, describing the phone tool and triggers, shipped
  * inside the published package as late as 1.21.0. Nothing caught it: the only
  * rules here counted bullets and banned marketing words, and stale notes pass
  * both. `release/release-notes.md` is in package.json's `files` list, so what
  * this misses is what a reader opens.
  *
  * A stamp naming the release is used rather than "the notes mention the
- * version somewhere": the stale file DID contain a version string — the
- * platform runtime's, in its last bullet — and for several releases the two
+ * version somewhere": the stale file DID contain a version string, the
+ * platform runtime's, in its last bullet, and for several releases the two
  * numbers happened to coincide, so a substring rule would have been green
  * against exactly the file this is meant to reject.
  */
@@ -3397,7 +3397,7 @@ export function releaseNotesTextIssues(content: string, packageVersion: string):
     issues.push(`release notes must end with a line naming the release, like "GoodVibes Agent ${packageVersion} - YYYY-MM-DD".`);
   } else {
     if (packageVersion.length > 0 && stamp[1] !== packageVersion) {
-      issues.push(`release notes describe ${stamp[1]} but this release is ${packageVersion} — rewrite them for what is shipping.`);
+      issues.push(`release notes describe ${stamp[1]} but this release is ${packageVersion}, rewrite them for what is shipping.`);
     }
     const date = new Date(`${stamp[2]!}T00:00:00.000Z`);
     if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== stamp[2]) {
@@ -3430,7 +3430,7 @@ function verifyReleaseReleaseNotesPolicy(root: string, packageVersion: string): 
       break;
     }
   }
-  // Release notes describe what actually changed — no mandatory marketing
+  // Release notes describe what actually changed, no mandatory marketing
   // themes, and no superlatives that a reader cannot verify from the diff.
   const hypePhrases = [
     'best-in-class',

@@ -1,5 +1,5 @@
 /**
- * startup-theme-probe.ts — install the OSC-11 background probe at
+ * startup-theme-probe.ts, install the OSC-11 background probe at
  * startup and wire its resolved mode to the ported theme system.
  *
  * Thin composition seam extracted from main.ts: it binds R2's

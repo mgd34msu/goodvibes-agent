@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { AgentChannelDeliveryInput, AgentChannelDeliveryResult } from './channel-delivery.ts';
 
@@ -271,10 +271,7 @@ export function recordAgentChannelDeliveryReceipt(
     version: RECEIPT_VERSION,
     receipts: [receipt, ...current].slice(0, RECEIPT_LIMIT),
   };
-  mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.tmp`;
-  writeFileSync(tempPath, `${JSON.stringify(next, null, 2)}\n`, 'utf-8');
-  renameSync(tempPath, path);
+  writeStoreJson(path, next);
   return receipt;
 }
 

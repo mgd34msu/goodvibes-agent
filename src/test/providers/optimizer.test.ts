@@ -133,7 +133,7 @@ describe('ProviderOptimizer — mode transitions', () => {
   test('setMode pinned preserves existing pin state', () => {
     const opt = makeOptimizer();
     opt.pin('anthropic', 'claude-opus-4-5');
-    // pin() already sets mode to pinned — setting it again keeps pin
+    // pin() already sets mode to pinned, setting it again keeps pin
     opt.setMode('pinned');
     expect(opt.mode).toBe('pinned');
     expect(opt.pinnedTarget).toEqual({
@@ -177,7 +177,7 @@ describe('ProviderOptimizer — pin / unpin', () => {
 });
 
 // ---------------------------------------------------------------------------
-// selectRoute — disabled (returns null)
+// selectRoute, disabled (returns null)
 // ---------------------------------------------------------------------------
 
 describe('ProviderOptimizer — selectRoute disabled', () => {
@@ -195,7 +195,7 @@ describe('ProviderOptimizer — selectRoute disabled', () => {
 });
 
 // ---------------------------------------------------------------------------
-// selectRoute — enabled (exercises capability registry)
+// selectRoute, enabled (exercises capability registry)
 // ---------------------------------------------------------------------------
 
 describe('ProviderOptimizer — selectRoute enabled', () => {

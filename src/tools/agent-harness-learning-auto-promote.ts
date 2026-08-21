@@ -143,18 +143,16 @@ function tryConsolidateNonMemoryCandidate(
   if (!plan) throw new Error('No consolidation plan on candidate.');
   const domain = domainForCandidate(candidate);
 
-  // Use a no-op MemoryRegistry sentinel — it is never called because domain
+  // Use a no-op MemoryRegistry sentinel, it is never called because domain
   // is already checked above (domainForCandidate throws for non-consolidatable domains).
   const nullMemory = null as unknown as MemoryRegistry;
   const lines: string[] = [];
 
-  // Merge survivor fields when present
   if (plan.updateFields) {
     updateSurvivor(shellPaths, nullMemory, domain, plan.survivorId, plan.updateFields);
     lines.push(`merged survivor ${domain}:${plan.survivorId}`);
   }
 
-  // Mark duplicates stale then delete
   for (const dupId of plan.duplicateIds) {
     try {
       markDuplicateStale(shellPaths, nullMemory, domain, dupId, plan.survivorId);
@@ -181,7 +179,7 @@ function tryConsolidateNonMemoryCandidate(
  * memory records, personas, and routines. This function assumes that gate has
  * already been cleared.
  *
- * Secret scanning is enforced by each registry's create() method — this
+ * Secret scanning is enforced by each registry's create() method, this
  * function does NOT bypass it.
  *
  * Memory domain consolidation is intentionally skipped: MemoryRegistry is a
@@ -261,7 +259,7 @@ export async function runAutoPromoter(
         }
         default: {
           // No create path for this target (e.g. notes-to-knowledge is a
-          // workspace action that requires a browser session — skip it).
+          // workspace action that requires a browser session, skip it).
           skipped += 1;
           continue;
         }

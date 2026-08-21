@@ -123,7 +123,7 @@ describe('calendar OAuth advanced-credentials wizard', () => {
     expect(editor.fields.at(-1)?.id).toBe('confirm');
   });
 
-  // F1c: the card's message is build-state-aware — it must stop claiming
+  // F1c: the card's message is build-state-aware, it must stop claiming
   // "most people can skip this and just run the connect command" while a
   // bare connect always fails at the config stage (the placeholder state),
   // and it should keep that original skip-this wording once a client id has
@@ -229,7 +229,7 @@ describe('CalendarOAuthService config resolution', () => {
     // The other value of the same setting: a client id with no secret
     // reference beside it. A public client with "Allow public client flows"
     // enabled needs no secret, so this is a real configuration rather than an
-    // error — and the overrides must carry no secret at all rather than an
+    // error, and the overrides must carry no secret at all rather than an
     // empty string, which the connector would try to send.
     const noRef = new CalendarOAuthService({
       config: mapConfig({ 'calendar.microsoft.clientId': 'ms-id' }),
@@ -247,7 +247,7 @@ describe('CalendarOAuthService config resolution', () => {
   });
 
   // F1b: the guard's error is a flat, deterministic statement (nothing about it
-  // is a maybe — no client id ships, so an environment where nobody registered
+  // is a maybe, no client id ships, so an environment where nobody registered
   // an app is always this state) carrying the exact next step, not a hedged
   // "either...or" pair of possibilities.
   test('the not-configured guard states the situation flatly and names the exact next step, per provider', async () => {
@@ -348,7 +348,7 @@ describe('calendar connect/disconnect/accounts commands', () => {
   });
 
   // F1a: a bare `/calendar connect` (no provider at all) is a dead end today
-  // without a real guide — it must explain what connecting does, name both
+  // without a real guide, it must explain what connecting does, name both
   // providers, and (since this build always ships the SDK placeholder client
   // ids) state that honestly with the concrete next steps, not a bare usage
   // line.

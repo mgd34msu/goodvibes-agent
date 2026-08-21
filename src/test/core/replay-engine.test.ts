@@ -1,5 +1,5 @@
 /**
- * Tests for DeterministicReplayEngine — Section 5.2
+ * Tests for DeterministicReplayEngine, Section 5.2
  *
  * Covers: load (valid/empty), step (forward/boundary), seek,
  * diff (match/mismatch), export path validation, engine state transitions.
@@ -230,7 +230,7 @@ describe('DeterministicReplayEngine', () => {
       loadEngine(engine, [makeEntry(1, 'turn:start', { prompt: 'hello' })]);
       // Replace the recorded entry in _entries with one that has extra keys.
       // The frame was built from { prompt: 'hello' } but the recorded entry now
-      // claims { prompt: 'hello', extra: 'field' } — a genuine payload_mismatch.
+      // claims { prompt: 'hello', extra: 'field' }, a genuine payload_mismatch.
       (engine as unknown as { _entries: LedgerEntry[] })._entries = [
         makeEntry(1, 'turn:start', { prompt: 'hello', extra: 'field' }),
       ];
@@ -358,7 +358,7 @@ describe('DeterministicReplayEngine', () => {
     });
 
     test('returns without throwing when idle', async () => {
-      // export() returns early (no throw) when idle — never writes a file,
+      // export() returns early (no throw) when idle, never writes a file,
       // so there's nothing to clean up here.
       await expect(engine.export(join(tmpdir(), 'gv-agent-replay-idle-test.json'))).resolves.toBeUndefined();
     });
@@ -367,7 +367,7 @@ describe('DeterministicReplayEngine', () => {
     // own export() path-traversal guard explicitly allows real os.tmpdir()
     // as a second root alongside the project root (see
     // node_modules/@pellux/goodvibes-sdk .../deterministic-replay.js's
-    // `tempRoot = resolve(tmpdir())` check) — this test exists specifically
+    // `tempRoot = resolve(tmpdir())` check), this test exists specifically
     // to exercise that branch, so the path must resolve under the REAL
     // system temp directory, not this repo's `.test-tmp/`. export() really
     // does write the file in this case (the engine isn't idle), so it's

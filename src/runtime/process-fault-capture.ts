@@ -1,5 +1,5 @@
 /**
- * process-fault-capture.ts — what the agent leaves behind when it dies.
+ * process-fault-capture.ts, what the agent leaves behind when it dies.
  *
  * Why this exists: the agent died on an uncaught exception and the stack
  * existed ONLY on the operator's terminal. The activity log had nothing, no
@@ -11,8 +11,8 @@
  * path that recorded nothing.
  *
  * What it guarantees, in this order, on the way out:
- *   1. a durable crash record — stack, version, pid, active session id,
- *      timestamp — in the bounded crash log under the surface root;
+ *   1. a durable crash record, stack, version, pid, active session id,
+ *      timestamp, in the bounded crash log under the surface root;
  *   2. a line in the shared activity log, flushed SYNCHRONOUSLY (the logger
  *      batches on a timer that a dying process never reaches);
  *   3. a descriptor write to stderr, which the full-screen output guard cannot
@@ -23,8 +23,8 @@
  * cheapest, most durable sink goes first, because each later step is one more
  * chance to fail before anything has landed.
  *
- * `unhandledRejection` keeps its existing non-fatal behaviour — it notifies and
- * the process survives — but now also leaves a crash record, because "the agent
+ * `unhandledRejection` keeps its existing non-fatal behaviour, it notifies and
+ * the process survives, but now also leaves a crash record, because "the agent
  * misbehaved but stayed up" was equally invisible after the fact.
  *
  * WHERE THE RECORD LOGIC LIVES: in the SDK
@@ -33,8 +33,8 @@
  * registry knows about it, so the platform janitor bounds the file by age and
  * total size for every surface rather than only by the record count enforced on
  * write. The agent carried its own copy of the builder, reader and bounded
- * appender for exactly one release — the SDK export was not published yet and
- * the agent needed to stop dying silently that day — and this file now imports
+ * appender for exactly one release, the SDK export was not published yet and
+ * the agent needed to stop dying silently that day, and this file now imports
  * the canonical one. The shapes and the caps were written to match, so this is
  * a substitution, not a behaviour change. What stays here is the wiring: which
  * handlers get registered, what the agent writes to stderr on the way out, and
@@ -58,7 +58,7 @@ export interface ProcessFaultCaptureDeps {
   readonly render: () => void;
   /** Resolves the home-anchored surface path for the crash log. */
   readonly shellPaths: { resolveUserPath: (...segments: string[]) => string };
-  /** Read at fault time, not at install time — the active session changes. */
+  /** Read at fault time, not at install time, the active session changes. */
   readonly activeSessionId: () => string | null;
   /** Injectable for tests; defaults to the real process exit. */
   readonly exit?: (code: number) => void;
@@ -70,7 +70,7 @@ export interface ProcessFaultCaptureDeps {
 export interface ProcessFaultCapture {
   /** Register both process-level listeners. */
   register(): void;
-  /** Remove both listeners — called from the orderly exit path. */
+  /** Remove both listeners, called from the orderly exit path. */
   dispose(): void;
   /**
    * Record a fault without registering anything. Exposed so a test can drive

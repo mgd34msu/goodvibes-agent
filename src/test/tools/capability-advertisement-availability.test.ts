@@ -9,8 +9,8 @@
  * genuinely REST-served, invokable method in the 2.0.0 operator contract,
  * so it can no longer stand in for "unavailable." The unavailable example
  * is now picked DYNAMICALLY: the first method (by id) in the live operator
- * contract with no `http` transport binding — a ws-only method such as
- * `sessions.hosted.*` or `acp.agents.list` — because agent_operator_method
+ * contract with no `http` transport binding, a ws-only method such as
+ * `sessions.hosted.*` or `acp.agents.list`, because agent_operator_method
  * only ever calls over HTTP (see agent-operator-method-tool.ts's
  * prepareOperatorRoute). If the contract ever stops publishing any ws-only
  * method, the scan below fails loudly rather than silently passing against
@@ -21,21 +21,21 @@
  *
  * 1. Discovery (agent-harness-operator-methods.ts): its catalog is built
  *    only from contract methods that carry an `http` route, so a ws-only
- *    method is never advertised at all — operator_methods/operator_method
+ *    method is never advertised at all, operator_methods/operator_method
  *    never offer it as a callable option in the first place, which is a
  *    stronger honesty guarantee than advertising it and marking it
  *    unavailable.
  * 2. Execution (agent-operator-method-tool.ts): agent_operator_method's own
  *    method catalog is NOT filtered by transport, so it does resolve the
  *    id, but prepareOperatorRoute refuses before any fetch because the
- *    method carries no http method/path to build a request from — the
+ *    method carries no http method/path to build a request from, the
  *    model must not be handed a tool it cannot call as if it were live.
  * 3. Regression guard: genuinely-served methods (automation.schedules.create,
  *    channels.drafts.save, the email.* family) must still render as available
- *    and stay callable through the same paths — the degradation must not cry
+ *    and stay callable through the same paths, the degradation must not cry
  *    wolf on live capabilities.
  *
- * No real daemon runs here — the execution test proves the refusal happens
+ * No real daemon runs here, the execution test proves the refusal happens
  * before any fetch is attempted, so it never touches a control-plane port.
  */
 
@@ -66,7 +66,7 @@ function firstWsOnlyMethodId(): string {
     .sort((left, right) => left.localeCompare(right));
   const first = wsOnlyIds[0];
   if (!first) {
-    throw new Error('no ws-only method exists to exercise the unavailable path — rewrite this test');
+    throw new Error('no ws-only method exists to exercise the unavailable path; rewrite this test');
   }
   return first;
 }
@@ -95,7 +95,7 @@ describe('capability-advertisement honesty (agent side)', () => {
     // The discovery catalog is built only from contract methods that carry
     // an http route (agent-harness-operator-methods.ts's
     // operatorContractMethods filters on method.http.method/path), so a
-    // ws-only method is not offered as an option at all — never advertised,
+    // ws-only method is not offered as an option at all, never advertised,
     // rather than advertised-and-marked-unavailable.
     expect(match).toBeUndefined();
   });
@@ -132,7 +132,7 @@ describe('capability-advertisement honesty (agent side)', () => {
 
     try {
       // agent-operator-method-tool.ts's own method catalog is not filtered
-      // by transport, so it resolves the id — but prepareOperatorRoute
+      // by transport, so it resolves the id, but prepareOperatorRoute
       // refuses before any fetch because the method carries no http
       // method/path to build a request from.
       const result = await tool.execute({ methodId: unavailableMethodId });

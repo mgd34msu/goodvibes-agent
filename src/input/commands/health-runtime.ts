@@ -46,13 +46,13 @@ function formatHealthStatusValue(value: HealthStatusValue): string {
 }
 
 /**
- * `/health approvals` — the asks waiting for this owner, from the daemon's
+ * `/health approvals`, the asks waiting for this owner, from the daemon's
  * record unioned with whatever this process still holds.
  *
  * Written so an unreachable host and an empty list can never print the same
  * thing. When the daemon's record was not read, the reason is the FIRST line,
  * before any rows, and the rows that follow are labelled as this process's
- * own — a person scanning the output sees the caveat before the list, not
+ * own, a person scanning the output sees the caveat before the list, not
  * after it.
  */
 async function renderApprovalsHealth(ctx: CommandContext): Promise<string> {
@@ -61,7 +61,7 @@ async function renderApprovalsHealth(ctx: CommandContext): Promise<string> {
     return [
       'Health Review Approvals',
       '  the approvals view is not wired in this runtime, so no list can be shown.',
-      '  This is not "no approvals waiting" — nothing was read.',
+      '  This is not "no approvals waiting", nothing was read.',
     ].join('\n');
   }
 
@@ -243,7 +243,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'memory') {
-        // Live MemoryGovernor snapshot — the same data ops.memory.get serves.
+        // Live MemoryGovernor snapshot, the same data ops.memory.get serves.
         // The governor is composed and started by this runtime root
         // (runtime/services.ts, wireDaemonMemoryGovernance); a context without
         // one (an older host runtime predating memory governance) degrades to
@@ -268,7 +268,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           `  tier thresholds ${snapshot.thresholds.elevatedPct}% elevated, ${snapshot.thresholds.highPct}% high, ${snapshot.thresholds.criticalPct}% critical`,
           `  leak tripwire ${snapshot.tripwire.armed ? `ARMED (${snapshot.tripwire.rateMbPerSec} MB/s sustained ${snapshot.tripwire.sustainedSec}s)` : 'not armed'}`,
           `  caches ${snapshot.caches.length}`,
-          ...snapshot.caches.map((cache) => `    ${cache.id} ${cache.entries} entries${cache.estimatedBytes !== undefined ? ` (~${Math.round(cache.estimatedBytes / 1024)} KiB)` : ''} — ${cache.name}`),
+          ...snapshot.caches.map((cache) => `    ${cache.id} ${cache.entries} entries${cache.estimatedBytes !== undefined ? ` (~${Math.round(cache.estimatedBytes / 1024)} KiB)` : ''}, ${cache.name}`),
           `  paused background jobs ${snapshot.pausedJobs.length === 0 ? 'none' : snapshot.pausedJobs.join(', ')}`,
           '  next /config memory.budgetMb',
           '  next /health maintenance',

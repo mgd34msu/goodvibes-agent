@@ -1,5 +1,5 @@
 /**
- * capture.ts — the ONE place this process opens a microphone.
+ * capture.ts, the ONE place this process opens a microphone.
  *
  * Wake-word detection is the consumer today (src/audio/wake-runtime.ts). It is
  * written as a shared opener rather than a private detail of that file because a
@@ -13,7 +13,7 @@
  * because getting any of them subtly wrong is SILENT: a container header out of
  * byte alignment, or a frame at 62.5 fps against a 100 fps model, still "works"
  * and simply never detects. What is local is the one thing that cannot be shared
- * — actually starting a process. That mirrors playback exactly (see player.ts):
+ *, actually starting a process. That mirrors playback exactly (see player.ts):
  * resolve a command off PATH, spawn it, and treat "no tool installed" as a
  * reported state rather than an exception.
  */
@@ -33,8 +33,8 @@ import { findExecutable } from './player.ts';
  *
  * This module used to export a `SURFACE_APPLIES_SPEEX_SUPPRESSION = false`
  * constant, because no surface applied the stage and `speex` therefore had to be
- * refused rather than silently skipped. The platform carries the filter now —
- * SpeexDSP's preprocessor as a WebAssembly module — and `WakeListener` wraps
+ * refused rather than silently skipped. The platform carries the filter now,
+ * SpeexDSP's preprocessor as a WebAssembly module, and `WakeListener` wraps
  * whatever opener it is handed with `createNoiseSuppressingOpener`, so the stage
  * runs between the device and every consumer.
  *
@@ -44,7 +44,7 @@ import { findExecutable } from './player.ts';
  * whether this runtime has WebAssembly. A second wrapper here would be a layer
  * that exists for no reason (wrapping is idempotent, so it would filter once and
  * pass through once), and a hardcoded `true` would be the exact lie the row
- * guards against — a surface asserting a filter it does not run.
+ * guards against, a surface asserting a filter it does not run.
  *
  * The recorder-level `speexAvailable` flag below stays unset for the same reason,
  * and its meaning is narrower than it looks: it is "the caller filters THIS
@@ -66,7 +66,7 @@ export const spawnRecorderProcess: CaptureSpawn = (command, args): CaptureChildP
   // Adapted rather than returned directly: the SDK's port declares the signal as
   // a plain `string` (it is shared with a browser bundle that has no
   // NodeJS.Signals) and node's narrower union is not assignable to it. The two
-  // event listeners are branched explicitly for the same reason — node's `on` is
+  // event listeners are branched explicitly for the same reason, node's `on` is
   // overloaded per event name and takes no union.
   return {
     stdout: child.stdout,
@@ -97,7 +97,7 @@ export interface AgentCaptureOpenerOptions {
 
 /**
  * Build this surface's capture opener. Called once during startup wiring, and it
- * opens nothing by itself — a stream exists only once a consumer asks for one.
+ * opens nothing by itself, a stream exists only once a consumer asks for one.
  */
 export function createAgentCaptureOpener(options: AgentCaptureOpenerOptions = {}): AudioCaptureOpener {
   return createRecorderCaptureOpener({

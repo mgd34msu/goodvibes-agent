@@ -94,7 +94,7 @@ function automationActionFromParts(scope: string, verb: string): {
 } | null {
   if ((scope === 'job' || scope === 'jobs') && verb === 'run') return { action: 'automation.jobs.run', targetField: 'jobId' };
   // automation.jobs.pause/resume retired (redundant with
-  // disable/enable) — the user-facing "pause"/"resume" verb is unchanged,
+  // disable/enable), the user-facing "pause"/"resume" verb is unchanged,
   // it now maps onto the canonical disable/enable wire actions.
   if ((scope === 'job' || scope === 'jobs') && verb === 'pause') return { action: 'automation.jobs.disable', targetField: 'jobId' };
   if ((scope === 'job' || scope === 'jobs') && verb === 'resume') return { action: 'automation.jobs.enable', targetField: 'jobId' };

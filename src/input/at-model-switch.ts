@@ -1,5 +1,5 @@
 /**
- * at-model-switch.ts — the `@model:<id>` inline switch a person can put in the
+ * at-model-switch.ts, the `@model:<id>` inline switch a person can put in the
  * middle of a message.
  *
  * `send this @model:opus and summarize` switches the model and sends
@@ -23,7 +23,7 @@ export interface AtModelSwitchOptions {
   readonly configManager: Pick<ConfigManager, 'set'>;
   /** Applied for each switch that took, so the surface's own labels follow. */
   readonly onModelChanged: (model: { readonly id: string; readonly provider: string }) => void;
-  /** One line per switch — what it became, or that the id named nothing. */
+  /** One line per switch, what it became, or that the id named nothing. */
   readonly notify: (message: string) => void;
 }
 

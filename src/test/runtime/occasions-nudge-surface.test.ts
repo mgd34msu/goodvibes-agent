@@ -2,8 +2,8 @@
  * The Agent as a nudge channel: what actually reaches the transcript.
  *
  * docs/occasions.md §4.2 names Telegram AND the agent, and excludes the TUI in
- * the owner's own words. The agent's half of that is a PULL — the SDK's own
- * docstring on `occasions.pending` says so — and this suite pins the properties
+ * the owner's own words. The agent's half of that is a PULL, the SDK's own
+ * docstring on `occasions.pending` says so, and this suite pins the properties
  * that make the pull safe to run on every turn:
  *
  *  - the daemon's composed sentence lands in the transcript unaltered, so §4.3's
@@ -86,7 +86,7 @@ describe('occasions nudge surface', () => {
     expect(await surface.raiseNow()).toBe(0);
     expect(await surface.raiseNow()).toBe(0);
     expect(seen.said).toEqual([NUDGE_MESSAGE]);
-    // The verb was still called every time — nothing here caches the daemon's
+    // The verb was still called every time, nothing here caches the daemon's
     // answer, so an occasion he answers elsewhere disappears on the next turn.
     expect(seen.calls).toHaveLength(3);
     // One render, for the one thing that was actually said.

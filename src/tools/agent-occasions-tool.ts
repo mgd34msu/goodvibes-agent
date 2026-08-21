@@ -1,5 +1,5 @@
 /**
- * agent-occasions-tool.ts — the `occasions` tool: dated things about the owner's
+ * agent-occasions-tool.ts, the `occasions` tool: dated things about the owner's
  * life that need an action, and dated ranges that do not.
  *
  * Design: docs/occasions.md. This tool holds no state and decides nothing. Every
@@ -10,7 +10,7 @@
  * Six of those rules are load-bearing here, and each one is enforced by NOT
  * doing something:
  *
- * §4.3 — a nudge never carries the date, in any form. So `pending` renders the
+ * §4.3, a nudge never carries the date, in any form. So `pending` renders the
  * message the daemon composed and nothing else. There is no path in this file
  * from a date to a nudge, because the pending payload holds no date to find.
  * `list` DOES return dates, and that is not a contradiction: it is him asking his
@@ -18,27 +18,27 @@
  * closed-tier read. What must never happen is those dates riding into an
  * outbound message, so `list`'s output says so in the line the model reads.
  *
- * §4.4 — the kind is chosen by HIM at capture time and never inferred. This file
+ * §4.4, the kind is chosen by HIM at capture time and never inferred. This file
  * supplies no default, and `confirm` refuses without one. The three kinds are
  * offered so he can pick; a parent's death anniversary answered with a cheerful
  * "you'll probably want to sort something" would be genuinely bad, and there is
  * no heuristic that gets that right from a label.
  *
- * §4.5 — a date captured from conversation is confirmed ONCE, at the time. So
+ * §4.5, a date captured from conversation is confirmed ONCE, at the time. So
  * `propose` writes nothing and hands back the daemon's own one-line
  * confirmation, which already carries the kind question when the kind is missing.
  * That is one interaction, not two.
  *
- * §4.9 — `later` is a distinct answer, not a decline. It is offered alongside yes
+ * §4.9, `later` is a distinct answer, not a decline. It is offered alongside yes
  * and no, and nothing here folds it into either.
  *
- * §4.10 — a yes opens a short interview, and the agent does NOT make the
+ * §4.10, a yes opens a short interview, and the agent does NOT make the
  * recommendation. The questions come from the daemon (opened from what the
  * profile already knows) and are relayed verbatim; `interview_record` stores what
  * he landed on, in his words. A thread he goes quiet on is a dropped thread, not
  * a completion, so `interview` resumes at the question he did not answer.
  *
- * §4.11 — removal takes one confirmation. Not unquestioned, and not an argument.
+ * §4.11, removal takes one confirmation. Not unquestioned, and not an argument.
  *
  * The three verbs that write to the owner's own profile file (`confirm`,
  * `plan_confirm`, `remove`) take a required `authority` naming where the fact
@@ -47,7 +47,7 @@
  *
  * Nothing here logs a date, a person or a gift.
  *
- * The five reads and the interview renderer live in agent-occasions-reads.ts —
+ * The five reads and the interview renderer live in agent-occasions-reads.ts,
  * split at this repo's 800-line file cap, along the grain: everything there only
  * looks, so nothing there takes an authority or can refuse a write.
  */
@@ -99,7 +99,7 @@ import { isProfileAuthority, PROFILE_AUTHORITIES } from './agent-profile-types.t
 /**
  * The authority, required and never defaulted.
  *
- * Same treatment the `profile` tool gives it, over the same union — imported from
+ * Same treatment the `profile` tool gives it, over the same union, imported from
  * agent-profile-types.ts rather than restated, so the two tools cannot come to
  * disagree about which surfaces exist. An omitted authority on `remove` would be
  * a deletion with no gate.
@@ -125,7 +125,7 @@ function requireAuthority(value: unknown): { readonly authority: OccasionsAuthor
  *
  * Absent is the ordinary case and is NOT an error: the daemon reads a bare
  * `MM-DD` as annual and a bare `YYYY-MM-DD` as a one-off, so the date's own shape
- * already answers. A value that is neither word is refused rather than dropped —
+ * already answers. A value that is neither word is refused rather than dropped,
  * silently ignoring "monthly" would record an annual occasion he did not ask for.
  */
 function readRecurrence(
@@ -161,7 +161,7 @@ async function handleAnswer(
   if (!isOccasionsAnswerWord(answer)) {
     return fail([
       `\`answer\` must be one of ${OCCASIONS_ANSWER_WORDS.join(', ')}. Got "${answer || '(nothing)'}".`,
-      '"later" is its own answer — "not yet" three weeks out is not a decline. Do not send it as "no".',
+      '"later" is its own answer, "not yet" three weeks out is not a decline. Do not send it as "no".',
     ]);
   }
   const result = occurrence
@@ -179,14 +179,14 @@ async function handleAnswer(
     ]);
   }
   if (answer === 'later') {
-    return ok(['Recorded as later — not a no. It comes back on its own, roughly halfway to the date.']);
+    return ok(['Recorded as later, not a no. It comes back on its own, roughly halfway to the date.']);
   }
   const interview = response.interview;
   if (interview === null) {
-    return ok(['Recorded. Nothing to plan for this one — it is not a gift-giving occasion.']);
+    return ok(['Recorded. Nothing to plan for this one, it is not a gift-giving occasion.']);
   }
   return ok([
-    'Recorded, and that opens a short interview — a few questions, not a shopping trip.',
+    'Recorded, and that opens a short interview, a few questions, not a shopping trip.',
     ...renderInterviewLines(interview.interviewId, interview.nextStep, interview.complete, interview.landedOn),
   ]);
 }
@@ -218,7 +218,7 @@ async function handleInterviewAnswer(
   if (!response) return fail([OCCASIONS_RESPONSE_UNREADABLE]);
   return renderInterviewResponse(
     response,
-    `There is no interview ${interviewId} — nothing was recorded. Say that rather than continuing.`,
+    `There is no interview ${interviewId}, nothing was recorded. Say that rather than continuing.`,
   );
 }
 
@@ -231,7 +231,7 @@ async function handleInterviewRecord(
   if (!landedOn) {
     return fail([
       '`landedOn` is required: what he actually settled on, in his words.',
-      'Recording that he said yes is not the point — a history of questions cannot stop year three',
+      'Recording that he said yes is not the point, a history of questions cannot stop year three',
       'steering where year one did.',
     ]);
   }
@@ -240,7 +240,7 @@ async function handleInterviewRecord(
   const response = narrowOccasionsInterview(result.data);
   if (!response) return fail([OCCASIONS_RESPONSE_UNREADABLE]);
   if (!response.present || response.interview === null) {
-    return fail([`There is no interview ${interviewId} — nothing was recorded.`]);
+    return fail([`There is no interview ${interviewId}, nothing was recorded.`]);
   }
   return ok([
     `Recorded: he landed on ${response.interview.landedOn ?? landedOn}.`,
@@ -264,7 +264,7 @@ async function handleResolveConflict(
     ]);
   }
   return ok([
-    `Settled — the conflict on ${response.occasionId} stops being raised.`,
+    `Settled, the conflict on ${response.occasionId} stops being raised.`,
     'The profile still holds whatever lines he wrote. Nothing was changed for him.',
   ]);
 }
@@ -307,14 +307,14 @@ async function handlePropose(
   const lines = [
     // §4.5: one line, at the moment he can still catch a mishearing. The daemon
     // composed it, and when the kind is missing that same line already asks for
-    // it — so this is ONE interaction, not a confirmation followed by a
+    // it, so this is ONE interaction, not a confirmation followed by a
     // separate kind question.
     `Ask him this, as written: ${response.confirmation}`,
     `  Nothing is written yet. This is what would be: ${response.line}`,
   ];
   if (response.needsKind) {
     lines.push(
-      `  He has to pick the kind himself — ${OCCASIONS_KIND_WORDS.join(', ')} — and it is never guessed.`,
+      `  He has to pick the kind himself, ${OCCASIONS_KIND_WORDS.join(', ')}, and it is never guessed.`,
       '  A date worth remembering is not always one to buy something for.',
     );
   }
@@ -380,7 +380,7 @@ async function handleRemove(
 ): Promise<ToolOutcome> {
   if (!occasionId) return fail(['`occasionId` is required: which occasion to remove.']);
   if (!confirmed) {
-    // §4.11: one confirmation. Not unquestioned, and not an argument — people
+    // §4.11: one confirmation. Not unquestioned, and not an argument, people
     // divorce and people die.
     return fail([
       `Ask him once to confirm removing ${occasionId}, then call this again with confirmed:true.`,
@@ -472,7 +472,7 @@ async function handleSweep(deps: AgentOccasionsToolDeps): Promise<ToolOutcome> {
   if (response.hold === 'disabled') {
     lines.push('  Occasions are turned off, so nothing was raised. Housekeeping still ran.');
   } else if (response.hold === 'quiet-hours') {
-    lines.push('  It is outside his active hours, so nothing was raised. Nothing was dropped — it waits.');
+    lines.push('  It is outside his active hours, so nothing was raised. Nothing was dropped, it waits.');
   } else {
     lines.push(response.nudge === null
       ? '  Nothing is due.'
@@ -480,7 +480,7 @@ async function handleSweep(deps: AgentOccasionsToolDeps): Promise<ToolOutcome> {
     for (const message of response.conflictMessages) lines.push(`  Conflict: ${message}`);
     // Per destination, not just an aggregate. `occasions.nudgeChannel` is a list
     // and each destination is pushed independently, so "delivered: true" can be
-    // true while Telegram was refused — reporting only the aggregate would hide
+    // true while Telegram was refused, reporting only the aggregate would hide
     // exactly the failure he needs to hear about.
     for (const delivery of response.deliveries) {
       lines.push(delivery.delivered
@@ -513,7 +513,7 @@ export function createAgentOccasionsTool(deps: AgentOccasionsToolDeps): Tool {
           answer: {
             type: 'string',
             enum: [...OCCASIONS_ANSWER_WORDS],
-            description: 'His answer. "later" is its own answer, not a no — never send it as one.',
+            description: 'His answer. "later" is its own answer, not a no, never send it as one.',
           },
           occurrence: { type: 'string', description: 'YYYY-MM-DD; only for an occurrence other than the next one.' },
           interviewId: { type: 'string', description: 'The interview in flight. action:"pending" lists them.' },

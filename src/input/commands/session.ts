@@ -1,5 +1,5 @@
 /**
- * /session command handler — Multi-session Orchestration.
+ * /session command handler, Multi-session Orchestration.
  *
  * Implements read-only session graph inspection plus session continuity commands.
  * Local task graph mutation commands are blocked in Agent; explicit build/fix/review
@@ -143,7 +143,7 @@ function handleGraph(args: string[], context: CommandContext): void {
 // ── Top-level command definition ───────────────────────────────────────────────
 
 /**
- * sessionCommand — The `/session` slash command.
+ * sessionCommand, The `/session` slash command.
  *
  * Routes to multi-session orchestration subcommand handlers based on args[0].
  */
@@ -182,13 +182,13 @@ export const sessionCommand: SlashCommand = {
           const usage = [
             'Usage: /session <subcommand>',
             '  list | rename <name> | resume <id|name> | fork [name] | save [name] | info [id] | export <id> [format] | search <query> | delete <id> --yes',
-            '                                 — Session continuity, export, resume, and pruning',
+            '                                , Session continuity, export, resume, and pruning',
             '  events [kind] | groups [kind] | hotspots',
-            '                                 — Transcript structure: event log, grouped view, hotspot summary',
+            '                                , Transcript structure: event log, grouped view, hotspot summary',
             '  graph [--session <sid>] [--format text|json]',
-            '                                 — Display the cross-session task dependency graph',
+            '                                , Display the cross-session task dependency graph',
             '  link-task | handoff | cancel',
-            '                                 — Blocked in Agent; use /delegate for explicit build/fix/review handoff',
+            '                                , Blocked in Agent; use /delegate for explicit build/fix/review handoff',
           ].join('\n');
           context.print(usage);
         }

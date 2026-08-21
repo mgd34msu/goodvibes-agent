@@ -5,13 +5,13 @@
  * costs the sender nothing to attempt: a stranger writes instructions in an
  * email body, or writes the owner's address in a From header, and waits to
  * see whether an assistant does as it is told. These are not hypothetical
- * inputs chosen to make a point — they are the ordinary contents of an inbox
+ * inputs chosen to make a point, they are the ordinary contents of an inbox
  * once an assistant is known to read one.
  *
  * So none of these expectations may be relaxed to make a feature work. If a
  * change lands that needs an email to be able to approve, send, or execute
  * something, the change is wrong; the owner's ruling is that email is a
- * surface the agent reads, understands, and decides about — never one it
+ * surface the agent reads, understands, and decides about, never one it
  * takes orders from. A failure here is a report to the owner, not a test to
  * update.
  */

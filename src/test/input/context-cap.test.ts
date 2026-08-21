@@ -130,7 +130,7 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// ModelPickerModal — enterContextCapMode
+// ModelPickerModal, enterContextCapMode
 // ---------------------------------------------------------------------------
 
 describe('ModelPickerModal — enterContextCapMode', () => {
@@ -167,7 +167,7 @@ describe('ModelPickerModal — enterContextCapMode', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ModelPickerModal — appendContextCapChar
+// ModelPickerModal, appendContextCapChar
 // ---------------------------------------------------------------------------
 
 describe('ModelPickerModal — appendContextCapChar', () => {
@@ -214,7 +214,7 @@ describe('ModelPickerModal — appendContextCapChar', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ModelPickerModal — deleteContextCapChar
+// ModelPickerModal, deleteContextCapChar
 // ---------------------------------------------------------------------------
 
 describe('ModelPickerModal — deleteContextCapChar', () => {
@@ -248,7 +248,7 @@ describe('ModelPickerModal — deleteContextCapChar', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ProviderRegistry — setModelContextCap
+// ProviderRegistry, setModelContextCap
 // ---------------------------------------------------------------------------
 
 describe('ProviderRegistry — setModelContextCap', () => {
@@ -259,7 +259,7 @@ describe('ProviderRegistry — setModelContextCap', () => {
   });
 
   test('updates contextWindow for a discovered model', () => {
-    // Inject a discovered server — the registry creates ModelDefinition entries from it
+    // Inject a discovered server, the registry creates ModelDefinition entries from it
     const server: DiscoveredServer = {
       name: 'ollama',
       host: '127.0.0.1',
@@ -283,7 +283,7 @@ describe('ProviderRegistry — setModelContextCap', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Handler — Space key (local vs cloud)
+// Handler, Space key (local vs cloud)
 // ---------------------------------------------------------------------------
 
 describe('ModelPickerModal — isLocalModel', () => {
@@ -319,7 +319,7 @@ describe('ModelPickerModal — isLocalModel', () => {
     // Verify the guard: mode stays 'model' if we respect isLocalModel result.
     expect(picker.isLocalModel(cloud)).toBe(false);
     // Caller (handler) should NOT call enterContextCapMode for cloud models
-    // — this test confirms the discriminator works correctly
+    //, this test confirms the discriminator works correctly
     picker.models = [cloud];
     picker.openAllModels([cloud], cloud.registryKey!);
     expect(picker.mode).toBe('model');
@@ -334,7 +334,7 @@ describe('ModelPickerModal — isLocalModel', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Handler — Enter key in contextCap mode
+// Handler, Enter key in contextCap mode
 // ---------------------------------------------------------------------------
 
 describe('ModelPickerModal — contextCap Enter scenarios', () => {
@@ -374,7 +374,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
   });
 
   test('value exceeding 10_000_000 — validCap is null', () => {
-    // 10000001 — one over the limit
+    // 10000001, one over the limit
     for (const d of '10000001') picker.appendContextCapChar(d);
     const rawInput = picker.contextCapQuery.trim();
     const parsedCap = rawInput.length > 0 ? parseInt(rawInput, 10) : null;
@@ -392,7 +392,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Handler — Escape key in contextCap mode (reset)
+// Handler, Escape key in contextCap mode (reset)
 // ---------------------------------------------------------------------------
 
 describe('ModelPickerModal — Escape from contextCap resets state', () => {
@@ -426,7 +426,7 @@ describe('ModelPickerModal — Escape from contextCap resets state', () => {
     picker.appendContextCapChar('9');
     picker.appendContextCapChar('9');
 
-    // Simulate escape — cancel without applying
+    // Simulate escape, cancel without applying
     picker.contextCapQuery = '';
     picker.contextCapPendingModel = null;
     picker.mode = 'model';

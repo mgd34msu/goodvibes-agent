@@ -101,7 +101,7 @@ describe('ArtifactStore', () => {
     roots.push(root);
     const store = new ArtifactStore({ rootDir: root });
     // Plainly-written loopback now classifies as the approvable 'localhost'
-    // tier (dev servers), so the SSRF assertion uses a private-range address —
+    // tier (dev servers), so the SSRF assertion uses a private-range address,
     // those are never fetchable without the explicit private-hosts opt-in.
     await expect(store.create({
       uri: 'http://10.255.255.1:12345/private',

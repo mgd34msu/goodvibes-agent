@@ -3,7 +3,7 @@
  *
  * The dogfood defect class: personal-ops lane/workflow cards computed
  * "ready" from methodIds.length > 0, counting operator-contract methods
- * that are advertised but NOT dispatchable (invokable:false — the email.*
+ * that are advertised but NOT dispatchable (invokable:false, the email.*
  * methods were marked so after proving no daemon route serves them). A lane
  * card must
  * never claim readiness backed only by methods a caller cannot invoke.
@@ -12,7 +12,7 @@
  * @pellux/goodvibes-sdk contract, which carries
  * email.*: invokable:false), plus pure-function checks that hold no matter
  * which method families are marked unavailable later (calendar.* is being
- * marked by a parallel fix — the generic invokable filter must degrade it
+ * marked by a parallel fix, the generic invokable filter must degrade it
  * automatically with no further agent change).
  */
 import { describe, expect, test } from 'bun:test';
@@ -60,7 +60,7 @@ describe('methodIdsMatching excludes advertised-but-undispatchable methods', () 
     // service is platform capability now and the daemon attaches a real
     // handler to each id, so the contract carries none of them as
     // invokable:false any more. Asserting the INVARIANT rather than the count
-    // is what keeps this honest in both directions — it fails if a route-less
+    // is what keeps this honest in both directions, it fails if a route-less
     // method ever creeps back into readiness, and it does not fail merely
     // because the routes got built.
     const readinessIds = new Set(methodIdsMatching([...EMAIL_TOKENS]));

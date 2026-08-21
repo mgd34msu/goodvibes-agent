@@ -3,8 +3,8 @@
  * actually installed the agent.
  *
  * This exists because every driver-missing message in 1.18.1 said `bun add -g
- * @pellux/goodvibes-agent`. That command does work — the npm package carries
- * playwright-core — but telling someone who downloaded a release binary to
+ * @pellux/goodvibes-agent`. That command does work, the npm package carries
+ * playwright-core, but telling someone who downloaded a release binary to
  * install the npm package silently changes their install method, and it is not
  * the fix for their situation. The fix has to name the thing they did.
  *

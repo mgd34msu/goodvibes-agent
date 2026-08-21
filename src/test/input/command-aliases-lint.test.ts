@@ -7,7 +7,7 @@
 //      destructive (cancel, delete, rm, remove, discard, clear, reset, revoke,
 //      logout, reject, unpair, force, kill, terminate).
 //   2. No alias is also a primary subcommand name of the same command (not
-//      checkable statically without routing tables — covered by rule 1 scope).
+//      checkable statically without routing tables, covered by rule 1 scope).
 //   3. Every alias is either in the command's `aliases` field or in `argsHint`.
 //      (Validates aliases are declared, not leaked through docs.)
 //
@@ -35,7 +35,6 @@ function isDestructiveName(name: string): boolean {
 /** Returns true if the command is considered destructive based on its name or description. */
 function commandIsDestructive(cmd: { name: string; description: string }): boolean {
   if (isDestructiveName(cmd.name)) return true;
-  // Check if description starts with a destructive verb
   const firstWord = cmd.description.toLowerCase().split(/\s+/)[0] ?? '';
   return isDestructiveName(firstWord);
 }
@@ -67,7 +66,7 @@ describe('Slash-command alias lint (β4)', () => {
 
     if (violations.length > 0) {
       throw new Error(
-        'Alias lint failed — destructive commands must not have single-letter aliases:\n  ' +
+        'Alias lint failed: destructive commands must not have single-letter aliases:\n  ' +
         violations.join('\n  ')
       );
     }

@@ -47,10 +47,10 @@ function verifyCursor(ih: InputHandler, cw: number, label: string) {
     return;
   }
 
-  // At end of segment (col === length), cursor is past visible text — that's valid
+  // At end of segment (col === length), cursor is past visible text, that's valid
   if (info.cursorCol === seg?.length) return;
 
-  // When cursor is on a \n or consumed space, visual shows the next line's char — that's correct
+  // When cursor is on a \n or consumed space, visual shows the next line's char, that's correct
   if (actualChar === '\n' || actualChar === undefined) return;
 
   // Otherwise visual and actual must match
@@ -115,7 +115,6 @@ describe('Paste + Navigate + Delete/Backspace', () => {
     ih.cursorPos = 35;
     verifyCursor(ih, 25, 'at-pos-35');
 
-    // Delete forward 5 times
     for (let i = 0; i < 5; i++) {
       const beforeLen = ih.prompt.length;
       del(ih);
@@ -204,7 +203,7 @@ describe('Paste + Navigate + Delete/Backspace', () => {
     // Position cursor exactly at the START of the marker (simulates left-arrow jump)
     ih.cursorPos = markerStart;
 
-    // Feed backspace — handler should detect marker.start === cursorPos and delete entire marker
+    // Feed backspace, handler should detect marker.start === cursorPos and delete entire marker
     ih.feed('\x7f');
 
     // The entire marker should be gone, not just one character
@@ -229,7 +228,6 @@ describe('Paste + Navigate + Delete/Backspace', () => {
     insertText(ih, ' INSERTED ');
     verifyCursor(ih, 35, 'after-insert');
 
-    // Delete forward
     del(ih); del(ih); del(ih);
     verifyCursor(ih, 35, 'after-del');
 

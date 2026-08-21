@@ -9,7 +9,7 @@ import type { CommandContext } from '../input/command-registry.ts';
  *
  * Kept out of bootstrap.ts so the wiring reads as one named act rather than a
  * dozen lines of plumbing in the middle of session startup, and so the sources
- * it draws on — registered tools, MCP posture, served daemon methods, config —
+ * it draws on, registered tools, MCP posture, served daemon methods, config,
  * are visible in one place.
  */
 export function wireCapabilityIndex(input: {

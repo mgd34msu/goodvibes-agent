@@ -106,14 +106,14 @@ export function renderConversationFragment(
   indentCols = 0,
 ): Line[] {
   // A tree fragment is a continuation of the row above it, so it starts at that
-  // row's content column — which puts its ` ▸ ` prefix glyph in exactly the same
+  // row's content column, which puts its ` ▸ ` prefix glyph in exactly the same
   // column as the parent row's own ` ▸ N lines ` badge. A flush fragment (a user
   // message ghost box) keeps the box margin it has always used.
   const indent = Math.max(0, indentCols);
   const margin = indent > 0 ? treeContentCol(indent) : LAYOUT.USER_BOX_MARGIN;
   const prefixWidth = getDisplayWidth(palette.prefix);
   // The indent is charged to the content budget rather than allowed to push the
-  // fragment past the right edge — a narrow terminal shrinks the preview text
+  // fragment past the right edge, a narrow terminal shrinks the preview text
   // instead of silently truncating its tail.
   const maxContentWidth = Math.max(1, width - margin - LAYOUT.USER_BOX_MARGIN - prefixWidth - 2);
   const wrapped = wrapText(content, maxContentWidth);
@@ -175,7 +175,7 @@ export function renderConversationFragment(
 
 // renderConversationCollapsedFragment used to live here: a framed box drawn
 // under a collapsed block's header, carrying a preview and a second copy of the
-// hidden count. A fold is now ONE row — the header line itself — so nothing
+// hidden count. A fold is now ONE row, the header line itself, so nothing
 // draws that box any more. renderConversationFragment above stays; it is what
 // message bars and queued-prompt ghosts are made of.
 
@@ -255,7 +255,7 @@ export function renderConversationStatusLine(
 }
 
 /**
- * The ONE row a folded block renders as — the whole geometry of a fold, in one
+ * The ONE row a folded block renders as, the whole geometry of a fold, in one
  * place, for all three kinds of fold (tool results, thinking blocks, compaction
  * handoffs).
  *
@@ -267,7 +267,7 @@ export function renderConversationStatusLine(
  * canonical fold policy's call (foldPreviewText in
  * @pellux/goodvibes-terminal-shell), including the minimum-column rule. What
  * stays here is display-width TRUNCATION, because wide-glyph and ANSI width
- * rules are product-local — and it is truncation, never wrapping: a fold that
+ * rules are product-local, and it is truncation, never wrapping: a fold that
  * can wrap is not a fold.
  *
  * When the policy declines the preview, or nothing legible survives fitting it,

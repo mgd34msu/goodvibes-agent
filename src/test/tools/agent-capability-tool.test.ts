@@ -14,7 +14,7 @@ import type { CommandContext as CommandContextLike } from '../../input/command-r
  * Asked whether it could use Gmail, the agent reached for a code-index
  * retrieval, reasoned from what it found, and told its owner to go and
  * register an MCP server. The build it was running carried no Google support
- * at all, so the honest answer was "Gmail is absent from this build" — and
+ * at all, so the honest answer was "Gmail is absent from this build", and
  * the answer it gave was a configuration errand that could never have worked.
  * These tests pin both halves: what a build WITH the native Google route says
  * when nothing is connected yet, and what a build WITHOUT it says.

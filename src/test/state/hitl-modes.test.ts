@@ -99,7 +99,7 @@ describe('ModeManager — HITL UX modes', () => {
   it('getDomainVerbosity falls back to preset default when no override exists', () => {
     const mgr = getTestModeManager();
     mgr.setHITLMode('quiet');
-    // No override for 'tasks' — should return HITL_QUIET.defaultDomainVerbosity
+    // No override for 'tasks', should return HITL_QUIET.defaultDomainVerbosity
     expect(mgr.getDomainVerbosity('tasks')).toBe('minimal');
   });
 
@@ -181,7 +181,7 @@ describe('ModeManager — HITL UX modes', () => {
 // with no arguments at all (no featureFlags), and isFeatureGateEnabled is
 // permissive when no manager is wired, so a composition root that omitted
 // featureFlags did not disable the HITL UX mode system when behavior.hitlMode
-// was set to 'off' — setHITLMode kept accepting writes either way.
+// was set to 'off', setHITLMode kept accepting writes either way.
 // services.ts now threads featureFlags, the same shape as the route-binding
 // fix.
 //

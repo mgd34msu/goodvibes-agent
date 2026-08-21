@@ -3,17 +3,17 @@
  *
  * Agent-side unified inbox read-model. Aggregates four daemon-exposed sources:
  *
- *   1. /api/deliveries           — outbound delivery attempts (status / failures)
- *   2. /api/control-plane/messages — surface messages visible to the TUI client
- *   3. /api/routes/bindings      — live route binding continuity records
- *   4. channels.inbox.list       — provider-specific inbound messages
+ *   1. /api/deliveries          , outbound delivery attempts (status / failures)
+ *   2. /api/control-plane/messages, surface messages visible to the TUI client
+ *   3. /api/routes/bindings     , live route binding continuity records
+ *   4. channels.inbox.list      , provider-specific inbound messages
  *
  * The first three arrive already fetched, in an `AgentWorkspaceChannelTriage`.
  * The fourth is fetched here, by `fetchInboundChannelFeed`, because it is a
  * method call rather than one of triage's routes.
  *
  * When that call does not produce a feed, the reason says what actually
- * happened — the daemon's own answer, classified. It does not say the contract
+ * happened, the daemon's own answer, classified. It does not say the contract
  * is unpublished, because it is published: an inbox reporting a cause it did
  * not observe sends whoever reads it to fix the wrong thing.
  */
@@ -67,11 +67,11 @@ export interface UnifiedInboxRouteBindingItem {
   readonly bindingKind: string;
   readonly surfaceKind: string;
   readonly surfaceId: string | null;
-  /** External id is digested — never the raw identifier. */
+  /** External id is digested, never the raw identifier. */
   readonly externalIdDigest: string | null;
   /** Resolved sender principal, when the channel identity maps to one. Never a guess. */
   readonly principal: { readonly id: string; readonly name: string; readonly kind: string } | null;
-  /** Human-facing sender label — the resolved principal's "name (id)", or "unknown principal". */
+  /** Human-facing sender label, the resolved principal's "name (id)", or "unknown principal". */
   readonly principalLabel: string;
   readonly sessionPolicy: string | null;
   readonly threadPolicy: string | null;
@@ -151,16 +151,16 @@ export interface UnifiedInboxSummary {
  *
  * Each value names something that was actually observed:
  *
- *  `not_attempted`   — no connected-host caller was supplied, so nothing was
+ *  `not_attempted`  , no connected-host caller was supplied, so nothing was
  *                      asked and nothing is claimed.
- *  `auth_required`   — no operator token, or the daemon rejected the one there.
- *  `daemon_unreachable` — the call did not complete.
- *  `method_unavailable` — the daemon answered, and its answer was that it does
+ *  `auth_required`  , no operator token, or the daemon rejected the one there.
+ *  `daemon_unreachable`, the call did not complete.
+ *  `method_unavailable`, the daemon answered, and its answer was that it does
  *                      not serve this method. This is what the live platform
  *                      says today: `channels.inbox.list` is cataloged with
  *                      `invokable: false` and no route serves its advertised
  *                      path, so the call returns rather than hanging.
- *  `daemon_error`    — it answered with something else.
+ *  `daemon_error`   , it answered with something else.
  */
 export type InboundChannelFeedUnavailableReason =
   | 'not_attempted'
@@ -205,7 +205,7 @@ export interface UnifiedInbox {
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers — converting triage sub-records to typed items
+// Internal helpers, converting triage sub-records to typed items
 // ---------------------------------------------------------------------------
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -325,7 +325,7 @@ function inboundFailureReason(kind: DaemonInvokeFailureKind): InboundChannelFeed
  * Ask the daemon for the provider inbound feed.
  *
  * Separate from `aggregateUnifiedInbox` so that function stays a pure
- * transformation of things already fetched — the property its tests rely on.
+ * transformation of things already fetched, the property its tests rely on.
  * A caller with no daemon to ask simply does not call this, and the aggregate
  * says `not_attempted` rather than inventing a cause.
  */
@@ -380,7 +380,7 @@ const INBOUND_FEED_NOT_ATTEMPTED: InboundChannelFeedState = {
 /**
  * Build a UnifiedInbox from an already-fetched AgentWorkspaceChannelTriage.
  *
- * This is intentionally a pure transformation — it does not perform any I/O.
+ * This is intentionally a pure transformation, it does not perform any I/O.
  * The caller (command handler or tool) is responsible for calling
  * `buildAgentWorkspaceChannelTriage` first.
  */
@@ -526,7 +526,7 @@ export function formatUnifiedInbox(inbox: UnifiedInbox): string {
     `  attention: ${summary.attentionCount}  failures: ${summary.failureCount}`,
     `  inbound channel feed: ${feed.available
       ? `${feed.total} message(s)${feed.truncated ? ', truncated' : ''} via ${feed.methodId}`
-      : `unavailable (${feed.reason}) — ${feed.detail}`}`,
+      : `unavailable (${feed.reason}), ${feed.detail}`}`,
     `  policy: ${inbox.policy}`,
     '',
     '  Sources',

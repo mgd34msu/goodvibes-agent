@@ -184,7 +184,7 @@ function promptRecordPriority(item: AgentWorkspaceLocalLibraryItem): number {
 }
 
 function isPromptEligibleRecord(domain: LocalLearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem): boolean {
-  // Fully autonomous learning: review gate removed — records qualify without human review.
+  // Fully autonomous learning: review gate removed, records qualify without human review.
   if (domain === 'memory') return (item.confidence ?? 100) >= 70;
   if (domain === 'persona') return item.active === true;
   if (domain === 'skill' || domain === 'skill_bundle' || domain === 'routine') {

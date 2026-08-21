@@ -5,8 +5,8 @@
  *
  * An assignment binds a channel (surface kind, optional route id) to a
  * GoodVibes profile. The daemon owns the routing table the platform routes
- * against — `channels.routing.assign` writes it, and every surface reads the
- * same one — so an assignment made here is offered to the daemon first and
+ * against, `channels.routing.assign` writes it, and every surface reads the
+ * same one, so an assignment made here is offered to the daemon first and
  * kept here as well.
  *
  * The local file is a MIRROR, not a second opinion. It exists because the
@@ -22,9 +22,9 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { DaemonInvokeFailureKind, DaemonOperatorInvoke } from './daemon-operator-client.ts';
 import {
@@ -42,8 +42,8 @@ export const CHANNEL_ROUTING_ASSIGN_METHOD = 'channels.routing.assign';
 /**
  * Where an assignment stands with the daemon.
  *
- * `synced` — the daemon holds it, and `assignmentId` is the daemon's own id.
- * `pending` — it was offered and the daemon did not take it; `syncError` says
+ * `synced`, the daemon holds it, and `assignmentId` is the daemon's own id.
+ * `pending`, it was offered and the daemon did not take it; `syncError` says
  *   why, in the daemon's words. The assignment is live locally and will be
  *   offered again.
  */
@@ -141,8 +141,8 @@ function readOptString(value: unknown): string | undefined {
 }
 
 function parseSyncState(value: unknown): ChannelProfileRouteSyncState {
-  // Anything else — including the retired 'local_only' written by builds from
-  // before the daemon held this table — reads as pending. That is the honest
+  // Anything else, including the retired 'local_only' written by builds from
+  // before the daemon held this table, reads as pending. That is the honest
   // reading: the daemon has not been told about the record, so it is owed an
   // offer, and `syncChannelProfileRoutes` makes it.
   return value === 'synced' ? 'synced' : 'pending';
@@ -206,10 +206,7 @@ function writeRoutes(path: string, routes: readonly ChannelProfileRoute[]): void
     version: ROUTE_FILE_VERSION,
     routes: routes.slice(0, ROUTE_LIMIT),
   };
-  mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.tmp`;
-  writeFileSync(tempPath, `${JSON.stringify(file, null, 2)}\n`, 'utf-8');
-  renameSync(tempPath, path);
+  writeStoreJson(path, file);
 }
 
 // ---------------------------------------------------------------------------
@@ -389,7 +386,7 @@ export interface ChannelProfileRouteSyncReport {
  *
  * Records that came from a build that wrote `daemonSyncState: 'local_only'`
  * carried a `daemonMethodNeeded` flag naming the method that did not exist.
- * The method exists now, so the flag is retired — with a receipt naming the
+ * The method exists now, so the flag is retired, with a receipt naming the
  * record and the daemon's answer, rather than by deleting the field and
  * leaving nothing behind.
  */

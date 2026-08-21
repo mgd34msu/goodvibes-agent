@@ -1,10 +1,10 @@
 /**
- * Calendar subscribe wizard — the "Calendar workflows" card's real
+ * Calendar subscribe wizard, the "Calendar workflows" card's real
  * connect flow. Subscribes to an external calendar by its iCalendar feed URL
  * (Google "secret address", Outlook published .ics, or any .ics URL), READ-ONLY.
  *
- * Security: the feed URL is secrets-adjacent — a Google secret address grants
- * read access to the whole calendar — so this follows the email-connect wizard's
+ * Security: the feed URL is secrets-adjacent, a Google secret address grants
+ * read access to the whole calendar, so this follows the email-connect wizard's
  * pattern EXACTLY: it is a DIRECT host action (not a slash-command string), so the
  * URL never flows through the generic dispatch pipeline that echoes command text
  * back into the workspace UI (which would render the secret). The URL is persisted
@@ -38,8 +38,8 @@ export function createCalendarSubscribeWizardEditor(): AgentWorkspaceLocalEditor
     title: 'Subscribe to a Calendar',
     selectedFieldIndex: 0,
     message: [
-      'Subscribe to an external calendar by its iCalendar (.ics) feed URL — read-only, merged into /calendar.',
-      'Google: Settings → your calendar → "Secret address in iCal format" — copy that URL.',
+      'Subscribe to an external calendar by its iCalendar (.ics) feed URL, read-only, merged into /calendar.',
+      'Google: Settings → your calendar → "Secret address in iCal format", copy that URL.',
       'Outlook: Settings → Calendar → Shared calendars → Publish → copy the ICS link.',
       'Any .ics URL works too. The URL is stored through the Agent secret manager (a secret address grants read access), and validated by fetching before it is saved.',
     ].join('\n'),
@@ -51,7 +51,7 @@ export function createCalendarSubscribeWizardEditor(): AgentWorkspaceLocalEditor
   };
 }
 
-/** Injectable for tests — production callers omit it and get the real registry (real HTTP fetch). */
+/** Injectable for tests, production callers omit it and get the real registry (real HTTP fetch). */
 export type CalendarSubscribeRegistryBuilder = (context: CommandContext) => CalendarSubscriptionRegistry | null;
 
 const defaultRegistryBuilder: CalendarSubscribeRegistryBuilder = (context) => subscriptionRegistryForWrite(context);
@@ -104,7 +104,7 @@ export async function submitAgentWorkspaceCalendarSubscribeWizardEditor(
       host.lastActionResult = {
         kind: 'error',
         title: 'Calendar subscription failed',
-        detail: `Could not subscribe at the ${result.stage} stage: ${result.detail}. The URL was not saved — fix it above and try again.`,
+        detail: `Could not subscribe at the ${result.stage} stage: ${result.detail}. The URL was not saved, fix it above and try again.`,
         safety: 'safe',
       };
       return;

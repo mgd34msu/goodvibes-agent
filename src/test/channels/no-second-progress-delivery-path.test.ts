@@ -1,20 +1,20 @@
 /**
- * no-second-progress-delivery-path.test.ts — the machine's tool trace does not
+ * no-second-progress-delivery-path.test.ts, the machine's tool trace does not
  * become a chat message, and this product cannot start doing it again by
  * growing its own copy of the delivery path.
  *
- * Background: internal tool-registry diagnostics ("registry — email send",
- * "exec — standard", "find") were delivered to a chat channel as if they were
+ * Background: internal tool-registry diagnostics ("registry, email send",
+ * "exec, standard", "find") were delivered to a chat channel as if they were
  * things a person had asked to read. The repair is entirely in the SDK
  * (platform/agents/progress-audience.ts, platform/channels/render-audience.ts,
  * and a gate at the top of eventLine). This product carries no copy of any of
- * it — the assertions below are what keeps that true, because the failure would
+ * it, the assertions below are what keeps that true, because the failure would
  * come back the same way it arrived: a helper pasted locally, out of reach of
  * the SDK's gate.
  *
  * What this product DOES do with agent progress is render it where a person is
- * already looking at this terminal — the activity sidebar and the delegated-task
- * status line — and hand it to the model as tool output. Those are local
+ * already looking at this terminal, the activity sidebar and the delegated-task
+ * status line, and hand it to the model as tool output. Those are local
  * surfaces, not deliveries, and the tests below hold that line by asserting the
  * channel-send path never reaches for a progress field.
  */

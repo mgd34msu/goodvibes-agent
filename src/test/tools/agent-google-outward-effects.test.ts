@@ -1,12 +1,12 @@
 /**
- * agent-google-outward-effects.test.ts — the boundary, exercised through the
+ * agent-google-outward-effects.test.ts, the boundary, exercised through the
  * real `google` tool rather than through the guard in isolation.
  *
  * ── The evening this file exists because of ───────────────────────────────
  *
  * The owner asked the agent to send one mail to his own address to prove the
- * Google integration worked. The agent listed his inbox first — the obvious way
- * to demonstrate that reading works — and the send was then refused, with a
+ * Google integration worked. The agent listed his inbox first, the obvious way
+ * to demonstrate that reading works, and the send was then refused, with a
  * message telling him to reply "send it now". He did. It refused again, with
  * the same words. Starting a new session made it work, which is what finally
  * identified the scope: the untrusted-content window had no beginning, so it
@@ -54,8 +54,8 @@ let home = '';
  *
  * These tests used to write `~/.gmail-mcp` files and leave both stores empty,
  * because the resolver scanned that directory on every call. It no longer goes
- * looking — rummaging through a home directory for another tool's credential
- * files is not something to do unasked — so the state under test is the state
+ * looking, rummaging through a home directory for another tool's credential
+ * files is not something to do unasked, so the state under test is the state
  * after adoption. The files are still written, unread, so a resolver that
  * quietly started scanning again would not make these pass for the wrong
  * reason.
@@ -193,7 +193,7 @@ describe('the trigger: the agent lists the inbox to prove reading works, then se
    * The sequence that actually broke, established by running it rather than by
    * reasoning about it.
    *
-   * The suspicion was that connecting the account did it — that reading
+   * The suspicion was that connecting the account did it, that reading
    * credentials or adopting them recorded exposure. It does not. `/google
    * setup` never reads mail, and `listMessages` has exactly one caller in this
    * repo. The refusal named its origin as `gmail`, a literal string that
@@ -201,7 +201,7 @@ describe('the trigger: the agent lists the inbox to prove reading works, then se
    *
    * So the trigger was the model's own verification instinct. Asked to prove
    * the Google integration worked, it listed the inbox to demonstrate that
-   * reading worked — and that poisoned the send it was demonstrating with.
+   * reading worked, and that poisoned the send it was demonstrating with.
    *
    * That is worse than a first-run bug, because it is not confined to first
    * run. It fires for every "check my inbox and then email X" session, which is
@@ -282,7 +282,7 @@ describe('a turn has a beginning, and the previous turn ends at it', () => {
     expect(getSessionUntrustedContentLedger().hasIngestedThisTurn()).toBe(true);
 
     // Turn two: he types something else. The previous turn's exposure ends
-    // here — this is the boundary that had no caller.
+    // here, this is the boundary that had no caller.
     ownerTurn();
     expect(getSessionUntrustedContentLedger().hasIngestedThisTurn()).toBe(false);
 
@@ -357,7 +357,7 @@ describe('what stays refused', () => {
 
     const message = send.error ?? '';
     // A refusal an operator cannot check is indistinguishable from a bug, so it
-    // has to name the field and quote the overlap — not merely assert one.
+    // has to name the field and quote the overlap, not merely assert one.
     expect(message).toContain('body');
     // The quoted excerpt must be text that is genuinely in the message that was
     // read, so the owner can go and look at it.
@@ -410,7 +410,7 @@ describe('what stays refused', () => {
     });
 
     // The original refusal invented "reply 'send it now'". Nothing implemented
-    // it, so the retry refused again — and had anything implemented it, a
+    // it, so the retry refused again, and had anything implemented it, a
     // security boundary would have been cleared by three words of chat text,
     // which content able to steer the conversation could have produced.
     const message = `${send.error ?? ''}`.toLowerCase();

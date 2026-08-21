@@ -6,14 +6,14 @@
  * landing would break:
  *
  *  - the composed body arrives VERBATIM, and the title is not prepended to it
- *    (docs/occasions.md §4.3 — the daemon composes from a day count that never
+ *    (docs/occasions.md §4.3, the daemon composes from a day count that never
  *    leaves its own module, and a surface that decorated the sentence would be
  *    re-deciding that rule with worse information);
  *  - an addressed conversation is honoured, and one this runtime does not have
  *    FAILS rather than silently landing in a different conversation the daemon
  *    would then record as delivered;
- *  - a failure throws, which is the contract's honest answer and — for an occasion
- *    push — what leaves the open item unstamped so the pull still raises it.
+ *  - a failure throws, which is the contract's honest answer and, for an occasion
+ *    push, what leaves the open item unstamped so the pull still raises it.
  */
 
 import { describe, expect, test } from 'bun:test';

@@ -1,5 +1,5 @@
 /**
- * Performance Gate — Release Gate 3
+ * Performance Gate, Release Gate 3
  *
  * Verifies that:
  * - SLO budget definitions exist for all key metrics

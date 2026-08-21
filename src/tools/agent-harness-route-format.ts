@@ -1,5 +1,5 @@
 /**
- * agent-harness-route-format.ts — the three formatters that render a model
+ * agent-harness-route-format.ts, the three formatters that render a model
  * route string.
  *
  * They live in their own module because both halves of what used to be one

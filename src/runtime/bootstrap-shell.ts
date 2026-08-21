@@ -144,7 +144,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
   // honestly report the control plane as unavailable.
   const foundationClients = createRuntimeFoundationClients({
     // The foundation clients read the session REGISTER (listSessions and the
-    // rest), not the dispatch seam, so they get the daemon-grade view — the one
+    // rest), not the dispatch seam, so they get the daemon-grade view, the one
     // that names the register automation runs on.
     runtimeServices: services.asDaemonGradeView(),
     tasksReadModel: uiServices.readModels.tasks,

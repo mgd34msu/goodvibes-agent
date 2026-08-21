@@ -4,7 +4,7 @@
  * Verifies that recovering a session ignores copied panel state, keeps the
  * main conversation available, and reconciles session metadata.
  *
- * All tests use pure state manipulation — no real I/O, no event bus.
+ * All tests use pure state manipulation, no real I/O, no event bus.
  */
 import { describe, test, expect, beforeEach } from 'bun:test';
 import { createInitialRuntimeState } from '../../runtime/store/state.ts';
@@ -49,7 +49,7 @@ function makePanelState(openPanelIds: PanelId[], focusedPanelId: PanelId): Panel
   };
 }
 
-/** Simulate a suspended state — copied panels closed, session status suspended. */
+/** Simulate a suspended state, copied panels closed, session status suspended. */
 function buildSuspendedState(activeState: RuntimeState): RuntimeState {
   const activePanelState = selectPanels(activeState);
   const closedPanels = new Map(activePanelState.panels);

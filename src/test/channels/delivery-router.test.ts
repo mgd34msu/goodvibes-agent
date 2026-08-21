@@ -71,7 +71,7 @@ describe('ChannelDeliveryRouter', () => {
       // The agent's own conversation as a push destination (SDK round: the owner's
       // ruling is Telegram AND the agent). Last, and always present: the SDK
       // appends it after any configured list because the destination has to exist
-      // from the moment the router does — this product registers the callable that
+      // from the moment the router does, this product registers the callable that
       // lands the message separately, at bootstrap, and a push arriving before it
       // has must fail by NAME rather than look like an unknown surface.
       'channel-delivery:agent',

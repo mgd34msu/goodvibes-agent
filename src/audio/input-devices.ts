@@ -1,8 +1,8 @@
 /**
- * input-devices.ts — what microphones this host actually has.
+ * input-devices.ts, what microphones this host actually has.
  *
- * The SDK decides what a configured `voice.wake.inputDevice` MEANS — present,
- * absent and falling back, or a machine with no real microphone at all — but it
+ * The SDK decides what a configured `voice.wake.inputDevice` MEANS, present,
+ * absent and falling back, or a machine with no real microphone at all, but it
  * cannot go and look, because the same policy runs in a browser tab. Looking is
  * this surface's job, and it is one command.
  *
@@ -14,7 +14,7 @@
  * DEGRADING IS PART OF THE CONTRACT. A host without `pactl` is not broken and
  * must not lose wake detection over it: this returns an empty answer by
  * THROWING, which the SDK reads as "this host cannot tell" and treats the pin
- * as unverified — exactly the behaviour every surface had before any of this
+ * as unverified, exactly the behaviour every surface had before any of this
  * existed. Returning an empty LIST would be a different and much worse claim:
  * it means "there are no microphones here", which would stop capture on a
  * perfectly good machine that merely lacks a PulseAudio CLI.
@@ -53,7 +53,7 @@ function runCommand(command: string, args: readonly string[]): Promise<string> {
  *
  * Two commands, because they answer different halves: `list short sources` is
  * the inventory, and `get-default-source` is which one the OS is currently
- * using. The default is best-effort — a listing without it still resolves every
+ * using. The default is best-effort, a listing without it still resolves every
  * case that matters, so a failure there does not fail the enumeration.
  */
 export function createInputDeviceEnumerator(

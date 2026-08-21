@@ -1,7 +1,7 @@
 /**
  * The `occasions` tool: the conversational loop the sixteen verbs support.
  *
- * The tool is a relay, so what is worth testing is not that it forwards — it is
+ * The tool is a relay, so what is worth testing is not that it forwards, it is
  * the set of things it must NOT do, each of which is an owner ruling in
  * docs/occasions.md:
  *
@@ -10,7 +10,7 @@
  *  §4.4 the kind is his, never inferred, so `confirm` refuses without one and no
  *       default is supplied anywhere in the file.
  *  §4.5 a captured date is confirmed once, at the time, so `propose` writes
- *       nothing and relays the daemon's own one-liner — which already asks for
+ *       nothing and relays the daemon's own one-liner, which already asks for
  *       the kind, making it one interaction rather than two.
  *  §4.9 `later` is a distinct answer and is never folded into `no`.
  *  §4.10 a yes opens the interview; the agent does not recommend, and a dropped
@@ -270,7 +270,7 @@ describe('occasions tool — capture', () => {
     });
     const result = await run({ action: 'propose', title: 'Our anniversary', date: '2015-09-12' });
     expect(result.success).toBe(true);
-    // §4.5: ONE line, at the moment he can catch a mishearing — and it already
+    // §4.5: ONE line, at the moment he can catch a mishearing, and it already
     // asks the kind question, so this is one interaction rather than two.
     expect(result.output).toContain(confirmation);
     expect(result.output).toContain('Nothing is written yet');
@@ -511,7 +511,7 @@ describe('occasions tool — sweep', () => {
     }));
     const result = await run({ action: 'sweep' });
     expect(result.output).toContain('outside his active hours');
-    expect(result.output).toContain('Nothing was dropped — it waits');
+    expect(result.output).toContain('Nothing was dropped, it waits');
   });
 
   test('a disabled feature still ran housekeeping, and says so', async () => {

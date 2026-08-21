@@ -3,7 +3,7 @@
  *
  * The REST transport, probe, and receipt consumer live in the SDK itself
  * (`@pellux/goodvibes-sdk/platform/runtime/session-spine`,
- * `rest-transport.ts` — adopted from this agent's own implementation
+ * `rest-transport.ts`, adopted from this agent's own implementation
  * verbatim, per that module's "Hoist provenance" doc comment). Callers import
  * `createSessionSpineRestTransport` / `createSessionSpineRestProbe` /
  * `createSessionSpineReceiptConsumer` / `extractSessionSpineReceipts`

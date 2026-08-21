@@ -1,10 +1,10 @@
 /**
- * agent-profile-tool.ts — the `profile` tool: what the platform knows about the
+ * agent-profile-tool.ts, the `profile` tool: what the platform knows about the
  * owner, read and recorded from ordinary conversation.
  *
  * Design: docs/owner-profile.md. Three parts of it are load-bearing here.
  *
- * §7 — untrusted sources stay barred. The daemon enforces that, and this tool
+ * §7, untrusted sources stay barred. The daemon enforces that, and this tool
  * neither weakens nor re-implements it. Every write carries an `authority`
  * naming where the fact came from, and the tool forwards it unchanged: a fact
  * out of an email body, a web page, a channel message from anyone but him, or a
@@ -15,7 +15,7 @@
  *
  * The daemon now REQUIRES `authority` on every write verb: an absent one is a
  * 400 INVALID_ARGUMENT, not a silent fallback to `owner-direct`. `forget` and
- * `undo` are why — §7 gives them an authority check and nothing else (no
+ * `undo` are why, §7 gives them an authority check and nothing else (no
  * derivation check, no verbatim quote, because a deletion has neither a value
  * to compare nor an utterance to quote), so an omitted authority on a delete
  * meant no gate at all: a caller sending no authority could delete the owner's
@@ -24,14 +24,14 @@
  * daemon cannot. Leaving it out would make an untrusted-sourced write look
  * exactly like a spoken one to the layer that has the answer.
  *
- * §8.2 — it tells him what it recorded. The daemon returns a one-line
+ * §8.2, it tells him what it recorded. The daemon returns a one-line
  * disclosure; every write result carries it forward as the line to say, naming
  * the field and never quoting the value back.
  *
- * §10, §11.3 — third-party personal data. No profile value is ever logged from
+ * §10, §11.3, third-party personal data. No profile value is ever logged from
  * this file. `read` is the "what do you know about me?" answer and deliberately
  * does NOT list the People section: the platform runtime's own descriptor calls
- * `profile.read` "the ONE read that returns closed-tier content in bulk — which
+ * `profile.read` "the ONE read that returns closed-tier content in bulk, which
  * is why it is never callable from a message-composition path", and a model
  * turn can compose an outbound message. People stay reachable one at a time
  * through `person`, by a name he used in this turn's instruction, and every
@@ -74,7 +74,7 @@ const PEOPLE_SECTION = 'people';
  * `fieldId` used to be a free-form string with two ids as examples, and the
  * model filled it with the names a person would use: `full_name`,
  * `preferred_name`, `home_address`, `timezone`, `wife`. Every one was refused by
- * the daemon — correctly, since none of them is a field — and the facts he had
+ * the daemon, correctly, since none of them is a field, and the facts he had
  * just given ended up as prose instead of records. The parameter now carries the
  * whole catalog as an `enum`, so the ids are in front of the model at the moment
  * it fills the argument in.
@@ -149,7 +149,7 @@ async function handleRead(deps: AgentProfileToolDeps): Promise<ToolOutcome> {
       'Your profile could not be read.',
       `  ${response.state.reason ?? 'no reason given'}`,
       `  ${response.state.path}`,
-      'This is not an empty profile — say that it could not be read, and why.',
+      'This is not an empty profile, say that it could not be read, and why.',
     ]);
   }
   if (response.state.kind === 'disabled') {
@@ -166,7 +166,7 @@ async function handleRead(deps: AgentProfileToolDeps): Promise<ToolOutcome> {
   for (const section of response.sections) {
     lines.push(`## ${section.heading}`);
     // §10: the People section is third-party personal data. Counted here, never
-    // listed — a turn holding every person's details is one injected
+    // listed, a turn holding every person's details is one injected
     // instruction away from putting them in an outbound message.
     if (section.heading.trim().toLowerCase() === PEOPLE_SECTION) {
       const count = section.prose.length + section.fields.length;
@@ -198,7 +198,7 @@ async function handleGet(deps: AgentProfileToolDeps, fieldId: string): Promise<T
   lines.push(field.provenance
     ? `  recorded via ${field.provenance.surface} on ${field.provenance.date}`
     : '  no provenance recorded; he wrote or edited this line by hand.');
-  // Non-empty only for a closed-tier field — the daemon decides which reads
+  // Non-empty only for a closed-tier field, the daemon decides which reads
   // need a receipt, so the tool relays rather than judging.
   if (response.disclosure) lines.push(`Say this in your reply: ${response.disclosure}`);
   return ok(lines);
@@ -292,7 +292,7 @@ async function handleStatus(deps: AgentProfileToolDeps): Promise<ToolOutcome> {
 // ── Writes ─────────────────────────────────────────────────────────────────
 
 /**
- * `ok: false` is the daemon's one answer for every way a write did not happen —
+ * `ok: false` is the daemon's one answer for every way a write did not happen,
  * the authority gate, the derivation check, the missing verbatim quote, a
  * profile that is off, and a field that was not there to delete. It is
  * deliberately not distinguished by parsing the reason: the platform runtime's
@@ -358,7 +358,7 @@ async function handleSet(
   const response = narrowProfileWrite(result.data);
   if (!response) return fail([PROFILE_RESPONSE_UNREADABLE]);
   if (!response.ok) return notDoneOutcome(`${fieldId} was not recorded`, response.reason, authority);
-  return disclosureOutcome(response.disclosure, `Noted — saved ${fieldId} to your profile.`);
+  return disclosureOutcome(response.disclosure, `Noted, saved ${fieldId} to your profile.`);
 }
 
 async function handleAppend(
@@ -381,7 +381,7 @@ async function handleAppend(
   const response = narrowProfileWrite(result.data);
   if (!response) return fail([PROFILE_RESPONSE_UNREADABLE]);
   if (!response.ok) return notDoneOutcome(`the note under ${section} was not added`, response.reason, authority);
-  return disclosureOutcome(response.disclosure, `Noted — added a line to ${section} in your profile.`);
+  return disclosureOutcome(response.disclosure, `Noted, added a line to ${section} in your profile.`);
 }
 
 /**
@@ -391,8 +391,8 @@ async function handleAppend(
  * read is only valid against the exact document that produced it. Insert one
  * line above and every index below shifts: a positional delete then removes a
  * different line and reports success, which is the false receipt §9.2 exists to
- * prevent. That case is not malformed input — the index is perfectly well
- * formed, just for a file that no longer exists — so no validation could catch
+ * prevent. That case is not malformed input, the index is perfectly well
+ * formed, just for a file that no longer exists, so no validation could catch
  * it. Addressing by section and exact text re-resolves against the document as
  * it is now, and finds nothing when the line is gone.
  */
@@ -406,7 +406,7 @@ async function handleForget(
   if (!fieldId && !(section && text)) {
     return fail([
       'Say what to forget: either `fieldId` for a mechanical field, or `section` plus the exact `text` of the line.',
-      '  A note, a person, a place or a work line is addressed by its text, not by its position —',
+      '  A note, a person, a place or a work line is addressed by its text, not by its position;',
       '  he edits this file himself, so a line number from an earlier read may point at a different line now.',
       '  Read the profile first and pass the line back in his words. A list marker is not part of the line.',
       '  The match is on the whole line, so a paraphrase or a partial line finds nothing.',
@@ -414,7 +414,7 @@ async function handleForget(
   }
   const target = fieldId || `the line "${text}" under ${section}`;
   // Two plain literals rather than one assembled from spreads. Not because a
-  // spread literal is unchecked — what is written inline in one still is — but
+  // spread literal is unchecked, what is written inline in one still is, but
   // because a field carried IN by a spread source's type is not, and having no
   // spread here means there is no source to carry one. Two lines to remove the
   // vector entirely at the site that had it.
@@ -430,12 +430,12 @@ async function handleForget(
   const response = narrowProfileWrite(result.data);
   if (!response) return fail([PROFILE_RESPONSE_UNREADABLE]);
   // A field that was not there answers ok:false with its own reason, exactly
-  // like a refusal does. Both are failures here — reporting "forgotten" for
+  // like a refusal does. Both are failures here, reporting "forgotten" for
   // something that was never recorded is the dishonesty delete-means-delete
   // exists to remove.
   if (!response.ok) return notDoneOutcome(`${target} was not deleted`, response.reason, authority);
   return ok([
-    `Say this in your reply: ${response.disclosure || `Forgotten — removed ${target} from your profile.`}`,
+    `Say this in your reply: ${response.disclosure || `Forgotten: removed ${target} from your profile.`}`,
     'The line and its kept history are gone from the file.',
   ]);
 }

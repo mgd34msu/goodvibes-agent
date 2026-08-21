@@ -103,7 +103,7 @@ describe('StateTool', () => {
   afterEach(async () => {
     // KVState auto-persists on a 5-second debounce timer that dispose() clears.
     // Without this the timer fired long after the directory below was removed
-    // and RE-CREATED it — <tmp>/.goodvibes/state/session_*.json reappearing
+    // and RE-CREATED it, <tmp>/.goodvibes/state/session_*.json reappearing
     // after cleanup was exactly how this suite left 9 directories behind on a
     // fully green run. Dispose first, then remove.
     await kvState.dispose();
@@ -210,7 +210,7 @@ describe('StateTool', () => {
   });
 
   // -------------------------------------------------------------------------
-  // set — reserved key rejection
+  // set, reserved key rejection
   // -------------------------------------------------------------------------
 
   test('set rejects reserved key "id" without partially writing safe values', async () => {

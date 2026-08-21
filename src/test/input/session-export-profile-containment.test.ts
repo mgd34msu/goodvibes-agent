@@ -1,8 +1,8 @@
 /**
  * A transcript export must not become a copy of the owner's dossier.
  *
- * docs/owner-profile.md §10 and §11.3 keep closed-tier profile content — his
- * address, his contact details, the People section — out of exports. The
+ * docs/owner-profile.md §10 and §11.3 keep closed-tier profile content, his
+ * address, his contact details, the People section, out of exports. The
  * platform runtime supplies those values to `redactSensitiveData` through a
  * registered reader; this asserts that THIS surface's own `/session export`
  * (which builds its transcript text itself, rather than through the platform's

@@ -128,7 +128,7 @@ describe('agent periodic self-update loop', () => {
     expect(h.applied).toHaveLength(1);
     expect(h.restarts).toEqual([CURRENT]);
     expect(h.notices[0]).toContain('v1.1.0 is available');
-    expect(h.notices[1]).toContain('updated to v1.1.0 — restarting');
+    expect(h.notices[1]).toContain('updated to v1.1.0, restarting');
   });
 
   test('a busy agent NEVER swaps: the update waits and re-checks on the short cadence', async () => {

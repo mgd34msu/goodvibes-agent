@@ -20,18 +20,18 @@ export interface WireSpokenTurnRuntimeOptions {
   readonly events: UiRuntimeEvents;
   readonly notify: (message: string) => void;
   /**
-   * Optional player factory — injected in tests to avoid spawning real
+   * Optional player factory, injected in tests to avoid spawning real
    * subprocesses. Defaults to LocalStreamingAudioPlayer.
    */
   readonly playerFactory?: () => StreamingAudioPlayer;
 }
 
 /**
- * wireSpokenTurnRuntime — wires the spoken-turn pipeline against the runtime
+ * wireSpokenTurnRuntime, wires the spoken-turn pipeline against the runtime
  * event bus.
  *
  * Always-speak mode: when `ui.voiceEnabled` is true in config, every
- * TURN_SUBMITTED event arms the turn for spoken output automatically — the
+ * TURN_SUBMITTED event arms the turn for spoken output automatically, the
  * user does not need to arm each turn individually. The availability check
  * inside SpokenTurnController still gates gracefully when no player is found.
  */

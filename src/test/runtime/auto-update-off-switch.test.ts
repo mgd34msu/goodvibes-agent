@@ -24,7 +24,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
  * launch swap and nothing else: the while-running updater carried its own
  * default-on `update.auto` and swapped the binary about thirty seconds in.
  *
- * That is worse than a missing feature. It silently invalidates verification —
+ * That is worse than a missing feature. It silently invalidates verification,
  * any check run against that binary was measuring a published release rather
  * than the build under test, and the only evidence was a leftover file.
  *
@@ -54,7 +54,7 @@ afterAll(() => {
   }
 });
 
-/** Writes `<base>/.goodvibes/agent/settings.json` — the surface's settings file. */
+/** Writes `<base>/.goodvibes/agent/settings.json`, the surface's settings file. */
 function writeSettings(base: string, update: Record<string, unknown>): void {
   const dir = join(base, '.goodvibes', 'agent');
   mkdirSync(dir, { recursive: true });
@@ -85,7 +85,7 @@ function settingsFrom(home: string, work: string): ReturnType<typeof readUpdateS
 
 /**
  * Whether the while-running updater is armed, resolved exactly the way
- * startPeriodicSelfUpdate resolves it — including reading which keys the person
+ * startPeriodicSelfUpdate resolves it, including reading which keys the person
  * actually stated. A helper that skipped that would test a gate the product
  * does not use.
  */

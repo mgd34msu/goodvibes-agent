@@ -106,7 +106,7 @@ describe('startExternalServices (Agent: adopt-only)', () => {
       host: '0.0.0.0',
       port: 4444,
       // 0.0.0.0 (bind-all) normalizes to a reachable loopback address in the
-      // probe/report base URL — see formatBaseUrl's normalizeProbeHost.
+      // probe/report base URL, see formatBaseUrl's normalizeProbeHost.
       baseUrl: 'http://127.0.0.1:4444',
       version: '1.0.0',
     });
@@ -114,7 +114,7 @@ describe('startExternalServices (Agent: adopt-only)', () => {
 
   test('refuses to adopt a daemon reporting an incompatible wire version', async () => {
     // Deliberately unrelated fixture strings (not the live SDK VERSION) so
-    // this assertion never drifts with a real version bump — the injected
+    // this assertion never drifts with a real version bump, the injected
     // isDaemonVersionCompatible predicate is the sole source of truth here.
     const probeDaemonIdentity = mock(async () => ({
       kind: 'goodvibes' as const,

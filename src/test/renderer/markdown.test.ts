@@ -153,7 +153,7 @@ describe('renderMarkdown', () => {
     expect(text).toContain('┌');
     expect(text).toContain('Feature');
     // "Race Conditions" is wider than its column, so it wraps onto a second
-    // physical line — both halves are present and nothing is ellipsized.
+    // physical line, both halves are present and nothing is ellipsized.
     // (This assertion previously read 'Race Condit', which was the truncated
     // form the old ellipsizing renderer produced.)
     expect(text).toContain('Race');

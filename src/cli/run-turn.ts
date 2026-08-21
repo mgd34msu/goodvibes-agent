@@ -1,5 +1,5 @@
 /**
- * run-turn.ts — executing ONE headless turn and turning it into an exit code.
+ * run-turn.ts, executing ONE headless turn and turning it into an exit code.
  *
  * `goodvibes-agent run "..."` has a contract the interactive surface does not:
  * exactly one final answer on stdout, in the shape `--output-format` asked for,
@@ -11,13 +11,13 @@
  * `TURN_COMPLETED` / `TURN_ERROR` / `TURN_CANCEL` fired in this process, and
  * run mode read the answer off them. So when conversation turns started being
  * routed to the connected daemon, run mode was the one path that could not
- * follow — a hosted turn runs in the daemon's process and emits none of those
+ * follow, a hosted turn runs in the daemon's process and emits none of those
  * events here. It kept calling the in-process orchestrator directly, which is
  * how headless runs stayed local while the owner's ruling said every LLM turn
  * goes through the daemon.
  *
  * The fix is not a second routing path. It is one place that knows both ways a
- * turn can end — a local bus event, or a hosted turn's completion — and
+ * turn can end, a local bus event, or a hosted turn's completion, and
  * produces the SAME outcome shape from either, so the output formatting and the
  * exit codes below never learn where the turn ran.
  *
@@ -199,7 +199,7 @@ async function runLocalTurn(
  * Write the result in the format the caller asked for.
  *
  * These shapes are a contract with whatever is parsing them, so they are
- * IDENTICAL for a routed and a local turn — where the turn ran is reported on
+ * IDENTICAL for a routed and a local turn, where the turn ran is reported on
  * stderr, never by changing a field here.
  */
 export function writeRunTurnResult(

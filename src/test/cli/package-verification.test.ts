@@ -632,7 +632,7 @@ describe('package CLI install verification', () => {
 describe('shipped release notes describe the release being shipped', () => {
   // release/release-notes.md is in package.json's `files` list, so it travels
   // inside the published package. It went seven releases without being
-  // rewritten — 1.15.0's notes were still what a reader opened at 1.21.0 —
+  // rewritten, 1.15.0's notes were still what a reader opened at 1.21.0,
   // because the only rules were "at least five bullets" and "no marketing
   // words", and stale notes pass both.
   const REAL_NOTES = readFileSync(resolve(import.meta.dir, '../../../release/release-notes.md'), 'utf8');
@@ -646,7 +646,7 @@ describe('shipped release notes describe the release being shipped', () => {
 
   test('notes left over from an earlier release are rejected by version', () => {
     // The exact failure that shipped: the file is well-formed, has plenty of
-    // bullets, contains no hype — and describes a release that is not this one.
+    // bullets, contains no hype, and describes a release that is not this one.
     const issues = releaseNotesTextIssues(REAL_NOTES, '9.9.9');
     expect(issues).toHaveLength(1);
     expect(issues[0]).toContain(`describe ${REAL_VERSION}`);
@@ -655,7 +655,7 @@ describe('shipped release notes describe the release being shipped', () => {
 
   test('the real stale file this rule was written for is rejected', () => {
     // The genuine 1.15.0-era notes, abbreviated. Note the last bullet DOES
-    // carry a version string — the platform runtime's — which is why the rule
+    // carry a version string, the platform runtime's, which is why the rule
     // is a stamp naming the release and not "the text mentions the version".
     const stale = [
       '- A paired phone is now something Agent can use.',
@@ -682,7 +682,7 @@ describe('shipped release notes describe the release being shipped', () => {
       '',
     ].join('\n');
     const issues = releaseNotesTextIssues(misstamped, '1.22.1');
-    expect(issues).toEqual(['release notes describe 1.21.0 but this release is 1.22.1 — rewrite them for what is shipping.']);
+    expect(issues).toEqual(['release notes describe 1.21.0 but this release is 1.22.1, rewrite them for what is shipping.']);
   });
 
   test('an unreal date in the stamp is rejected', () => {

@@ -1,22 +1,22 @@
 /**
- * `update.*` — launch-time self-update behavior.
+ * `update.*`, launch-time self-update behavior.
  *
  * The SDK owns settings.json's typed schema and already defines an `update`
  * namespace (auto, intervalMinutes, firstCheckSeconds, …). Its loader
  * deep-merges user JSON over the defaults and keeps keys it does not know
  * through `getRaw()` (the same passthrough contract checkpoint-settings.ts
- * documents), so the agent's own additions to that namespace —
- * `autoUpdateAtLaunch` and `launchCheckTimeoutMs` — live in the same file and
+ * documents), so the agent's own additions to that namespace,
+ * `autoUpdateAtLaunch` and `launchCheckTimeoutMs`, live in the same file and
  * are read back here.
  *
  * Both config scopes reach this reader identically: the user-level file at
  * `<home>/.goodvibes/agent/settings.json` loads first and a working-directory
  * `.goodvibes/agent/settings.json` deep-merges on top. Neither scope is
- * special-cased for `update.*`, and there is no daemon-tier overlay for it —
+ * special-cased for `update.*`, and there is no daemon-tier overlay for it,
  * `update.` is not a daemon-owned prefix.
  *
  * The reader hand-validates each field and returns a PARTIAL object holding
- * only the keys the user actually set to a well-typed value — a missing or
+ * only the keys the user actually set to a well-typed value, a missing or
  * malformed block degrades to "use the built-in defaults", never a crash. The
  * defaults themselves live in the consumer (src/cli/launch-auto-update.ts):
  * the feature defaults ON for binary installs, per the recorded owner
@@ -34,7 +34,7 @@ export interface UpdateSettings {
    * Default: true.
    *
    * Setting this false is the off switch for this install replacing its own
-   * binary: it stops the launch swap, and — unless `auto` is set explicitly —
+   * binary: it stops the launch swap, and, unless `auto` is set explicitly,
    * the while-running swap as well. It used to gate only the launch path, so an
    * install with this set to false still replaced itself about thirty seconds
    * in, under `auto`'s separate default.
@@ -45,7 +45,7 @@ export interface UpdateSettings {
   /**
    * Keep checking for a newer release WHILE the agent runs, and install it at
    * an idle moment. Mirrors the daemon's `update.auto`. Default: follows
-   * `autoUpdateAtLaunch`, which defaults to true — a long-running agent that
+   * `autoUpdateAtLaunch`, which defaults to true, a long-running agent that
    * only updated at launch went stale across every release the person never
    * restarted for.
    *
@@ -104,19 +104,19 @@ export function readUpdateSettings(configManager: Pick<ConfigManager, 'getRaw'>)
  * `readUpdateSettings` reads the resolved config, and the SDK ships real
  * defaults for part of the `update` namespace (`auto`, `intervalMinutes`,
  * `firstCheckSeconds`, …). So a resolved `auto: true` says nothing about
- * whether anyone chose it — every install reports it. That distinction is
+ * whether anyone chose it, every install reports it. That distinction is
  * load-bearing for one decision and one only: whether an explicit
  * `autoUpdateAtLaunch: false` should also stop the while-running updater, or
  * whether the person has separately asked to keep it (see
  * runtime/periodic-update.ts). Guessing from the merged value cannot answer it.
  *
- * Both scopes count as explicit — a key written in either the user-level file
+ * Both scopes count as explicit, a key written in either the user-level file
  * or the working-directory file was written by a person. The files are read
  * directly rather than through the manager because the manager's whole job is
  * to erase this difference by merging defaults in.
  *
  * Unreadable or malformed files yield "nothing was stated", which degrades to
- * the documented switch governing both updaters — the safe direction, since it
+ * the documented switch governing both updaters, the safe direction, since it
  * means an off switch is honored rather than quietly overridden.
  */
 export function readExplicitUpdateKeys(

@@ -158,7 +158,7 @@ describe('validate', () => {
 
   test('rejects a token that is not registered', () => {
     const manager = getTestSpawnTokenManager('sess-003');
-    // Create token with a different manager (different secret) — not registered here
+    // Create token with a different manager (different secret), not registered here
     resetTestSpawnTokenManagers();
     const other = getTestSpawnTokenManager('sess-003b');
     const foreignToken = other.createOrchestratorToken();
@@ -195,7 +195,7 @@ describe('canSpawn', () => {
     const result = manager.canSpawn(token, defaultConfig({ maxActiveAgents: 3 }), 3);
     expect(result.allowed).toBe(false);
     // The refusal message names the real settings key, fleet.maxSize
-    // (renamed from orchestration.maxActiveAgents) — the OrchestrationPolicyConfig
+    // (renamed from orchestration.maxActiveAgents), the OrchestrationPolicyConfig
     // field passed above is an unrelated, unchanged internal field name.
     expect(result.reason).toContain('fleet.maxSize');
   });
@@ -291,7 +291,7 @@ describe('token expiry', () => {
   test('expiresAt is included in HMAC signature (tampered expiresAt rejected)', () => {
     const manager = getTestSpawnTokenManager('sess-exp-005');
     const token = manager.createOrchestratorToken();
-    // Move expiresAt far into future — signature should no longer match
+    // Move expiresAt far into future, signature should no longer match
     const tampered: SpawnToken = { ...token, expiresAt: token.expiresAt + 999_999_999 };
     const result = manager.validate(tampered);
     expect(result.valid).toBe(false);

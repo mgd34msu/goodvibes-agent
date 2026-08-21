@@ -6,7 +6,7 @@
  * A whole session was spent on this: every daemon-owned settings READ in the
  * agent came back `unavailable` against `http://127.0.0.1:4444`, while WRITES in
  * the same process, in the same minutes, reached the live daemon on 3421 and
- * applied cleanly. 4444 was not a fiction and not a test fixture — it is the
+ * applied cleanly. 4444 was not a fiction and not a test fixture, it is the
  * port this machine's daemon really listened on for weeks (daemon 1.27.0 through
  * 1.28.4) before it moved. What was left behind was a stale ADDRESS, in two
  * places at once: the running-daemon record, and the control-plane binding in
@@ -14,13 +14,13 @@
  *
  * That double staleness is why the existing recovery could not help. Discovery
  * reaps a runtime record that does not answer and falls back to the derived
- * control-plane binding — but here the binding named the same dead port, so both
+ * control-plane binding, but here the binding named the same dead port, so both
  * rungs of the ladder were rotten together and the read reported `unavailable`
  * for a daemon that was up the entire time.
  *
  * The fix is not a better guess. It is refusing to guess twice: writes already
  * went through a connection this process HELD, and reads now come back from that
- * same connection. These tests pin that by construction — with a client
+ * same connection. These tests pin that by construction, with a client
  * installed, no settings read may dial a discovered address at all, however
  * stale, however plausible.
  */
@@ -57,14 +57,14 @@ function home(): string {
 
 /**
  * Plant the exact wreckage the owner's machine carried: a running-daemon record
- * naming the abandoned port with a pid that IS alive (this process — a pid alive
+ * naming the abandoned port with a pid that IS alive (this process, a pid alive
  * on a dead port is precisely the recycled-pid case), and a daemon config whose
  * control-plane binding names that same abandoned port.
  *
  * The destination is the daemon home ROUTING ITSELF resolves, never a path
  * assembled here. The test suite pins GOODVIBES_DAEMON_HOME to a hermetic
  * directory so no test can reach a real daemon, and planting at a hand-built
- * `<home>/.goodvibes/daemon` therefore plants where nothing reads — the wreckage
+ * `<home>/.goodvibes/daemon` therefore plants where nothing reads, the wreckage
  * would be absent, the assertions would pass, and they would prove nothing.
  */
 function plantStaleAddressEverywhere(h: string): string {
@@ -93,7 +93,7 @@ function plantStaleAddressEverywhere(h: string): string {
 
 /**
  * A connected host that knows the truth. `snapshot` answers what the live daemon
- * holds; `set` records what it was told. Nothing here consults an address —
+ * holds; `set` records what it was told. Nothing here consults an address,
  * that is the point of holding a connection.
  */
 function connectedHost(config: Record<string, unknown>) {
@@ -147,7 +147,7 @@ describe('a settings read comes back from the host the write went to', () => {
       homeDir: h,
     });
 
-    // The live value, from the daemon that holds it — not `unavailable`, and
+    // The live value, from the daemon that holds it, not `unavailable`, and
     // not a local default dressed up as the current setting.
     expect(view.get(DAEMON_KEY)).toBe('goodvibes_agent_bot');
     expect(view.unavailable.has(DAEMON_KEY)).toBe(false);

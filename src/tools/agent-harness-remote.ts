@@ -74,7 +74,7 @@ export function remoteCatalogStatus(_context: CommandContext): Record<string, un
 }
 
 // ---------------------------------------------------------------------------
-// Read surfaces — return route descriptors; agent_operator_method executes them
+// Read surfaces, return route descriptors; agent_operator_method executes them
 // ---------------------------------------------------------------------------
 
 export function remoteSnapshotSummary(_args: AgentHarnessRemoteArgs): Record<string, unknown> {
@@ -135,7 +135,7 @@ export function remotePairRequestsSummary(_args: AgentHarnessRemoteArgs): Record
 }
 
 // ---------------------------------------------------------------------------
-// Mutation surfaces — confirmed, return agent_operator_method handoff objects
+// Mutation surfaces, confirmed, return agent_operator_method handoff objects
 // ---------------------------------------------------------------------------
 
 export function remotePairApproveHandoff(args: AgentHarnessRemoteArgs): RemoteMethodHandoff {

@@ -1,11 +1,11 @@
 /**
- * mcp-lazy-start.ts — MCP servers start when a tool needs one, not at boot.
+ * mcp-lazy-start.ts, MCP servers start when a tool needs one, not at boot.
  *
  * ── What was happening ─────────────────────────────────────────────────────
  *
  * `scheduleBackgroundMcpDiscovery()` calls `mcpRegistry.connectAll()` as its
  * first act, and the agent called it during bootstrap. So every server in
- * `mcp.json` was spawned by simply LAUNCHING the agent — before any prompt,
+ * `mcp.json` was spawned by simply LAUNCHING the agent, before any prompt,
  * any tool call, or any decision by the person sitting there.
  *
  * On a real machine that meant a bare `goodvibes-agent` boot spawned:
@@ -22,8 +22,8 @@
  * ── What this does ─────────────────────────────────────────────────────────
  *
  * The registry is wrapped so the connect happens on FIRST USE and never at
- * boot. The methods that genuinely need a live server — listing tools, reading
- * a schema, calling a tool — connect first and then proceed. Everything else
+ * boot. The methods that genuinely need a live server, listing tools, reading
+ * a schema, calling a tool, connect first and then proceed. Everything else
  * passes straight through and starts nothing.
  *
  * `serverNames` deliberately does NOT trigger a connect: it is what callers ask
@@ -62,7 +62,7 @@ export interface LazyMcpStart {
  * method nobody thought was a trigger.
  *
  * Every entry MUST already return a promise. Gating a synchronous method turns
- * it into an async one and breaks its callers — `listServerSecurity()` returns
+ * it into an async one and breaks its callers, `listServerSecurity()` returns
  * an array, and gating it made `workspaceMcpServers(...).filter` a TypeError
  * that killed the whole TUI at launch. It is deliberately absent: it reports
  * the security state of servers that are running, and before a connect the
@@ -78,7 +78,7 @@ export function createLazyMcpRegistry(
   registry: McpRegistry,
   roots: McpConfigRoots,
   hooks: {
-    /** Runs once, after the first successful connect — the suggestion scan. */
+    /** Runs once, after the first successful connect, the suggestion scan. */
     readonly onFirstConnect?: (() => void) | undefined;
   } = {},
 ): LazyMcpStart {

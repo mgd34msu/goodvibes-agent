@@ -30,7 +30,7 @@ describe('verification ledger', () => {
     // keys: 25 rows joined the settings DENOMINATOR (764/1081 = 70.7% became
     // 764/1106 = 69.1%) with the numerator unmoved. That round recorded its own
     // disagreement with lowering a quality floor at all, and the disagreement
-    // was right — nothing about this product's verification had changed.
+    // was right, nothing about this product's verification had changed.
     //
     // The gap is closed at the denominator rather than at the floor, which is
     // where settings-behavior-coverage.ts's header already located the defect:
@@ -40,7 +40,7 @@ describe('verification ledger', () => {
     // THIS repository references (settings-consumed-keys.ts); the 25
     // surfaces.email.* / surfaces.calendar.* keys are read by the daemon's mail
     // and calendar handlers and appear in no line of this repo, so they are no
-    // longer counted against it — and neither is any other product's key.
+    // longer counted against it, and neither is any other product's key.
     //
     // The other route was closed honestly rather than taken: those 25 keys
     // cannot earn a behaviour point here, because the evidence bar is a test in
@@ -51,7 +51,7 @@ describe('verification ledger', () => {
     //
     // The floor is 84, not 70. Restoring 70 put it back where it belonged
     // before the last round moved it, but with the denominator corrected the
-    // honest measurement was 84.5% — and a floor thirteen points below reality
+    // honest measurement was 84.5%, and a floor thirteen points below reality
     // is not a ratchet, it is thirteen points of room for exactly the silent
     // decay this whole change exists to stop. It sits just under the measured
     // value and never above it: a floor that claims more than the ledger
@@ -63,7 +63,7 @@ describe('verification ledger', () => {
     // (email.*, calendar.*, google.*) as real schema rows, and 21 of them are
     // referenced by this repo, so they joined the denominator the same way
     // surfaces.email.* once did. The response was the one this comment already
-    // names as legitimate — itemised evidence rows — not a lower floor:
+    // names as legitimate, itemised evidence rows, not a lower floor:
     // seventeen keys earned a row in settings-behavior-coverage.ts, twelve of
     // them backed by src/test/verification/connector-settings-behavior.test.ts,
     // which drives each one through the real consumer in this repo. The seven
@@ -71,7 +71,7 @@ describe('verification ledger', () => {
     // so by name there.
     //
     // Never lower this. If it is ever at risk, the two legitimate moves are to
-    // add itemised evidence rows or to correct what the denominator measures —
+    // add itemised evidence rows or to correct what the denominator measures,
     // and settings-consumed-keys.test.ts holds that correction to invariants so
     // "correcting the denominator" cannot become a way to widen the rule until
     // everything counts.

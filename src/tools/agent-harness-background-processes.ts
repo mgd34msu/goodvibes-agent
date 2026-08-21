@@ -84,7 +84,7 @@ function operatorContractMethods(): readonly OperatorContractMethod[] {
 
 function operatorMethodSearchText(method: OperatorContractMethod): string {
   // EXCLUDES title/description prose: discovery keys off what a method IS
-  // (id/route/category/scopes), not how its docs read — SDK 1.4.0's "terminal
+  // (id/route/category/scopes), not how its docs read, SDK 1.4.0's "terminal
   // turn.cancelled event" wording false-matched as a terminal/TTY capability.
   return [
     method.id,

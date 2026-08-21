@@ -64,7 +64,7 @@ export interface SessionPersistenceAndRecoveryResult {
    * was found and the user prompt was shown; null otherwise. Threading the
    * actual id (not just a found/not-found boolean) lets the caller consume
    * or remove EXACTLY the snapshot it offered, even when more than one
-   * snapshot exists on disk — see checkRecoveryFile's RecoveryFileInfo.sessionId.
+   * snapshot exists on disk, see checkRecoveryFile's RecoveryFileInfo.sessionId.
    */
   recoveryPending: string | null;
   /** Set when the first-start registration prompt was shown this launch (see below). */
@@ -121,7 +121,7 @@ export function wireSessionPersistenceAndRecovery(
         runtime.provider,
         conversation.title || '',
         { surface },
-        // Automatic post-turn save, not a user-directed one — stays 'auto' so
+        // Automatic post-turn save, not a user-directed one, stays 'auto' so
         // the retention sweep can reclaim it (see /save's explicit 'user' save
         // in input/commands/session-content.ts).
         'auto',
@@ -174,7 +174,7 @@ export function wireSessionPersistenceAndRecovery(
   // doc comment on why an "offer" check is safe to keep separate from the
   // store's authoritative write-time guard). Skipped when a recovery prompt
   // already claimed this launch's ambient attention, and while onboarding is
-  // still incomplete — the full-screen onboarding wizard would otherwise
+  // still incomplete, the full-screen onboarding wizard would otherwise
   // compete with this prompt for the very next keypress the owner types.
   const onboardingDone = Boolean(readOnboardingCompletionMarker(shellPaths, 'user').payload);
 
@@ -183,7 +183,7 @@ export function wireSessionPersistenceAndRecovery(
   // that cannot reach the platform at all. Same guards as that prompt: skipped
   // when a recovery offer already claimed this launch's attention, and while
   // onboarding is still incomplete. The check itself costs nothing on a healthy
-  // machine — it reads one setting and returns, and only consults the daemon's
+  // machine, it reads one setting and returns, and only consults the daemon's
   // CLI once that setting is already false. See runtime/daemon-repair.ts.
   let daemonRepairPrompt: DaemonRepairPrompt | null = null;
   if (!recoveryPending && onboardingDone && daemonRepair) {
@@ -230,7 +230,7 @@ export function wireSessionPersistenceAndRecovery(
  */
 export interface SetupIncompleteHintDeps {
   /**
-   * Shell path service — used to locate onboarding marker files.
+   * Shell path service, used to locate onboarding marker files.
    * Must satisfy the minimal interface required by readOnboardingCheckMarker.
    */
   readonly shellPaths: Parameters<typeof readOnboardingCheckMarker>[0];
@@ -252,7 +252,7 @@ export interface SetupIncompleteHintDeps {
    * when the signal is unreliable or unavailable at startup time.
    */
   readonly hostReady?: boolean | null;
-  /** Low-priority message channel — same interface as SystemMessageRouter.low(). */
+  /** Low-priority message channel, same interface as SystemMessageRouter.low(). */
   readonly systemMessageRouter: { low(message: string): void };
 }
 

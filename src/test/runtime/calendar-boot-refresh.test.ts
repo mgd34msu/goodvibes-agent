@@ -2,7 +2,7 @@
  * Calendar subscription boot refresh tests.
  *
  * Uses the real CalendarSubscriptionRegistry over a tmp store with an injected
- * FAKE fetcher and fake clock — no real network. Proves the boot contract:
+ * FAKE fetcher and fake clock, no real network. Proves the boot contract:
  * due feeds are fetched (conditional validators sent), not-due feeds are
  * skipped without network, failures produce ONE honest aggregate line while
  * the last-good events and per-feed health survive, an all-skipped or
@@ -93,12 +93,12 @@ describe('formatCalendarBootRefreshLine', () => {
       { name: 'b', outcome: 'not-modified' },
       { name: 'work', outcome: 'unreachable', detail: 'HTTP 503' },
     ]);
-    expect(line).toBe("[Calendar] checked 2 subscriptions (1 updated); 'work' unreachable — will retry next refresh");
+    expect(line).toBe("[Calendar] checked 2 subscriptions (1 updated); 'work' unreachable, will retry next refresh");
   });
 
   test('parse error is named as such', () => {
     const line = formatCalendarBootRefreshLine([{ name: 'bad', outcome: 'parse-error' }]);
-    expect(line).toBe("[Calendar] 'bad' parse error — will retry next refresh");
+    expect(line).toBe("[Calendar] 'bad' parse error, will retry next refresh");
   });
 
   test('F6: an all-304 (not-modified) batch is checked but never claims an update', () => {
@@ -135,7 +135,7 @@ describe('scheduleCalendarSubscriptionBootRefresh', () => {
     const h = await makeHarness([{ kind: 'ok', body: ICS }, { kind: 'error', status: 503, message: 'unavailable' }]);
     h.advance(HOUR + 1);
     await h.run();
-    expect(h.lines).toEqual(["[Calendar] 'Boot Feed' unreachable — will retry next refresh"]);
+    expect(h.lines).toEqual(["[Calendar] 'Boot Feed' unreachable, will retry next refresh"]);
     expect(h.registry.seeds()).toHaveLength(1); // cached events survive
     const [status] = await h.registry.statuses();
     expect(status?.health).toBe('unreachable');
@@ -178,8 +178,8 @@ describe('scheduleCalendarSubscriptionBootRefresh', () => {
       requestRender: () => {},
       buildRegistry: () => registry,
     });
-    // The scheduling call has already returned control here — boot is not
-    // blocked — while the refresh has not completed or reported anything.
+    // The scheduling call has already returned control here, boot is not
+    // blocked, while the refresh has not completed or reported anything.
     expect(lines).toEqual([]);
     // Drain microtasks: the background pass reaches the fetcher and parks on
     // the gate (started but blocked), still without reporting.

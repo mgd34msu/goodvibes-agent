@@ -44,7 +44,7 @@ export type { SdkBlockMeta };
  * calls and their results hanging beneath it as a branch tree (see
  * conversation-turn-structure.ts). Defined as an intersection rather than
  * `interface X extends SdkBlockMeta` because TypeScript requires an extending
- * interface's members to be subtypes of the base interface's — widening the
+ * interface's members to be subtypes of the base interface's, widening the
  * `type` union that way is a compile error. Omit + intersection adds the new
  * variant without touching the SDK's published type.
  */
@@ -204,7 +204,7 @@ export class ConversationManager extends SdkConversationManager {
 
   /**
    * updateStreamingBlock - Update the in-progress streaming block with accumulated content.
-   * Called per-delta during streaming. Does NOT trigger a full rebuild — instead it
+   * Called per-delta during streaming. Does NOT trigger a full rebuild, instead it
    * directly updates the history buffer from streamingStartLine onward.
    */
   public override updateStreamingBlock(content: string): void {
@@ -337,7 +337,7 @@ export class ConversationManager extends SdkConversationManager {
 
     const snapshot = this.getMessageSnapshot();
     // When _displayFromMessageIndex > 0, clearDisplay() was called. Only render
-    // messages added after the clear — the pre-clear history stays off-screen.
+    // messages added after the clear, the pre-clear history stays off-screen.
     // On a full rebuild (e.g. width change), reset the display-start to 0 so the
     // user can scroll back to the full history if needed.
     const displayStart = this._displayFromMessageIndex;
@@ -407,7 +407,7 @@ export class ConversationManager extends SdkConversationManager {
   }
 
   /** Render a slice of messages into the history buffer. `msgIndexOffset` is
-   *  the absolute index of `messages[0]` in the full snapshot — non-zero after
+   *  the absolute index of `messages[0]` in the full snapshot, non-zero after
    *  clearDisplay(), so collapse keys and messageLineRegistry entries stay on
    *  absolute message indexes. */
   private appendMessages(messages: Message[], width: number, msgIndexOffset = 0): void {
@@ -479,7 +479,7 @@ export class ConversationManager extends SdkConversationManager {
 
   /**
    * Collapse keys currently expanded because the user NAVIGATED to a search
-   * match hidden inside them (see search.ts's revealCurrentMatch) — never
+   * match hidden inside them (see search.ts's revealCurrentMatch), never
    * because they were expanded by typing, and never keys the user touched
    * some other way (see noteUserTouch, which removes a key from this set).
    * restoreSearchExpansions() re-folds everything still in this set when
@@ -490,10 +490,10 @@ export class ConversationManager extends SdkConversationManager {
 
   /**
    * Collapse keys the user has explicitly acted on at least once (Tab
-   * toggle via toggleCollapseAtLine, Ctrl+Y copy, Ctrl+B bookmark — see
+   * toggle via toggleCollapseAtLine, Ctrl+Y copy, Ctrl+B bookmark, see
    * handler-content-actions.ts). Membership here permanently exempts a key
    * from restoreSearchExpansions()'s auto-re-collapse, even if search
-   * originally opened it — an explicit user action always outranks search's
+   * originally opened it, an explicit user action always outranks search's
    * own bookkeeping. Grows for the life of the conversation; never pruned,
    * since membership only ever gates one decision (whether to
    * auto-re-collapse) and a stale positive is harmless.
@@ -503,7 +503,7 @@ export class ConversationManager extends SdkConversationManager {
   /** Record that `collapseKey` was expanded because the user navigated to a
    *  search match hidden inside it, so restoreSearchExpansions() knows to
    *  fold it back up on close (unless the user separately touches it while
-   *  it's open — see noteUserTouch). No-op for a key the user already
+   *  it's open, see noteUserTouch). No-op for a key the user already
    *  touched explicitly, since that ownership always wins. */
   public markSearchExpanded(collapseKey: string): void {
     if (!this.userTouchedKeys.has(collapseKey)) this.searchExpandedKeys.add(collapseKey);
@@ -511,7 +511,7 @@ export class ConversationManager extends SdkConversationManager {
 
   /** Record an explicit user action on `collapseKey` (toggle/copy/bookmark).
    *  Exempts it from restoreSearchExpansions()'s auto-re-collapse for the
-   *  rest of the session — the user's own choice always wins over search's
+   *  rest of the session, the user's own choice always wins over search's
    *  bookkeeping, whether they acted on it before search touched it or while
    *  it was sitting auto-expanded. */
   public noteUserTouch(collapseKey: string): void {
@@ -521,7 +521,7 @@ export class ConversationManager extends SdkConversationManager {
 
   /**
    * Re-collapse every key search auto-expanded during the just-closed search
-   * session, except ones the user explicitly touched while they were open —
+   * session, except ones the user explicitly touched while they were open,
    * called from SearchManager.close(). Restores the transcript's pre-search
    * collapse state without disturbing any collapse state search never
    * touched in the first place.
@@ -537,14 +537,14 @@ export class ConversationManager extends SdkConversationManager {
 
   /** First rendered line for message `absoluteIdx` (undefined if never
    *  rendered). For a folded tool-group member this is the group's own
-   *  header line, not the following message's position — see
+   *  header line, not the following message's position, see
    *  messageLineRegistry's doc. Flushes history if dirty. */
   public getMessageLine(absoluteIdx: number): number | undefined {
     this.flushHistory();
     return this.messageLineRegistry[absoluteIdx];
   }
 
-  /** Set a collapseKey's state directly, bypassing block lookup — needed for
+  /** Set a collapseKey's state directly, bypassing block lookup, needed for
    *  a key with no BlockMeta yet (a folded tool-group member's own
    *  `msg_<idx>` key only becomes a real block once its group expands). */
   public setCollapsed(collapseKey: string, collapsed: boolean): void {
@@ -642,7 +642,7 @@ export class ConversationManager extends SdkConversationManager {
    *
    * Contract:
    * - getDisplayBlocks() returns an empty array immediately after this call.
-   * - getMessageSnapshot() is unaffected — full LLM history is preserved.
+   * - getMessageSnapshot() is unaffected, full LLM history is preserved.
    * - resetAll() (which clears both display and messages) continues to work.
    * - rebuildHistory() can be called by callers that need a full display rebuild.
    */
@@ -655,7 +655,7 @@ export class ConversationManager extends SdkConversationManager {
     // rebuildHistory() will only render messages added AFTER this point.
     this._displayFromMessageIndex = this.getMessageSnapshot().length;
     this.dirty = false;
-    // Do NOT re-render here — display stays blank until the next message is added.
+    // Do NOT re-render here, display stays blank until the next message is added.
     // The lastRenderedWidth is kept so subsequent appends use the correct width.
   }
 }

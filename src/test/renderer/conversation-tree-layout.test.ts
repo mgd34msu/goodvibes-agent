@@ -6,11 +6,11 @@
 //
 //   1. the status column IS the `●` bullet column (it used to be a separate
 //      gutter at column 0, left of the whole transcript);
-//   2. the vertical `│` runs unbroken from a row down to its next sibling —
+//   2. the vertical `│` runs unbroken from a row down to its next sibling,
 //      the connector used to be drawn only on a row's FIRST line, so every
 //      multi-line row (an expanded body) punched a hole in the rail;
 //   3. every level steps by exactly TREE_STEP_COLS and a result row lines up
-//      predictably under the tool row it belongs to — the tool row and its
+//      predictably under the tool row it belongs to, the tool row and its
 //      result row each used to compute their own margin.
 //
 // The final describe block pins a fourth: a COLLAPSED result is one row, with

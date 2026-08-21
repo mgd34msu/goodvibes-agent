@@ -1,11 +1,11 @@
 /**
- * approvals-view.ts — what this surface shows when it shows approvals.
+ * approvals-view.ts, what this surface shows when it shows approvals.
  *
  * ── The problem this solves ────────────────────────────────────────────────
  *
  * An ask raised on this surface no longer stops in this process. It is posted
  * to the adopted daemon (`approvals.raise`) and prompted here, and the daemon's
- * record is the one every surface sees — that is the whole point of the parity
+ * record is the one every surface sees, that is the whole point of the parity
  * contract: the phone, the web UI and this terminal are looking at ONE list.
  *
  * The local `ApprovalBroker` was left rendering the panel, and after the split
@@ -23,8 +23,8 @@
  *
  * ── How transitions arrive ─────────────────────────────────────────────────
  *
- * The daemon publishes every transition of every ask — raised, claimed,
- * approved, denied, cancelled, expired — on `control.approval_update`, with the
+ * The daemon publishes every transition of every ask, raised, claimed,
+ * approved, denied, cancelled, expired, on `control.approval_update`, with the
  * whole record in the frame. This view consumes that stream, so an ask raised
  * on a phone appears here the moment the daemon records it and a decision made
  * elsewhere clears it just as fast. The 15-second re-read this panel used to
@@ -32,7 +32,7 @@
  * daemon, a 401, a proxy that will not hold a connection) and it can drop, and
  * a permission ask is not something to be blind about. Without a stream the
  * panel polls exactly as it always did, and each poll tick also retries the
- * stream — that retry is the entire reconnect story. `liveUpdates` on the
+ * stream, that retry is the entire reconnect story. `liveUpdates` on the
  * snapshot says which of the two modes is in force, because "as of now" and "as
  * of up to fifteen seconds ago" are different claims.
  *
@@ -42,7 +42,7 @@
  * "nobody could be asked". An empty list and an unreachable daemon look
  * identical on screen and mean opposite things, so a snapshot carries the
  * reason as a value: `hostRecordRead` says whether the daemon's list was
- * actually read, and `unavailableReason` names what stopped it — a daemon
+ * actually read, and `unavailableReason` names what stopped it, a daemon
  * turned off in settings, a missing operator token, a 404 from a host that has
  * not wired the verb, a connection refused. The reason is the verb layer's own
  * words (see daemon-verbs.ts: refusals are values, failures are throws), not a
@@ -81,7 +81,7 @@ export interface ApprovalsPanelSnapshot {
    * True while `control.approval_update` is open and feeding this view, so an
    * ask raised anywhere appears here the moment the daemon records it. False
    * means the panel is on its periodic re-read instead, and a transition can be
-   * up to one interval old — a real difference the panel is allowed to say.
+   * up to one interval old, a real difference the panel is allowed to say.
    */
   readonly liveUpdates: boolean;
 }
@@ -117,7 +117,7 @@ export interface ApprovalsViewOptions {
    * (which owns host resolution and the token); omitted, the view simply polls,
    * which is what it did before push existed.
    *
-   * Resolving to null means the stream could not be opened — a value, not a
+   * Resolving to null means the stream could not be opened, a value, not a
    * throw, exactly as {@link watchApprovalUpdates} reports it. The view keeps
    * polling and says so in its snapshot.
    */
@@ -220,7 +220,7 @@ export function unionApprovalRecords(
 /**
  * The one line a surface prints when the daemon's record could not be read.
  *
- * Returns null when it WAS read — there is nothing to disclose then, and a
+ * Returns null when it WAS read, there is nothing to disclose then, and a
  * caller that prints unconditionally would train the owner to ignore it.
  */
 export function describeApprovalsUnavailable(snapshot: ApprovalsPanelSnapshot): string | null {
@@ -260,7 +260,7 @@ export function createApprovalsView(options: ApprovalsViewOptions): ApprovalsVie
   };
 
   // Before the first read, the honest posture is "the host's record has not
-  // been read yet" — not "the host is fine and there is nothing pending". The
+  // been read yet", not "the host is fine and there is nothing pending". The
   // host half is kept as its own value rather than sliced back out of the
   // union, so `snapshot()` can rebuild against a broker that changed since the
   // last round trip without guessing which rows came from where.
@@ -318,8 +318,8 @@ export function createApprovalsView(options: ApprovalsViewOptions): ApprovalsVie
   };
 
   /**
-   * One periodic pass: re-read the daemon's list, and — while push is not
-   * carrying transitions — try to open the stream again. That retry is the
+   * One periodic pass: re-read the daemon's list, and, while push is not
+   * carrying transitions, try to open the stream again. That retry is the
    * whole reconnect story: a stream that dropped or was refused at boot is
    * re-attempted on the cadence the panel is already running, with no separate
    * backoff state machine to get wrong.
@@ -388,7 +388,7 @@ export function createApprovalsView(options: ApprovalsViewOptions): ApprovalsVie
       started = true;
       void refresh();
       // Push first, poll underneath it. The stream is the fast path and the
-      // poll is what happens when there is no stream — neither one waits on
+      // poll is what happens when there is no stream, neither one waits on
       // the other to be established.
       void openStream();
       armTimer();

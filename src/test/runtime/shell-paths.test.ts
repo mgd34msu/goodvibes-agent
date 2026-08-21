@@ -5,7 +5,7 @@ import { createShellPathService } from '@/runtime/index.ts';
 
 // Not migrated to makeProjectTempDir: none of the paths below are ever
 // materialized on disk. createShellPathService is pure path derivation (no
-// filesystem I/O at all — confirmed by reading its implementation), and
+// filesystem I/O at all, confirmed by reading its implementation), and
 // every assertion in this file only checks the derived string values.
 describe('createShellPathService', () => {
   test('derives project and user roots from explicit absolute ownership', () => {

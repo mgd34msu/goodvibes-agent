@@ -127,7 +127,7 @@ describe('FileBackend', () => {
 });
 
 // ---------------------------------------------------------------------------
-// FileBackend — path traversal guard
+// FileBackend, path traversal guard
 // ---------------------------------------------------------------------------
 
 describe('FileBackend — path traversal guard', () => {
@@ -323,7 +323,7 @@ describe('createSpillBackend', () => {
 });
 
 // ---------------------------------------------------------------------------
-// OverflowHandler — backend switching
+// OverflowHandler, backend switching
 // ---------------------------------------------------------------------------
 
 describe('OverflowHandler — backend switching', () => {
@@ -388,7 +388,7 @@ describe('OverflowHandler — backend switching', () => {
 });
 
 // ---------------------------------------------------------------------------
-// OverflowHandler — retention policy integration
+// OverflowHandler, retention policy integration
 // ---------------------------------------------------------------------------
 
 describe('OverflowHandler — retention policy', () => {
@@ -439,7 +439,7 @@ describe('overflowCleanup operator command', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Retention pruning — cross-backend
+// Retention pruning, cross-backend
 // ---------------------------------------------------------------------------
 
 describe('Retention pruning — all three backends apply same policy logic', () => {

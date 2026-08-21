@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// reasoning-effort-surface.test.ts — this repo's per-model reasoning-effort
+// reasoning-effort-surface.test.ts, this repo's per-model reasoning-effort
 // presentation.
 //
 // The defect these pin: every effort surface used to carry the same hardcoded
@@ -29,7 +29,7 @@ import {
  * Model ids that must not match a curated family row, so the spec attached
  * here is the one under test rather than one the SDK's family table supplies.
  * (`resolveReasoningEffortSpec` lets the curated table outrank a non-catalog
- * spec on purpose — see its doc — so these tests use catalog-sourced specs.)
+ * spec on purpose, see its doc, so these tests use catalog-sourced specs.)
  */
 const UNKNOWN_ID = 'test-only-model-with-no-family-row';
 

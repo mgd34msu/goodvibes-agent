@@ -1,7 +1,7 @@
 /**
  * Dogfood-finding regression test: the "Inbox workflows" and
  * "Calendar workflows" personal-ops cards must be real, dispatchable actions
- * — not the dead kind:'guidance' cards the dogfood audit found (workspace
+ *, not the dead kind:'guidance' cards the dogfood audit found (workspace
  * cards implying connect flows that don't exist or dead-end).
  */
 import { describe, expect, test } from 'bun:test';

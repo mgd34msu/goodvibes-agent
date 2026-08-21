@@ -2,7 +2,7 @@
  * hosted-turn-bus-bridge.test.ts
  *
  * A daemon-hosted turn's frames only reach anything watching this process's
- * own `events.turns` (spoken output, notably — see audio/spoken-turn-wiring.ts)
+ * own `events.turns` (spoken output, notably, see audio/spoken-turn-wiring.ts)
  * if something republishes them there; hosted-frame-render.ts only reads them
  * to update the conversation transcript. These tests check the republishing
  * directly (frame in, envelope out) and, end to end, that a hosted turn's
@@ -135,7 +135,7 @@ describe('a daemon-hosted turn speaks through the same bus a local turn uses', (
       playerFactory: () => player,
     });
 
-    // No local orchestrator ran this turn — everything below is exactly what
+    // No local orchestrator ran this turn, everything below is exactly what
     // a daemon-hosted turn's SSE stream would hand the router as frames.
     const bridgeOptions = { runtimeBus: bus, sessionId: 'local-session', source: 'goodvibes-agent' };
     bridgeHostedFrameOntoRuntimeBus(frame('TURN_SUBMITTED', { turnId: 'hosted-t1', prompt: 'what is the weather' }), bridgeOptions);

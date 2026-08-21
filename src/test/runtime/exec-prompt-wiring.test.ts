@@ -1,7 +1,7 @@
 /**
  * Adoption contract proof for the exec PTY prompt-answer wiring, now consumed
  * from the SDK's public export (platform/runtime/permissions/exec-prompt-wiring
- * — the former agent-local fork-mirror existed only while the builder had no
+ *, the former agent-local fork-mirror existed only while the builder had no
  * public export path). The behavioral contract the agent composition relies on
  * is unchanged: a terminal prompt rides the approval broker as an
  * execute-category ask; approval with a typed answer feeds the run; denial or

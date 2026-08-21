@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { runStoreFileUpdate, writeStoreJson } from '@/utils/store-file.ts';
 import {
   SubscriptionStore,
   expandEvent,
@@ -18,7 +18,7 @@ import type { SecretScope } from '../config/secrets.ts';
 
 /**
  * Agent-side registry for READ-ONLY external calendar SUBSCRIPTIONS (iCalendar
- * feeds — Google "secret address", Outlook published .ics, or any .ics URL).
+ * feeds, Google "secret address", Outlook published .ics, or any .ics URL).
  *
  * The parse/RRULE/fetch-status engine is the SDK's `platform/calendar`
  * (SubscriptionStore + expandEvent). This class owns the two things the SDK
@@ -40,7 +40,7 @@ import type { SecretScope } from '../config/secrets.ts';
  * ## Feed content is untrusted content
  *
  * A subscribed event's summary, location and description are written by whoever
- * controls the feed — the same class of input as a message body or a web page,
+ * controls the feed, the same class of input as a message body or a web page,
  * arriving in a runtime that can also send and buy. So a turn that READS them
  * records an untrusted ingest, which is what arms `evaluateOutwardEffect` for
  * the rest of that turn. The recorder is INJECTED (`recordUntrustedIngest`),
@@ -54,7 +54,7 @@ import type { SecretScope } from '../config/secrets.ts';
  *
  * `subscribe()` and `refresh()` are ARRIVAL, and must never record. A refresh
  * runs on a timer or at boot, with nobody watching, and the ledger is scoped by
- * a turn watermark — so a recording made when a feed body lands would attach to
+ * a turn watermark, so a recording made when a feed body lands would attach to
  * whatever turn happened to be open and refuse that turn's outward action over
  * an event no turn read and nobody asked for. That hands anyone who can get an
  * event onto a subscribed feed a remote off switch for the agent's outward
@@ -74,13 +74,13 @@ interface SubscriptionMeta {
   /** SecretsManager key holding the feed URL. */
   readonly secretKey: string;
   /**
-   * The feed URL as `maskFeedUrl` renders it — `https://host/…tail`, never the
+   * The feed URL as `maskFeedUrl` renders it, `https://host/…tail`, never the
    * raw value, which is a read capability for the whole calendar.
    *
    * Persisted because the read paths need it and cannot get it. `seeds()` and
    * `occurrencesInWindow()` are synchronous, read only this JSON file, and are
    * built by `subscriptionRegistryForRead` with a secret store that may be a
-   * stub returning null — so the raw URL is genuinely unavailable there, and
+   * stub returning null, so the raw URL is genuinely unavailable there, and
    * plumbing the secret manager into a display read to fetch a value that would
    * only be masked again is the wrong trade. Written by `subscribe()` and
    * refreshed by `refresh()`, both of which already hold the URL.
@@ -127,7 +127,7 @@ export interface SubscribedOccurrence {
   readonly allDay: boolean;
   readonly location?: string;
   readonly tzid?: string;
-  /** True when the source RRULE was not fully expanded — shown as a marker. */
+  /** True when the source RRULE was not fully expanded, shown as a marker. */
   readonly recurrenceNotFullyExpanded: boolean;
 }
 
@@ -186,7 +186,7 @@ export function subscriptionStorePath(shellPaths: AgentLocalStorePaths): string 
   return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'calendar', 'subscriptions.json');
 }
 
-/** The real HTTP fetcher — conditional GET with etag/last-modified, mapped to FeedFetchResult. */
+/** The real HTTP fetcher, conditional GET with etag/last-modified, mapped to FeedFetchResult. */
 export function createHttpFeedFetcher(): FeedFetcher {
   return async (req) => {
     try {
@@ -219,7 +219,7 @@ export interface CalendarSubscriptionRegistryOptions {
   readonly clock?: () => number;
   readonly defaultRefreshIntervalMs?: number;
   /**
-   * Called once per externally-sourced event whose text a TURN read — see the
+   * Called once per externally-sourced event whose text a TURN read, see the
    * class header. Injected rather than imported so this class holds no ledger;
    * the composition root binds the session ledger.
    */
@@ -233,17 +233,6 @@ export class CalendarSubscriptionRegistry {
   private readonly clock: () => number;
   private readonly defaultInterval: number;
   private readonly recordUntrustedIngest?: CalendarUntrustedIngestRecorder;
-  /**
-   * F2 fix: every store WRITE (the read-merge-write critical section of
-   * subscribe/unsubscribe/refresh) is serialized through this single
-   * in-process promise chain, one instance per registry. Network calls
-   * (feed fetch, secret-store reads) are NOT held behind this queue — only
-   * the final read-fresh/merge/write section is — so a slow refresh never
-   * blocks a concurrent subscribe/unsubscribe from making progress; it only
-   * ensures the two operations' WRITES never race each other and neither
-   * ever blind-overwrites a change the other just made.
-   */
-  private mutationQueue: Promise<unknown> = Promise.resolve();
 
   public constructor(options: CalendarSubscriptionRegistryOptions) {
     this.storePath = options.storePath;
@@ -255,18 +244,19 @@ export class CalendarSubscriptionRegistry {
   }
 
   /**
-   * Runs `fn` after every previously queued mutation has settled, chaining
-   * this call onto the queue regardless of whether earlier calls resolved or
-   * rejected (a failed mutation must never wedge the queue for the ones
-   * behind it). Returns `fn`'s own result/rejection to its caller.
+   * Serializes the read-merge-write critical section of
+   * subscribe/unsubscribe/refresh. The network calls those operations make
+   * (feed fetch, secret-store reads) stay OUTSIDE this section, so a slow
+   * refresh never blocks a concurrent subscribe from making progress; only
+   * the final read-fresh/merge/write is held, which is what stops the two
+   * from blind-overwriting each other.
+   *
+   * Queued on the store path rather than on this instance: the CLI and the
+   * TUI build separate registries over the same file, and a per-instance
+   * chain lets those two overlap.
    */
   private withMutationLock<T>(fn: () => Promise<T> | T): Promise<T> {
-    const run = this.mutationQueue.then(fn, fn);
-    this.mutationQueue = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    return run;
+    return runStoreFileUpdate(this.storePath, fn);
   }
 
   public static create(
@@ -283,7 +273,7 @@ export class CalendarSubscriptionRegistry {
     });
   }
 
-  /** Fetch a feed WITHOUT saving it — the subscribe preview / wizard validate step. */
+  /** Fetch a feed WITHOUT saving it, the subscribe preview / wizard validate step. */
   public async validate(url: string, requestedName?: string): Promise<ValidateResult> {
     const store = new SubscriptionStore({ fetcher: this.fetcher, clock: this.clock });
     const res = await store.validateByFetch(url, requestedName);
@@ -293,8 +283,8 @@ export class CalendarSubscriptionRegistry {
 
   /**
    * Subscribe: fetch once, derive the name, store the URL as a secret, and cache
-   * events. The network fetch/validate (`store.add`) runs unlocked — it is the
-   * slow part and does not need exclusive access to the store — but the
+   * events. The network fetch/validate (`store.add`) runs unlocked, it is the
+   * slow part and does not need exclusive access to the store, but the
    * duplicate-name check, the secret write, and the file write all happen
    * inside one locked read-merge-write section (F2) so a concurrent refresh
    * finishing its own write in between can never cause this subscribe to be
@@ -311,7 +301,7 @@ export class CalendarSubscriptionRegistry {
     return this.withMutationLock(async () => {
       const file = this.readStore();
       if (file.subscriptions.some((s) => s.name === sub.name)) {
-        return { ok: false, stage: 'duplicate', detail: `A subscription named '${sub.name}' already exists — unsubscribe first or pass a different --name.` };
+        return { ok: false, stage: 'duplicate', detail: `A subscription named '${sub.name}' already exists: unsubscribe first or pass a different --name.` };
       }
       const secretKey = secretKeyForName(sub.name);
       await this.secrets.set(secretKey, url, { scope: resolveCredentialWriteScope(secretKey) });
@@ -365,7 +355,7 @@ export class CalendarSubscriptionRegistry {
    * F2 fix: the per-target network fetches run unlocked (so a concurrent
    * subscribe/unsubscribe is never blocked behind them), but the write is a
    * single locked section that re-reads the store fresh and merges each
-   * refreshed record onto that fresh read — never onto the stale snapshot
+   * refreshed record onto that fresh read, never onto the stale snapshot
    * this method started with. Concretely: `merged = freshRead.map(record =>
    * refreshedByName.get(record.name) ?? record)`. Because the merge maps
    * over the FRESH list rather than over this call's original target list, a
@@ -388,7 +378,7 @@ export class CalendarSubscriptionRegistry {
     for (const target of targets) {
       const url = await this.secrets.get(target.secretKey);
       if (url === null) {
-        outcomes.push({ name: target.name, outcome: 'unreachable', detail: 'Stored feed URL is missing from the secret manager — unsubscribe and re-add.' });
+        outcomes.push({ name: target.name, outcome: 'unreachable', detail: 'Stored feed URL is missing from the secret manager: unsubscribe and re-add.' });
         continue;
       }
       const store = new SubscriptionStore({ fetcher: this.fetcher, clock: this.clock });
@@ -424,7 +414,7 @@ export class CalendarSubscriptionRegistry {
     return outcomes;
   }
 
-  /** Subscription statuses for `/calendar subscriptions` — no network, masked URLs. */
+  /** Subscription statuses for `/calendar subscriptions`, no network, masked URLs. */
   public async statuses(): Promise<readonly SubscriptionStatus[]> {
     const file = this.readStore();
     const now = this.clock();
@@ -453,7 +443,7 @@ export class CalendarSubscriptionRegistry {
   }
 
   /**
-   * One row per cached subscribed event (the seed, unexpanded) — the merged
+   * One row per cached subscribed event (the seed, unexpanded), the merged
    * `/calendar list` view. A recurring event is marked so the reader knows more
    * occurrences exist; `occurrencesInWindow` is the date-windowed expansion.
    */
@@ -577,10 +567,7 @@ export class CalendarSubscriptionRegistry {
   }
 
   private writeStore(file: SubscriptionStoreFile): void {
-    mkdirSync(dirname(this.storePath), { recursive: true });
-    const tmp = `${this.storePath}.tmp`;
-    writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, 'utf-8');
-    renameSync(tmp, this.storePath);
+    writeStoreJson(this.storePath, file);
   }
 }
 

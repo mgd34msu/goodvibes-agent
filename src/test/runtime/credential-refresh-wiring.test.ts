@@ -1,6 +1,6 @@
 /**
  * Composition-root wiring proof (mirrors the SDK's runtime services): a
- * secrets write triggers a LIVE provider credential refresh — one credential
+ * secrets write triggers a LIVE provider credential refresh, one credential
  * chain (env -> secrets -> subscription) with no restart needed.
  */
 import { describe, expect, test } from 'bun:test';

@@ -3,7 +3,7 @@
  *
  * Split out of memory-command.ts to stay under the 800-line architecture cap.
  * Owns the CLI's wire-first path onto the memory spine (SDK 1.2.0 full-detach
- * catalog) — see the CLI ruling below for why this exists and what it
+ * catalog), see the CLI ruling below for why this exists and what it
  * deliberately still does NOT cover.
  */
 import type { MemoryReviewState } from '@pellux/goodvibes-sdk/platform/state';
@@ -44,19 +44,19 @@ import {
  * CLI RULING (memory-spine adoption, SDK 1.2.0 full-detach catalog).
  *
  * The CLI is a one-shot process invoked by `goodvibes-agent memory ...` with no
- * lasting daemon context — it doesn't get to sit through a boot-time reachability
+ * lasting daemon context, it doesn't get to sit through a boot-time reachability
  * probe like the interactive runtime does. But the daemon's canonical store is
  * single-writer: if a daemon IS running and owns that store, this process opening
  * the same sqlite file underneath it and calling `store.save()` at the end (see
  * `withMemory` in memory-command.ts, unconditional in its `finally`) would race the
  * daemon's own writes and silently drop whichever side saved last. Staying
  * "local-direct always" would be safe ONLY if no daemon could ever be running
- * concurrently — which is not true for this product (Connected Host is the normal
+ * concurrently, which is not true for this product (Connected Host is the normal
  * mode, not the exception).
  *
  * So the honest resolution: for every subcommand that has a wire-covered
  * equivalent on `MemoryAccess` (the five 1.1.0 core verbs plus the 1.2.0 extended
- * verbs list/update/link/linksFor/searchSemantic/exportBundle/importBundle — see
+ * verbs list/update/link/linksFor/searchSemantic/exportBundle/importBundle, see
  * memory-spine-rest-transport.ts), the CLI probes for a reachable daemon FIRST and,
  * when one answers, runs the ENTIRE command over the wire and never opens the local
  * store file at all. Only when the probe finds no daemon does it fall back to the
@@ -64,12 +64,12 @@ import {
  *
  * 1.2.0 closes most of the prior gap: `show` (get + linksFor), `link`, `export`,
  * `import`, and the `search --semantic`/`--vector` path, plus `promote` (which is
- * not a distinct wire verb — it is `update({ scope })`, per the SDK's full-detach
+ * not a distinct wire verb, it is `update({ scope })`, per the SDK's full-detach
  * ruling) now all run over the wire when a daemon is adopted.
  *
  * A real, stated gap remains: `queue` (reviewQueue) and `vector` (vectorStats /
  * doctor / rebuild) have no route on this CLI's wire transport by deliberate
- * choice — vector-index diagnostics are maintenance a store performs on its OWN
+ * choice, vector-index diagnostics are maintenance a store performs on its OWN
  * index, so they stay local-direct honestly rather than reporting a daemon's index
  * health as if it were this process's own. Those two subcommands still run
  * local-direct even while a daemon is adopted; that is a known, named scope limit,
@@ -92,7 +92,7 @@ const WIRE_ELIGIBLE_SUBCOMMANDS = new Set([
   'import', 'handoff-import',
 ]);
 
-/** `search`/`find` covers both the literal path (honestSearch) and, since 1.2.0, the `--semantic`/`--vector` path (searchSemantic) — both are wire-covered verbs. */
+/** `search`/`find` covers both the literal path (honestSearch) and, since 1.2.0, the `--semantic`/`--vector` path (searchSemantic), both are wire-covered verbs. */
 function isWireEligibleMemorySubcommand(normalized: string): boolean {
   return WIRE_ELIGIBLE_SUBCOMMANDS.has(normalized) || normalized === 'search' || normalized === 'find';
 }
@@ -100,16 +100,16 @@ function isWireEligibleMemorySubcommand(normalized: string): boolean {
 /**
  * A `LocalMemoryStore` stub that must never actually run. `MemorySpineClient`
  * routes EVERY op to the transport once constructed with one attached (mode is
- * 'client' immediately — see the SDK's one-writer enforcement ruling in
+ * 'client' immediately, see the SDK's one-writer enforcement ruling in
  * client.ts), so this stub exists only to satisfy the constructor's required
- * `local` argument without opening the CLI's own copy of the store file — the
+ * `local` argument without opening the CLI's own copy of the store file, the
  * exact single-writer race the whole wire-first path exists to avoid. A call
  * that somehow reached it would be a bug in that routing guarantee, so it fails
  * loudly rather than silently reading/writing a file this process must not touch.
  */
 function neverReachedLocalMemoryStore(): LocalMemoryStore {
   const unreachable = (): never => {
-    throw new Error('memory spine: CLI wire mode reached the local store stub — this must never happen while a transport is attached.');
+    throw new Error('memory spine: CLI wire mode reached the local store stub, this must never happen while a transport is attached.');
   };
   return {
     add: unreachable,
@@ -190,13 +190,13 @@ async function handlePromoteWire(runtime: CliCommandRuntime, memorySpine: Memory
   const [id, scopeRaw] = options.positionals;
   if (!id || !scopeRaw) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory promote <id> <session|project|team> --yes', 2);
   if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to promote memory record ${id} without --yes.`, 2);
-  // "Promote" is not a distinct wire verb — it is a scope edit, per the SDK's
+  // "Promote" is not a distinct wire verb, it is a scope edit, per the SDK's
   // full-detach ruling (a scope promotion is update({ scope })).
   //
   // `update` now returns null ONLY for a genuine record-miss (a
   // MEMORY_RECORD_NOT_FOUND 404); a daemon that does not serve the update verb
   // (an older daemon, a route-not-found 404) makes it THROW an honest
-  // "verb unavailable" error that surfaces via handleMemoryCommand's errorOutput —
+  // "verb unavailable" error that surfaces via handleMemoryCommand's errorOutput,
   // it is no longer folded to null here and mislabelled as "record not found".
   const record = await memorySpine.update(id, { scope: requireScope(scopeRaw) });
   if (!record) return failure(runtime, 'memory_not_found', `Memory record not found ${id}`, 1);
@@ -345,9 +345,9 @@ async function handleDeleteWire(runtime: CliCommandRuntime, memorySpine: MemoryA
 /**
  * Runs a wire-eligible subcommand over the memory spine when a daemon is reachable.
  * Returns null (never a failure output) when the subcommand has no wire path, or
- * when the probe finds no daemon — either way the caller falls through to the
+ * when the probe finds no daemon, either way the caller falls through to the
  * existing local-direct path unchanged. Once a wire call is actually in flight, a
- * failure surfaces honestly (thrown, caught by handleMemoryCommand's try/catch) —
+ * failure surfaces honestly (thrown, caught by handleMemoryCommand's try/catch),
  * it never silently retries against the local file after starting a wire attempt.
  */
 export async function tryWireMemoryCommand(

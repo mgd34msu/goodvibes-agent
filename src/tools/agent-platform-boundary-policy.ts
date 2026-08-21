@@ -1,5 +1,5 @@
 /**
- * agent-platform-boundary-policy.ts — a conversational turn does not repair the
+ * agent-platform-boundary-policy.ts, a conversational turn does not repair the
  * platform it is running on.
  *
  * ## What happened
@@ -8,11 +8,11 @@
  * why, and announced: "I found the actual defect: the OAuth wizard always
  * forces Branding before consent... I'm repairing that control flow." It had
  * gone into the GoodVibes platform source under his projects directory and
- * started editing. His reply: "I DID NOT SAY TO EDIT MY FUCKING SOURCE CODE" —
+ * started editing. His reply: "I DID NOT SAY TO EDIT MY FUCKING SOURCE CODE",
  * then, immediately after, "I SAID TO LOGIN TO A FUCKING EMAIL ACCOUNT".
  *
  * The mistake is not that it diagnosed something. Diagnosing the platform is
- * WORK — a change to a shipped product, with a review and a release behind it —
+ * WORK, a change to a shipped product, with a review and a release behind it,
  * and this product is conversation-first: work is proposed in one sentence and
  * waits for a yes. A turn that starts it unprompted has substituted its own
  * project for the one he asked for, and the thing he actually wanted is still
@@ -26,8 +26,8 @@
  * in a turn where he asked for something else.
  *
  * So the test is his own words this turn. If his message points at the platform
- * source — names a path in it, or names the platform together with a source or
- * a repair word — he asked, and nothing here fires. If his message says nothing
+ * source, names a path in it, or names the platform together with a source or
+ * a repair word, he asked, and nothing here fires. If his message says nothing
  * about it and the turn reaches for platform source anyway, that is self-
  * directed, and the refusal hands back the sentence to say instead: name the
  * defect in one line, ask whether to look into it, and get back to his actual
@@ -74,7 +74,7 @@ const SOURCE_WORDS = /\b(?:source|sources|sourcecode|repo|repos|repository|repos
  *
  * "Fix the daemon" and "look at the tui" are both requests even though neither
  * names a file, and refusing either would be the opposite mistake. The looking
- * verbs are deliberately included even though they are common words — they only
+ * verbs are deliberately included even though they are common words, they only
  * count alongside a platform name, and "show me my calendar" carries none. The
  * bias throughout is toward allowing: the operator policy states the rule in
  * words, and this guard exists to catch the case where he said nothing about
@@ -94,7 +94,7 @@ const PLATFORM_NAME_WORDS = /\b(?:goodvibes|good vibes|pellux|sdk|daemon|tui|web
  */
 export const AGENT_PLATFORM_BOUNDARY_DENIAL = [
   'Blocked: this is GoodVibes platform source, and he did not ask you to go into it this turn.',
-  'Diagnosing or repairing the platform is work in its own right — it is proposed, not started.',
+  'Diagnosing or repairing the platform is work in its own right, it is proposed, not started.',
   'Say in ONE line what looks wrong and ask whether he wants you to look into it, then wait for his answer.',
   'Do not read further into the platform source, do not change it, and do not treat fixing it as a way to finish the thing he actually asked for.',
   'Go back to his actual request and say plainly if it cannot be completed and why.',
@@ -144,7 +144,7 @@ export interface PlatformBoundaryCheckInput {
 /**
  * The denial to return, or null to let the call through.
  *
- * Null whenever no path is platform source, and null whenever he asked — in
+ * Null whenever no path is platform source, and null whenever he asked, in
  * that order, because the cheap check is the one that answers most calls.
  */
 export function validatePlatformBoundaryForAgentPolicy(

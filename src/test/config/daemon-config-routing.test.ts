@@ -4,11 +4,11 @@
  * The agent is a CLIENT of the daemon. Two failures happened on the same
  * evening and this file covers both directions:
  *
- *   WRITE — a Telegram bot username set here reported success, landed in
+ *   WRITE, a Telegram bot username set here reported success, landed in
  *   `~/.goodvibes/agent/settings.json`, and configured nothing, because Telegram
  *   runs in the daemon and the daemon reads a different file.
  *
- *   READ — asked to confirm the same value, the agent read its OWN store, found
+ *   READ, asked to confirm the same value, the agent read its OWN store, found
  *   a blank, and reported the setting as not set.
  */
 
@@ -78,7 +78,7 @@ describe('writes go to the store the acting runtime reads', () => {
     expect(result.persistedTo).toBe(daemonStore(h));
     const stored = JSON.parse(readFileSync(daemonStore(h), 'utf-8')) as Record<string, Record<string, Record<string, unknown>>>;
     expect(stored['surfaces']!['telegram']!['botUsername']).toBe('goodvibes_agent_bot');
-    // Not a copy in the agent's own store — one writer per key.
+    // Not a copy in the agent's own store, one writer per key.
     const agentRaw = existsSync(agentStore(h))
       ? JSON.parse(readFileSync(agentStore(h), 'utf-8')) as Record<string, unknown>
       : {};
@@ -149,7 +149,7 @@ describe('startup migration', () => {
     // reads the file on the next statement with no await in between, and
     // `Bun.write` returns a promise. Constructing the ConfigManager above does
     // not create `.goodvibes/tui`, so `Bun.write` has to make the directory
-    // first and cannot finish inline — in a warm process the migration then
+    // first and cannot finish inline, in a warm process the migration then
     // read an absent file, found nothing to move, and returned null. That made
     // this test pass alone and fail intermittently in the full single-process
     // suite, where 700 files run before it.

@@ -12,7 +12,7 @@ import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 
 /**
- * `goodvibes-agent workspaces` — manage the shared registered-workspace store
+ * `goodvibes-agent workspaces`, manage the shared registered-workspace store
  * (SDK 1.6.1 platform/workspace/registration) that gates automatic checkpoints
  * (owner ruling, 2026-07-10; see ../runtime/services.ts and
  * ../config/workspace-registration.ts). A workspace root not covered by this
@@ -22,7 +22,7 @@ import type { CliCommandRuntime } from './management.ts';
  *
  * Coverage flows down a registered root's subtree and is inherited through
  * the git worktree→main-repo link (an orchestration worktree of a registered
- * repo is covered without being registered itself) — the CLI UX below (the
+ * repo is covered without being registered itself), the CLI UX below (the
  * list/register/unregister subcommands, their flags, and their exit codes) is
  * unchanged from the local-registry predecessor this now reads/writes
  * through instead.
@@ -96,7 +96,7 @@ export async function handleWorkspacesCommand(runtime: CliCommandRuntime): Promi
       ? ['No registered workspaces', '  automatic checkpoints are off everywhere until a workspace is registered']
       : [
         `Registered workspaces (${snapshot.workspaces.length})`,
-        ...snapshot.workspaces.map((entry) => `  ${entry.root}${entry.label ? ` (${entry.label})` : ''} — registered ${entry.registeredAt}`),
+        ...snapshot.workspaces.map((entry) => `  ${entry.root}${entry.label ? ` (${entry.label})` : ''}, registered ${entry.registeredAt}`),
       ];
     lines.push('', `current workspace ${current}`, `  registered ${currentWorkspaceRegistered ? 'yes' : 'no'}`);
     return { output: lines.join('\n'), exitCode: 0 };

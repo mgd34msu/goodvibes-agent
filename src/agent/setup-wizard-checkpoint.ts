@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreFile } from '@/utils/store-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export type AgentSetupWizardCheckpointSource = 'workspace' | 'harness';
@@ -126,10 +126,7 @@ export function saveSetupWizardCheckpoint(
     source: input.source,
     ...(input.note?.trim() ? { note: input.note.trim().replace(/\s+/g, ' ') } : {}),
   };
-  mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.tmp`;
-  writeFileSync(tempPath, formatCheckpoint(checkpoint), 'utf-8');
-  renameSync(tempPath, path);
+  writeStoreFile(path, formatCheckpoint(checkpoint));
   return readSetupWizardCheckpoint(shellPaths);
 }
 

@@ -126,7 +126,7 @@ export function summarizeMemoryItem(record: MemoryRecord): AgentWorkspaceLocalLi
     cls: record.cls,
     confidence: record.confidence,
     // Visible expiry: a record outside its [validFrom, validUntil) window is
-    // still stored (not deleted) but not prompt-injected — see
+    // still stored (not deleted) but not prompt-injected, see
     // memoryRecordTemporalStatus / describeMemoryPromptEligibility.
     temporalStatus: memoryRecordTemporalStatus(record),
   };

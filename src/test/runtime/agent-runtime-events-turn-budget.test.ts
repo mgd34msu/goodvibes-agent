@@ -19,7 +19,7 @@ const flushMicrotasks = async (rounds = 6) => {
  * budget. Exercising the REAL orchestrator to genuinely exhaust a budget here
  * would be slow and indirect; instead this stamps those two fields onto the
  * live record the same way the orchestrator does (AgentRecord is a mutable,
- * shared instance — see src/test/agents/orchestrator.test.ts directly
+ * shared instance, see src/test/agents/orchestrator.test.ts directly
  * mutating `record.status` for the same reason) and verifies
  * registerAgentRuntimeEvents renders the honest budget line from those typed
  * fields alone, never touching the (irrelevant, generic) child-failure

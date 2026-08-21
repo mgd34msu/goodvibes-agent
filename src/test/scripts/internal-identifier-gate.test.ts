@@ -134,7 +134,7 @@ describe('checkNoInternalIdentifiers', () => {
     expect(exempt).toEqual([]);
 
     // ...and the exemption is exactly that directory, never the rest of
-    // .goodvibes/ — a new identifier anywhere else there fails.
+    // .goodvibes/, a new identifier anywhere else there fails.
     const flagged = checkNoInternalIdentifiers([
       { relPath: '.goodvibes/GOODVIBES.md', text: `installed by ${workOrderNumeric}` },
       { relPath: '.goodvibes/skills/example/SKILL.md', text: `- step 3 came from ${wave}` },
@@ -216,7 +216,7 @@ describe('checkNoInternalIdentifiers', () => {
 });
 
 // The architecture gate's .goodvibes/ scan, proven through the REAL pipeline
-// (git ls-files listing + the rule) against a seeded temp repo — a red-test
+// (git ls-files listing + the rule) against a seeded temp repo, a red-test
 // that a violation in a non-exempt tracked .goodvibes/ file fails the build,
 // while the audit decision records stay a documented reviewed exemption and
 // untracked machine-local runtime state is never scanned at all.
@@ -284,7 +284,7 @@ describe('listTrackedGoodvibesTextFiles + gate pipeline over .goodvibes/', () =>
     const files = listTrackedGoodvibesTextFiles(repoRoot);
     // The four historical audit records are tracked and scanned-but-exempt.
     expect(files.filter((f) => f.startsWith('.goodvibes/audit/')).length).toBeGreaterThanOrEqual(4);
-    // The real gate input over the real repo yields zero violations — the
+    // The real gate input over the real repo yields zero violations, the
     // audit exemption covers exactly the files that need it.
     const violations = checkNoInternalIdentifiers(
       files.map((relPath) => ({ relPath, text: readFileSync(join(repoRoot, relPath), 'utf-8') })),

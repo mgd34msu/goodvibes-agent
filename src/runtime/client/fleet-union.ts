@@ -1,10 +1,10 @@
 /**
- * fleet-union.ts — the activity sidebar shows work running anywhere, not only
+ * fleet-union.ts, the activity sidebar shows work running anywhere, not only
  * the sub-agents this process spawned.
  *
  * This Agent's `processRegistry` answers for the agents, chains, workflows and
- * background processes started in THIS process. The daemon runs its own —
- * scheduled jobs, channel-driven runs, work other surfaces submitted — and none
+ * background processes started in THIS process. The daemon runs its own,
+ * scheduled jobs, channel-driven runs, work other surfaces submitted, and none
  * of it appears in a registry this process owns.
  *
  * The policy lives in the SDK's client seam:
@@ -14,8 +14,8 @@
  * Agent's binding of it: a node source the renderer reads, and a stop handle
  * shutdown calls.
  *
- * Local rows win on a shared id. They are live — the registry pushes on every
- * state change — while the daemon's copy arrives on an interval and is
+ * Local rows win on a shared id. They are live, the registry pushes on every
+ * state change, while the daemon's copy arrives on an interval and is
  * necessarily staler.
  *
  * Reading only. Every act the sidebar can lead to (interrupt, resume, kill,

@@ -3,8 +3,8 @@
 //
 // The Agent's ADAPTER onto the canonical fold policy.
 //
-// What a folded block IS — the short-content threshold, the fold default, the
-// separator rule, the preview rule — is stated once, in
+// What a folded block IS, the short-content threshold, the fold default, the
+// separator rule, the preview rule, is stated once, in
 // @pellux/goodvibes-terminal-shell's conversation-fold-policy, and shared by
 // every terminal product. This module holds no decision of its own: it threads
 // this product's local render-node and collapse-state types into those
@@ -33,7 +33,7 @@ export { FOLDED_SHORT_CONTENT_CHARS };
 /**
  * Tool results in this product carry no separate one-line summary field (see
  * ConversationMessageSnapshot: a tool message is callId + content + toolName).
- * The policy's summary branch therefore never applies here — stated once,
+ * The policy's summary branch therefore never applies here, stated once,
  * rather than passed as a bare `false` at each call site.
  */
 const TOOL_RESULTS_HAVE_SUMMARY = false;

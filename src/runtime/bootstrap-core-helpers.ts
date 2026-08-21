@@ -1,5 +1,5 @@
 /**
- * bootstrap-core-helpers.ts — the pure parts of the interactive bootstrap.
+ * bootstrap-core-helpers.ts, the pure parts of the interactive bootstrap.
  *
  * Split out of bootstrap-core.ts, which had reached the 800-line cap
  * check-architecture.ts enforces. At the cap the next change to that file is
@@ -59,14 +59,14 @@ export function companionMessageToOrchestratorInputOptions(
 /**
  * Fleet-attention wiring: derive the shared-approval metadata for a
  * permission ask. Background/subagent asks carry
- * `request.attribution` (kind: 'background-agent', agentId, template — set by
+ * `request.attribution` (kind: 'background-agent', agentId, template, set by
  * AgentOrchestrator's gateBackgroundToolCall once permissionManager is wired
  * into it, see the `services.agentOrchestrator.setDependencies(...)` call
  * below and orchestrator.test.ts's "background agent permission gating"
  * suite). Forwarding `attribution.agentId` into the shared approval's
  * `metadata.agentId` is what lets the SDK's fleet ProcessRegistry
  * (runtime/fleet/registry.js, collectPendingApprovals) attribute the pending
- * ask to that agent's ProcessNode — deriving
+ * ask to that agent's ProcessNode, deriving
  * `state: 'awaiting-approval'` / `needsAttention: { reason: 'approval' }` on
  * the spawned agent itself, rather than leaving the ask an anonymous approval
  * entry the fleet plane cannot attach to anything. Foreground asks (no
@@ -78,7 +78,7 @@ export function companionMessageToOrchestratorInputOptions(
  * fleet ProcessRegistry can attach a pending approval to, so only that kind
  * populates `metadata.agentId` here. The other two kinds are surfaced in the
  * permission-prompt UI itself (see src/permissions/prompt.ts), not through
- * fleet attribution metadata — an MCP server or a sandbox escalation is not
+ * fleet attribution metadata, an MCP server or a sandbox escalation is not
  * a spawned agent's ProcessNode.
  */
 export function approvalMetadataForRequest(

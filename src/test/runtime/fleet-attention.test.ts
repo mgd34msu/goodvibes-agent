@@ -2,19 +2,19 @@
  * Fleet-plane adoption: proves that an orchestrator-spawned agent surfaces on
  * the SDK's fleet ProcessRegistry (runtime/fleet/*), and that a background
  * permission ask brokered through the permission manager flips that agent's
- * ProcessNode to needs-input attention — clearing again once the ask is
+ * ProcessNode to needs-input attention, clearing again once the ask is
  * resolved. This is the behavior a user watching the webui's FleetView relies
  * on to see this agent's sub-agents and their blocked-on-input asks.
  *
  * Two tests:
- *  1. `agentManager.spawn()` (the real orchestrator-spawning path — the same
+ *  1. `agentManager.spawn()` (the real orchestrator-spawning path, the same
  *     AgentManager instance the production fleet ProcessRegistry is built
  *     over, see runtime/services.ts's createArchivableFleetRegistry call)
  *     registers a node the registry can query.
  *  2. A `write`-tool call under permissions.mode:'prompt' brokers its ask
  *     through the real ApprovalBroker with `metadata.agentId` attached (the
  *     bootstrap-core.ts `approvalMetadataForRequest` wiring this round adds)
- *     — the fleet registry attributes the pending approval to that agent's
+ *    , the fleet registry attributes the pending approval to that agent's
  *     node (`state:'awaiting-approval'`, `needsAttention:{reason:'approval'}`)
  *     while it's pending, and clears once the approval resolves.
  */
@@ -100,7 +100,7 @@ describe('fleet plane adoption', () => {
     const runtime = getTestRuntimeServices();
     // 'Stuck task' is AgentManager's own test hook: spawn() still registers
     // and tracks the record, it just skips invoking the executor (see
-    // streaming.test.ts). That is exactly what this test needs — a real
+    // streaming.test.ts). That is exactly what this test needs, a real
     // record registered through the real orchestrator-spawning path
     // (agentManager.spawn), with no LLM/tool plumbing required to observe it
     // on the fleet surface.
@@ -189,7 +189,7 @@ describe('fleet plane adoption', () => {
       // A narrow, SDK-real fleet registry: the same createArchivableFleetRegistry
       // seam production composes through (runtime/services.ts), fed a stub
       // agentManager that lists this one live record (mutated in place by
-      // orchestrator.runAgent — see AgentRecord semantics in orchestrator.test.ts)
+      // orchestrator.runAgent, see AgentRecord semantics in orchestrator.test.ts)
       // plus the runtime's REAL approvalBroker, which is what actually carries
       // the pending ask's metadata.agentId to the registry.
       const fleetRegistry = createArchivableFleetRegistry({

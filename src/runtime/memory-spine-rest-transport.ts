@@ -13,7 +13,7 @@
  * What stays agent-local, because the SDK's transport takes a fixed
  * `{baseUrl, authToken}` at construction rather than a resolver:
  *  - Re-resolving the connection (and therefore the bearer token) on EVERY
- *    call, not just once at construction — a token that appears on disk
+ *    call, not just once at construction, a token that appears on disk
  *    after boot must be picked up without re-constructing this transport.
  *    Achieved by building a fresh SDK transport instance per call rather than
  *    caching one.
@@ -23,7 +23,7 @@
  *    let the daemon's own 401 propagate), so it is reproduced here as a guard
  *    that runs before every delegated call.
  *  - A bounded per-call timeout via an AbortController-wrapped `fetchImpl`,
- *    matching this surface's prior default (2s) — the SDK transport accepts
+ *    matching this surface's prior default (2s), the SDK transport accepts
  *    an injectable `fetchImpl` for exactly this kind of consumer policy.
  */
 
@@ -62,7 +62,7 @@ function requireToken(connection: SessionRegistrationConnection): void {
  * Builds the wire `MemoryTransport` the agent injects into `MemorySpineClient`
  * once it has confirmed a daemon is adopted. Every method resolves the
  * connection fresh, asserts a token is present (the honest-failure contract),
- * and delegates to a freshly built SDK transport — cheap, since the SDK
+ * and delegates to a freshly built SDK transport, cheap, since the SDK
  * transport is a plain object of closures over its construction options.
  */
 export function createMemorySpineRestTransport(options: MemorySpineRestTransportOptions): MemoryTransport {
@@ -83,7 +83,7 @@ export function createMemorySpineRestTransport(options: MemorySpineRestTransport
     get(_target, prop, _receiver) {
       // Async wrapper: every MemoryTransport method is async, and `build()`
       // (which asserts a token is present) must throw as a REJECTED PROMISE,
-      // not a synchronous exception — a synchronous throw here would escape
+      // not a synchronous exception, a synchronous throw here would escape
       // before the caller's own `await`/`.rejects` ever sees a promise, per
       // the honest-failure contract every caller of this transport relies on.
       return async (...args: unknown[]) => {

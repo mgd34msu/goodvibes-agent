@@ -102,15 +102,15 @@ function stringArg(args: Record<string, unknown>, keys: readonly string[]): stri
  * Classify a tool call into a route kind for display and filtering.
  *
  * Keyword precedence (first match wins):
- *   1. browser   — browser/desktop/screenshot keywords
- *   2. delegation — delegate/agent keywords
- *   3. shell     — exec/shell/bash keywords OR args.command is a string
- *   4. write     — write/edit/patch/delete keywords
- *   5. network   — fetch/web/http/url keywords
- *   6. read      — read/find/inspect/grep/search keywords
- *   7. other     — fallback for unrecognized tool names
+ *   1. browser  , browser/desktop/screenshot keywords
+ *   2. delegation, delegate/agent keywords
+ *   3. shell    , exec/shell/bash keywords OR args.command is a string
+ *   4. write    , write/edit/patch/delete keywords
+ *   5. network  , fetch/web/http/url keywords
+ *   6. read     , read/find/inspect/grep/search keywords
+ *   7. other    , fallback for unrecognized tool names
  *
- * N2: precedence is intentional — shell beats write/read so that bash-exec tools
+ * N2: precedence is intentional, shell beats write/read so that bash-exec tools
  * that also match 'exec' are not misclassified as filesystem writes.
  */
 function routeKindForTool(tool: string, args: Record<string, unknown>): AgentExecutionRouteKind {

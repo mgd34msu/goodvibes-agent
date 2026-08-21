@@ -96,7 +96,7 @@ describe('fleet CLI command', () => {
 
   // The composition root now always wires the provider-backed attempt judge
   // (mirroring the SDK's runtime services), so "no judge is configured" can
-  // no longer occur — the honest refusal for this call is the unknown group.
+  // no longer occur, the honest refusal for this call is the unknown group.
   test('attempts judge refuses an unknown group honestly', async () => {
     const result = await handleFleetCommand(runtime(['attempts', 'judge', 'group-1']));
     expect(result.exitCode).toBe(1);

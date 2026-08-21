@@ -2,7 +2,7 @@
  * Delete-key policy unit tests.
  *
  * Covers:
- *   1. Policy predicate contracts (isTextBackspace, isTextForwardDelete) —
+ *   1. Policy predicate contracts (isTextBackspace, isTextForwardDelete),
  *      byte-identical to the TUI's own predicate tests.
  *   2. Selection modal: 'delete' is a no-op in the end-anchored search filter
  *      (no cursor to forward-delete from); 'backspace' removes the last char.

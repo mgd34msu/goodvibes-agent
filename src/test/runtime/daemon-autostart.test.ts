@@ -3,7 +3,7 @@
  *
  * Three layers, matching the module's seams:
  *   1. The SDK's pure decision engine (autostartInstalledDaemon) against spy
- *      control/probe doubles — every outcome branch, no I/O.
+ *      control/probe doubles, every outcome branch, no I/O.
  *   2. The SDK's detector/starter (createDaemonServiceControl) over the real
  *      SDK PlatformServiceManager with a tempdir home and an injected
  *      actionRunner, so no test ever touches the host's real service manager.
@@ -154,7 +154,7 @@ describe('autostartInstalledDaemon (decision engine)', () => {
     const outcome = await autostartInstalledDaemon({
       daemonMode: 'unavailable',
       control,
-      // Answers on the third poll — inside the bounded wait.
+      // Answers on the third poll, inside the bounded wait.
       isReachable: scriptedReachable(['offline', 'offline', 'online']),
       waitTimeoutMs: 2_000,
       pollIntervalMs: 100,
@@ -468,7 +468,7 @@ function wireFixture(options: {
     // The injected control + probe below keep the wiring off every real
     // services field except the two receipt feeds (both attached
     // unconditionally at wire time) and the daemon-grade view handed to the
-    // adopt-or-spawn policy — which, with adoptOnly, reads only
+    // adopt-or-spawn policy, which, with adoptOnly, reads only
     // localUserAuthManager and configManager and never constructs a server.
     services: {
       daemonReceiptFeed: new AgentDaemonReceiptFeed(),

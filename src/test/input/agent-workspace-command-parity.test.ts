@@ -204,22 +204,22 @@ describe('Agent workspace command parity', () => {
     // import is a one-shot CLI migration utility (goodvibes-agent import openclaw)
     // with no TUI workspace editor; it writes through the existing registries.
     // workspaces (owner ruling, 2026-07-10) is a narrow, rarely-used admin
-    // surface — register/unregister the checkpoint-gating workspace list — with
+    // surface, register/unregister the checkpoint-gating workspace list, with
     // no TUI workspace editor yet, same shape as compat/doctor/pair above.
     // fleet (SDK 1.6.1 best-of-N attempts: list/pick/judge held-merge groups)
-    // is the same kind of narrow admin surface — this Agent's own
-    // orchestration engine state, not a connected-host call — with no TUI
+    // is the same kind of narrow admin surface, this Agent's own
+    // orchestration engine state, not a connected-host call, with no TUI
     // workspace editor yet.
     // relay (SDK 1.6.1 outbound zero-knowledge relay): reports the connected
     // host's imported relay.* configuration and always honestly refuses to
-    // mint a pairing payload (see relay-command.ts) — a diagnostics/refusal
+    // mint a pairing payload (see relay-command.ts), a diagnostics/refusal
     // surface with no mutating action a TUI workspace editor would expose,
     // same shape as compat/doctor/pair above.
     // browser is a scriptable mirror of the `browser` MODEL TOOL, which is how
     // the capability is reached in a conversation. The CLI exists so a binary
     // install can be diagnosed and repaired from a shell without a model turn
     // (agent 1.18.1 shipped a broken browser and there was no way to ask the
-    // binary anything) — a diagnostics surface with no mutating setting a TUI
+    // binary anything), a diagnostics surface with no mutating setting a TUI
     // workspace editor would expose, same shape as compat/doctor/pair/relay.
     const shellOnlyCommands = new Set(['browser', 'completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'pair', 'relay', 'tui', 'unknown', 'version', 'workspaces']);
     const requirements: Record<string, CoverageRequirement> = {

@@ -56,7 +56,7 @@ describe('announceAwayDigest — onAwayDigest wiring', () => {
     });
     const autonomy = createAutonomySurfacing(options);
     autonomy.announceAwayDigest();
-    // announceAwayDigest is async (void + inner async IIFE) — wait one event-loop turn
+    // announceAwayDigest is async (void + inner async IIFE), wait one event-loop turn
     await new Promise<void>((resolve) => setTimeout(resolve, 20));
     autonomy.stop();
 
@@ -122,7 +122,7 @@ describe('announceAwayDigest — onAwayDigest wiring', () => {
 });
 
 // ---------------------------------------------------------------------------
-// announceAwayDigest — connected-host run outcomes (failed / missed), never
+// announceAwayDigest, connected-host run outcomes (failed / missed), never
 // the local automation manager. See src/agent/automation-runs-source.ts.
 // ---------------------------------------------------------------------------
 
@@ -213,7 +213,7 @@ describe('announceAwayDigest — connected-host run outcomes', () => {
     const autonomy = createAutonomySurfacing(options);
     // If announceAwayDigest ever called the poisoned listAutomationJobs, the
     // throw would be caught by the outer try/catch and the whole digest pass
-    // would silently produce zero feed lines — so a rendered line here proves
+    // would silently produce zero feed lines, so a rendered line here proves
     // the local manager path was never exercised.
     expect(() => autonomy.announceAwayDigest()).not.toThrow();
     await new Promise<void>((resolve) => setTimeout(resolve, 20));
@@ -245,7 +245,7 @@ describe('announceAwayDigest — connected-host run outcomes', () => {
 });
 
 // ---------------------------------------------------------------------------
-// F7 — comingUpItems returns a defensive copy
+// F7, comingUpItems returns a defensive copy
 // ---------------------------------------------------------------------------
 
 describe('comingUpItems — defensive copy', () => {
@@ -284,7 +284,7 @@ describe('comingUpItems — defensive copy', () => {
 });
 
 // ---------------------------------------------------------------------------
-// F5 — buildCalendarEventsLister timezone correctness (real function, DI seam)
+// F5, buildCalendarEventsLister timezone correctness (real function, DI seam)
 // ---------------------------------------------------------------------------
 
 describe('buildCalendarEventsLister — timezone and sort correctness', () => {

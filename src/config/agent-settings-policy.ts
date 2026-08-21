@@ -1,5 +1,5 @@
 /**
- * agent-settings-policy.ts — what the Agent's settings surfaces hide.
+ * agent-settings-policy.ts, what the Agent's settings surfaces hide.
  *
  * ## The blanket host-owned lock is gone, deliberately
  *
@@ -9,7 +9,7 @@
  * settings modal. The stated reason was accurate when written: the Agent's copy
  * of those keys was an imported snapshot, so toggling `relay.enabled` here would
  * not start or stop the connected daemon's relay registration. It was the same
- * defect as the Telegram one — the Agent wrote its own settings file, the daemon
+ * defect as the Telegram one, the Agent wrote its own settings file, the daemon
  * read a different one, and the setting did nothing.
  *
  * That rationale expired. Those keys are daemon-owned (the SDK's
@@ -29,7 +29,7 @@
  * ## What hiding is still for
  *
  * Hiding a key is a stronger act than gating it and is almost never right: a
- * hidden key cannot name itself, state a hazard, or be confirmed — it simply is
+ * hidden key cannot name itself, state a hazard, or be confirmed, it simply is
  * not there, and the surface silently disagrees with the schema. `danger.` was
  * listed here for that reason and has been removed; `danger.httpListener` is now
  * shown and gated at write time.

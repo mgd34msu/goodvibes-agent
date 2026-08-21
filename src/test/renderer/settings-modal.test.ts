@@ -146,7 +146,7 @@ describe('renderSettingsModal', () => {
   // The Agent Experience group alone (display/ui/behavior/agents/notifications/
   // permissions/policy/fetch/diagnostics) now exceeds a default 24-row terminal's
   // rail viewport, so later groups scroll out of view until the selection reaches
-  // them — this exercises that the rail still reaches every group via scrolling.
+  // them, this exercises that the rail still reaches every group via scrolling.
   test('category rail scrolls to reveal later groups as selection moves down', () => {
     modal.categoryIndex = SETTINGS_CATEGORIES.indexOf('provider');
     let texts = linesToText(renderSettingsModal(modal, W)).join('\n');

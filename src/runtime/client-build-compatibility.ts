@@ -1,15 +1,15 @@
 /**
- * Client build compatibility — this process's half of the daemon's floor.
+ * Client build compatibility, this process's half of the daemon's floor.
  *
  * A daemon update swaps the daemon binary and nothing else. This process keeps
  * running the build it started with: same rules, same bugs, still attached to
  * the same shared session store, still able to execute shared-session work.
  * That is how a behavioral fix can land in the daemon, be verified present in
- * the installed binaries, and still not change what the owner observes — an
+ * the installed binaries, and still not change what the owner observes, an
  * older process beside the new daemon simply keeps doing the old thing.
  *
  * So the daemon publishes the minimum client build it will let participate, as
- * an `X-Goodvibes-Client-Floor` response header on `/status` — the liveness
+ * an `X-Goodvibes-Client-Floor` response header on `/status`, the liveness
  * read this process already performs on a timer. When this build is below that
  * floor it says so plainly and stops taking shared-session work, rather than
  * quietly executing under superseded rules until someone notices.
@@ -17,13 +17,13 @@
  * WHERE THIS RULE LIVES
  *
  * The comparison itself (`evaluateClientCompatibility`, the header name, the
- * verdict shape) is owned by the SDK — platform/control-plane/client-compatibility.ts,
- * public since the 1.21.0 re-pin — and imported below rather than duplicated.
+ * verdict shape) is owned by the SDK, platform/control-plane/client-compatibility.ts,
+ * public since the 1.21.0 re-pin, and imported below rather than duplicated.
  *
  * `ClientBuildGuard` stays local. It is not a second comparison; it is this
  * process's state around the SDK's: the latch, and the once-only notification.
- * Both are facts about THIS process's lifetime — how long it has been attached,
- * whether the owner has already been told — and neither is a value the SDK
+ * Both are facts about THIS process's lifetime, how long it has been attached,
+ * whether the owner has already been told, and neither is a value the SDK
  * could hold on its behalf.
  */
 

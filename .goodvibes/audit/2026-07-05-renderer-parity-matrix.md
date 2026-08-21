@@ -2,7 +2,7 @@
 
 **Stage 0 audit — the Wave-4 centerpiece.** Diffs every renderer/input primitive between
 `goodvibes-agent` (frozen fork, all `src/renderer` + `src/input` stamped **Jun 13 00:25**) and
-`goodvibes-tui` (current substrate, named fixes landed 2026-06-30 → 2026-07-05). Each row is
+`goodvibes-tui` (current reference codebase, named fixes landed 2026-06-30 → 2026-07-05). Each row is
 re-verified against live code (reality wins over the plan). This matrix parameterizes W4-R2/R3/R4
 and feeds W4-S1.
 

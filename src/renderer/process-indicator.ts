@@ -19,7 +19,7 @@ function truncateToWidth(text: string, maxWidth: number): string {
 }
 
 /**
- * renderProcessIndicator — shows a one-line summary of active runtime
+ * renderProcessIndicator, shows a one-line summary of active runtime
  * activity below the input area.
  *
  * Dimmed when no entries are active, highlighted (cyan) when delegated work
@@ -41,7 +41,7 @@ export function renderProcessIndicator(
   const renderFocusedStatus = (text: string): Line[] => {
     const bg = '#31506f';
     const fg = '#eefaff';
-    // Opaque highlight bar (bg/fg fixed) — marker sourced from the shared
+    // Opaque highlight bar (bg/fg fixed), marker sourced from the shared
     // browser accent token (dark == the prior browser-cyan marker).
     const markerFg = UI_TONES.accent.browser;
     const line = UIFactory.stringToLine(' '.repeat(width), width, { fg: '238' });
@@ -105,21 +105,21 @@ export function renderProcessIndicator(
 /**
  * Sentence each capture state renders as. Written out per state rather than
  * assembled from fragments because these are the words that tell a user whether
- * their microphone is open — "listening" and "recording" mean different things and
+ * their microphone is open, "listening" and "recording" mean different things and
  * a row that blurred them would be worse than no row.
  */
 const VOICE_CAPTURE_LABELS: Record<VoiceCaptureIndicatorState['kind'], string> = {
   'wake-listening': 'listening for the wake phrase',
-  'wake-capturing': 'wake heard — recording what follows',
-  'wake-restarting': 'capture stream ended — restarting',
+  'wake-capturing': 'wake heard, recording what follows',
+  'wake-restarting': 'capture stream ended, restarting',
   'wake-latched': 'wake detection stopped',
-  'wake-starting': 'opening the microphone — not listening yet',
+  'wake-starting': 'opening the microphone, not listening yet',
   'wake-no-audio': 'microphone open, but no audio is arriving',
-  'wake-no-microphone': 'no microphone on this machine — nothing is listening',
+  'wake-no-microphone': 'no microphone on this machine, nothing is listening',
 };
 
 /**
- * renderVoiceCaptureIndicator — the persistent row shown while the microphone is
+ * renderVoiceCaptureIndicator, the persistent row shown while the microphone is
  * open, below the input area beside the process indicator.
  *
  * It exists because a held-open capture device is otherwise invisible: wake
@@ -127,7 +127,7 @@ const VOICE_CAPTURE_LABELS: Record<VoiceCaptureIndicatorState['kind'], string> =
  * would say so. `voice.wake.indicator` chooses between `statusline` (one dim row),
  * `banner` (a highlighted row that is hard to miss) and `off`.
  *
- * Returns no lines when nothing is captured, or when the row is turned off — the
+ * Returns no lines when nothing is captured, or when the row is turned off, the
  * caller splices whatever comes back, so an empty array is "no row".
  */
 export function renderVoiceCaptureIndicator(

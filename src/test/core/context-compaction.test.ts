@@ -150,7 +150,7 @@ describe('shouldAutoCompact', () => {
 });
 
 // ---------------------------------------------------------------------------
-// extractText behavior — tested via estimateConversationTokens
+// extractText behavior, tested via estimateConversationTokens
 // (extractText is private, but its effects are visible through token estimation)
 // ---------------------------------------------------------------------------
 

@@ -76,7 +76,7 @@ const DOCTOR_RELEASE_DETAIL = 'Doctor command completed without findings; provid
  * The doctor exits non-zero for ANY finding, including `[risk:*]` advisories
  * that describe the operator's own intentional configuration (e.g.
  * behavior.autoApprove on a trusted machine). Those advisories are honest and
- * must keep printing — but they are not release defects, so a doctor run
+ * must keep printing, but they are not release defects, so a doctor run
  * whose ONLY findings are risk advisories (no Errors section) must not turn a
  * strict live verification red. Returns the advisory count when the non-zero
  * exit is advisory-only, or null when the exit signals a real problem

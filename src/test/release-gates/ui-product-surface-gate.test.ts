@@ -250,7 +250,7 @@ describe('UI product surface gate', () => {
     expect(settings.length).toBe(countHarnessSettings(managers.configManager, {}));
     // Settings get a wider line budget than surfaces/keybindings/tools: a
     // setting's modelRoute is `settings set|reset key:${key}`, and the key
-    // itself is a dotted schema identifier this catalog does not control —
+    // itself is a dotted schema identifier this catalog does not control,
     // unlike a surface/keybinding id, which this codebase names and can keep
     // short. payments.budget.overageToleranceDailyAllowance already produces
     // a 69-character route; 80 leaves room for the next nested key without
@@ -269,7 +269,7 @@ describe('UI product surface gate', () => {
   });
 
   test('keeps the settings page ceiling well clear of the settings that exist', () => {
-    // Not a fixed expected size — the catalog grows every round. The bar is
+    // Not a fixed expected size, the catalog grows every round. The bar is
     // headroom: the ceiling must be at least double the live catalog, so the
     // gate goes red with a wide margin left rather than on the round the
     // catalog finally crosses it.

@@ -1,23 +1,23 @@
 /**
- * calendar-config-seeding.test.ts — the `calendar` config section is seeded
+ * calendar-config-seeding.test.ts, the `calendar` config section is seeded
  * before anything writes into it.
  *
  * `calendar` is a real CONFIG_SCHEMA category as of platform 2.0.8
  * (schema-domain-connectors.ts), with real defaults in `DEFAULT_CONFIG`, so a
  * ConfigManager built the normal way already carries the section and this
  * seeder is a no-op against it. The seeder stays as the backstop for a config
- * object assembled some OTHER way — a hand-built test fixture, a cached
- * snapshot written before the schema migration shipped — where the section can
+ * object assembled some OTHER way, a hand-built test fixture, a cached
+ * snapshot written before the schema migration shipped, where the section can
  * still be genuinely absent and `ConfigManager.resolvePath` would otherwise
  * throw "Invalid config path: section 'calendar' does not exist" on the
  * connector's first read or write. The definition is the SDK's
  * (platform/config/connector-config-sections.ts) and every product calls it, so
  * a capability configured from any surface stays usable everywhere.
  *
- * These tests pin the CONTRACT this product depends on — the section name, the
+ * These tests pin the CONTRACT this product depends on, the section name, the
  * exact default shape (which must agree with the schema's own
  * CALENDAR_CONNECTOR_DEFAULTS, `calendar.google.icsUrl` included), idempotence,
- * and that a host with no live config is left alone — against the SDK's
+ * and that a host with no live config is left alone, against the SDK's
  * implementation. A change on the SDK side that this product's calendar flow
  * could not survive fails here rather than showing up as a calendar that stops
  * resolving.

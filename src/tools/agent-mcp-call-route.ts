@@ -7,7 +7,7 @@ import { mcpServerRecords, mcpToolCaller } from './agent-harness-personal-ops-di
  * The mcp tool's effect mode: actually invoking a tool on a connected server.
  *
  * Before this existed the agent could list MCP servers, list their tools, and
- * read their schemas — and then had no way to call any of them. An MCP server
+ * read their schemas, and then had no way to call any of them. An MCP server
  * the user installed and trusted was, in practice, decoration. The runtime
  * already exposed callTool; the only place it was wired reached it through a
  * keyword filter that matched mail and calendar tools and nothing else.
@@ -93,7 +93,7 @@ function advertiseCallMode(tool: Tool): void {
  * Installs the call route on the registered mcp tool.
  *
  * The route is added only when the runtime actually publishes a tool caller.
- * When it does not, the call mode is never advertised — the schema keeps
+ * When it does not, the call mode is never advertised, the schema keeps
  * telling the truth about what can be invoked instead of offering a mode that
  * returns "unknown mode" when used.
  */

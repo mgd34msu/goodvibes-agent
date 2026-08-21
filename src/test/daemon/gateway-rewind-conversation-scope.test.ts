@@ -2,9 +2,9 @@
  * Conversation scope of the unified rewind (rewind.plan/apply), Task 3 of the
  * release-train adoption sweep (CONVERSATION REWIND PORT).
  *
- * This Agent DOES have a genuine in-process mutable conversation store — its
+ * This Agent DOES have a genuine in-process mutable conversation store, its
  * own ConversationManager (src/core/conversation.ts, extends the SDK's shared
- * base class exactly like goodvibes-tui's) — the shape RewindConversationPort
+ * base class exactly like goodvibes-tui's), the shape RewindConversationPort
  * assumes ("a daemon-hosted mutable conversation store"). It is not
  * channel-scoped or otherwise unrewindable: one process, one live
  * conversation, registered at bootstrap (see bootstrap-core.ts's
@@ -16,7 +16,7 @@
  *
  * These tests prove the port is threaded LIVE through the composed daemon
  * (real gatewayMethods.invoke('rewind.plan'/'rewind.apply') calls), not just
- * unit-tested in isolation — registering a real ConversationManager,
+ * unit-tested in isolation, registering a real ConversationManager,
  * completing a "turn" (recordTurnAnchor, the same call bootstrap.ts's
  * TURN_COMPLETED handler makes), then rewinding to that anchor and observing
  * the conversation actually truncate.
@@ -66,7 +66,7 @@ describe('rewind.plan/apply conversation scope (live conversationRewindPort, SDK
 
     // available:true reflects "a conversation store IS wired on this
     // runtime" (see the SDK's UnifiedRewindService.plan), not "this session
-    // has messages" — the port genuinely resolves this unregistered session
+    // has messages", the port genuinely resolves this unregistered session
     // to null and honestly reports zero rather than fabricating a count.
     expect(result.conversation?.available).toBe(true);
     expect(result.conversation?.messagesToDrop).toBe(0);
@@ -117,7 +117,7 @@ describe('rewind.plan/apply conversation scope (live conversationRewindPort, SDK
       expect(applied.receipt?.conversation?.undoSnapshotId).toBeTruthy();
 
       // The real registered conversation object was actually truncated, not
-      // just a reported count — proves the port is live, not a stub.
+      // just a reported count, proves the port is live, not a stub.
       expect(conversation.getMessageCount()).toBe(turn1MessageCount);
     } finally {
       unregisterSessionConversation(sessionId);

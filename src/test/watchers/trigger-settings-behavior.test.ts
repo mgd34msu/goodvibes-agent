@@ -1,5 +1,5 @@
 /**
- * trigger-settings-behavior.test.ts — behaviour verification for the nineteen
+ * trigger-settings-behavior.test.ts, behaviour verification for the nineteen
  * `watchers.triggers.*` settings.
  *
  * Every test here drives one setting to two distinct values (its shipped
@@ -10,8 +10,8 @@
  * carries a number: those pass whether or not the setting is honoured, which is
  * exactly what this file exists not to do.
  *
- * All effects are injected — a scripted probe I/O, a modelled process host, a
- * modelled stream host, a mutable clock and a temp store directory — so no test
+ * All effects are injected, a scripted probe I/O, a modelled process host, a
+ * modelled stream host, a mutable clock and a temp store directory, so no test
  * spawns a process, opens a socket, or waits on wall-clock time.
  *
  * The two cadence settings (sweepIntervalMs, supervisionTickMs) have no outcome
@@ -491,7 +491,7 @@ describe('watchers.triggers.enabled', () => {
     clock.t = 2_000;
 
     live.enabled = false;
-    // The finished child is right there to be reaped and the check is due —
+    // The finished child is right there to be reaped and the check is due,
     // each of these must still decline to do the work.
     await manager.pollProcesses();
     await manager.tick();

@@ -1,11 +1,11 @@
 /**
- * voice-capture-status.ts — what the shell shows while the microphone is open.
+ * voice-capture-status.ts, what the shell shows while the microphone is open.
  *
  * A capture indicator is not decoration. Wake detection holds a capture device
  * open for as long as the feature is on, and nothing else on this screen would
  * say so: a user who cannot tell whether their microphone is live has no way to
  * make that judgement from the outside. `voice.wake.indicator` governs how
- * prominent the row is, and `off` removes it — which is a choice the user makes,
+ * prominent the row is, and `off` removes it, which is a choice the user makes,
  * not a default.
  *
  * Only the wake states exist here. This surface has no push-to-talk voice input
@@ -30,7 +30,7 @@ export type VoiceCaptureIndicatorKind =
   /** The supervisor gave up; the detector is off until the feature is toggled. */
   | 'wake-latched'
   /**
-   * Opening the device. NOT listening — and it used to render as if it were.
+   * Opening the device. NOT listening, and it used to render as if it were.
    *
    * `starting` was mapped straight onto the listening row, so a start that hung
    * showed "listening for the wake phrase" through an entire boot on a machine
@@ -39,7 +39,7 @@ export type VoiceCaptureIndicatorKind =
   | 'wake-starting'
   /** The device is open and no audio is coming through it. */
   | 'wake-no-audio'
-  /** This host has no microphone — no input sources, or only output monitors. */
+  /** This host has no microphone, no input sources, or only output monitors. */
   | 'wake-no-microphone';
 
 /** One live capture row. Absent (null) means no microphone is open and no row renders. */
@@ -52,7 +52,7 @@ export interface VoiceCaptureIndicatorState {
    * which is why it is not the shipped default.
    */
   readonly indicator: 'off' | 'statusline' | 'banner';
-  /** Extra words for the row — a restart delay, a latch reason. */
+  /** Extra words for the row, a restart delay, a latch reason. */
   readonly detail?: string | undefined;
 }
 

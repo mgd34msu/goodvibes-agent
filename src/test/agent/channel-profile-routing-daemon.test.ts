@@ -1,5 +1,5 @@
 /**
- * channel-profile-routing-daemon.test.ts — assignments reach the daemon, and
+ * channel-profile-routing-daemon.test.ts, assignments reach the daemon, and
  * survive a daemon that will not take them.
  *
  * The routing table the platform routes against is the daemon's. An assignment
@@ -10,7 +10,7 @@
  * Both halves are load-bearing and they fail differently:
  *
  *  - ADOPTED: the daemon takes it, the record says so, and the record carries
- *    the daemon's own assignment id — not a locally-invented one, which would
+ *    the daemon's own assignment id, not a locally-invented one, which would
  *    make "synced" unfalsifiable.
  *  - DEGRADED: the daemon refuses or cannot be reached, and the assignment is
  *    still there afterwards, marked pending, with the reason in the daemon's
@@ -18,7 +18,7 @@
  *    failure this shape exists to prevent.
  *
  * The retry path (`syncChannelProfileRoutes`) is the same operation applied to
- * records the daemon does not hold — including records written by a build from
+ * records the daemon does not hold, including records written by a build from
  * before the daemon held this table at all, which is why the receipts assert on
  * the state those records were actually in.
  */
@@ -353,7 +353,7 @@ describe('records written before the daemon held this table', () => {
     expect(receipts[0]!.outcome).toBe('refused');
     expect(receipts[0]!.previousSyncState).toBe('local_only');
     expect(receipts[0]!.error).toContain('ECONNREFUSED');
-    // Still live locally — a refusal is not a deletion.
+    // Still live locally, a refusal is not a deletion.
     expect(readChannelProfileRoutes(shellPaths).routes).toHaveLength(1);
   });
 });

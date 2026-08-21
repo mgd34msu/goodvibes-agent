@@ -6,7 +6,7 @@ import type { SecretScope, SecretStorageMedium } from './secrets.ts';
 export const SECRET_CONFIG_KEYS = new Set<ConfigKey>([
   // email section (app-layer extension, key is string-cast for ConfigKey compatibility)
   'email.passwordRef' as unknown as ConfigKey,
-  // calendar OAuth advanced overrides — only the client SECRET is secret-backed; the
+  // calendar OAuth advanced overrides, only the client SECRET is secret-backed; the
   // client id is not a secret (RFC 8252) and stays a plain config value.
   'calendar.google.clientSecretRef' as unknown as ConfigKey,
   'calendar.microsoft.clientSecretRef' as unknown as ConfigKey,
@@ -28,10 +28,10 @@ export const SECRET_CONFIG_KEYS = new Set<ConfigKey>([
   'surfaces.bluebubbles.password',
   'surfaces.mattermost.botToken',
   'surfaces.matrix.accessToken',
-  // Card MATERIAL — the four fields entered through the concealed-input flow in
+  // Card MATERIAL, the four fields entered through the concealed-input flow in
   // input/commands/payment-card-intake.ts. Synthetic sub-keys one level under
   // the SDK's real `payments` section (CONFIG_SCHEMA has no scalar entry for
-  // them, hence the cast — the same situation as `email.passwordRef` above).
+  // them, hence the cast, the same situation as `email.passwordRef` above).
   // See input/payments-config.ts for why they are named flat
   // (`payments.cardNumber`, not `payments.card.number`).
   //
@@ -122,14 +122,14 @@ export function buildSecretBackedConfigUpdate(configKey: ConfigKey, rawValue: st
  * `payments.*`, ...) names a
  * credential the DAEMON executes with, not this interactive client, so its
  * secret material belongs in the daemon-scoped tier the daemon actually
- * reads — the same rule the SDK's config-ownership.ts already applies to the
+ * reads, the same rule the SDK's config-ownership.ts already applies to the
  * `goodvibes://` reference that points at it.
  *
  * Defaulting these to 'user' (the historical behavior here) split the pair: the
  * reference landed in the daemon's own settings file, because ConfigManager
  * routes daemon-owned keys there, while the value it pointed at sat in a tier
  * the daemon never resolves. The surface reported success and the daemon found
- * nothing. That is the shape of the mail failure the owner hit — `/google adopt`
+ * nothing. That is the shape of the mail failure the owner hit, `/google adopt`
  * succeeded in the agent, and the daemon serving Telegram said no email
  * integration was available with the agent closed. For a payment card it is
  * the whole feature failing silently: the daemon is the process that completes
@@ -150,7 +150,7 @@ export async function persistSecretBackedConfigValue(
   // A credential the DAEMON executes with is written by the daemon, as one
   // verified pair: value first, read back, then the config reference. Doing
   // the two halves from here is what split the pair once the daemon became a
-  // separate process. An unreachable daemon REJECTS — see
+  // separate process. An unreachable daemon REJECTS, see
   // daemon-credential-routing.ts for why there is no local fallback.
   //
   // An explicit `scope` overrides this: a caller that names a tier is naming a
@@ -171,7 +171,7 @@ export async function persistSecretBackedConfigValue(
     await secretsManager.set(update.secretKey, update.secretValue, { scope, medium });
   }
 
-  // 3. Clear old secret — pass the same medium so plaintext-medium secrets are found for deletion.
+  // 3. Clear old secret, pass the same medium so plaintext-medium secrets are found for deletion.
   if (update.clearSecretKey && secretsManager?.delete) {
     await secretsManager.delete(update.clearSecretKey, { scope, medium });
   }

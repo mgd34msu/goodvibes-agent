@@ -17,7 +17,7 @@ import {
 } from './openclaw-import.ts';
 
 /**
- * `goodvibes-agent import openclaw [path]` — migrate an OpenClaw workspace into
+ * `goodvibes-agent import openclaw [path]`, migrate an OpenClaw workspace into
  * the Agent's existing registries. Dry-run is the DEFAULT (prints what would be
  * created); --apply performs the writes through the persona registry, the
  * canonical memory store, the skill registry, and the permission settings. No
@@ -56,7 +56,7 @@ function planSummaryLines(plan: OpenClawImportPlan): string[] {
 
 function renderDryRun(plan: OpenClawImportPlan): string {
   return [
-    `OpenClaw import (dry run) — layout ${OPENCLAW_LAYOUT_VERSION}`,
+    `OpenClaw import (dry run), layout ${OPENCLAW_LAYOUT_VERSION}`,
     `  source ${plan.sourcePath}`,
     ...planSummaryLines(plan),
     '',
@@ -163,7 +163,7 @@ async function renderApply(runtime: CliCommandRuntime, plan: OpenClawImportPlan)
   const skills = applySkills(runtime, plan, notes);
   const permissionCategories = applyPermissions(runtime, plan);
   return [
-    `OpenClaw import (applied) — layout ${OPENCLAW_LAYOUT_VERSION}`,
+    `OpenClaw import (applied), layout ${OPENCLAW_LAYOUT_VERSION}`,
     `  source ${plan.sourcePath}`,
     `  personas created ${personas.created}${personas.skipped ? ` (skipped ${personas.skipped})` : ''}`,
     `  memory records created ${memories.created}${memories.skipped ? ` (skipped ${memories.skipped})` : ''}`,

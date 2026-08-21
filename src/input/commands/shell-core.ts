@@ -357,7 +357,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     hidden: true,
     // No fixed list here. The accepted levels belong to the serving model, so
     // a fixed '[instant|low|medium|high]' hint would be wrong for every model
-    // that offers 'none', 'minimal', 'xhigh' or 'max' — and for every model
+    // that offers 'none', 'minimal', 'xhigh' or 'max', and for every model
     // that rejects 'instant'. Running `/effort` with no argument prints the
     // real ones for the model currently in use.
     usage: '[level]',
@@ -382,7 +382,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
       // command is where the preference is read back and re-chosen, so it must
       // show what was asked for even while a capped model is serving.
       const current = requestedEffortLevel(ctx.platform.configManager);
-      // What the list should open on, though, is the level in EFFECT — the
+      // What the list should open on, though, is the level in EFFECT, the
       // requested level snapped to this model. The requested level may not be
       // in the list at all when the model caps lower, and preselecting a
       // missing id lands the cursor on the lowest level instead of on what is
@@ -390,7 +390,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
       const inEffect = servingEffortForLevel(current, model).effective ?? current;
 
       const applyLevel = (level: string): void => {
-        // An explicit user choice — the one kind of write that is allowed to
+        // An explicit user choice, the one kind of write that is allowed to
         // change the stored preference.
         ctx.platform.configManager.set('provider.reasoningEffort', level);
         const serving = servingEffortForLevel(level, model);

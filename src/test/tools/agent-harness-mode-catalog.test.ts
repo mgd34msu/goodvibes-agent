@@ -16,7 +16,7 @@ describe('agent_harness mode catalog', () => {
 
     // Every effect mode must be confirmation-gated: it declares
     // requiresConfirmation and exposes the confirm + explicitUserRequest
-    // parameters. There are no carve-outs — the learning promotion pass is gated
+    // parameters. There are no carve-outs, the learning promotion pass is gated
     // like the rest because it creates and deletes memory, personas, and routines.
     const unsafeEffects = HARNESS_MODE_DESCRIPTORS
       .filter((descriptor) => descriptor.kind === 'effect')

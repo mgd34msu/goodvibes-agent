@@ -99,7 +99,7 @@ const OPERATOR_ACTION_SPECS: Record<OperatorActionId, OperatorActionSpec> = {
   'approvals.cancel': { label: 'cancel approval', targetField: 'approvalId' },
   'automation.jobs.run': { label: 'run automation job', targetField: 'jobId' },
   // automation.jobs.pause/resume were retired (redundant with
-  // disable/enable — same {id,enabled} output, same semantics). The
+  // disable/enable, same {id,enabled} output, same semantics). The
   // user-facing "pause"/"resume" verb is unchanged; only the wire action
   // moved to the canonical disable/enable methods.
   'automation.jobs.disable': { label: 'pause automation job', targetField: 'jobId' },
@@ -144,13 +144,13 @@ let operatorActionsCache: Record<OperatorActionId, OperatorActionDescriptor> | n
  * Derived rather than written down: a hand-kept path is a copy of the contract
  * that nothing re-checks, and the way it fails is a 404 that reads as a broken
  * feature. `requireOperatorHttpBinding` throws for an id the contract no longer
- * serves — a build compiled against a contract that dropped one of these is
+ * serves, a build compiled against a contract that dropped one of these is
  * broken, and the drift test says so before it ships.
  *
  * Resolved on first use rather than at module load: the old module-scope
  * `buildOperatorActions()` call chained into the contract binding, and the
  * single-file compiler's nondeterministic module order could evaluate this
- * module before the contract's — the binary then died at load with a
+ * module before the contract's, the binary then died at load with a
  * TypeError (the same build-order lottery class fixed at runtime 2.0.13).
  */
 export function getOperatorActions(): Record<OperatorActionId, OperatorActionDescriptor> {

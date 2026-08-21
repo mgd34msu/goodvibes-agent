@@ -1,5 +1,5 @@
 /**
- * calendar-connect-runtime.ts — the /calendar connect|disconnect|accounts subcommands
+ * calendar-connect-runtime.ts, the /calendar connect|disconnect|accounts subcommands
  * and the provider-event merge for /calendar upcoming.
  *
  * The OAuth network dance lives here (not in the workspace card) because a command
@@ -25,7 +25,7 @@ const PROVIDER_LABEL: Record<CalendarProviderId, string> = { google: 'Google Cal
 const CONNECTION_STATE_NOTE: Record<string, string> = {
   connected: 'connected',
   'refresh-due': 'connected (token refresh due)',
-  'reconnect-needed': 'reconnect needed — run the connect command again',
+  'reconnect-needed': 'reconnect needed, run the connect command again',
   disconnected: 'disconnected',
 };
 
@@ -63,8 +63,8 @@ function authUrlMessage(label: string, url: string): string {
 
 /**
  * The real guide for a bare `/calendar connect` (F1a): what connecting does, the
- * two providers, and — since this build ships only the SDK's placeholder client
- * ids until someone registers a project app — the honest situation and the exact
+ * two providers, and, since this build ships only the SDK's placeholder client
+ * ids until someone registers a project app, the honest situation and the exact
  * next step, instead of a bare usage line that dead-ends with no explanation.
  */
 function connectGuideMessage(): string {
@@ -75,11 +75,11 @@ function connectGuideMessage(): string {
     '    /calendar connect outlook',
     '    (add --device to sign in with a device code instead of a browser)',
     '',
-    'This build has no built-in Google/Microsoft sign-in configured yet — there is no project ' +
+    'This build has no built-in Google/Microsoft sign-in configured yet, there is no project ' +
       'client id shipped, so a bare connect will stop at the config step and tell you so. To ' +
       'connect, you need a client id:',
     '  1. Register a free OAuth app with the provider (Google Cloud Console, or the Azure portal for Microsoft).',
-    '  2. Copy the client id it gives you — a desktop/public-client app needs no secret.',
+    '  2. Copy the client id it gives you, a desktop/public-client app needs no secret.',
     '  3. Open /agent personal-ops -> "Connect Google Calendar (advanced)" or "Connect Microsoft Outlook (advanced)" and paste it in.',
     '  4. Run /calendar connect google (or outlook) again to authorize.',
   ].join('\n');
@@ -101,7 +101,7 @@ function bestEffortOpenBrowser(url: string): void {
       child.on('error', () => {});
       child.unref();
     } catch {
-      // ignore — the URL was already printed for the user to open manually
+      // ignore, the URL was already printed for the user to open manually
     }
   })();
 }
@@ -209,7 +209,7 @@ export async function fetchProviderUpcoming(
       const providerEvents = await service.listEventsForProvider(config, window);
       events.push(...providerEvents);
     } catch (error) {
-      notes.push(`  ${PROVIDER_LABEL[account.provider]}: could not load events — ${error instanceof Error ? error.message : String(error)}`);
+      notes.push(`  ${PROVIDER_LABEL[account.provider]}: could not load events, ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   return { events, notes };

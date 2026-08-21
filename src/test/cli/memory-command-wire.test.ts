@@ -4,7 +4,7 @@
  *    ~/.goodvibes) is reachable, so wire-eligible subcommands route over the wire
  *    and the record lands in the DAEMON's own store, never the CLI's local file.
  *  - daemon down: proven by the existing memory-command.test.ts fixtures (fetch
- *    mocked to fail, exercising the local-direct fallback) — this file focuses on
+ *    mocked to fail, exercising the local-direct fallback), this file focuses on
  *    the "up" half plus one direct side-by-side proof that the SAME CLI command,
  *    run against the two different fixtures, lands in two different stores.
  */
@@ -103,7 +103,7 @@ describe('memory CLI — daemon up routes over the wire', () => {
 
     // Point the CLI's connection resolver (createSpineConnectionResolver reads
     // configManager + the connected-host token path under homeDirectory) at this
-    // real daemon — the CLI process itself has no lasting config store, so this
+    // real daemon, the CLI process itself has no lasting config store, so this
     // has to be a fresh ConfigManager written to the same configDir the CLI will
     // construct in runCli().
     const cliConfigManager = new ConfigManager({ workingDir, homeDir, surfaceRoot: 'agent' });
@@ -157,7 +157,7 @@ describe('memory CLI — daemon up routes over the wire', () => {
     expect(daemonServices.memoryRegistry.get(id)).toBeNull();
   });
 
-  // ── 1.2.0 full-detach subcommands — same real-daemon proof ─────────────────
+  // ── 1.2.0 full-detach subcommands, same real-daemon proof ─────────────────
 
   test('memory show reads the record and its links over the wire (get + linksFor)', async () => {
     const from = await runCli(['memory', 'add', 'decision', 'wire decision', '--json'], workingDir, homeDir);
@@ -203,7 +203,7 @@ describe('memory CLI — daemon up routes over the wire', () => {
     expect(exportedParsed.data.bundle.recordCount).toBe(1);
 
     // Re-importing the bundle that was just exported from this same daemon store
-    // is an idempotent union — the record already exists there, so it is skipped.
+    // is an idempotent union, the record already exists there, so it is skipped.
     const imported = await runCli(['memory', 'import', bundlePath, '--yes', '--json'], workingDir, homeDir);
     expect(imported.exitCode).toBe(0);
     const importedParsed = JSON.parse(imported.output) as { readonly data: { readonly result: { readonly importedRecords: number; readonly skippedRecords: number } } };

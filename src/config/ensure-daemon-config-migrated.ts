@@ -1,5 +1,5 @@
 /**
- * ensure-daemon-config-migrated.ts — run the one-time move of daemon-owned
+ * ensure-daemon-config-migrated.ts, run the one-time move of daemon-owned
  * keys into the daemon's own store before any ConfigManager is constructed.
  *
  * The migration itself lives in the SDK (`daemon-config-migration.ts`) so every
@@ -20,7 +20,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 /**
  * Move daemon-owned settings into `~/.goodvibes/daemon/settings.json` if that
  * has not already completed. Returns the disclosure text the FIRST time values
- * actually move, and null otherwise — so a caller can print it once without
+ * actually move, and null otherwise, so a caller can print it once without
  * re-announcing on every launch.
  *
  * A failure never blocks startup: the daemon store simply stays as it was and

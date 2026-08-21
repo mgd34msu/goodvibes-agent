@@ -128,10 +128,10 @@ describe('bootstrap webhook notifier lifecycle', () => {
 
     // drain once
     for (const unsub of runtimeUnsubs) unsub();
-    // drain again (each unsub closure calls detach each time — this documents the contract)
+    // drain again (each unsub closure calls detach each time, this documents the contract)
     for (const unsub of runtimeUnsubs) unsub();
 
-    // The closure calls detach() each time it is invoked — two drains = 2 calls
+    // The closure calls detach() each time it is invoked, two drains = 2 calls
     expect(calls.detachCount).toBe(2);
   });
 });

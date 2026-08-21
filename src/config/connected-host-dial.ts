@@ -1,7 +1,7 @@
 /**
  * Turning a CONFIGURED host value into an address this process can dial.
  *
- * `controlPlane.host` (and `httpListener.host`) hold a BIND address — the
+ * `controlPlane.host` (and `httpListener.host`) hold a BIND address, the
  * interface the daemon listens on. `0.0.0.0` and `::` are wildcards: they mean
  * "every interface", and they are legitimate, common values to bind to. They
  * are not addresses anything can connect TO. Handing `http://0.0.0.0:3421` to
@@ -13,8 +13,8 @@
  * here so that mapping exists in one place instead of being re-derived, and
  * re-forgotten, per call site.
  *
- * NOT for advertised addresses. A URL handed to ANOTHER machine — a pairing QR
- * code, a phone-facing web link — must resolve a wildcard to this host's LAN
+ * NOT for advertised addresses. A URL handed to ANOTHER machine, a pairing QR
+ * code, a phone-facing web link, must resolve a wildcard to this host's LAN
  * address, never to loopback, because loopback on the phone is the phone. Those
  * sites keep their own `urlHostForBindHost` helpers, which resolve through
  * getLocalNetworkIp() on purpose. This module is client-dial-side only, and it
@@ -33,7 +33,7 @@ const WILDCARD_BIND_HOSTS: ReadonlySet<string> = new Set(['0.0.0.0', '::', '[::]
 /**
  * The host this process should dial for a given configured bind host.
  *
- * Wildcards and blank/absent values both resolve to loopback — a missing host
+ * Wildcards and blank/absent values both resolve to loopback, a missing host
  * means the local daemon, which is the same place a wildcard answers.
  */
 export function dialHostForConfiguredHost(host: unknown): string {
@@ -73,7 +73,7 @@ export function connectedHostBaseUrl(
 
 /**
  * Read `controlPlane.host`/`controlPlane.port` off a config reader and resolve
- * them to a dial address in one step — what most call sites actually want.
+ * them to a dial address in one step, what most call sites actually want.
  */
 export function resolveConnectedHostBaseUrl(
   configManager: { get(key: 'controlPlane.host' | 'controlPlane.port'): unknown },

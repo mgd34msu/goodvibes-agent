@@ -6,7 +6,7 @@
  * tool: list/search/get/create/update/review/stale/delete.
  *
  * The `search` action defaults to semantic recall (registry.searchSemantic)
- * instead of the old literal LIKE-scan default — natural-language recall must
+ * instead of the old literal LIKE-scan default, natural-language recall must
  * not depend on the query text appearing as a literal substring in the
  * stored summary/detail. Index health is checked before every semantic
  * search so an unavailable index degrades honestly (stated reason, literal
@@ -14,14 +14,14 @@
  * was ever stored."
  *
  * MEMORY-SPINE WIRING (SDK 1.2.0 full-detach catalog). Every action below now
- * routes through `memorySpine` — local by default, or over the wire the moment
+ * routes through `memorySpine`, local by default, or over the wire the moment
  * the agent has adopted a daemon (see services.ts's memorySpineClient).
  * get/create/review/stale/delete and the literal `search` path use the five
  * 1.1.0 core verbs (get/add/updateReview/updateReview/delete/honestSearch);
  * `list` and `update` use the 1.2.0 extended verbs of the same name
  * (list/update); the SEMANTIC search path uses the 1.2.0 `searchSemantic`
  * extended verb. Only the index-health check (`registry.vectorStats()`) stays
- * on the raw local `registry` — vector-index diagnostics are maintenance a
+ * on the raw local `registry`, vector-index diagnostics are maintenance a
  * store performs on its OWN index, so reporting them honestly means reading
  * this process's own index, not a wire-forwarded view of the daemon's (see the
  * CLI's identical ruling in memory-command-wire.ts). That is a deliberate,
@@ -89,7 +89,7 @@ function formatMemoryMatch(entry: MemorySemanticSearchResult): string {
 
 /**
  * A HARD unavailable reason: the semantic index cannot be consulted at all, so the
- * search action must fall back to a literal LIKE-scan and say so — never a silent
+ * search action must fall back to a literal LIKE-scan and say so, never a silent
  * empty result that reads as "no memory matches" when the index was never asked.
  */
 function describeMemoryIndexUnavailable(stats: MemoryVectorStats): string | null {
@@ -103,12 +103,12 @@ function describeMemoryIndexUnavailable(stats: MemoryVectorStats): string | null
  * A SOFT caveat: the index is up and consulted, but it is running on the built-in
  * hashed-only fallback embedding provider (bag-of-words/token hashing) rather than a
  * real embedding model. That still ranks real matches meaningfully better than a
- * literal substring scan, but it is not a modeled semantic understanding — say so
+ * literal substring scan, but it is not a modeled semantic understanding, say so
  * rather than presenting it as equivalent to a configured semantic provider.
  */
 function describeMemoryIndexCaveat(stats: MemoryVectorStats): string | null {
   if (stats.embeddingProviderId === HASHED_MEMORY_EMBEDDING_PROVIDER.id) {
-    return 'running on the hashed-only fallback embedding provider (no dedicated semantic model configured) — ranking is approximate, not modeled semantic understanding';
+    return 'running on the hashed-only fallback embedding provider (no dedicated semantic model configured), ranking is approximate, not modeled semantic understanding';
   }
   return null;
 }
@@ -127,7 +127,7 @@ export async function handleMemory(
   args: AgentLocalRegistryToolArgs,
 ): Promise<string> {
   if (action === 'list') {
-    // list() is a 1.2.0 extended verb — routes through the spine (no filter =
+    // list() is a 1.2.0 extended verb, routes through the spine (no filter =
     // getAll semantics, matching the previous registry.getAll() call exactly).
     const records = await memorySpine.list();
     return records.length === 0
@@ -138,33 +138,33 @@ export async function handleMemory(
     const query = readString(args.query);
     const wantsLiteral = args.semantic === false;
     if (wantsLiteral) {
-      // Literal search IS wire-covered — routes through the spine (honestSearch
+      // Literal search IS wire-covered, routes through the spine (honestSearch
       // with no `semantic` flag is exactly a literal scan; see
       // runHonestMemorySearch in the SDK).
       const { records } = await memorySpine.honestSearch({ query, limit: 10 });
-      return renderMemorySearch('literal — explicitly requested', query, records.map(formatMemory));
+      return renderMemorySearch('literal, explicitly requested', query, records.map(formatMemory));
     }
     // SEMANTIC BY DEFAULT: natural-language recall must not depend on the query text
     // appearing as a literal substring in the stored summary/detail. Check index
     // health FIRST so an unavailable index degrades honestly instead of silently
     // returning zero matches that read as "nothing was ever stored." The health
     // check itself stays on the raw local registry (vector-index diagnostics are
-    // this process's own — see the file-header note); the actual search, once the
+    // this process's own, see the file-header note); the actual search, once the
     // index is known healthy, is the 1.2.0 searchSemantic extended verb and
     // routes through the spine.
     const stats = registry.vectorStats();
     const unavailable = describeMemoryIndexUnavailable(stats);
     if (unavailable) {
       const records = registry.search({ query, limit: 10 });
-      return renderMemorySearch(`literal fallback — ${unavailable}`, query, records.map(formatMemory));
+      return renderMemorySearch(`literal fallback, ${unavailable}`, query, records.map(formatMemory));
     }
     const results = await memorySpine.searchSemantic({ query, limit: 10 });
     const consultedSemanticIndex = query.length > 0 && results.some((entry) => entry.similarity > 0);
     const caveat = describeMemoryIndexCaveat(stats);
     const mode = !consultedSemanticIndex && query.length > 0
-      ? 'semantic — no vector match for this query, ranked by stored confidence instead'
+      ? 'semantic, no vector match for this query, ranked by stored confidence instead'
       : caveat
-        ? `semantic — ${caveat}`
+        ? `semantic, ${caveat}`
         : 'semantic';
     return renderMemorySearch(mode, query, results.map(formatMemoryMatch));
   }
@@ -203,7 +203,7 @@ export async function handleMemory(
     ].join('\n');
   }
   if (action === 'update') {
-    // update() is a 1.2.0 extended verb (summary/detail/tags/scope patch) — routes
+    // update() is a 1.2.0 extended verb (summary/detail/tags/scope patch), routes
     // through the spine.
     const summary = readString(args.summary || args.description);
     const detail = readString(args.detail || args.body);

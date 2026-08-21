@@ -274,7 +274,7 @@ export function buildAgentWorkspaceCompanionAccessSnapshot(context: CommandConte
 
 /**
  * Honest email-connect status for the inbox connect wizard's entry state
- * — config validation only, no network I/O. Best-effort: never
+ *, config validation only, no network I/O. Best-effort: never
  * throws, returns null on any read failure.
  */
 export function buildAgentWorkspaceEmailConnectStatus(context: CommandContext): AgentWorkspaceEmailConnectStatus | null {
@@ -296,7 +296,7 @@ export function buildAgentWorkspaceEmailConnectStatus(context: CommandContext): 
 
 /**
  * Honest calendar-OAuth build state per provider for the advanced connect
- * cards (F1c) — config read only, no network I/O. "Configured" means a
+ * cards (F1c), config read only, no network I/O. "Configured" means a
  * config-override client id has been stored (through this same card);
  * "not configured" means the build still ships only the bundled SDK
  * placeholder client id, the state in which a bare /calendar connect always

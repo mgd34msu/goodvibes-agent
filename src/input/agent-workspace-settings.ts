@@ -328,7 +328,7 @@ function applyTuiSubscriptions(context: CommandContext, parseErrors: string[]): 
 
 export function agentWorkspaceSettingSchema(context: CommandContext | null, key: string): ConfigSetting | null {
   // display.themeMode is a real CONFIG_SCHEMA entry (SDK 2.0+), so it
-  // resolves through the same getSchema() lookup as every other key — no
+  // resolves through the same getSchema() lookup as every other key, no
   // synthetic fallback needed here anymore.
   return context?.platform?.configManager
     ?.getSchema()
@@ -440,7 +440,7 @@ export async function applyAgentWorkspaceSettingValue(
   if (String(setting.key) === THEME_MODE_CONFIG_KEY) {
     try {
       // display.themeMode is a real CONFIG_SCHEMA entry now (SDK 2.0+), so
-      // this branch is no longer working around a missing schema key — the
+      // this branch is no longer working around a missing schema key, the
       // direct setDynamic write below is the same round-trip every other
       // client-owned key would get, and this key isn't daemon-owned or
       // secret-backed, so there is no ownership routing to gain by going
@@ -448,7 +448,7 @@ export async function applyAgentWorkspaceSettingValue(
       // is the live single-process side effect below: the classic settings
       // modal wires onSettingApplied (ui-openers.ts) to flip the active
       // render mode and repaint; this workspace surface has no equivalent
-      // hook, so it runs the ONE shared apply hook directly — forced
+      // hook, so it runs the ONE shared apply hook directly, forced
       // dark/light flips the active mode now with a full repaint; auto only
       // re-probes at startup, stated honestly in the returned message.
       configManager.setDynamic(setting.key as ConfigKey, value);

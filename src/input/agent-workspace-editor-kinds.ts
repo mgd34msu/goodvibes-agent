@@ -2,7 +2,7 @@
  * The editor-kind unions, split out of `agent-workspace-types.ts`.
  *
  * They live here because they are the part of the workspace type surface that
- * grows every time a card is added — adding the six Google connection kinds is
+ * grows every time a card is added, adding the six Google connection kinds is
  * what pushed the types file past the 800-line architecture cap. Keeping the
  * list in its own module means the next card adds a line to a file whose whole
  * job is that list, rather than to the file that also holds every unrelated
@@ -38,7 +38,7 @@ export type AgentWorkspaceEditorKind =
   | 'knowledge-consolidate'
   | 'knowledge-packet'
   | 'knowledge-explain'
-  // The owner profile — what the platform knows about HIM. Distinct from the
+  // The owner profile, what the platform knows about HIM. Distinct from the
   // 'profile' kind above, which is an isolated Agent profile home; nothing here
   // is called `profile` unqualified, for the reason docs/owner-profile.md §3
   // gives.

@@ -3,7 +3,7 @@
  *
  * Split out of agent-local-registry-tool.ts to stay under the 800-line
  * architecture cap. These are generic across every domain (memory, note,
- * persona, skill, skill_bundle, routine) — no domain-specific logic lives
+ * persona, skill, skill_bundle, routine), no domain-specific logic lives
  * here.
  */
 

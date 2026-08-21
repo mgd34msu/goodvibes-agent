@@ -57,7 +57,7 @@ export function deriveOnboardingEntry(obs: OnboardingState): OnboardingEntryResu
     if (step) return { categoryId: step.categoryId, status: `Picking up where you left off: ${step.label}.` };
   }
   const currentStep = obs.steps.find((s) => s.id === obs.currentStepId);
-  const nextHint = currentStep ? ` — ${currentStep.nextLabel}` : '';
+  const nextHint = currentStep ? `, ${currentStep.nextLabel}` : '';
   return { categoryId: undefined, status: `${obs.progressLabel}${nextHint}.` };
 }
 
@@ -77,7 +77,7 @@ export function updateRevealedOnboardingCategories(
   if (obs.readyToChat) revealed.add('account-model');
   // Also reveal the active resume target so that navigating to it on re-entry
   // actually works. The resume target is by definition non-ready (it is the
-  // first blocker), so it would otherwise be filtered out above. Only adds —
+  // first blocker), so it would otherwise be filtered out above. Only adds,
   // preserves monotonicity of the revealed set.
   if (obs.phase === 'in-progress' && obs.currentStepId) {
     const cur = obs.steps.find((s) => s.id === obs.currentStepId);
@@ -99,7 +99,7 @@ export function computeOnboardingStateFromSnapshot(
 
   const plan: SetupPlanItem[] = wizard.steps.map(wizardItemToSetupPlanItem);
 
-  // Build minimal marker states — default to non-existent when shellPaths is unavailable.
+  // Build minimal marker states, default to non-existent when shellPaths is unavailable.
   const checkMarker = shellPaths
     ? readOnboardingCheckMarker(shellPaths, 'user')
     : { scope: 'user' as const, path: '', exists: false, payload: null };

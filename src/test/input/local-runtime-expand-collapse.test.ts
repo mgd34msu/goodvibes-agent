@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// local-runtime-expand-collapse.test.ts — /expand tool and /collapse tool
+// local-runtime-expand-collapse.test.ts, /expand tool and /collapse tool
 // against a collapsed assistant turn (see conversation-turn-structure.ts).
 //
 // Regression: a tool result hidden by a collapsed turn pushes no BlockMeta of
@@ -77,7 +77,7 @@ describe('/expand tool on a collapsed assistant turn', () => {
     expect(after.filter((b) => b.type === 'assistant_turn').length).toBe(1);
     expect(memberBlocks.length).toBe(2);
     // Each result is rendered in FULL (its own multi-line body), not the
-    // 1-2 line "N hidden" collapsed fragment — proof both results expanded in
+    // 1-2 line "N hidden" collapsed fragment, proof both results expanded in
     // the same pass as the turn header, not just the header itself.
     for (const block of memberBlocks) {
       expect(block.lineCount).toBeGreaterThan(10);

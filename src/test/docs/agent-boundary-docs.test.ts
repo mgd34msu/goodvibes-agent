@@ -137,7 +137,7 @@ describe('Agent user-first product docs', () => {
   test('docs workspace action tokens only reference real workspace tool actions', () => {
     // Extract the accepted action enum from the live workspace tool definition.
     // createAgentWorkspaceTool requires deps but we only need the definition, so we
-    // cast to satisfy the minimal shape — execute is never called here.
+    // cast to satisfy the minimal shape, execute is never called here.
     const tool = createAgentWorkspaceTool({
       commandRegistry: new CommandRegistry(),
       commandContext: {} as never,

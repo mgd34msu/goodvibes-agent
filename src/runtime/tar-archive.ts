@@ -7,7 +7,7 @@
  * and neither may depend on a `tar` binary existing on the machine, so the
  * header parsing lives here once and both callers build on it.
  *
- * Scope is deliberately narrow — the archives this reads are ustar archives
+ * Scope is deliberately narrow, the archives this reads are ustar archives
  * this project or npm produced: regular files and directories, short paths, no
  * sparse entries. Anything else in the stream is skipped rather than guessed
  * at, and every extracted path is checked against its destination before a
@@ -140,7 +140,7 @@ function strip(path: string, components: number): string | null {
  * Writes every regular file and directory of a gzipped tar under `destination`,
  * preserving the executable bit (playwright-core ships shell helpers and an
  * `xdg-open` that must stay runnable). Entries that are neither files nor
- * directories — symlinks, devices, hard links — are skipped, because nothing
+ * directories, symlinks, devices, hard links, are skipped, because nothing
  * this extracts is supposed to contain any.
  */
 export function extractTarGzTree(

@@ -27,7 +27,7 @@ function ledgerSiblingPath(registry: AgentSkillRegistry): string {
  * Build a CommandContext stub with a real workspace.shellPaths so that
  * buildLearningCandidates does not throw on null workspace.
  * The temp paths carry no memory/skill data so the pass yields zero
- * eligible candidates — no drafts are written, skipped=0.
+ * eligible candidates, no drafts are written, skipped=0.
  */
 function makeContextWithPaths(paths: ReturnType<typeof createShellPathService>): CommandContext {
   return {
@@ -47,7 +47,7 @@ describe('runSkillDraftProposer — ledger round-trip', () => {
   test('ledger file is created as a sibling of skills.json', () => {
     const { registry, paths } = tempRegistry();
     runSkillDraftProposer(makeContextWithPaths(paths), registry);
-    // Empty pass — no new entries written, so ledger should not exist yet
+    // Empty pass, no new entries written, so ledger should not exist yet
     // (writeLedger only writes when newEntries.length > 0)
     // The ledger path must be in the same directory as skills.json
     const skillsPath = registry.snapshot().path;

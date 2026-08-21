@@ -1,5 +1,5 @@
 /**
- * /email command — direct email access via IMAP/SMTP.
+ * /email command, direct email access via IMAP/SMTP.
  *
  * Subcommands:
  *   status                                        Show config readiness (redacted, no secrets)
@@ -79,7 +79,7 @@ export interface PersistEmailConfigFieldResult {
   readonly ok: boolean;
   readonly error?: string;
   readonly configKey?: string;
-  /** Set only for the passwordRef field — the stored goodvibes:// reference (never the raw value). */
+  /** Set only for the passwordRef field, the stored goodvibes:// reference (never the raw value). */
   readonly secretRef?: string;
 }
 
@@ -91,7 +91,7 @@ export interface PersistEmailConfigFieldResult {
  * reference ever reaches settings.json. Never logs or returns the raw value.
  *
  * Reused by both the /email set CLI subcommand (handleSet, below) and the
- * Agent workspace connect wizard editor — one persistence path, no fork.
+ * Agent workspace connect wizard editor, one persistence path, no fork.
  */
 export async function persistEmailConfigField(
   cm: EmailConfigManagerLike,
@@ -109,7 +109,7 @@ export async function persistEmailConfigField(
     // authenticates with when it sends or reads mail on a schedule, and
     // `email.passwordRef` is a daemon-owned config path, so
     // persistSecretBackedConfigValue's ownership default files the value in the
-    // daemon tier. Pinning it to 'user' here — which this did until now — put
+    // daemon tier. Pinning it to 'user' here, which this did until now, put
     // the reference in the daemon's settings file and the password in a tier the
     // daemon never reads: mail configured from this terminal, and a daemon that
     // reports no email integration the moment the terminal closes.
@@ -192,7 +192,7 @@ function formatStatus(ctx: CommandContext): void {
     for (const err of errors) lines.push(`    - ${err}`);
   }
   lines.push('  policy: credentials are never printed; passwordRef displays as [configured]');
-  lines.push('  Usage: /email set email.<key> <value> [--yes] — see /email config');
+  lines.push('  Usage: /email set email.<key> <value> [--yes], see /email config');
   ctx.print(lines.join('\n'));
 }
 
@@ -364,7 +364,7 @@ async function handleSet(
       const lines = [
         'Email Password Set Preview',
         `  key: ${configKey}`,
-        '  value: [redacted — raw password will be stored as a secure secret]',
+        '  value: [redacted, raw password will be stored as a secure secret]',
         '  policy: the raw password is never written to settings.json; only a',
         '          goodvibes:// reference is stored there',
       ];

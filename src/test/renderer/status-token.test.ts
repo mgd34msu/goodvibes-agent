@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// status-token.test.ts — buildStatusToken unit tests
+// status-token.test.ts, buildStatusToken unit tests
 // ---------------------------------------------------------------------------
 
 import { describe, test, expect } from 'bun:test';
@@ -76,7 +76,7 @@ describe('buildStatusToken', () => {
   });
 
   test('wide char label produces continuation cell with empty char', () => {
-    // Use CJK label — each CJK char is display-width 2 and needs a continuation
+    // Use CJK label, each CJK char is display-width 2 and needs a continuation
     // cell. Without the fix, split('') would produce broken surrogate halves.
     const cells = buildStatusToken('good', '界字');
     // At least one cell with char==='' (continuation) must exist

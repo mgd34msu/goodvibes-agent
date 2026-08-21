@@ -620,7 +620,7 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
       promptActive: snapshot.localMemoryPromptActiveCount,
       // Visible expiry (temporal validity window): still stored and counted in
       // `total`, never deleted, but outside [validFrom, validUntil) so not
-      // prompt-injected — see memoryRecordTemporalStatus.
+      // prompt-injected, see memoryRecordTemporalStatus.
       temporallyPending: snapshot.localMemoryTemporallyPendingCount,
       temporallyExpired: snapshot.localMemoryTemporallyExpiredCount,
       sessionMemory: snapshot.sessionMemoryCount,

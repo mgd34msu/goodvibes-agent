@@ -32,7 +32,7 @@ export function renderSearchOverlay(
   manager: SearchManager,
   width: number
 ): Line[] {
-  // Match count text — displayed in dim grey, right of query, left of hints
+  // Match count text, displayed in dim grey, right of query, left of hints
   const matchCount = manager.matches?.length > 0
     ? searchOverlayMatchCount(manager.currentMatch + 1, manager.matches.length)
     : manager.query.length > 0
@@ -48,7 +48,7 @@ export function renderSearchOverlay(
   const label = SEARCH_OVERLAY_LABEL;
   const matchStr = matchCount ? ` ${matchCount}` : '';
 
-  // Build left portion: label + query (no match count — that gets separate styling)
+  // Build left portion: label + query (no match count, that gets separate styling)
   const leftPart = label + queryDisplay;
   const hintsW = getDisplayWidth(hints);
   const matchStrW = getDisplayWidth(matchStr);

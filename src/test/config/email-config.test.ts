@@ -7,7 +7,7 @@
  *
  * Also covers CRIT-A/CRIT-B: the user-facing setter path (/email set) via
  * persistSecretBackedConfigValue for secret keys and setDynamic+save for
- * plain keys. These tests exercise the real command/persist path — they do
+ * plain keys. These tests exercise the real command/persist path, they do
  * NOT mutate config[] directly.
  *
  * Pattern mirrors src/test/config/schema-extensions.test.ts.
@@ -183,7 +183,7 @@ describe('email config integration: ensureEmailConfigDefaults + real ConfigManag
 });
 
 // ---------------------------------------------------------------------------
-// User-facing setter path: /email set — CRIT-A / CRIT-B
+// User-facing setter path: /email set, CRIT-A / CRIT-B
 // ---------------------------------------------------------------------------
 
 /**
@@ -267,8 +267,8 @@ describe('email set command path: user-facing setter via persistSecretBackedConf
     // The daemon tier is in this list because that is where the value now
     // legitimately lives: email runs in the daemon, so email.passwordRef is
     // daemon-owned and the daemon's store is its only home. What this test
-    // guards is unchanged — the raw password reaches no settings file, and a
-    // goodvibes:// reference reaches one — but looking only in the surface
+    // guards is unchanged, the raw password reaches no settings file, and a
+    // goodvibes:// reference reaches one, but looking only in the surface
     // files would have reported the ref missing when it had simply been routed
     // to its owner.
     const settingsFiles = [

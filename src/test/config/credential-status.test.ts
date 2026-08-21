@@ -1,6 +1,6 @@
 /**
  * The daemon-client credential STATUS read must degrade honestly and never
- * fabricate "configured" nor surface a secret byte. Hermetic — a fake fetch stands in for
+ * fabricate "configured" nor surface a secret byte. Hermetic, a fake fetch stands in for
  * the daemon (no real daemon, no ports); the pure deriver is exercised directly.
  */
 import { describe, expect, test } from 'bun:test';
@@ -31,10 +31,10 @@ describe('deriveCredentialAvailability (honest degrade)', () => {
     if (out.available) {
       expect(out.credentials).toHaveLength(2);
       expect(out.credentials[0]).toEqual({ key: 'SHARED_CHANNEL_TOKEN', configured: true, usable: true, source: 'store', secure: true });
-      // A configured-but-unresolvable ref is honestly usable:false — not dropped, not faked.
+      // A configured-but-unresolvable ref is honestly usable:false, not dropped, not faked.
       expect(out.credentials[1]?.configured).toBe(true);
       expect(out.credentials[1]?.usable).toBe(false);
-      // The status type carries no value/bytes field — assert dynamically too.
+      // The status type carries no value/bytes field, assert dynamically too.
       for (const c of out.credentials) expect('value' in c).toBe(false);
     }
   });

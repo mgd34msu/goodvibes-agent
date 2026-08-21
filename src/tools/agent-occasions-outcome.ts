@@ -1,10 +1,10 @@
 /**
- * agent-occasions-outcome.ts — the argument reading and outcome shaping the
+ * agent-occasions-outcome.ts, the argument reading and outcome shaping the
  * `occasions` tool's two halves share.
  *
  * Split out because the tool reached this repo's 800-line file cap, and the cut
  * that keeps the two halves honest is this one: the pieces here are about the
- * TOOL PROTOCOL — what an argument is, what a success looks like — and nothing
+ * TOOL PROTOCOL, what an argument is, what a success looks like, and nothing
  * here knows anything about an occasion. The read handlers
  * (agent-occasions-reads.ts) and the write/capture handlers
  * (agent-occasions-tool.ts) both need them, and a second copy in either would be

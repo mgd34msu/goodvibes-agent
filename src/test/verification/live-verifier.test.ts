@@ -359,7 +359,7 @@ describe('live verification report', () => {
 });
 
 // ---------------------------------------------------------------------------
-// doctorRiskAdvisoryOnlyCount — advisory-only doctor exits must not block a
+// doctorRiskAdvisoryOnlyCount, advisory-only doctor exits must not block a
 // strict release verification; real errors and crashes still must.
 // ---------------------------------------------------------------------------
 

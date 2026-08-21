@@ -1,5 +1,5 @@
 /**
- * command-context-ui.ts — the shell actions a command can invoke that do
+ * command-context-ui.ts, the shell actions a command can invoke that do
  * nothing but change what is on screen.
  *
  * `/clear` wipes the viewport, Ctrl+O pins or unpins the activity sidebar, and
@@ -8,7 +8,7 @@
  *
  * They live here rather than inline in main.ts because they are the shell's UI
  * verbs rather than part of its startup sequence, and because main.ts is at its
- * size budget — a file that has to stay readable is not the place to keep three
+ * size budget, a file that has to stay readable is not the place to keep three
  * unrelated closures that only share the fact that they were convenient there.
  */
 

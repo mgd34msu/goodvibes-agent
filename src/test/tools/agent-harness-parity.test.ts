@@ -5,10 +5,10 @@
  * Fix 2: Bounded command-runner output cap test.
  *
  * Guarantees:
- *   1. Every mode in AGENT_HARNESS_MODES is handled by the dispatch — the result
+ *   1. Every mode in AGENT_HARNESS_MODES is handled by the dispatch, the result
  *      error is NEVER 'Unhandled agent_harness mode: <mode>'.
  *   2. Every descriptor with kind:'effect' refuses to execute when invoked without
- *      confirm:true and explicitUserRequest — result must be success:false OR
+ *      confirm:true and explicitUserRequest, result must be success:false OR
  *      (success:true with parsed output having status 'needs_confirmation').
  *   3. Command-runner output is capped at 6000 chars with '... output truncated'.
  */
@@ -191,7 +191,7 @@ describe('agent_harness parity', () => {
         const result = await fixture.tool.execute({ mode: descriptor.id });
 
         // Accepted refusal patterns:
-        //   success:false  — hard error/validation refusal (always acceptable)
+        //   success:false , hard error/validation refusal (always acceptable)
         //   success:true with a guard/refusal status (never an executed effect)
         if (result.success) {
           let parsed: Record<string, unknown>;
@@ -203,7 +203,7 @@ describe('agent_harness parity', () => {
           }
           if (!ACCEPTABLE_GUARD_STATUSES.has(String(parsed.status))) {
             failures.push(
-              `mode '${descriptor.id}': success:true with status='${String(parsed.status)}' — expected a guard/refusal status or success:false`,
+              `mode '${descriptor.id}': success:true with status='${String(parsed.status)}', expected a guard/refusal status or success:false`,
             );
           }
         }

@@ -1,5 +1,5 @@
 /**
- * Integration: Config persistence — set → get roundtrip.
+ * Integration: Config persistence, set → get roundtrip.
  *
  * Tests the ConfigManager's read/write lifecycle using the typed ConfigKey API.
  * Config keys follow the format 'section.field' or 'section.subsection.field'.

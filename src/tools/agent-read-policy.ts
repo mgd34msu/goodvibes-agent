@@ -60,7 +60,7 @@ const SECRET_EXACT_FILE_NAMES = new Set([
 /**
  * Dotted names that stay blocked even for a path this session wrote. These are
  * credential stores by name, so authorship is not evidence they are safe to
- * echo back. They are already blocked for everyone by the hidden-name rule —
+ * echo back. They are already blocked for everyone by the hidden-name rule,
  * listing them here only limits the waiver and never blocks anything new.
  */
 const NON_WAIVABLE_DOT_SEGMENTS = new Set([
@@ -133,10 +133,10 @@ export function isBlockedReadPath(path: string): boolean {
   // else's file and no reason at all to refuse one this session just wrote. A
   // screenshot the agent saved to `~/.goodvibes-screen.png` was rejected as
   // secret-looking purely for its name, and only became readable after being
-  // copied to an undotted path — and the browser round hit the same wall from
+  // copied to an undotted path, and the browser round hit the same wall from
   // the other side, saving screenshots under the platform's dotted storage
   // root. When the exact path is in the session write ledger the hidden-name
-  // rule is waived — except for the dotfiles below, which name credential
+  // rule is waived, except for the dotfiles below, which name credential
   // stores outright. Every other rule in this function (secret-looking
   // segments, private-key extensions, known_hosts) applies to session-written
   // paths exactly as before.

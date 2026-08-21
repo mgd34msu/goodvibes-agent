@@ -169,7 +169,7 @@ describe('code block collapse', () => {
     const cm2 = new ConversationManager(() => 80);
     const testAccess = cm2 as unknown as ConversationManagerTestAccess;
     // Simulate config that shows thinking
-    // Force thinking display by patching — just check thinking block registers via direct addAssistantMessage with reasoningContent
+    // Force thinking display by patching, just check thinking block registers via direct addAssistantMessage with reasoningContent
     cm2.addUserMessage('think');
     // addAssistantMessage signature supports opts
     testAccess.messages.push({ role: 'assistant', content: 'done', reasoningContent: bigThinking });

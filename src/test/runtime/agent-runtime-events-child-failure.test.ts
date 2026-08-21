@@ -8,7 +8,7 @@ import { createDomainDispatch } from '../../runtime/store/index.ts';
 import { registerAgentRuntimeEvents } from '../../runtime/agent-runtime-events.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
-// Drain queued microtasks — the child-failure-envelope enrichment awaits a
+// Drain queued microtasks, the child-failure-envelope enrichment awaits a
 // real ToolRegistry.execute() call before rendering, so assertions must wait
 // for that promise chain to settle, not just one flush.
 const flushMicrotasks = async (rounds = 6) => {

@@ -1,5 +1,5 @@
 /**
- * theme.test.ts — the ported theme system.
+ * theme.test.ts, the ported theme system.
  *
  * Covers:
  *   - resolveTheme() returns the correct transcript token set per mode
@@ -19,7 +19,7 @@ import { UI_TONES } from '../../renderer/ui-primitives.ts';
 import { resolveTones } from '@pellux/goodvibes-sdk/platform/presentation';
 
 // ---------------------------------------------------------------------------
-// resolveTheme() — transcript tokens
+// resolveTheme(), transcript tokens
 // ---------------------------------------------------------------------------
 
 describe('resolveTheme', () => {
@@ -84,7 +84,7 @@ describe('light transcript token values differ from dark', () => {
 });
 
 // ---------------------------------------------------------------------------
-// resolveUiTones() — the SDK presentation contract (chrome tones)
+// resolveUiTones(), the SDK presentation contract (chrome tones)
 // ---------------------------------------------------------------------------
 
 function collectStringLeaves(value: unknown, p: string, out: Array<[string, unknown]>): void {

@@ -588,7 +588,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
   const asksForAutomationControl = hasAny(lower, ['cancel', 'retry', 'pause', 'resume', 'run now'])
     && hasAny(lower, ['automation', 'schedule', 'job', 'run']);
   const asksForTrigger = asksForEventTrigger(lower);
-  // Email and calendar are built in now — the google tool serves them once an
+  // Email and calendar are built in now, the google tool serves them once an
   // account is connected. This used to classify them as unsupported outright.
   const asksForMailOrCalendar = hasAny(lower, ['email', 'calendar', 'gmail', 'imap', 'caldav']);
 
@@ -730,7 +730,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       inspectRoute: 'google action:"status"',
       requiresConfirmation: false,
       missingFields: ['a connected Google account'],
-      userQuestion: 'Connect a Google account with /google connect, or take up credentials already on this machine with /google adopt — which would you like?',
+      userQuestion: 'Connect a Google account with /google connect, or take up credentials already on this machine with /google adopt, which would you like?',
     });
   }
 

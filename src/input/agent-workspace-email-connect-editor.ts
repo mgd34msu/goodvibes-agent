@@ -1,19 +1,19 @@
 /**
- * Email connect wizard — promotes the "Inbox workflows" workspace
+ * Email connect wizard, promotes the "Inbox workflows" workspace
  * card from a dead guidance card into a real, stepped connect flow.
  *
  * Security: the raw password NEVER travels through the generic slash-command
  * dispatch pipeline (AgentWorkspace.dispatchWorkspaceCommand), because that
  * pipeline echoes its `command` argument back into
  * AgentWorkspace.lastActionResult.command for the 'inline' execution path
- * (see handler.ts dispatchAgentWorkspaceCommand) — a raw command string
+ * (see handler.ts dispatchAgentWorkspaceCommand), a raw command string
  * containing the password would render it in the workspace UI. Instead this
  * editor is a DIRECT host action (the same pattern as the subscription
  * login editors in agent-workspace-subscription-editor.ts): it calls
  * persistEmailConfigField() and EmailService.testConnection() directly
  * against ctx.platform.configManager / ctx.platform.secretsManager and never
  * builds a command string. Credential persistence reuses the exact same
- * persistEmailConfigField() helper the /email set CLI command uses — one
+ * persistEmailConfigField() helper the /email set CLI command uses, one
  * storage path, not a fork.
  */
 import type { CommandContext } from './command-registry.ts';
@@ -42,8 +42,8 @@ export function createEmailConnectWizardEditor(status: AgentWorkspaceEmailConnec
     : status.connected
       ? `Currently connected as ${status.username} (${status.imapHost}). Re-enter settings below to reconnect or update credentials.`
       : status.errors.length > 0
-        ? 'Not connected — connect your inbox. Enter your IMAP/SMTP settings below.'
-        : 'Not connected — connect your inbox. Enter your IMAP/SMTP settings below.';
+        ? 'Not connected, connect your inbox. Enter your IMAP/SMTP settings below.'
+        : 'Not connected, connect your inbox. Enter your IMAP/SMTP settings below.';
   return {
     kind: 'email-connect-wizard',
     mode: 'create',
@@ -64,7 +64,7 @@ export function createEmailConnectWizardEditor(status: AgentWorkspaceEmailConnec
   };
 }
 
-/** Field ids that persistEmailConfigField expects, in order — 'password' input maps to the 'passwordRef' config field. */
+/** Field ids that persistEmailConfigField expects, in order, 'password' input maps to the 'passwordRef' config field. */
 const FIELD_TO_EMAIL_KEY: Record<string, string> = {
   imapHost: 'imapHost',
   imapPort: 'imapPort',
@@ -96,7 +96,7 @@ export async function submitAgentWorkspaceEmailConnectWizardEditor(
   editor: AgentWorkspaceLocalEditor,
   context: CommandContext | null,
   readField: FieldReader,
-  /** Injectable for tests — avoids real network I/O. Production callers omit this and get the real EmailService. */
+  /** Injectable for tests, avoids real network I/O. Production callers omit this and get the real EmailService. */
   buildTester: EmailConnectionTester = defaultTester,
 ): Promise<void> {
   if (!isAffirmative(readField('confirm'))) {
@@ -146,7 +146,7 @@ export async function submitAgentWorkspaceEmailConnectWizardEditor(
       host.lastActionResult = {
         kind: 'error',
         title: 'Inbox connection failed',
-        detail: `Could not verify the mailbox (${test.stage ?? 'unknown'} stage): ${test.error ?? 'unknown error'}. Settings were saved — fix the value above and reconnect.`,
+        detail: `Could not verify the mailbox (${test.stage ?? 'unknown'} stage): ${test.error ?? 'unknown error'}. Settings were saved, fix the value above and reconnect.`,
         safety: 'safe',
       };
       host.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(context);

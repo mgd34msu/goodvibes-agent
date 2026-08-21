@@ -1,5 +1,5 @@
 /**
- * fake-daemon-cli.ts — a scripted `goodvibes-daemon` executable on PATH.
+ * fake-daemon-cli.ts, a scripted `goodvibes-daemon` executable on PATH.
  *
  * The repair path in runtime/daemon-cli-service.ts spawns the daemon's own CLI
  * by BARE NAME, so PATH decides which one answers. That is the behaviour under
@@ -9,7 +9,7 @@
  *
  * So this builds a real executable in a scratch directory, drives it from files
  * that the test rewrites between calls, and records every invocation. The live
- * daemon on the developer's machine is never touched — nothing here resolves,
+ * daemon on the developer's machine is never touched, nothing here resolves,
  * reads, or runs it.
  */
 import { spawnSync } from 'node:child_process';
@@ -29,7 +29,7 @@ import { join } from 'node:path';
 const SELFCHECK_TOKEN = 'goodvibes-fake-daemon-cli-selfcheck-ok';
 
 export interface FakeDaemonCli {
-  /** Directory to put on PATH — it contains the fake `goodvibes-daemon`. */
+  /** Directory to put on PATH, it contains the fake `goodvibes-daemon`. */
   readonly binDir: string;
   /** Absolute path of the fake executable, for tests that skip PATH entirely. */
   readonly binaryPath: string;
@@ -92,8 +92,8 @@ exit 2
 /**
  * Create the fake CLI inside `root` (use makeProjectTempDir for that root).
  *
- * Starts in the state a wedged machine is in — a unit that exists but is not
- * running — because that is the case every caller here begins from.
+ * Starts in the state a wedged machine is in, a unit that exists but is not
+ * running, because that is the case every caller here begins from.
  */
 export function createFakeDaemonCli(root: string): FakeDaemonCli {
   const binDir = join(root, 'bin');
@@ -142,7 +142,7 @@ export function createFakeDaemonCli(root: string): FakeDaemonCli {
 /**
  * Put `binDir` at the front of PATH for the duration of `run`, then restore it.
  *
- * PATH is process-global, so it is restored in a finally — a test that leaves a
+ * PATH is process-global, so it is restored in a finally, a test that leaves a
  * scratch directory on PATH would change how every later test resolves a
  * command.
  */
@@ -151,13 +151,13 @@ export async function withPath<T>(binDir: string, run: () => Promise<T> | T): Pr
   process.env['PATH'] = `${binDir}:${original ?? ''}`;
   try {
     // Prove the stand-in is the thing that answers BEFORE running the body.
-    // Prepending to PATH is not by itself a guarantee — resolution has to
-    // actually consult the live PATH — and a test that quietly ran the real
+    // Prepending to PATH is not by itself a guarantee, resolution has to
+    // actually consult the live PATH, and a test that quietly ran the real
     // daemon would still look green while proving nothing.
     const check = spawnSync('goodvibes-daemon', ['__selfcheck'], { encoding: 'utf-8', env: process.env });
     if (check.stdout?.trim() !== SELFCHECK_TOKEN) {
       throw new Error(
-        'the scripted goodvibes-daemon stand-in is not the command being resolved — refusing to run this test '
+        'the scripted goodvibes-daemon stand-in is not the command being resolved; refusing to run this test '
         + `against whatever answered instead (stdout: ${JSON.stringify(check.stdout ?? '')})`,
       );
     }

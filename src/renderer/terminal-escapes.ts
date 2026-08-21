@@ -1,5 +1,5 @@
 /**
- * terminal-escapes — the raw control sequences main.ts writes to enter/leave the
+ * terminal-escapes, the raw control sequences main.ts writes to enter/leave the
  * TUI's terminal mode (alt screen, mouse, cursor, keyboard-extension, paste, and
  * focus reporting). Extracted as plain constants so callers share one definition
  * and the entry file stays within the source-file line-count gate.
@@ -8,7 +8,7 @@
  * PASTE_* / CLEAR_VIEWPORT_HOME: re-exported byte-for-byte from
  * @pellux/goodvibes-terminal-shell's TERMINAL_ESCAPES so this app and the TUI
  * cannot drift on the bytes (mechanical swap from a previously-inlined local
- * copy — see main.ts history and the package's terminal-lifecycle module docs).
+ * copy, see main.ts history and the package's terminal-lifecycle module docs).
  *
  * There used to be a local CLEAR_SCREEN constant here that appended ESC[3J
  * (scrollback erase) after ESC[2J. That sequence must never be written by this
@@ -62,13 +62,13 @@ export function buildEnterSequence(noAltScreen: boolean): string {
  * then the screen switch, then cursor-show LAST so visibility applies to the
  * screen the shell prompt actually lands on.
  *
- * Alt-screen path: just leave the alt screen — 1049l restores the primary
+ * Alt-screen path: just leave the alt screen, 1049l restores the primary
  * screen and cursor exactly as they were at launch. Clearing first is
  * pointless (the alt screen is discarded) and actively harmful (3J wipes the
  * primary scrollback even when issued from the alt screen).
  *
  * No-alt path: the compositor painted over the primary screen, so clear the
- * viewport and home the cursor — but WITHOUT 3J, the user's scrollback is
+ * viewport and home the cursor, but WITHOUT 3J, the user's scrollback is
  * theirs.
  */
 export function buildExitSequence(noAltScreen: boolean): string {

@@ -2,7 +2,7 @@
  * The once-only reset of a `daemon.enabled: false` that predates the split.
  *
  * The key used to mean "do not run a daemon inside this process". It now means
- * "do not adopt a daemon at all", which disables host discovery entirely — so a
+ * "do not adopt a daemon at all", which disables host discovery entirely, so a
  * value written under the old meaning silently cuts a machine off from the
  * platform. It is reset once, with a receipt, and never again: the whole point
  * of the marker is that a `false` the user writes AFTER the correction is
@@ -100,7 +100,7 @@ describe('ensureDaemonEnabledMigrated', () => {
 
     // Nothing to reset, so nothing to announce.
     expect(ensureDaemonEnabledMigrated({ homeDir: home })).toBeNull();
-    // But the correction is retired anyway — this is what makes a future
+    // But the correction is retired anyway, this is what makes a future
     // false the user's own.
     expect(existsSync(daemonEnabledMigrationReceiptPath(home))).toBe(true);
 

@@ -8,8 +8,8 @@ import type { CapabilityDeclaration, CapabilityPrerequisite, CapabilityProbe } f
 /**
  * The capabilities this build declares for itself.
  *
- * Two kinds live here. Real ones — browser control — declare the route they are
- * actually invoked through. Placeholders — email and calendar — declare what
+ * Two kinds live here. Real ones, browser control, declare the route they are
+ * actually invoked through. Placeholders, email and calendar, declare what
  * the agent would need in order to do something it cannot do yet, so the index
  * can answer "not yet, and here is exactly why" instead of "no". A provider
  * that implements one of those ids later registers over the placeholder.
@@ -25,7 +25,7 @@ export interface BuiltinCapabilityOptions {
  *
  * The driver prerequisite is deliberately OPTIONAL, and that is the whole point
  * of this declaration. In 1.18.1 it was blocking and probed by module
- * resolution alone, which can never succeed inside a compiled binary — so every
+ * resolution alone, which can never succeed inside a compiled binary, so every
  * binary install reported "the browser driver is missing, reinstall the agent",
  * the model relayed that instead of calling the tool, and the tool's own
  * one-act provisioning (which installs the driver on first use) never got a
@@ -34,7 +34,7 @@ export interface BuiltinCapabilityOptions {
  *
  * When the driver genuinely cannot be obtained, the failure is reported at call
  * time by the provisioning policy, which has actually tried and can name what
- * stopped it. That is the honest place for it — a probe cannot know.
+ * stopped it. That is the honest place for it, a probe cannot know.
  */
 export function browserControlDeclaration(options: BuiltinCapabilityOptions): CapabilityDeclaration {
   return {
@@ -79,7 +79,7 @@ export function browserControlDeclaration(options: BuiltinCapabilityOptions): Ca
  * The Google account, and what it makes possible.
  *
  * These were placeholders describing a build that could not send mail. They
- * declared their only route as the daemon operator method `email.send` — which
+ * declared their only route as the daemon operator method `email.send`, which
  * the operator contract carries with `invokable: false`, meaning no daemon
  * dispatch chain serves it. A capability whose sole route is permanently
  * un-invokable resolves to `unavailable` before prerequisites are even read, so
@@ -89,8 +89,8 @@ export function browserControlDeclaration(options: BuiltinCapabilityOptions): Ca
  *
  * They now declare the route that is actually served: the in-process `google`
  * tool, backed by the native connector. The prerequisite is a credential from
- * either source the connector genuinely reads — its own encrypted store, or an
- * existing install on this machine — so a machine that has one reports ready
+ * either source the connector genuinely reads, its own encrypted store, or an
+ * existing install on this machine, so a machine that has one reports ready
  * and a machine that has neither reports the one step that fixes it.
  */
 
@@ -118,7 +118,7 @@ function googleAccountProbe(options: BuiltinCapabilityOptions): CapabilityProbe 
   };
 }
 
-const GOOGLE_ACCOUNT_FIX = 'Connect a Google account with: /google connect — it works out the shortest route and asks you to approve one consent link';
+const GOOGLE_ACCOUNT_FIX = 'Connect a Google account with: /google connect, it works out the shortest route and asks you to approve one consent link';
 
 function googlePrerequisite(options: BuiltinCapabilityOptions): CapabilityPrerequisite {
   return {

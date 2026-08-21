@@ -51,7 +51,7 @@ export function formatFatalStartupErrorForLog(error: unknown): string {
  * The one fatal-startup exit path for main(): say why on stderr, log the full
  * detail, and exit 1. Lives beside the two formatters it composes so main.ts
  * carries no error-formatting plumbing of its own. Each write is individually
- * best-effort — a failing logger or a torn-down stderr must never hide the
+ * best-effort, a failing logger or a torn-down stderr must never hide the
  * original launch failure.
  *
  * The stderr write goes FIRST, and its default sink is a synchronous write to
@@ -65,7 +65,7 @@ export function formatFatalStartupErrorForLog(error: unknown): string {
  *  - Sink: `main.ts` installs a terminal output guard that REPLACES
  *    `process.stderr.write` to keep stray output off a rendered screen. Any
  *    startup failure raised after that install had its explanation
- *    intercepted and swallowed — measured on a compiled binary as exit 1 with
+ *    intercepted and swallowed, measured on a compiled binary as exit 1 with
  *    zero bytes on both streams. A descriptor write cannot be intercepted, and
  *    has completed by the time it returns rather than racing `process.exit`.
  *
@@ -171,7 +171,7 @@ export function applyInitialTuiCliState(options: {
     // Normal relaunch: onboarding is done and the user didn't ask for
     // onboarding or an explicit `sessions resume`. Surface an honest,
     // non-blocking resume affordance instead of silently starting fresh
-    // (a dogfood finding) — never auto-resume, declining is
+    // (a dogfood finding), never auto-resume, declining is
     // frictionless (just start typing).
     surfaceResumeRelaunchNotice({
       getLastSessionPointer: () => readLastSessionPointer({ surface }),

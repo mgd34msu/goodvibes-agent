@@ -2,7 +2,7 @@
  * Connected-host (daemon + HTTP listener) discovery for GoodVibes Agent.
  *
  * Split out of bootstrap.ts (which is near the 800-line architecture cap) to
- * keep this concern — and the Agent's daemon-lifecycle boundary — in one
+ * keep this concern, and the Agent's daemon-lifecycle boundary, in one
  * small, readable place.
  *
  * Discovery routes through the SDK-shared adopt-or-spawn policy
@@ -48,7 +48,7 @@ function formatHostServiceBaseUrl(host: string, port: number): string {
   return connectedHostBaseUrl(host, port);
 }
 
-// Pending status shown before the deferred probe completes — honest
+// Pending status shown before the deferred probe completes, honest
 // 'unavailable', never a guessed 'external'.
 function createPendingServiceStatus(
   configManager: HostServicesConfig,
@@ -114,7 +114,7 @@ export function wireAgentExternalServices(options: {
   // a crash at HH:MM", settings migrations) captured off the once-per-attach
   // ?receipts=consume /status read (bootstrap.ts's memory-spine onAttach):
   // delivery at the daemon is destructive (served once, to the consuming
-  // reader), so every captured receipt renders here — buffered ones from before
+  // reader), so every captured receipt renders here, buffered ones from before
   // this sink attaches flush immediately.
   services.daemonReceiptFeed.attach((receipt) => {
     systemMessageRouter.high(`[Connected host] ${receipt.text}`);
@@ -156,13 +156,13 @@ export function wireAgentExternalServices(options: {
   // Deliberately NOT passing the daemon facade's `updateArtifact` identity
   // ({version, execPath}): with adoptOnly the agent never constructs or embeds
   // a DaemonServer, so there is no daemon-side hourly update loop here to feed
-  // — absent means host-managed, which is exactly the agent's stance toward
+  //, absent means host-managed, which is exactly the agent's stance toward
   // whichever host it adopts. The agent's OWN binary updates at launch through
   // its launch auto-update path instead (src/cli/launch-auto-update.ts).
   const startAgentExternalServices = (): Promise<ExternalServicesHandle> =>
     // The daemon-grade view, because this SDK entry point still takes that
     // whole shape. Under `adoptOnly: true` it reads `localUserAuthManager` and
-    // `configManager` and never constructs a DaemonServer — see the view's own
+    // `configManager` and never constructs a DaemonServer, see the view's own
     // doc comment in runtime/services.ts for exactly which two members it
     // substitutes and why neither is dereferenced here.
     startServices(configManager, runtimeBus, hookDispatcher, services.asDaemonGradeView(), { adoptOnly: true });
@@ -196,7 +196,7 @@ export function wireAgentExternalServices(options: {
           const adopted = externalServices.daemonStatus.mode === 'external';
           const suffix = adopted
             ? ''
-            : ` — but adopting it still failed: ${externalServices.daemonStatus.reason ?? externalServices.daemonStatus.mode}`;
+            : `, but adopting it still failed: ${externalServices.daemonStatus.reason ?? externalServices.daemonStatus.mode}`;
           systemMessageRouter.low(outcome.action === 'started'
             ? `[Startup] Connected host was installed but stopped; started it (service "${outcome.serviceName}")${suffix}.`
             : `[Startup] Connected host service "${outcome.serviceName}" was already starting; connected once it answered${suffix}.`);
@@ -238,7 +238,7 @@ export function wireAgentExternalServices(options: {
   };
 
   // Connected-host discovery OFF the interactive path: probe the configured
-  // host/port through the shared adopt-or-spawn policy (adoptOnly — Agent
+  // host/port through the shared adopt-or-spawn policy (adoptOnly, Agent
   // never spawns or embeds) and replace the pending status with an honest
   // one (adopted, incompatible, blocked, or unavailable). An unavailable
   // daemon then gets the one bounded installed-but-stopped start check.

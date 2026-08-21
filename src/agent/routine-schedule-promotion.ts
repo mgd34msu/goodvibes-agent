@@ -3,10 +3,17 @@ import { join } from 'node:path';
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
 import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
 import { formatAgentRecordReviewState } from './record-labels.ts';
 import type { AgentRoutineRecord } from './routine-registry.ts';
+import {
+  deliveryModeFromTargets,
+  normalizeProviderModel,
+  toDeliveryTargetInput,
+  type RoutineScheduleDeliveryKind,
+  type RoutineScheduleDeliverySurfaceKind,
+  type RoutineScheduleDeliveryTargetSpec,
+} from './schedule-delivery-targets.ts';
 
 export const ROUTINE_SCHEDULE_ROUTE = '/api/automation/schedules';
 export const ROUTINE_SCHEDULE_METHOD = 'automation.schedules.create';
@@ -14,8 +21,6 @@ export const ROUTINE_SCHEDULE_LIST_METHOD = 'automation.schedules.list';
 
 type ScheduleCreateInput = OperatorMethodInput<'automation.schedules.create'>;
 type ScheduleCreateOutput = OperatorMethodOutput<'automation.schedules.create'>;
-type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
-type ScheduleDeliveryTargetInput = ScheduleDeliveryInput['targets'] extends readonly (infer T)[] ? T : never;
 
 export interface AgentConnectedHostConfigReader {
   get(key: string): unknown;
@@ -34,34 +39,13 @@ export interface RoutineScheduleSpec {
   readonly value: string;
 }
 
-export type RoutineScheduleDeliveryKind = 'webhook' | 'surface' | 'integration' | 'link';
-
-export type RoutineScheduleDeliverySurfaceKind =
-  | 'tui'
-  | 'web'
-  | 'slack'
-  | 'discord'
-  | 'ntfy'
-  | 'webhook'
-  | 'telegram'
-  | 'google-chat'
-  | 'signal'
-  | 'whatsapp'
-  | 'telephony'
-  | 'imessage'
-  | 'msteams'
-  | 'bluebubbles'
-  | 'mattermost'
-  | 'matrix'
-  | 'service';
-
-export interface RoutineScheduleDeliveryTargetSpec {
-  readonly kind: RoutineScheduleDeliveryKind;
-  readonly surfaceKind?: RoutineScheduleDeliverySurfaceKind;
-  readonly address?: string;
-  readonly routeId?: string;
-  readonly label?: string;
-}
+// The delivery-target vocabulary is owned by schedule-delivery-targets.ts and
+// re-exported here so existing importers keep one import site.
+export type {
+  RoutineScheduleDeliveryKind,
+  RoutineScheduleDeliverySurfaceKind,
+  RoutineScheduleDeliveryTargetSpec,
+} from './schedule-delivery-targets.ts';
 
 export interface RoutineScheduleReceiptDeliveryTarget {
   readonly kind: RoutineScheduleDeliveryKind;
@@ -214,33 +198,6 @@ function readString(record: Record<string, unknown>, key: string): string | null
   return typeof value === 'string' ? value : null;
 }
 
-function normalizeProviderModel(provider: string | undefined, model: string | undefined): {
-  readonly provider?: string;
-  readonly model?: string;
-} {
-  if (!model) return provider ? { provider } : {};
-  const normalizedProvider = provider ?? getProviderIdFromModel(model);
-  return {
-    provider: normalizedProvider,
-    model: getModelIdFromProviderModel(model),
-  };
-}
-
-function deliveryModeFromTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): ScheduleDeliveryInput['mode'] {
-  const first = targets[0];
-  return first ? first.kind : 'none';
-}
-
-function toDeliveryTargetInput(target: RoutineScheduleDeliveryTargetSpec): ScheduleDeliveryTargetInput {
-  return {
-    kind: target.kind,
-    surfaceKind: target.surfaceKind as ScheduleDeliveryTargetInput['surfaceKind'],
-    address: target.address,
-    routeId: target.routeId,
-    label: target.label,
-  };
-}
-
 export function resolveAgentConnectedHostConnection(
   configManager: AgentConnectedHostConfigReader,
   homeDirectory: string,
@@ -354,6 +311,20 @@ export function buildRoutineSchedulePreview(
   };
 }
 
+/** Why a connected-host schedule call failed, in the shape every schedule command reports. */
+export interface ConnectedHostScheduleFailure<Route extends string> {
+  readonly ok: false;
+  readonly kind:
+    | 'auth_required'
+    | 'connected_host_unavailable'
+    | 'connected_host_incompatible'
+    | 'connected_host_route_unavailable'
+    | 'connected_host_error';
+  readonly error: string;
+  readonly route: Route;
+  readonly baseUrl?: string;
+}
+
 async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection): Promise<{
   readonly ok: boolean;
   readonly status: number;
@@ -376,33 +347,41 @@ async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection
   }
 }
 
-async function classifyScheduleError(
+/**
+ * Turn a thrown connected-host error into the failure a schedule command
+ * reports, for every schedule command.
+ *
+ * A 404 is the one case that cannot be classified from the error alone: the
+ * host may be absent, or present but too old to expose the method. That is
+ * what the extra `/status` probe distinguishes, and why `incompatibleMessage`
+ * is a parameter (it names the specific method the caller wanted).
+ */
+export async function classifyConnectedHostScheduleError<Route extends string>(
   error: unknown,
   connection: AgentConnectedHostConnection,
-): Promise<RoutineSchedulePromotionFailure> {
+  options: { readonly route: Route; readonly incompatibleMessage: string },
+): Promise<ConnectedHostScheduleFailure<Route>> {
   const message = summarizeError(error);
   const lower = message.toLowerCase();
+  const base = { ok: false, error: message, route: options.route, baseUrl: connection.baseUrl } as const;
   if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
-    return { ok: false, kind: 'auth_required', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ...base, kind: 'auth_required' };
   }
   if (lower.includes('404') || lower.includes('not found')) {
     const connectedHost = await fetchConnectedHostStatus(connection);
     if (connectedHost.ok) {
-      return {
-        ok: false,
-        kind: 'connected_host_incompatible',
-        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; automation.schedules.create is unavailable.',
-        route: ROUTINE_SCHEDULE_ROUTE,
-        baseUrl: connection.baseUrl,
-      };
+      return { ...base, kind: 'connected_host_incompatible', error: options.incompatibleMessage };
     }
-    return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ...base, kind: 'connected_host_route_unavailable' };
   }
   if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'connected_host_unavailable', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+    return { ...base, kind: 'connected_host_unavailable' };
   }
-  return { ok: false, kind: 'connected_host_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
+  return { ...base, kind: 'connected_host_error' };
 }
+
+const SCHEDULE_CREATE_INCOMPATIBLE_MESSAGE =
+  'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; automation.schedules.create is unavailable.';
 
 export async function promoteRoutineToConnectedSchedule(
   connection: AgentConnectedHostConnection,
@@ -430,6 +409,9 @@ export async function promoteRoutineToConnectedSchedule(
       request: preview.payload,
     };
   } catch (error) {
-    return classifyScheduleError(error, connection);
+    return classifyConnectedHostScheduleError(error, connection, {
+      route: ROUTINE_SCHEDULE_ROUTE,
+      incompatibleMessage: SCHEDULE_CREATE_INCOMPATIBLE_MESSAGE,
+    });
   }
 }

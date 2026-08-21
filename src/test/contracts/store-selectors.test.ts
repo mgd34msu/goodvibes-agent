@@ -197,7 +197,7 @@ describe('store-selectors contract', () => {
 
     test('selectIsTurnActive returns false from initial state (turn is idle)', () => {
       const active = selectIsTurnActive(state);
-      // Initial turn state is 'idle' — should not be active
+      // Initial turn state is 'idle', should not be active
       expect(typeof active).toBe('boolean');
     });
 

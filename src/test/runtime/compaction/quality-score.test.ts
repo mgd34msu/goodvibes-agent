@@ -92,7 +92,7 @@ function makeMockFlags(enabled = true): FeatureFlagManager {
 }
 
 // ---------------------------------------------------------------------------
-// computeQualityScore — unit tests
+// computeQualityScore, unit tests
 // ---------------------------------------------------------------------------
 
 describe('computeQualityScore', () => {
@@ -313,7 +313,7 @@ describe('describeScore', () => {
 });
 
 // ---------------------------------------------------------------------------
-// escalateStrategy — unit tests
+// escalateStrategy, unit tests
 // ---------------------------------------------------------------------------
 
 describe('escalateStrategy', () => {

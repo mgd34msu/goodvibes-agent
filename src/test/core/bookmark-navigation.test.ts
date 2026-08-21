@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// bookmark-navigation.test.ts — a bookmark stored on a tool result now hidden
+// bookmark-navigation.test.ts, a bookmark stored on a tool result now hidden
 // by a collapsed assistant turn (see conversation-turn-structure.ts) must still
 // resolve to a real transcript line (the turn's header) rather than reporting
 // "Bookmark not found".
@@ -39,7 +39,7 @@ describe('resolveFoldedBookmarkLine', () => {
     expect(groupBlock).toBeDefined();
 
     // A bookmark stored on the SECOND tool message's own collapseKey
-    // (absolute index 3) — this key is not in the block registry at all while
+    // (absolute index 3), this key is not in the block registry at all while
     // the turn is collapsed.
     expect(cm.getBlockRegistry().find((b) => b.collapseKey === 'msg_3')).toBeUndefined();
 

@@ -31,18 +31,18 @@ export interface ShellFooterBuildOptions {
   readonly composerFlags?: readonly string[];
   readonly composerPendingRisk?: 'none' | 'approval-wait' | 'shell' | 'command' | 'remote';
   /**
-   * The power status note (see power-status.ts's describePowerStatus) —
+   * The power status note (see power-status.ts's describePowerStatus),
    * "sleep disabled" while the owner keep-awake toggle holds, or
    * "held: <reasons>" while the automatic work inhibitor holds. Shares the
    * status line's right-side notice area with dangerMode, but the two are
    * COMPOSED together (see composeSafetyNoticeSegments in ui-factory.ts),
-   * never suppressing each other — both are safety-relevant and must stay
+   * never suppressing each other, both are safety-relevant and must stay
    * visible at once. Only the transient 2-second "copied" confirmation is
    * exclusive (a flash, not a persistent safety state).
    */
   readonly powerNote?: string;
   /**
-   * Live microphone state — the wake detector, for as long as it runs. Rendered as
+   * Live microphone state, the wake detector, for as long as it runs. Rendered as
    * a persistent row beside the process indicator, because a capture device held
    * open with nothing on screen saying so is the one state a voice feature must
    * never be in. Null (or a state with `voice.wake.indicator: off`) renders

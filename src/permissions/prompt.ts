@@ -38,7 +38,7 @@ export class PermissionPromptUI {
    * bootstrap-core.ts's approvalMetadataForRequest), so a spawned agent's
    * pending ask is attributed on its own ProcessNode. An MCP server
    * elicitation or a sandbox host-access escalation has no ProcessNode to
-   * attach to — this prompt is the ONLY place a user learns who/what is
+   * attach to, this prompt is the ONLY place a user learns who/what is
    * asking, so those two kinds render an explicit line. Returns null for
    * `background-agent` and for no-attribution (foreground) requests.
    */
@@ -114,7 +114,7 @@ export class PermissionPromptUI {
     const toolLine = `   Tool      : ${tool}`;
     lines.push(UIFactory.stringToLine(toolLine.padEnd(width), width, { fg: TEXT }));
 
-    // Attribution row (mcp-server / sandbox-escalation only — see attributionLine's doc comment)
+    // Attribution row (mcp-server / sandbox-escalation only, see attributionLine's doc comment)
     const attributionText = this.attributionLine(request);
     if (attributionText) {
       const maxAttrLen = Math.max(10, width - 16);

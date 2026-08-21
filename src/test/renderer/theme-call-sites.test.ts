@@ -1,5 +1,5 @@
 /**
- * theme-call-sites.test.ts — the transcript/chrome call sites read the
+ * theme-call-sites.test.ts, the transcript/chrome call sites read the
  * theme instead of hardcoded hex.
  *
  *  (1) A lint-style guard: the moved hex literals no longer appear in the
@@ -7,7 +7,7 @@
  *      grep-gate the R4 brief calls for.
  *  (2) An end-to-end flip proof: renderMarkdown swaps its heading/inline-code/
  *      link colours from dark to the reviewed light tokens when the active mode
- *      flips — dark stays byte-identical to today.
+ *      flips, dark stays byte-identical to today.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
@@ -20,7 +20,7 @@ import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 afterEach(() => setActiveThemeMode('dark'));
 
 // ---------------------------------------------------------------------------
-// (1) Hex-literal guards — moved colours must be gone from the call sites.
+// (1) Hex-literal guards, moved colours must be gone from the call sites.
 // ---------------------------------------------------------------------------
 
 const root = path.resolve(import.meta.dir, '../..');
@@ -39,7 +39,7 @@ const GUARDS: Array<{ file: string; blockedHex: string[] }> = [
   },
   {
     // conversation-rendering assistant/tool/error accents → transcript tokens.
-    // NOTE: '#00ffff' is intentionally NOT blocked — the splash gradient keeps it.
+    // NOTE: '#00ffff' is intentionally NOT blocked, the splash gradient keeps it.
     file: path.join(root, 'core/conversation-rendering.ts'),
     blockedHex: ['#22d3ee', '#a855f7', '#38bdf8', '#3a1a1a', '#94a3b8', '#e2e8f0', '#f59e0b'],
   },

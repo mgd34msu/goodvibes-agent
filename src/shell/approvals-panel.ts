@@ -1,5 +1,5 @@
 /**
- * approvals-panel.ts — the two things an interactive session does with
+ * approvals-panel.ts, the two things an interactive session does with
  * approvals, in one place, because they used to be one and are no longer.
  *
  * ── Two sources, one panel ─────────────────────────────────────────────────
@@ -39,7 +39,7 @@ export interface ApprovalsPanelBinding {
   readonly listApprovals: () => readonly SharedApprovalRecord[];
   /**
    * The honest line when the daemon's record could not be read, or null when
-   * it was. Consumers that render a count MUST print this alongside it — a
+   * it was. Consumers that render a count MUST print this alongside it, a
    * short count and a complete one are indistinguishable otherwise.
    */
   readonly describeApprovalsUnavailable: () => string | null;
@@ -47,7 +47,7 @@ export interface ApprovalsPanelBinding {
 
 export function bindApprovalsPanel(options: ApprovalsPanelBindingOptions): ApprovalsPanelBinding {
   // Clears our own resolved card and opens one for a broker-originated ask no
-  // local prompt is handling — see permissions/broker-approval.ts.
+  // local prompt is handling, see permissions/broker-approval.ts.
   options.broker.subscribe((approval) => handleBrokerApprovalChange({
     approval,
     broker: options.broker,

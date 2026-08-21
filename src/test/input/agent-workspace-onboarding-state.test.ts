@@ -93,7 +93,7 @@ describe('updateRevealedOnboardingCategories', () => {
     // Now simulate readyToChat going false (e.g. snapshot changed)
     const stepsBlocked = [wizardStep('provider-model', 'blocked')];
     const obsBlocked = computeOnboardingStateFromSnapshot(snapshotWithSteps(stepsBlocked), undefined)!;
-    // Re-run update — account-model should NOT be removed (monotonic)
+    // Re-run update, account-model should NOT be removed (monotonic)
     updateRevealedOnboardingCategories(obsBlocked, revealed);
     expect(revealed.has('account-model')).toBe(true);
   });
@@ -108,7 +108,7 @@ describe('updateRevealedOnboardingCategories', () => {
   // This is the regression case that was missing and made the navigation bug invisible.
   // Before the fix, updateRevealedOnboardingCategories only added categories for
   // *ready* steps, so the resume target (a non-ready blocker) was never revealed.
-  // workspace.open() would then fail to navigate to it — staying on 'setup' while
+  // workspace.open() would then fail to navigate to it, staying on 'setup' while
   // the status line claimed 'Picking up where you left off: <other>'.
   test('reveals resume target category when phase is in-progress (non-setup blocker)', () => {
     // provider-model is blocked and non-ready; it maps to the 'account-model' category.
@@ -143,7 +143,7 @@ describe('updateRevealedOnboardingCategories', () => {
     updateRevealedOnboardingCategories(obs!, revealed);
     expect(revealed.has('account-model')).toBe(true);
 
-    // Confirm that the revealed set contains entry.categoryId — the exact check
+    // Confirm that the revealed set contains entry.categoryId, the exact check
     // that workspace.open() does when selecting the category index.
     expect(revealed.has(entry.categoryId!)).toBe(true);
   });

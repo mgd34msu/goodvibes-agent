@@ -125,7 +125,7 @@ describe('renderSettingsModal payments category', () => {
 
   test('the default (stored) value renders no warning anywhere', () => {
     // The schema's own always-shown description text separately explains what
-    // 'prompt' would do (for either value, as documentation) — that is not
+    // 'prompt' would do (for either value, as documentation), that is not
     // this warning and stays out of this assertion. What must never appear
     // against the 'stored' default is the SDK's moment-of-selection warning
     // string itself.
@@ -138,7 +138,7 @@ describe('renderSettingsModal payments category', () => {
   test('the four card-material keys exist only in the payments category, and nowhere else', () => {
     // They used to exist nowhere at all, because this surface had no card entry.
     // It has one now (/payments card, input/commands/payment-card-intake.ts), so
-    // the claim worth protecting is no longer "no such key" — it is that the
+    // the claim worth protecting is no longer "no such key", it is that the
     // keys are confined to payments and that their VALUES never render, which
     // the next test asserts.
     for (const category of SETTINGS_CATEGORIES) {

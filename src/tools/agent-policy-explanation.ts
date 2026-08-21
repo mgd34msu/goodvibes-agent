@@ -189,7 +189,7 @@ function readAutoApprove(context: CommandContext): boolean {
 
 /**
  * Reads the SAME effective approval posture that cli/status.ts, the doctor
- * surface, and the footer read (via computeApprovalPosture) — the shared
+ * surface, and the footer read (via computeApprovalPosture), the shared
  * single source of truth, so this tool's "explain" output never disagrees
  * with what those other surfaces say about auto-approve / permission mode.
  */
@@ -248,7 +248,7 @@ function predictPermission(context: CommandContext, toolName: string, category: 
       sourceLayer: 'runtime_mode',
       reasonCode: 'plan_mode',
       mode,
-      reason: `Plan mode refuses ${category} actions outright — it never asks; the model presents a plan instead of acting.`,
+      reason: `Plan mode refuses ${category} actions outright, it never asks; the model presents a plan instead of acting.`,
     };
   }
 
@@ -415,7 +415,7 @@ export function explainAgentPolicyDecision(
     ...(permission.outcome === 'prompt' ? [`Answer the ${category} permission prompt for ${toolName}.`] : []),
     ...(confirmation.required && !confirmation.confirmed ? ['Call the route with confirm:true and explicitUserRequest.'] : []),
   ];
-  // The overall approval posture — computed by the SAME shared helper that
+  // The overall approval posture, computed by the SAME shared helper that
   // cli/status.ts, the doctor surface, and the footer use, so this tool's
   // own displayed posture text can never disagree with theirs.
   const posture = readEffectivePosture(context);

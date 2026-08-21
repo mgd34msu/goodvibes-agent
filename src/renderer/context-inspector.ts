@@ -45,7 +45,7 @@ export function renderContextInspectorPackageText(): string {
 // ─── ContextInspectorModal ────────────────────────────────────────────────────
 
 /**
- * ContextInspectorModal — state for the context inspector overlay.
+ * ContextInspectorModal, state for the context inspector overlay.
  */
 export class ContextInspectorModal {
   public active = false;

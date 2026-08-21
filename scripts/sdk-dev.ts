@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * sdk-dev — alias.
+ * sdk-dev, alias.
  *
  * The canonical local-SDK overlay tool (link/status/restore, all 9 public
  * @pellux workspace packages including goodvibes-contracts) now lives in the
@@ -8,7 +8,7 @@
  * to end the three-way drift between this repo's copy and
  * the TUI's and webui's. This repo's copy never picked up the all-siblings
  * fix, so it never refreshed node_modules/@pellux/goodvibes-contracts on
- * link (the live re-sync gap this brief closes) — see the SDK tool's file
+ * link (the live re-sync gap this brief closes), see the SDK tool's file
  * header. This file only locates that checkout and forwards argv + this
  * repo as cwd; it carries no overlay logic of its own so the three copies
  * can never drift again. The Agent's SDK pin lives in devDependencies (it is

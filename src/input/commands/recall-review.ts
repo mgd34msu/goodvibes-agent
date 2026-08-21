@@ -20,14 +20,14 @@ export function handleRecallQueue(args: string[], context: CommandContext): void
   if (queue.length) {
     context.print(`[memory] Review queue (${queue.length}):`);
     for (const record of queue) {
-      const reason = record.staleReason ? ` — ${record.staleReason}` : '';
+      const reason = record.staleReason ? `, ${record.staleReason}` : '';
       context.print(`  ${record.id} [${record.scope}/${record.cls}] ${formatAgentRecordReviewState(record.reviewState)} ${record.confidence}%  ${record.summary}${reason}`);
     }
   } else {
     context.print('[memory] Review queue is empty.');
   }
   // Consolidation judgment proposals (contradictions, cross-scope
-  // duplicates, stale-delete candidates) — the referenced records are already
+  // duplicates, stale-delete candidates), the referenced records are already
   // in the queue above; this is WHY they were flagged, and how to act on
   // them through the same /memory review command.
   if (proposals.length) {

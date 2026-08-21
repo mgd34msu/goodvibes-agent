@@ -1,4 +1,4 @@
-# Connected Host
+# Connected host
 
 GoodVibes Agent is the autonomous TUI harness for a connected GoodVibes daemon. The package exposes one executable:
 
@@ -13,7 +13,7 @@ The installed command is backed by TypeScript-authored source with a Bun shebang
 - `goodvibes-agent status --json`
 - `goodvibes-agent` launches the TUI in a real PTY
 
-## Daemon Prerequisite
+## Daemon prerequisite
 
 Connect to a GoodVibes daemon before using daemon-backed features. Agent expects that daemon to expose public operator routes and the isolated Agent Knowledge routes:
 
@@ -63,13 +63,13 @@ Use the TUI first for those checks:
 
 `goodvibes-agent status --json`, `goodvibes-agent doctor`, and `goodvibes-agent compat` are scriptable equivalents for install checks and automation.
 
-## Product Boundary
+## Product boundary
 
 Agent owns the user-facing autonomous harness: terminal renderer, setup, chat, profiles, VIBE.md personality, project context files, local memory/notes/routines/skills/personas, isolated Agent Knowledge calls, companion chat, visible agents, approvals, schedules, automation posture, daemon method access, channel delivery, reminders, and media workflows.
 
 The GoodVibes daemon owns the platform capabilities. Agent should expose those capabilities through the easiest safe user path: simple first-class tools for common tasks, dynamic operator method discovery for exact contract parity, and confirmation gates for write/admin routes.
 
-The model can inspect this boundary with `host action:"capabilities"`. By default the report is compact: configured base URL, token posture, ownership, mode hints, capability counts, and a short `modelRoute` for the next safe Agent-owned route. Use `includeParameters:true` for full route families, allowed capabilities, blocked capabilities, and first-class Agent tool availability; those expanded rows also carry compact `modelRoute` hints. Allowed capabilities include read-only operator briefing, explicit allowlisted approval/automation/schedule actions, isolated Agent Knowledge read/ingest, confirmed channel or notification delivery, confirmed reminder schedules, and configured media generation. Blocked capabilities include connected-host lifecycle, listener mutation, default or non-Agent knowledge fallback, hidden background Agent jobs, implicit delegated review, and arbitrary connected-host mutations — the last of which covers creating routes or accounts *on the daemon*, and is confirmation-gated through `agent_operator_method` rather than refused outright. Signing up for a third-party service is a separate matter and is not blocked: it is authorized, and every account is written to the account register with `accounts action:"record"`. To inspect one surface without parsing the full report, use `host action:"capability"` with `capabilityId`, `target`, or `query`; capability results return the allowed or blocked route hint. Lower-level `agent_harness` modes `connected_host`, `connected_host_capability`, and `daemon` remain compatibility routes.
+The model can inspect this boundary with `host action:"capabilities"`. By default the report is compact: configured base URL, token posture, ownership, mode hints, capability counts, and a short `modelRoute` for the next safe Agent-owned route. Use `includeParameters:true` for full route families, allowed capabilities, blocked capabilities, and first-class Agent tool availability; those expanded rows also carry compact `modelRoute` hints. Allowed capabilities include read-only operator briefing, explicit allowlisted approval/automation/schedule actions, isolated Agent Knowledge read/ingest, confirmed channel or notification delivery, confirmed reminder schedules, and configured media generation. Blocked capabilities include connected-host lifecycle, listener mutation, default or non-Agent knowledge fallback, hidden background Agent jobs, implicit delegated review, and arbitrary connected-host mutations. The last of those covers creating routes or accounts *on the daemon*, and is confirmation-gated through `agent_operator_method` rather than refused outright. Signing up for a third-party service is a separate matter and is not blocked: it is authorized, and every account is written to the account register with `accounts action:"record"`. To inspect one surface without parsing the full report, use `host action:"capability"` with `capabilityId`, `target`, or `query`; capability results return the allowed or blocked route hint. Lower-level `agent_harness` modes `connected_host`, `connected_host_capability`, and `daemon` remain compatibility routes.
 
 The model can inspect the public operator method catalog with `host action:"methods"`. That report is generated from the GoodVibes SDK contract, not a stale hand-maintained shortlist. To inspect one method without parsing the full report, use `host action:"method"` with `methodId`, `target`, or `query`. Execute exact daemon methods with `agent_operator_method`: read-only routes can run directly; write/admin routes require `confirm:true` and `explicitUserRequest`. Lower-level `operator_methods` and `operator_method` remain compatibility routes.
 

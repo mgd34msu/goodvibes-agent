@@ -1,5 +1,5 @@
 /**
- * occasions-nudge.ts — the one thing this surface decides, and the one thing it
+ * occasions-nudge.ts, the one thing this surface decides, and the one thing it
  * must never do.
  *
  * The decision is small on purpose: which outstanding items have not already been
@@ -8,9 +8,9 @@
  * lives in the daemon and reaches this module only as the contents of
  * `occasions.pending`. So these tests are about two properties:
  *
- *  1. the daemon's wording survives unaltered — no date can appear because none
+ *  1. the daemon's wording survives unaltered, no date can appear because none
  *     is in the payload, and the ask in a gift-giving nudge is not stripped;
- *  2. the ledger de-duplicates a RENDER without becoming a suppression rule —
+ *  2. the ledger de-duplicates a RENDER without becoming a suppression rule,
  *     keyed by the daemon's own ids, and pruned so it cannot grow without bound.
  */
 

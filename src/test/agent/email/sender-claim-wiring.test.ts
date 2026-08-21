@@ -1,5 +1,5 @@
 /**
- * PERMANENT REGRESSION GUARDS — do not weaken.
+ * PERMANENT REGRESSION GUARDS, do not weaken.
  *
  * Sender authentication informs DISPLAY and CONFIDENCE. It never grants
  * command authority. The centrepiece here is the test that a message with full
@@ -7,8 +7,8 @@
  * exactly the authority a stranger's gets: none.
  *
  * That test is the point of the feature. Sender verification is precisely the
- * kind of signal that looks like a safe place to hang an exception — "it's
- * definitely from them, so surely it can confirm" — and the whole boundary
+ * kind of signal that looks like a safe place to hang an exception, "it's
+ * definitely from them, so surely it can confirm", and the whole boundary
  * fails the moment one is added. If a change makes it fail, the change is
  * wrong.
  */

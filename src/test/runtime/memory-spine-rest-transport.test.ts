@@ -1,11 +1,11 @@
 /**
  * The memory-spine REST transport (memory-spine-rest-transport.ts) against a REAL
- * daemon — a live DaemonServer bound to a reserved ephemeral port (port 0), never
+ * daemon, a live DaemonServer bound to a reserved ephemeral port (port 0), never
  * a fixed port and never the developer's real ~/.goodvibes. Proves the wire
  * actually round-trips through the daemon's own memoryRegistry (not a mock), that
  * the honest-search envelope survives the wire faithfully (recall honesty
  * passthrough), that 404 folds to null instead of throwing, and that a stopped
- * daemon makes every op reject (the honest-failure contract — never a silent
+ * daemon makes every op reject (the honest-failure contract, never a silent
  * local fallback from inside the transport itself).
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -30,8 +30,8 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
  * (list/update/link/linksFor/searchSemantic/exportBundle/importBundle) are typed
  * optional so an older transport still satisfies the type (see the SDK's version-
  * tolerance ruling). This concrete transport implements every one of them, so
- * these tests — which exercise the raw transport directly rather than routing
- * through a MemorySpineClient — assert that structurally instead of null-checking
+ * these tests, which exercise the raw transport directly rather than routing
+ * through a MemorySpineClient, assert that structurally instead of null-checking
  * each call.
  */
 function createFullMemoryAccess(options: MemorySpineRestTransportOptions): MemoryAccess {
@@ -162,12 +162,12 @@ describe('memory-spine REST transport against a real daemon', () => {
     expect(result.records.map((r) => r.id)).toEqual([clean.id]);
     expect(result.records.map((r) => r.id)).not.toContain(belowFloor.id);
     expect(result.records.map((r) => r.id)).not.toContain(stale.id);
-    // Literal mode (no semantic requested) — matches runHonestMemorySearch's contract exactly.
+    // Literal mode (no semantic requested), matches runHonestMemorySearch's contract exactly.
     expect(result.mode).toBe('literal');
     expect(result.requestedSemantic).toBe(false);
     expect(result.indexUnavailableReason).toBeNull();
 
-    // Without recall, nothing is filtered — a review/browse caller sees everything.
+    // Without recall, nothing is filtered, a review/browse caller sees everything.
     const browse = await transport.honestSearch({});
     expect(browse.recallFiltered).toBe(false);
     expect(browse.records).toHaveLength(3);
@@ -186,7 +186,7 @@ describe('memory-spine REST transport against a real daemon', () => {
     await expect(transport.honestSearch({})).rejects.toThrow();
   });
 
-  // ── Extended verbs (1.2.0 full-detach catalog) — same real-daemon proof ────
+  // ── Extended verbs (1.2.0 full-detach catalog), same real-daemon proof ────
 
   test('list() returns every record from the DAEMON store — an empty filter is getAll semantics', async () => {
     const transport = createFullMemoryAccess({ resolveConnection: () => connection });

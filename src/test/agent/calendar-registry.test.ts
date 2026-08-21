@@ -152,19 +152,19 @@ describe('AgentCalendarRegistry', () => {
 
     const ics = [
       'BEGIN:VCALENDAR',
-      // Clean event — should be imported.
+      // Clean event, should be imported.
       'BEGIN:VEVENT',
       'UID:clean@test',
       'SUMMARY:Clean Event',
       'DTSTART:20250615T100000Z',
       'END:VEVENT',
-      // Duplicate — same UID as pre-seeded event, should be skipped.
+      // Duplicate, same UID as pre-seeded event, should be skipped.
       'BEGIN:VEVENT',
       'UID:dup@test',
       'SUMMARY:Duplicate Event',
       'DTSTART:20250601T090000Z',
       'END:VEVENT',
-      // Secret-bearing — should be skipped with secretSkipped++.
+      // Secret-bearing, should be skipped with secretSkipped++.
       'BEGIN:VEVENT',
       'UID:secret@test',
       'SUMMARY:Secret Mtg',
@@ -203,7 +203,7 @@ describe('AgentCalendarRegistry', () => {
     const destPath = join(dir, 'out.ics');
     // First write: should succeed
     reg.exportIcs(undefined, destPath);
-    // Second write: same path — should throw
+    // Second write: same path, should throw
     expect(() => reg.exportIcs(undefined, destPath)).toThrow('already exists');
   });
 

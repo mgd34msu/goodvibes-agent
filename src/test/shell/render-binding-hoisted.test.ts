@@ -11,7 +11,7 @@
  * unawaited `refresh()` and an unawaited `openStream()`. When either resolved
  * before the declaration was reached, its repaint hit the temporal dead zone.
  *
- * The throw landed in a floating promise, so it did not crash the process — it
+ * The throw landed in a floating promise, so it did not crash the process, it
  * killed that wiring silently, and the surface then never repainted from any
  * async source for the life of the process. That is the same blindness the
  * hosted-turn work was chasing, arriving by a second route.

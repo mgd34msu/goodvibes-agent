@@ -1,12 +1,12 @@
 /**
- * bootstrap-shutdown.ts — how a session lets go of everything it took.
+ * bootstrap-shutdown.ts, how a session lets go of everything it took.
  *
  * Teardown lives in one place rather than inline in bootstrapRuntime because
  * the order is load-bearing and easy to disturb by accident. It runs outermost
  * first: the session's registration on the spine, then the timers that would
  * fire into a half-torn-down runtime, then subscriptions, then the things that
- * own something outside this process — real Chromium processes, external
- * services — and only then the runtime's own shutdown.
+ * own something outside this process, real Chromium processes, external
+ * services, and only then the runtime's own shutdown.
  *
  * Every step is best-effort in the sense that a failure must not strand the
  * ones after it: a session that cannot reach the daemon still has to release
@@ -37,7 +37,7 @@ export interface RuntimeShutdownDependencies {
   readonly executionLedger: { dispose(): void };
   readonly disposeSessionWriteLedger: () => void;
   /**
-   * `RuntimeServices.dispose()` — stops every poller the composed graph started.
+   * `RuntimeServices.dispose()`, stops every poller the composed graph started.
    * Runs LAST, after shutdownRuntime: the final flushes below still need the
    * schedulers, the orchestration registry and the provider registry alive.
    */
@@ -68,7 +68,7 @@ export function createRuntimeShutdown(
       deps.sessionSpineClient.close(deps.sessionId);
       deps.sessionSpineClient.dispose();
       // Stop the memory-spine reachability recheck timer. No wire close call is
-      // needed — unlike sessions, memory ops are request/response rather than a
+      // needed, unlike sessions, memory ops are request/response rather than a
       // registered, heartbeat-tracked record.
       const memoryTimer = deps.takeMemorySpineTimer();
       if (memoryTimer !== null) clearInterval(memoryTimer);
@@ -110,8 +110,8 @@ export function createRuntimeShutdown(
       //
       // In a `finally` covering the WHOLE body, on the principle stated at the
       // top of this file: a step that fails must not strand the ones after it.
-      // Several steps here can throw — an unreachable daemon, a browser that
-      // will not close, a conversation that could not be persisted — and every
+      // Several steps here can throw, an unreachable daemon, a browser that
+      // will not close, a conversation that could not be persisted, and every
       // one of those is a process that must still let go of its timers. This is
       // the last teardown step in the session's life, so nothing legitimately
       // needs the graph after it.

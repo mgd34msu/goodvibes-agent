@@ -6,7 +6,7 @@ const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
 
 // Directories created by makeProjectTempDir since the last sweep (see
 // sweepCreatedProjectTempDirs below). Directories created via
-// makeLongLivedProjectTempDir are deliberately NEVER pushed here — they go to
+// makeLongLivedProjectTempDir are deliberately NEVER pushed here, they go to
 // the shared temp registry instead, which is swept once at end of run.
 const _createdDirs: string[] = [];
 
@@ -34,17 +34,17 @@ function removeAll(dirs: readonly string[]): void {
  * Removed after the CURRENTLY RUNNING test finishes, by the global `afterEach`
  * in src/test/helpers/preload.ts (see sweepCreatedProjectTempDirs). Use this
  * for the common case: a directory created fresh per test (or per file) that
- * nothing else needs once that test/file is done — which is true of nearly
+ * nothing else needs once that test/file is done, which is true of nearly
  * every call site in this repo.
  *
  * Do NOT use this for a directory meant to be created once and reused across
  * MANY tests or MANY files (a module-level memoized singleton, e.g. a
- * `let cached: string | null; if (cached) return cached;` pattern) — the
+ * `let cached: string | null; if (cached) return cached;` pattern), the
  * per-test sweep would delete it out from under every later test that still
  * needs it. Use makeLongLivedProjectTempDir for that instead.
  *
  * Cleanup used to be a `process.on('exit', …)` handler, which `bun test` never
- * runs — so nothing was ever removed and a fully green run left every
+ * runs, so nothing was ever removed and a fully green run left every
  * directory behind.
  */
 export function makeProjectTempDir(prefix: string): string {
@@ -55,14 +55,14 @@ export function makeProjectTempDir(prefix: string): string {
 
 /**
  * Same as makeProjectTempDir, but for a directory deliberately meant to
- * outlive any single test — a module-level singleton created once (guarded
+ * outlive any single test, a module-level singleton created once (guarded
  * by the caller's own `if (cached) return cached`) and reused across many
  * tests, possibly across many test files sharing this cached module (e.g.
  * src/test/helpers/runtime-services.ts's getTestRoots()).
  *
  * Never swept by sweepCreatedProjectTempDirs, which would delete it out from
  * under every later test. Removal is registered with the shared temp registry
- * instead, which the test preload sweeps from a top-level `afterAll` — the one
+ * instead, which the test preload sweeps from a top-level `afterAll`, the one
  * hook bun actually runs, once, after the last test file, pass or fail.
  */
 export function makeLongLivedProjectTempDir(prefix: string): string {
@@ -75,7 +75,7 @@ export function makeLongLivedProjectTempDir(prefix: string): string {
  *
  * Wired to a single global `afterEach`, registered ONCE at the top level of
  * src/test/helpers/preload.ts (which runs before any test file is
- * registered, at Bun's preload phase) — confirmed empirically that a hook
+ * registered, at Bun's preload phase), confirmed empirically that a hook
  * registered there fires after EVERY test in EVERY file, in this order:
  * a test file's own locally-registered afterEach hooks fire first
  * (inner-to-outer), and this global one fires last of all. That ordering is
@@ -83,7 +83,7 @@ export function makeLongLivedProjectTempDir(prefix: string): string {
  * file-local cleanup logic that still needed the directory (writing a final
  * fixture, asserting on it, etc.) has already run.
  *
- * This is NOT registered lazily inside makeProjectTempDir itself — an
+ * This is NOT registered lazily inside makeProjectTempDir itself, an
  * earlier version of this fix tried exactly that with `afterAll` and broke
  * a real test file (src/test/input/model-picker.test.ts, whose outer
  * describe's beforeEach calls makeProjectTempDir fresh for every one of its

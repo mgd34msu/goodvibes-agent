@@ -2,7 +2,7 @@
  * conversational-capture-contract.test.ts
  *
  * The Agent found the owner's flight itinerary in his mail, answered "plan to
- * be at the airport by 5:55 AM", and recorded nothing — the next session's
+ * be at the airport by 5:55 AM", and recorded nothing, the next session's
  * plans query answered "(none recorded)". In the same session it went into the
  * GoodVibes platform source under his projects directory and announced it was
  * "repairing that control flow" while he had asked it to sign in to an email
@@ -10,7 +10,7 @@
  *
  * Both halves are pinned here: the capture contract the turn is given, and the
  * boundary it is held to. Modelled on the SDK's
- * test/personal-information-capture.test.ts — same fake-port shape, same
+ * test/personal-information-capture.test.ts, same fake-port shape, same
  * insistence that each reason the capture could not have happened gets its own
  * test so none of them come back quietly.
  */
@@ -70,7 +70,7 @@ describe('a conversational turn can reach the capture tools', () => {
 
   test('it composes with the SDK list rather than replacing it', () => {
     // Every tool the SDK contract names is still required here. The Agent adds
-    // `occasions` — its half of the capture surface — and takes nothing away.
+    // `occasions`, its half of the capture surface, and takes nothing away.
     for (const name of CONVERSATIONAL_TURN_TOOLS) {
       expect(AGENT_CONVERSATIONAL_CAPTURE_TOOLS).toContain(name);
     }
@@ -147,7 +147,7 @@ describe('the capture contract the operator policy carries', () => {
     // (owner-profile-rulings.md, 2026-07-27: "Untrusted content can never
     // write or propose ... never build a parallel notion of trust"). The
     // friction it causes is answered with the two-step that already exists,
-    // not with a new trust tier — so a found itinerary lands one beat later
+    // not with a new trust tier, so a found itinerary lands one beat later
     // rather than never.
     const lower = AGENT_CONVERSATIONAL_CAPTURE_POLICY.toLowerCase();
     expect(lower).toContain('a refusal there is not the end of it');
@@ -164,7 +164,7 @@ describe('the capture contract the operator policy carries', () => {
     expect(lower).toContain('he is away for that span');
     expect(lower).toContain('people in his life');
     expect(lower).toContain('capture what it implies, not only what it states');
-    // Then use it — and anything past the conversation is still proposed.
+    // Then use it, and anything past the conversation is still proposed.
     expect(lower).toContain('then use it');
     expect(lower).toContain('waits for his yes');
   });
@@ -189,7 +189,7 @@ describe('the capture contract the operator policy carries', () => {
 
   test('a trip is recorded straight away; a date still waits for the kind he chooses', () => {
     // Plans have no `kind`, so proposing one and waiting is pure delay. Dates
-    // do, and that two-step is his ruling — it stays.
+    // do, and that two-step is his ruling, it stays.
     expect(GOODVIBES_AGENT_OPERATOR_POLICY).toContain('recorded straight away, not proposed');
     expect(GOODVIBES_AGENT_OPERATOR_POLICY).toContain('plan_confirm');
     expect(GOODVIBES_AGENT_OPERATOR_POLICY).toContain('Never choose the kind for him');

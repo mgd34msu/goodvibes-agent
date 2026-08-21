@@ -61,7 +61,7 @@ describe('approval posture: shared helper agrees with the real permission gate',
     resetSettingsControlPlaneStore(configManager);
     policyRuntimeState = new PolicyRuntimeState();
     requests = [];
-    // No featureFlags — this exercises the raw documented precedence
+    // No featureFlags, this exercises the raw documented precedence
     // (autoApprove -> allow-all -> custom -> prompt-mode-reads-auto-allow)
     // that computeApprovalPosture mirrors, not the optional policy engine.
     manager = new PermissionManager(
@@ -97,13 +97,13 @@ describe('approval posture: shared helper agrees with the real permission gate',
       const result = await manager.checkDetailed('write', { path: 'demo.ts' });
 
       if (posture.bypassesPrompts) {
-        // The posture claims NOTHING ever prompts — the gate must resolve
+        // The posture claims NOTHING ever prompts, the gate must resolve
         // without ever reaching the user-prompt step.
         expect(result.sourceLayer).not.toBe('user_prompt');
         expect(requests).toHaveLength(0);
         expect(result.approved).toBe(true);
       } else {
-        // The posture claims tool calls CAN still be gated — the gate must
+        // The posture claims tool calls CAN still be gated, the gate must
         // either reach the user-prompt step or explicitly deny via a
         // configured rule. It must never silently auto-approve behind the
         // posture's back.
@@ -156,7 +156,7 @@ describe('approval posture: shared helper agrees with the real permission gate',
 
   // The plan/accept-edits modes are excluded from the shared SCENARIOS loop
   // above: that loop's assertion only distinguishes "fully bypasses" from
-  // "reaches the user prompt or an explicit config_deny" — but plan mode
+  // "reaches the user prompt or an explicit config_deny", but plan mode
   // introduces a THIRD outcome (refused outright, via reasonCode 'plan_mode',
   // never asked and never a custom-config deny) and accept-edits mode splits
   // outcomes by category (write auto-approves, execute still asks). Both get
@@ -184,7 +184,7 @@ describe('approval posture: shared helper agrees with the real permission gate',
       expect(result.approved).toBe(false);
       expect(result.reasonCode).toBe('plan_mode');
       expect(result.sourceLayer).not.toBe('user_prompt');
-      // Refused, not asked — the model must present a plan instead of acting.
+      // Refused, not asked, the model must present a plan instead of acting.
       expect(requests).toHaveLength(0);
     }
   });
@@ -209,7 +209,7 @@ describe('approval posture: shared helper agrees with the real permission gate',
 
     requests.length = 0;
     const execResult = await manager.checkDetailed('exec', {});
-    // The mock requestPermission (beforeEach) always denies — proving this
+    // The mock requestPermission (beforeEach) always denies, proving this
     // reached the ask rather than silently auto-approving.
     expect(requests).toHaveLength(1);
     expect(execResult.sourceLayer).toBe('user_prompt');

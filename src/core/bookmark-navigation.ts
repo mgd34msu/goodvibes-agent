@@ -1,11 +1,11 @@
 /**
- * bookmark-navigation.ts — fallback resolution for a bookmark whose direct
+ * bookmark-navigation.ts, fallback resolution for a bookmark whose direct
  * BlockMeta lookup misses.
  *
  * A bookmark stores a block's collapseKey at the time it was set (see
  * handler-content-actions.ts's handleBookmark). A tool-result message hidden
  * by a collapsed assistant turn (see conversation-turn-structure.ts) pushes
- * no BlockMeta of its own while that turn stays collapsed — its own
+ * no BlockMeta of its own while that turn stays collapsed, its own
  * collapseKey (`msg_<absoluteIdx>`) never appears in getBlockRegistry() until
  * the turn is expanded. A direct
  * find(entry => entry.collapseKey === key) then reports "not found", even
@@ -18,7 +18,7 @@
  * for a row hidden by a collapsed turn, already resolves to that turn's own
  * header line rather than the position of whatever renders next (see
  * getMessageLine's doc and conversation-rendering.ts, which anchors a hidden
- * row's registered line at its turn's header) — landing on the header is an
+ * row's registered line at its turn's header), landing on the header is an
  * honest, reachable result rather than a false "not found".
  *
  * Ported from goodvibes-tui's module of the same name.

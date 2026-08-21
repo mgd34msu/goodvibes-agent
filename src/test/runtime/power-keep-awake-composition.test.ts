@@ -9,8 +9,8 @@
  *
  *  1. services.ts now wires wireRuntimePower's `subscribeConfig` option (the
  *     SDK's own PowerManager config subscription), so ANY power.keepAwake
- *     config change — from the settings modal, a CLI flag, or an external
- *     settings.json edit reaching configManager via watchConfigFiles() —
+ *     config change, from the settings modal, a CLI flag, or an external
+ *     settings.json edit reaching configManager via watchConfigFiles(),
  *     flips the real LOCAL inhibitor with no bespoke call site needed.
  *  2. services.ts separately subscribes to power.keepAwake and forwards the
  *     toggle to an ADOPTED daemon over the wire (power-keep-awake-remote.ts),
@@ -70,7 +70,7 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
       // is fire-and-forget from services.ts, exactly as the SDK composition
       // root does it. Give start() room to finish registering before driving
       // the toggle, so the test exercises the live-subscription path itself
-      // rather than racing it — a config write issued before registration
+      // rather than racing it, a config write issued before registration
       // completes cannot be seen by a subscription that does not exist yet.
       await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -84,7 +84,7 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
         return observed;
       }
 
-      // This is exactly what the settings modal's default apply path does —
+      // This is exactly what the settings modal's default apply path does,
       // NOT a direct services.powerManager.setKeepAwake(...) call. The old
       // onSettingApplied special case that used to bridge these two is gone
       // from ui-openers.ts; this config write alone must now reach the
@@ -105,7 +105,7 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
     // now defaults an ABSENT powerSeam to the SDK's "unavailable" no-spawn seam,
     // so a test-constructed runtime never spawns systemd-inhibit inhibitors or a
     // dbus-monitor sleep-edge watcher. makeServices() passes no powerSeam, so the
-    // composed PowerManager must report the honest 'unavailable (...)' platform —
+    // composed PowerManager must report the honest 'unavailable (...)' platform,
     // yet keep-awake state still flips (the live-apply tests above), because the
     // PowerManager tracks the enabled intent independently of seam availability.
     const services = makeServices();
@@ -120,8 +120,8 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
   test('the host power seam opt-in wires the real platform, and constructing it spawns nothing', () => {
     // The live-seam WIRING pin: createHostPowerSeam() is exactly what the
     // embedded interactive runtime (bootstrap-core.ts) passes as powerSeam to
-    // own the sleep edge. Constructing the seam is inert — it spawns nothing
-    // until inhibit()/onPrepareForSleep()/reapOrphans() run — so this asserts
+    // own the sleep edge. Constructing the seam is inert, it spawns nothing
+    // until inhibit()/onPrepareForSleep()/reapOrphans() run, so this asserts
     // the WIRING (the platform label the opt-in selects), never a spawn. It is
     // deliberately NOT wired through wireRuntimePower here, so the suite holds
     // no live inhibitor or sleep-edge watcher on account of this assertion.
@@ -139,7 +139,7 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
       expect(services.powerManager.getState().keepAwake.enabled).toBe(false);
 
       // Simulate an external process editing the surface's settings.json
-      // directly — the same path an externally-adopted daemon sharing this
+      // directly, the same path an externally-adopted daemon sharing this
       // config file (or a hand edit) would take.
       const { readFileSync, writeFileSync, existsSync } = await import('node:fs');
       const settingsPath = services.configManager.getConfigPath();

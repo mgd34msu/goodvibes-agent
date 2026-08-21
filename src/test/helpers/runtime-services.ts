@@ -5,7 +5,7 @@
  * resetAllTestServiceState(), so every test file gets a fresh singleton set
  * without needing to call reset manually. Files that need custom reset logic
  * can still call resetAllTestServiceState() or individual reset functions
- * in their own beforeEach — bun:test runs all registered beforeEach hooks.
+ * in their own beforeEach, bun:test runs all registered beforeEach hooks.
  */
 import { beforeEach } from 'bun:test';
 import { execFileSync } from 'node:child_process';
@@ -129,7 +129,7 @@ function nextRuntimeRoots(): { workingDir: string; configDir: string } {
 /**
  * Make a test workspace its own git toplevel. The temp roots live under the
  * repo checkout (.test-tmp/), and the SDK's WorkspaceCheckpointManager prefers
- * the ENCLOSING git repo's top level — without this boundary every test
+ * the ENCLOSING git repo's top level, without this boundary every test
  * runtime resolves to the checkout itself and they all share one
  * <repo>/.goodvibes/checkpoints/git side store, racing on git's config lock
  * the first time two files initialize it concurrently on a fresh runner.
@@ -247,7 +247,7 @@ export function getTestSubscriptionManager(): RuntimeServices['subscriptionManag
 }
 
 /**
- * The persisting session REGISTER — the one automation runs on. Named as the
+ * The persisting session REGISTER, the one automation runs on. Named as the
  * graph names it now: `services.sessionBroker` is the client dispatch seam and
  * has none of these methods, so a test that wants ensureSession/submitMessage/
  * listSessions wants this.
@@ -501,7 +501,7 @@ export function resetAllTestServiceState(): void {
   // The two settings-routing clients are process-wide by design (five settings
   // writers reach them with no graph in scope), so a file that composed a
   // runtime would otherwise route every LATER file's secret and config writes
-  // at a daemon that was never there — silently, since the refusal is a
+  // at a daemon that was never there, silently, since the refusal is a
   // rejected promise a keystroke handler swallows. Cleared first: routing is a
   // property of a live composed product, and a test that wants it installs its
   // own client and says so (see runtime/client-seams.test.ts).
@@ -521,7 +521,7 @@ export function resetAllTestServiceState(): void {
 
 // Auto-register a beforeEach reset so every test file that imports this helper
 // starts with clean singleton state, without needing explicit reset calls.
-// Files can still register additional beforeEach hooks — all registered hooks run.
+// Files can still register additional beforeEach hooks, all registered hooks run.
 beforeEach(() => {
   resetAllTestServiceState();
 });

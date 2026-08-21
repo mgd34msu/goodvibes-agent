@@ -3,7 +3,7 @@ import type { OnboardingCheckMarkerState } from './types.ts';
 
 /**
  * Maps each setup plan item id to the Agent Workspace category that resolves it.
- * This is the single sequencing table — every onboarding surface reads from here.
+ * This is the single sequencing table, every onboarding surface reads from here.
  */
 const PLAN_ITEM_CATEGORY_MAP: Readonly<Record<string, string>> = {
   'connected-host-readiness': 'setup',
@@ -139,7 +139,7 @@ function deriveRecap(
       ? "You're set up. Here's what you can do now."
       : phase === 'in-progress'
         ? "Setup is in progress. Here's what's ready so far."
-        : 'Getting started — a few things to set up before the full experience.';
+        : 'Getting started, a few things to set up before the full experience.';
 
   const lines: string[] = readySteps.map((s) => s.label);
 

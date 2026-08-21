@@ -14,7 +14,7 @@ import type { PromptContextReceiptDraft } from '../agent/prompt-context-receipts
  * records which memory ids were injected when a prompt is composed, then when the
  * turn completes runs heuristic reference detection over the model's output to
  * mark which of those injections were plausibly used. Aborted turns (error or
- * cancel) simply forget the injection — no reference credit is invented.
+ * cancel) simply forget the injection, no reference credit is invented.
  */
 export function extractInjectedMemoryIds(receipt: PromptContextReceiptDraft): string[] {
   const segment = receipt.segments.find((entry) => entry.id === 'memory');

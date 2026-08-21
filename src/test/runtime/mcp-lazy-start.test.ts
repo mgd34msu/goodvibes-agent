@@ -1,7 +1,7 @@
 /**
  * mcp-lazy-start.test.ts
  *
- * A bare `goodvibes-agent` boot — no prompt, no tool call — spawned every
+ * A bare `goodvibes-agent` boot, no prompt, no tool call, spawned every
  * server in mcp.json, because `scheduleBackgroundMcpDiscovery()` calls
  * `connectAll()` as its first act. On a real machine that put two
  * browser-automation servers into the process tree at startup, one of them
@@ -23,7 +23,7 @@ function fakeRegistry(): { registry: McpRegistry; connects: number; calls: strin
     listAllTools: async (): Promise<unknown[]> => { state.calls.push('listAllTools'); return []; },
     callTool: async (): Promise<unknown> => { state.calls.push('callTool'); return null; },
     getToolSchema: async (): Promise<unknown> => { state.calls.push('getToolSchema'); return null; },
-    // SYNCHRONOUS in the real registry — modelling it as async once hid a
+    // SYNCHRONOUS in the real registry, modelling it as async once hid a
     // defect where gating it returned a promise and broke every caller.
     listServerSecurity: (): unknown[] => { state.calls.push('listServerSecurity'); return []; },
     disconnectAll: async (): Promise<void> => { state.calls.push('disconnectAll'); },
@@ -86,7 +86,7 @@ describe('MCP servers start on first use', () => {
 
   test('synchronous registry methods stay synchronous', () => {
     // Gating a sync method turns it into a promise. `listServerSecurity()`
-    // returns an array that callers immediately `.filter()` — wrapping it threw
+    // returns an array that callers immediately `.filter()`, wrapping it threw
     // "workspaceMcpServers(context).filter is not a function" and took the
     // whole TUI down at launch.
     const fake = fakeRegistry();

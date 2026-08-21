@@ -1,10 +1,10 @@
 /**
- * client-seams.test.ts — proof that the seams this agent adopted actually carry
+ * client-seams.test.ts, proof that the seams this agent adopted actually carry
  * work across the process boundary.
  *
  * Each block below covers one thing the agent used to do to itself and now does
  * to the daemon. The assertions are about what LEAVES this process, because the
- * failure mode this round fixed is not a crash — it is a surface answering its
+ * failure mode this round fixed is not a crash, it is a surface answering its
  * own question, confidently, from a store nobody else can see.
  *
  * The daemon is a stub verb caller: it records every call and answers from a

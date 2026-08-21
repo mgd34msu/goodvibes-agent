@@ -82,7 +82,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
             discoveredModelIds = readDiscoveredModelIds(body);
           }
         } catch {
-          ctx.print(`Could not reach ${baseURL}/models — creating provider with a minimal starter config.`);
+          ctx.print(`Could not reach ${baseURL}/models, creating provider with a minimal starter config.`);
         }
 
         let contextWindows: Record<string, number> = {};

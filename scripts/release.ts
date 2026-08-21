@@ -5,7 +5,7 @@ import { insertChangelogSection, nextVersion as toolchainNextVersion } from '@pe
 import { packageDocPaths, verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
 
 /**
- * Release script — bumps version, updates CHANGELOG, creates git tag.
+ * Release script, bumps version, updates CHANGELOG, creates git tag.
  *
  * Defaults to patch bumps. Minor/major require explicit flags.
  *
@@ -279,7 +279,7 @@ export function main(argv = process.argv.slice(2), root = process.cwd()): void {
   const next = nextVersion(current, options.bumpMode);
 
   console.log(`\nRelease: ${current} -> ${next}`);
-  if (options.dryRun) console.log('(dry-run mode — no files will be written)\n');
+  if (options.dryRun) console.log('(dry-run mode: no files will be written)\n');
 
   console.log('\n[preflight] Checking release evidence text hygiene...');
   assertReleaseEvidenceHygiene('release evidence text hygiene', root);

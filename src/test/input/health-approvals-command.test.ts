@@ -2,7 +2,7 @@
  * health-approvals-command.test.ts
  *
  * `/health approvals` reads the daemon's record, not this process's broker
- * alone — and when it cannot read it, it says so before printing anything that
+ * alone, and when it cannot read it, it says so before printing anything that
  * could be mistaken for "nothing is waiting".
  */
 import { describe, expect, test } from 'bun:test';
@@ -121,6 +121,6 @@ describe('/health approvals', () => {
   test('a runtime with no approvals view says nothing was read rather than nothing is waiting', async () => {
     const text = await runHealthApprovals(undefined);
     expect(text).toContain('not wired in this runtime');
-    expect(text).toContain('This is not "no approvals waiting" — nothing was read.');
+    expect(text).toContain('This is not "no approvals waiting", nothing was read.');
   });
 });

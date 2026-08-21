@@ -30,8 +30,8 @@ export function setSecretBackedSettingValue(args: {
   setConfigValue: (key: ConfigKey, value: unknown) => void;
   /**
    * How the outcome of a daemon-routed write reaches the screen. This setter is
-   * called from a keystroke handler and cannot await, so a refusal — the daemon
-   * unreachable, the verb rejecting the key — arrives here instead of in a
+   * called from a keystroke handler and cannot await, so a refusal, the daemon
+   * unreachable, the verb rejecting the key, arrives here instead of in a
    * return value. Absent means the caller renders nothing; the failure is still
    * logged.
    */
@@ -46,7 +46,7 @@ export function setSecretBackedSettingValue(args: {
   // A credential the DAEMON executes with is written BY the daemon, as one
   // verified pair: the secret value, read back, and only then the config key
   // pointed at its reference. Writing the two halves from here is what split
-  // the pair once the daemon became a separate process — the reference landed
+  // the pair once the daemon became a separate process, the reference landed
   // in one file and the value in a tier the daemon never resolves, and the
   // modal reported success either way.
   //

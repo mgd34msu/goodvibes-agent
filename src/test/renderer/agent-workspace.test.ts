@@ -1574,7 +1574,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Ingest URL');
     expect(output).toContain('Import URL list');
     expect(output).toContain('Import bookmarks');
-    // Knowledge actions all fit at height 38 — no overflow indicator expected
+    // Knowledge actions all fit at height 38, no overflow indicator expected
     expect(output).not.toContain('/api/knowledge');
     expect(output).not.toContain('non-Agent product setup');
 
@@ -2178,12 +2178,12 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     const output = text(renderAgentWorkspace(workspace, 132, 44));
 
-    // userRoute strings look like "/channels show telegram" or tool-call syntax — strip entirely, only label shown
+    // userRoute strings look like "/channels show telegram" or tool-call syntax, strip entirely, only label shown
     expect(output).not.toMatch(/Next:.*\/channels show/);
     expect(output).not.toMatch(/Next:.*->/);
     expect(output).not.toMatch(/Next:.*action:"/);
     expect(output).not.toMatch(/Next:.*mode:"/);
-    // No setup overview 'Next:' line on channel pages — only on category.id === 'setup'
+    // No setup overview 'Next:' line on channel pages, only on category.id === 'setup'
   });
 
   test('onboarding pages render the consistent Setting/Default/Current layout', () => {
@@ -2216,7 +2216,7 @@ describe('renderAgentWorkspace', () => {
     const setupOutput = text(renderAgentWorkspace(workspace, 132, 50));
     expect(setupOutput).toContain('Finish setup');
 
-    // Category 2: onboarding-context (Local Context) — different ONBOARDING category
+    // Category 2: onboarding-context (Local Context), different ONBOARDING category
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
     const contextOutput = text(renderAgentWorkspace(workspace, 132, 50));
     expect(contextOutput).toContain('Finish setup');
@@ -2235,12 +2235,12 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 50));
 
-    // setup category covers runtime + connected-host-auth + provider-model — all ready in liveCommandContext
+    // setup category covers runtime + connected-host-auth + provider-model, all ready in liveCommandContext
     // So the Start row should show the success glyph ✓
     // We look for the left pane: the Start label with a readiness marker
     expect(output).toContain('✓'); // ✓ GLYPHS.status.success — at least one ready category
 
-    // onboarding-context covers agent-knowledge (recommended) — should show attention marker !
+    // onboarding-context covers agent-knowledge (recommended), should show attention marker !
     // Navigate to a different category so onboarding-context row is still visible in the left pane
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     const output2 = text(renderAgentWorkspace(workspace, 132, 50));
@@ -2268,7 +2268,7 @@ describe('a long action result is reachable, never clipped', () => {
 
   test('the first lines are shown with a way to reach the rest', () => {
     // The ruling this guards: no surface ships too small for its complete text.
-    // The pane cannot grow, so it must scroll — and it must say that it can.
+    // The pane cannot grow, so it must scroll, and it must say that it can.
     const workspace = longResultWorkspace(60);
 
     const output = text(renderAgentWorkspace(workspace, 120, 60));

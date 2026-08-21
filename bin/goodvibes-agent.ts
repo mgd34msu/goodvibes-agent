@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // package declares no runtime dependencies, so anything this shim imports must
 // not statically reach @pellux/goodvibes-sdk. Both exits below write the reason
 // straight to descriptor 2, because a stream write issued immediately before
-// process.exit() can still be in flight when the process stops existing — and
+// process.exit() can still be in flight when the process stops existing, and
 // this shim's whole job is explaining a broken install out loud.
 import { writeFatalLine } from '../src/utils/fatal-boot-write.ts';
 

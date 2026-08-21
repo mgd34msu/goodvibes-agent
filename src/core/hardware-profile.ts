@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 /**
  * Raw hardware snapshot for this process.
  * All fields that cannot be determined safely are null.
- * This module never throws — callers always receive a result.
+ * This module never throws, callers always receive a result.
  */
 export interface HardwareProfile {
   /** Total physical RAM in bytes, or null when unreadable. */
@@ -72,7 +72,7 @@ export function estimateModelBytes(params: number, bytesPerWeight = DEFAULT_BYTE
  * @param profile         Hardware profile from readHardwareProfile().
  */
 export function fitAssessment(modelSizeBytes: number, profile: HardwareProfile): FitVerdict {
-  // Try GPU first — fastest/best path
+  // Try GPU first, fastest/best path
   const maxVram = maxVramBytes(profile.gpus);
   if (maxVram !== null && modelSizeBytes <= Math.floor(maxVram * 0.80)) {
     return 'fits-gpu';
@@ -110,7 +110,7 @@ export function fitVerdictLabel(verdict: FitVerdict, sizeDescriptor?: string): s
   switch (verdict) {
     case 'fits-gpu': return `a ${size} model fits in GPU memory here`;
     case 'fits-ram': return `a ${size} model runs on CPU RAM here`;
-    case 'tight':    return `a ${size} model is tight here — close other apps`;
+    case 'tight':    return `a ${size} model is tight here, close other apps`;
     case 'too-big':  return `a ${size} model needs more memory than this machine has`;
     case 'unknown':  return '';
   }
@@ -143,7 +143,7 @@ export function paramCountFromModel(model: { id: string; displayName?: string })
 }
 
 // ---------------------------------------------------------------------------
-// Process-level cache — the probe runs at most once per process.
+// Process-level cache, the probe runs at most once per process.
 // ---------------------------------------------------------------------------
 let cachedProfile: HardwareProfile | null = null;
 
@@ -171,12 +171,12 @@ export function readHardwareProfileSync(): HardwareProfile {
 
 /**
  * Probe hardware and return a snapshot.
- * Safe to call many times — the OS probe runs exactly once per process.
+ * Safe to call many times, the OS probe runs exactly once per process.
  * Never throws; degraded fields are null.
  *
  * @deprecated Delegates to `readHardwareProfileSync()`. Prefer calling
  *   `readHardwareProfileSync()` directly on the render path.
- *   GPU data is populated asynchronously — call `startHardwareProbe()` at
+ *   GPU data is populated asynchronously, call `startHardwareProbe()` at
  *   application startup so that subsequent `readHardwareProfileSync()` calls
  *   include GPU information; this alias does not trigger the probe itself.
  */
@@ -190,7 +190,7 @@ export function readHardwareProfile(): HardwareProfile {
  * the module cache, so subsequent `readHardwareProfileSync()` calls will
  * include GPU data.
  *
- * Call once at application startup — off the render frame.
+ * Call once at application startup, off the render frame.
  * Never throws; GPU errors are silently ignored.
  */
 export function startHardwareProbe(): void {
@@ -213,14 +213,14 @@ export function startHardwareProbe(): void {
         // (gpus: []) with the GPU data returned by the async probe.
         cachedProfile = _mergeProbeIntoCache(cachedProfile, { totalRamBytes, availableRamBytes, gpus, cpuCores });
       } catch {
-        // GPU probe failure is non-fatal — leave cache unpopulated.
+        // GPU probe failure is non-fatal, leave cache unpopulated.
       }
     });
     child.on('error', () => {
-      // nvidia-smi not found or not executable — leave cache unpopulated.
+      // nvidia-smi not found or not executable, leave cache unpopulated.
     });
   } catch {
-    // spawn itself failed — leave cache unpopulated.
+    // spawn itself failed, leave cache unpopulated.
   }
 }
 
@@ -247,7 +247,7 @@ export function _setHardwareProfileForTest(profile: HardwareProfile): void {
  *   - current === null  →  use fresh as-is (cold-cache populate)
  *   - current.gpus.length === 0 && fresh.gpus.length > 0
  *       →  { ...current, gpus: fresh.gpus }  (upgrade only the empty gpus field;
- *          all other fields — RAM, CPU — are kept from the existing entry)
+ *          all other fields, RAM, CPU, are kept from the existing entry)
  *   - otherwise  →  return current unchanged (never overwrite non-empty gpus)
  */
 export function _mergeProbeIntoCache(
@@ -272,7 +272,7 @@ function probeRam(): { totalRamBytes: number | null; availableRamBytes: number |
     const parsed = parseProcMeminfo(raw);
     if (parsed.totalRamBytes !== null) return parsed;
   } catch {
-    // not Linux or permission denied — fall through to node:os
+    // not Linux or permission denied, fall through to node:os
   }
 
   // Fallback: node:os (works on macOS/Windows too)

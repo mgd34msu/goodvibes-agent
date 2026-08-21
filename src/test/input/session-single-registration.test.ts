@@ -2,9 +2,9 @@
 // session-single-registration.test.ts
 //
 // Regression guard for the /session shadow bug (coherence audit E8 worst
-// instance): /session was registered TWICE — once by
+// instance): /session was registered TWICE, once by
 // registerSessionWorkflowCommands and once by the fuller sessionCommand
-// (commands/session.ts) — and the registry silently overwrote, so which one
+// (commands/session.ts), and the registry silently overwrote, so which one
 // won depended on registration order. Two guarantees now hold:
 //   1. registerBuiltinCommands registers exactly ONE /session command, and it
 //      is the fuller one (graph inspection + delegation to the workflow handler).
@@ -29,7 +29,7 @@ describe('/session single honest registration', () => {
     registerBuiltinCommands(registry);
     const session = registry.get('session');
     expect(session).toBeDefined();
-    // The fuller sessionCommand (commands/session.ts) — not the workflow stub —
+    // The fuller sessionCommand (commands/session.ts), not the workflow stub,
     // owns the read-only cross-session graph inspection surface.
     expect(session?.description).toContain('graph inspection');
     expect(session?.aliases).toContain('sess');

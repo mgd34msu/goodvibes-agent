@@ -18,7 +18,6 @@ describe('ConfigManager', () => {
   });
 
   afterEach(() => {
-    // Cleanup the isolated temp config directory.
     rmSync(tempDir, { recursive: true, force: true });
   });
 

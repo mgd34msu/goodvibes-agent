@@ -33,7 +33,7 @@ function makeProfile(overrides: Partial<HardwareProfile> = {}): HardwareProfile 
 }
 
 // ---------------------------------------------------------------------------
-// fitAssessment — table-driven across all verdicts
+// fitAssessment, table-driven across all verdicts
 // ---------------------------------------------------------------------------
 
 describe('fitAssessment', () => {
@@ -190,7 +190,7 @@ describe('fitAssessment', () => {
 });
 
 // ---------------------------------------------------------------------------
-// fitVerdictLabel — plain-language strings
+// fitVerdictLabel, plain-language strings
 // ---------------------------------------------------------------------------
 
 describe('fitVerdictLabel', () => {
@@ -225,7 +225,7 @@ describe('fitVerdictLabel', () => {
 });
 
 // ---------------------------------------------------------------------------
-// parseProcMeminfo — fixture strings
+// parseProcMeminfo, fixture strings
 // ---------------------------------------------------------------------------
 
 describe('parseProcMeminfo', () => {
@@ -287,7 +287,7 @@ describe('parseProcMeminfo', () => {
 });
 
 // ---------------------------------------------------------------------------
-// parseNvidiaSmiOutput — fixture strings
+// parseNvidiaSmiOutput, fixture strings
 // ---------------------------------------------------------------------------
 
 describe('parseNvidiaSmiOutput', () => {
@@ -365,7 +365,7 @@ describe('estimateModelBytes', () => {
 });
 
 // ---------------------------------------------------------------------------
-// readHardwareProfile — cache reset safety
+// readHardwareProfile, cache reset safety
 // ---------------------------------------------------------------------------
 
 describe('readHardwareProfile', () => {
@@ -413,7 +413,7 @@ describe('readHardwareProfile', () => {
 });
 
 // ---------------------------------------------------------------------------
-// readHardwareProfileSync — never spawns, returns immediate RAM+CPU profile
+// readHardwareProfileSync, never spawns, returns immediate RAM+CPU profile
 // ---------------------------------------------------------------------------
 
 describe('readHardwareProfileSync', () => {
@@ -441,7 +441,7 @@ describe('readHardwareProfileSync', () => {
     _resetHardwareProfileCache();
     const profile = readHardwareProfileSync();
     // Either the cache was empty (gpus=[]) OR a prior test populated it.
-    // What we assert is that the function did not block — no spawn is fired here.
+    // What we assert is that the function did not block, no spawn is fired here.
     expect(Array.isArray(profile.gpus)).toBe(true);
   });
 
@@ -462,7 +462,7 @@ describe('readHardwareProfileSync', () => {
     // After the probe resolves, readHardwareProfileSync() should have a non-null
     // RAM snapshot (the probe writes RAM+CPU regardless of GPU presence).
     const profile = readHardwareProfileSync();
-    // The module cache is now populated — RAM should be readable on this machine.
+    // The module cache is now populated, RAM should be readable on this machine.
     if (profile.totalRamBytes !== null) {
       expect(profile.totalRamBytes).toBeGreaterThan(0);
     }
@@ -484,7 +484,7 @@ describe('readHardwareProfileSync', () => {
 });
 
 // ---------------------------------------------------------------------------
-// _mergeProbeIntoCache — pure helper unit tests
+// _mergeProbeIntoCache, pure helper unit tests
 // ---------------------------------------------------------------------------
 
 describe('_mergeProbeIntoCache', () => {
@@ -528,7 +528,7 @@ describe('_mergeProbeIntoCache', () => {
       cpuCores: 8,
     };
     const result = _mergeProbeIntoCache(current, fresh);
-    // Returns the exact same object reference — cache untouched
+    // Returns the exact same object reference, cache untouched
     expect(result).toBe(current);
     // Original GPU is preserved, fresh GPU is NOT applied
     expect(result.gpus[0]?.name).toBe('NVIDIA GeForce GTX 1070');
@@ -536,11 +536,11 @@ describe('_mergeProbeIntoCache', () => {
 });
 
 // ---------------------------------------------------------------------------
-// REPRESENTATIVE_7B_PARAMS — shared constant
+// REPRESENTATIVE_7B_PARAMS, shared constant
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// paramCountFromModel — regex parsing of param count from id/displayName
+// paramCountFromModel, regex parsing of param count from id/displayName
 // ---------------------------------------------------------------------------
 
 describe('paramCountFromModel', () => {

@@ -72,7 +72,7 @@ const MODEL_WORKSPACE_CONTEXT_CAP_INPUT_HELP = 'Type digits to set a cap. Enter 
 const MODEL_WORKSPACE_FOOTER_SEARCH_ACTIVE = 'Typing filters search; Esc clears search';
 const MODEL_WORKSPACE_FOOTER_SEARCH_INACTIVE = '/ search';
 const MODEL_WORKSPACE_FOOTER_CONTROLS = 'Up/Down navigate • Left/Right pane • Enter select • <search> • Tab price • C caps • A available • B benchmark • G group • Esc close';
-const MODEL_WORKSPACE_LOCAL_ONLY_HEADER = 'No provider signed in — these run on your machine';
+const MODEL_WORKSPACE_LOCAL_ONLY_HEADER = 'No provider signed in, these run on your machine';
 const MODEL_WORKSPACE_LOCAL_ONLY_SIGN_IN = 'Sign in instead: select "Sign in to a provider" in the list below to connect a cloud or local provider.';
 
 /**
@@ -199,7 +199,7 @@ export function renderModelWorkspacePackageText(): string {
 /**
  * Returns a plain-language hardware fit line for a local model, or an empty
  * string when the model is not local or when the verdict is unknown.
- * Uses the process-level cached hardware probe — never probes per render.
+ * Uses the process-level cached hardware probe, never probes per render.
  */
 /**
  * Format a param count (e.g. 70e9) as a human-readable size token (e.g. '70B', '1.5B').
@@ -271,7 +271,7 @@ function detailLines(picker: ModelPickerModal, width: number): string[] {
         caps.multimodal ? 'vision' : '',
         caps.toolCalling ? 'tools' : '',
       ].filter(Boolean).join(', ') || 'standard';
-      // Suppress the key:id line for synthetic local recommendations — they have
+      // Suppress the key:id line for synthetic local recommendations, they have
       // no real registry key and displaying the synthetic id would confuse users.
       if (isProviderSignInRow(selected)) {
         lines.push('Sign in to a provider to connect a cloud or local model.');

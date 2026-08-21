@@ -1,7 +1,7 @@
 /**
  * First-start registration prompt (owner-approved design): wireSessionPersistenceAndRecovery
  * decides whether to show the ambient "register this directory?" prompt. This
- * exercises that decision directly — see also src/test/shell/blocking-input.test.ts
+ * exercises that decision directly, see also src/test/shell/blocking-input.test.ts
  * for the keypress-answering half (register on 'y', decline on everything else).
  */
 import { describe, expect, test } from 'bun:test';

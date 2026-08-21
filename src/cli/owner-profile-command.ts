@@ -1,11 +1,11 @@
 /**
- * owner-profile-command.ts — `goodvibes-agent owner-profile` over the daemon's
+ * owner-profile-command.ts, `goodvibes-agent owner-profile` over the daemon's
  * `profile.*` control-plane verbs (docs/owner-profile.md §11.1).
  *
  * Named `owner-profile`, not `profile`: `profile` is already an alias for
  * `profiles`, the isolated Agent profile homes, and quietly re-pointing it at a
  * different subject would break a command that works today. The platform
- * runtime's own module makes the same distinction (§3, naming note) — nothing
+ * runtime's own module makes the same distinction (§3, naming note), nothing
  * about the owner profile is called `profile` unqualified.
  *
  * Honesty rules, same as every other connected-host command here:
@@ -59,7 +59,7 @@ const OWNER_PROFILE_USAGE = [
 
 /**
  * A command-line edit is him editing his own file, so it carries owner-direct
- * authority — the only one the daemon accepts — and, when he does not quote
+ * authority, the only one the daemon accepts, and, when he does not quote
  * himself with --said, the same kind of stand-in a settings-UI edit uses (§7
  * layer 3, §9.3). It is a truthful record of where the line came from: he typed
  * it here, not in conversation.
@@ -120,7 +120,7 @@ async function handleRead(
     // card it lands in the transcript, which a later turn can compose from, so
     // People are counted and `person <name>` is the way through. Run at a shell
     // it goes to his terminal and nowhere else, so withholding his own list
-    // would be friction with nothing gained — it is his file.
+    // would be friction with nothing gained, it is his file.
     //
     // One implementation, one predicate, and the predicate is a fact the caller
     // genuinely knows about itself rather than a guess. The default is the safe
@@ -212,7 +212,7 @@ async function handleGet(
   }
   const field = response.field;
   const lines = [`${field.label}: ${field.value}`];
-  if (!field.valid) lines.push(`  did not parse: ${field.invalidReason ?? 'no reason given'} — kept as written, treated as unset`);
+  if (!field.valid) lines.push(`  did not parse: ${field.invalidReason ?? 'no reason given'}, kept as written, treated as unset`);
   lines.push(field.provenance
     ? `  from ${field.provenance.surface} on ${field.provenance.date}, you said: "${field.provenance.said}"`
     : '  no provenance recorded; you wrote or edited this line by hand.');
@@ -279,7 +279,7 @@ async function handleSet(
     return { output: jsonOrText(runtime, response, text), exitCode: 1 };
   }
   return {
-    output: jsonOrText(runtime, response, response.disclosure || `Noted — saved ${fieldId} to your profile.`),
+    output: jsonOrText(runtime, response, response.disclosure || `Noted, saved ${fieldId} to your profile.`),
     exitCode: 0,
   };
 }
@@ -288,7 +288,7 @@ async function handleSet(
  * A mechanical field goes by id; a prose line goes by its section and its exact
  * text, never by position (§9.2). He edits this file himself, so a line number
  * from an earlier read can point at a different line by the time the delete
- * runs — and a stale index is well-formed, so nothing could catch it. Content
+ * runs, and a stale index is well-formed, so nothing could catch it. Content
  * re-resolves against the document as it is now.
  */
 async function handleForget(
@@ -358,15 +358,15 @@ export interface OwnerProfileCommandOptions {
    * output goes into the session transcript. False for the top-level CLI, whose
    * output goes to his terminal and nowhere else.
    *
-   * **Defaults to true** — a caller that has not thought about it gets the
+   * **Defaults to true**, a caller that has not thought about it gets the
    * containment rather than the exposure. Every caller can answer this
    * truthfully about itself; it is not a claim anyone has to guess at.
    */
   readonly outputEntersModelContext?: boolean;
   /**
    * The gateway route. Defaults to the connected host, and is injectable so the
-   * command's honesty rules — a refusal printed with its reason, a delete that
-   * was a no-op reported as a no-op — are testable without a live daemon.
+   * command's honesty rules, a refusal printed with its reason, a delete that
+   * was a no-op reported as a no-op, are testable without a live daemon.
    */
   readonly invoke?: ProfileGatewayInvoke;
 }

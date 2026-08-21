@@ -1,5 +1,5 @@
 /**
- * daemon-cli-service.ts — asking the daemon's own CLI about its service entry,
+ * daemon-cli-service.ts, asking the daemon's own CLI about its service entry,
  * and asking it to install or start one.
  *
  * ── Why the CLI and not the in-process service manager ─────────────────────
@@ -13,7 +13,7 @@
  * Repairing a machine needs one thing that seam cannot honestly do: INSTALL a
  * unit. A unit written by this process would carry a command line this process
  * resolved, and the Agent does not own the daemon's binary, its arguments, or
- * its environment. `goodvibes-daemon install-service` does — it is the daemon
+ * its environment. `goodvibes-daemon install-service` does, it is the daemon
  * naming itself. So the repair path talks to the daemon's CLI, which is
  * installed alongside the Agent (the Agent depends on @pellux/goodvibes-daemon
  * and its launcher lands on PATH), and which publishes a machine-readable
@@ -53,7 +53,7 @@ export interface DaemonCliRun {
   readonly exitCode: number;
   readonly stdout: string;
   readonly stderr: string;
-  /** Present only when `ran` is false — why the spawn itself did not happen. */
+  /** Present only when `ran` is false, why the spawn itself did not happen. */
   readonly spawnError?: string;
 }
 
@@ -77,14 +77,14 @@ export interface DaemonServiceReport {
   readonly platform: string | null;
   /** True when the daemon CLI answered at all. False means it is absent/unusable. */
   readonly cliAvailable: boolean;
-  /** Why the answer is 'unknown' — absent CLI, refused query, unreadable output. */
+  /** Why the answer is 'unknown', absent CLI, refused query, unreadable output. */
   readonly reason?: string;
 }
 
 /** One attempted service change, as the CLI reported it. */
 export interface DaemonServiceActionReport {
   readonly ok: boolean;
-  /** Honest, already-trimmed text from the CLI — its own wording, never invented here. */
+  /** Honest, already-trimmed text from the CLI, its own wording, never invented here. */
   readonly detail: string;
 }
 

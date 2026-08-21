@@ -1,10 +1,10 @@
 /**
- * owner-terminal-guard.test.ts — the owner's terminal is untouchable on a
+ * owner-terminal-guard.test.ts, the owner's terminal is untouchable on a
  * LOCAL turn too.
  *
  * A turn hosted by the daemon runs under the platform's owner-terminal rule
  * because the daemon's composition states it. A turn this process runs itself
- * — routing off, no connected host, a message carrying attachments — reaches
+ *, routing off, no connected host, a message carrying attachments, reaches
  * the same tmux server through the same exec tool. Stating the rule on only one
  * of those two paths protects nothing: it takes one turn that fell back to
  * local to type into the owner's pane.

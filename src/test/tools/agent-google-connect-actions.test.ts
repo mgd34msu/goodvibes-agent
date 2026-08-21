@@ -4,7 +4,7 @@
  * The defect these close: the guided walkthrough sent the owner to a Google
  * console dialog, told him to copy a client id and a client secret, and then
  * had nothing to do with them. Its only possible ending was "now go and type
- * /google client <id> <secret>" — a chore handed over at the exact moment the
+ * /google client <id> <secret>", a chore handed over at the exact moment the
  * platform held everything it needed. The string was the symptom; the missing
  * capability was that the `google` TOOL had no action that could register
  * pasted values, so the model could not act on them either.
@@ -101,7 +101,7 @@ describe('the tool can finish what the walkthrough started', () => {
 
   test('the reply does not wait for the person to approve', async () => {
     // The listener in this rig never resolves. If the action awaited consent,
-    // this test would hang rather than fail — which is exactly what a turn
+    // this test would hang rather than fail, which is exactly what a turn
     // that blocked on a consent screen would do to a conversation.
     const rig = toolRig();
     const answered = await Promise.race([

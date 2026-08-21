@@ -153,7 +153,7 @@ describe('tasks command', () => {
 
   test('a task list the daemon cannot answer still shows the local half, and says why', async () => {
     // The context above carries `configManager = {} as never`, which is exactly
-    // the shape the verb caller reports as "no host can be resolved" — the same
+    // the shape the verb caller reports as "no host can be resolved", the same
     // path a real install takes with daemon.enabled=false or no operator token.
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
@@ -191,7 +191,7 @@ describe('tasks command', () => {
   });
 
   test('the agent-shaped ops api refuses intervention verbs with the honest unavailability reason', () => {
-    // bootstrap-shell builds opsApi WITHOUT an ops control plane — the Agent
+    // bootstrap-shell builds opsApi WITHOUT an ops control plane, the Agent
     // never constructs one (connected-host tasks are read-only by product
     // policy). Anything that does reach the intervention verbs must get the
     // real reason, not a silent no-op.
@@ -249,7 +249,7 @@ describe('tasks command', () => {
 
     const out: string[] = [];
     // Even without any ops intervention plane the command must refuse the
-    // mutation itself — the policy block runs before any client is touched.
+    // mutation itself, the policy block runs before any client is touched.
     const opsApi = createRuntimeOpsApi({
       tasksReadModel: createTasksReadModel(store),
       taskManager,
@@ -342,7 +342,7 @@ describe('tasks command', () => {
   // it did not disable task tracking when runtime.unifiedTasks was turned
   // off. Unlike the other five classes in this sweep, this key's schema
   // default was ALSO wrong (recorded false while every install always
-  // shipped enabled, because of this exact gap) — the SDK has corrected the
+  // shipped enabled, because of this exact gap), the SDK has corrected the
   // default to true/enabled, and bootstrap.ts now threads featureFlags, the
   // same shape as the other five fixes.
   //
@@ -401,7 +401,7 @@ describe('tasks command', () => {
     // matches true. This is what makes threading featureFlags a fix that
     // changes only whether the switch WORKS, not what an existing install does.
     // A genuinely fresh root (not `root`, which already has runtime.unifiedTasks
-    // written under it) — ConfigManager's project tier is keyed by
+    // written under it), ConfigManager's project tier is keyed by
     // workingDir/surfaceRoot regardless of configDir, so reusing `root` here
     // would read back the write above instead of the real default.
     const unsetRoot = makeProjectTempDir('gv-unified-tasks-gate-unset');

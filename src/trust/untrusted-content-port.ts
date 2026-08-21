@@ -1,5 +1,5 @@
 /**
- * untrusted-content-port.ts — the agent's side of the platform browser's
+ * untrusted-content-port.ts, the agent's side of the platform browser's
  * untrusted-content contract.
  *
  * `BrowserEngine` takes its untrusted-content contract as a REQUIRED injected
@@ -12,7 +12,7 @@
  * here, delegating to the agent's own untrusted-content module. The policy has
  * since moved into the SDK (`platform/security`), because the daemon now serves
  * `browser.*` and `email.*` with no surface attached and needed the same
- * contract — and a second copy of the rule text and refusal wording would have
+ * contract, and a second copy of the rule text and refusal wording would have
  * drifted from this one. So the port itself is the SDK's factory, and this
  * module is the two facts about THIS surface that the factory needs: the
  * surface a page is labelled with, and the tool named in a refusal.

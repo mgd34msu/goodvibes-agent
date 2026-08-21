@@ -2,7 +2,7 @@
  * Registry of temp directories the suite created outside the OS temp sandbox.
  *
  * Why this exists: `bun test` does NOT run `process.on('exit', …)` listeners.
- * Verified directly — an exit listener registered in the test preload never
+ * Verified directly, an exit listener registered in the test preload never
  * fires under `bun test`, while the same listener does fire under `bun run`,
  * both on normal termination and after an uncaught throw. Every temp-dir
  * cleanup in this suite that was registered that way was therefore dead code,
@@ -14,7 +14,7 @@
  * with the shared registry below; the preload sweeps it.
  *
  * Register at the point of creation. Do NOT register an `afterAll` from inside
- * a helper function — a hook attached lazily during a run does not reliably
+ * a helper function, a hook attached lazily during a run does not reliably
  * attach to the enclosing scope.
  */
 import { rmSync } from 'node:fs';

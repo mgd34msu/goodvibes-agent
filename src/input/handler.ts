@@ -99,7 +99,7 @@ export class InputHandler {
   public concealedInput: ConcealedInputRequest | null = null;
   /**
    * Active plain-line request, or null. Same chaining shape as concealedInput
-   * but echoed normally — see plain-line-input.ts for why the two are separate
+   * but echoed normally, see plain-line-input.ts for why the two are separate
    * slots rather than one type with a masking flag. At most one of the two is
    * ever set; the begin* methods below enforce that.
    */
@@ -118,9 +118,9 @@ export class InputHandler {
   public pasteRegistry = new Map<string, string>();
   public nextPasteId = 1;
   public lastCtrlCTime = 0;
-  /** Ported from goodvibes-tui — unbracketed-paste-flood guard state, mutated in place. */
+  /** Ported from goodvibes-tui, unbracketed-paste-flood guard state, mutated in place. */
   public burstGuard: PanelBurstGuardState = { timestamps: [], suspended: false, hintShown: false };
-  /** Long-lived feed context — reused across every feed() call to avoid per-keystroke allocation. */
+  /** Long-lived feed context, reused across every feed() call to avoid per-keystroke allocation. */
   public feedContext!: import('./handler-feed.ts').InputFeedContext;
   public commandRegistry: CommandRegistry | null = null;
   public commandContext: CommandContext | undefined = undefined;
@@ -215,7 +215,7 @@ export class InputHandler {
   }
 
   /**
-   * initFeedContext — Build the long-lived InputFeedContext once via factory.
+   * initFeedContext, Build the long-lived InputFeedContext once via factory.
    * See feed-context-factory.ts for full field documentation.
    */
   public initFeedContext(): void {
@@ -268,7 +268,7 @@ export class InputHandler {
       {
         modalOpened: (name: string) => this.modalOpened(name),
         // Escape cancels a pending concealed prompt FIRST. Falling through to
-        // the normal modal-stack escape would leave the request dangling — its
+        // the normal modal-stack escape would leave the request dangling, its
         // onCancel never fires, the caller's chained flow never resumes or
         // stops, and the composer silently stays in masked mode.
         handleEscape: () => { if (!this.cancelConcealedInput()) this.handleEscape(); this.syncFeedContextMutableFields(); },
@@ -608,7 +608,7 @@ export class InputHandler {
    */
   public clipboardSource: ClipboardPasteSource = { pasteImageFromClipboard, pasteFromClipboard };
 
-  /** Content width for wrapping — set by main.ts via setContentWidth(). */
+  /** Content width for wrapping, set by main.ts via setContentWidth(). */
   public contentWidth = 76;
 
   /** Set the content width used for wrapping calculations. Call from main.ts. */

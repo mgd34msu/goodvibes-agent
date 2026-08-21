@@ -1,7 +1,7 @@
 /**
  * The `owner-profile` CLI command. Same honesty rules as the tool: a write that
  * did not happen prints the daemon's reason and exits non-zero, and a `forget`
- * for a field that was not there is one of those cases — never a reported
+ * for a field that was not there is one of those cases, never a reported
  * deletion (docs/owner-profile.md §9.2).
  *
  * The gateway is injected, with the platform runtime's real payload shapes.
@@ -302,7 +302,7 @@ describe('owner-profile CLI command', () => {
   test('read counts the People section when the output reaches a model', async () => {
     // This output lands in the Agent transcript when the command runs as
     // `/owner-profile` and in the workspace card, both of which a later turn
-    // can compose from — so the rule the tool applies applies here too (§10).
+    // can compose from, so the rule the tool applies applies here too (§10).
     const result = await handleOwnerProfileCommand(
       runtime(['read']),
       { invoke: stubInvoke(() => ({
@@ -340,7 +340,7 @@ describe('owner-profile CLI command', () => {
 
   test('read lists the People section at a shell, where no model sees it', async () => {
     // His own file, printed to his own terminal. Withholding his list here
-    // would be friction with nothing gained — the containment exists to keep
+    // would be friction with nothing gained, the containment exists to keep
     // third-party details out of a transcript a later turn composes from, and
     // there is no transcript.
     const result = await handleOwnerProfileCommand(
@@ -381,7 +381,7 @@ describe('owner-profile CLI command', () => {
     expect(result.exitCode).toBe(0);
     expect(result.output).toContain('sarah@example.com');
     expect(result.output).toContain("Used Sarah's details from your profile.");
-    // The verb takes a name and nothing else — --named-by is a gate at this
+    // The verb takes a name and nothing else, --named-by is a gate at this
     // surface, not a parameter invented for the daemon.
     expect(calls[0]?.body).toEqual({ name: 'Sarah' });
   });
@@ -460,7 +460,7 @@ describe('owner-profile CLI command', () => {
 
   test('a prose line whose text no longer matches deletes nothing and exits non-zero', async () => {
     // He edited or removed that line since the read. Content re-resolves against
-    // the document as it is now, so nothing goes and the answer says so — where a
+    // the document as it is now, so nothing goes and the answer says so, where a
     // position would have deleted whatever had shifted into its place.
     const result = await handleOwnerProfileCommand(
       runtime(['forget', '--section', 'Notes', '--text', 'Allergic to shellfish', '--yes']),

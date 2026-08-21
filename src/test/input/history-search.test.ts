@@ -67,7 +67,7 @@ describe('HistorySearch — lifecycle', () => {
 });
 
 // ---------------------------------------------------------------------------
-// search() — matching behaviour
+// search(), matching behaviour
 // ---------------------------------------------------------------------------
 
 describe('HistorySearch — search()', () => {

@@ -1,9 +1,9 @@
 /**
- * unified-inbox-daemon-feed.test.ts — the inbound feed is fetched from the
+ * unified-inbox-daemon-feed.test.ts, the inbound feed is fetched from the
  * daemon, and what the inbox says when it is not there is what was observed.
  *
  * The defect this replaces was not a missing feature; it was a false sentence.
- * The inbox reported `contract_not_published` for `channels.inbox.list` — a
+ * The inbox reported `contract_not_published` for `channels.inbox.list`, a
  * machine-readable claim that the contract did not carry the method. The
  * contract carries it. Anyone acting on that reason would have gone to publish
  * something already published, while the real cause sat somewhere else.

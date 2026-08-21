@@ -8,7 +8,7 @@
  * callbacks. Extracting them leaves real headroom rather than trimming
  * comments until the file happens to fit.
  *
- * Behaviour is unchanged — including the rule that a deletion is only accepted
+ * Behaviour is unchanged, including the rule that a deletion is only accepted
  * when the typed id matches exactly, so a stray Enter cannot destroy a record.
  */
 import type { ShellPathService } from '@/runtime/index.ts';

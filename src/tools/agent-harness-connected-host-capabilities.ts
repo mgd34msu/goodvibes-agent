@@ -1,5 +1,5 @@
 /**
- * agent-harness-connected-host-capabilities.ts — the connected-host capability
+ * agent-harness-connected-host-capabilities.ts, the connected-host capability
  * map the harness serves, and the route families behind it.
  *
  * Split out of agent-harness-metadata.ts when that module passed the 800-line

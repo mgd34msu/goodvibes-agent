@@ -1,29 +1,29 @@
 /**
- * hosted-turn-bus-bridge.ts — putting a daemon-hosted turn's frames back onto
+ * hosted-turn-bus-bridge.ts, putting a daemon-hosted turn's frames back onto
  * this process's own runtime bus.
  *
  * hosted-frame-render.ts already establishes that a hosted session's loop is
  * the ordinary Orchestrator, so its frames ARE exactly the events a local turn
- * emits — TURN_SUBMITTED, STREAM_DELTA, TURN_COMPLETED, and so on — with the
+ * emits, TURN_SUBMITTED, STREAM_DELTA, TURN_COMPLETED, and so on, with the
  * hosted session's id stamped on each one. That file only reads them to update
  * the conversation transcript; nothing re-emits them onto THIS process's
  * runtimeBus. So a hosted turn is invisible to anything that only watches
- * `events.turns` — which is exactly how the spoken-turn wiring decides when to
+ * `events.turns`, which is exactly how the spoken-turn wiring decides when to
  * speak (see audio/spoken-turn-wiring.ts). Without this bridge, turning on
  * always-speak mode produces speech for a turn run locally and silence for a
  * turn the daemon ran instead, with nothing in either path to say why.
  *
  * This does not invent new information: it reads the same frame the renderer
  * already reads and republishes it through the SDK's typed turn emitters
- * (platform/runtime/emitters — the SDK's own doc comment on RuntimeEventBus.emit
+ * (platform/runtime/emitters, the SDK's own doc comment on RuntimeEventBus.emit
  * says these, not a raw emit, are how a caller is supposed to put a turn event
- * on the bus). So anything already listening to the local turn domain — spoken
- * output today, anything else tomorrow — sees a hosted turn exactly as it
+ * on the bus). So anything already listening to the local turn domain, spoken
+ * output today, anything else tomorrow, sees a hosted turn exactly as it
  * would see one this process ran itself.
  *
  * Scope is deliberately the exact event set the spoken-turn wiring subscribes
  * to (TURN_SUBMITTED, PREFLIGHT_FAIL, STREAM_DELTA, STREAM_END, TURN_COMPLETED,
- * TURN_ERROR, TURN_CANCEL) — the frame types this file has no mapping for are
+ * TURN_ERROR, TURN_CANCEL), the frame types this file has no mapping for are
  * ignored, the same "no guessing" stance hosted-frame-render.ts takes on its
  * own unmapped frames.
  */
@@ -57,7 +57,7 @@ function isTurnErrorStopReason(value: string | undefined): value is TurnErrorSto
 
 export interface HostedTurnBusBridgeOptions {
   readonly runtimeBus: RuntimeEventBus;
-  /** This surface's own session id — the envelope's context, not the hosted session's. */
+  /** This surface's own session id, the envelope's context, not the hosted session's. */
   readonly sessionId: string;
   /** Attribution stamped on every re-emitted event, e.g. 'goodvibes-agent'. */
   readonly source: string;
@@ -73,7 +73,7 @@ function readString(payload: Record<string, unknown> | undefined, key: string): 
  *
  * Safe to call with every frame the router applies: a frame with no turnId, or
  * a type this bridge has no mapping for, is ignored rather than guessed at.
- * `traceId` is derived from the turnId rather than generated fresh per call —
+ * `traceId` is derived from the turnId rather than generated fresh per call,
  * every frame belonging to one turn should read as one trace.
  */
 export function bridgeHostedFrameOntoRuntimeBus(frame: HostedSessionFrame, options: HostedTurnBusBridgeOptions): void {

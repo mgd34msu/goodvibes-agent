@@ -1,6 +1,7 @@
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { delimiter, dirname, join } from 'node:path';
+import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
+import { delimiter, join } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreFile } from '@/utils/store-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
 import { parseSkillStandardMarkdown, writeSkillStandardFile } from './skill-standard.ts';
@@ -631,10 +632,7 @@ export class AgentSkillRegistry {
   }
 
   private writeStore(store: SkillStoreFile): void {
-    mkdirSync(dirname(this.storePath), { recursive: true });
-    const tmpPath = `${this.storePath}.tmp`;
-    writeFileSync(tmpPath, formatStore(store), 'utf-8');
-    renameSync(tmpPath, this.storePath);
+    writeStoreFile(this.storePath, formatStore(store));
   }
 }
 

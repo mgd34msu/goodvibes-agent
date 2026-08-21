@@ -48,7 +48,7 @@ function deriveConfiguredVia(
 ): 'env' | 'secrets' | 'subscription' | 'anonymous' | undefined {
   if (!configuredIds.has(providerId)) return undefined;
 
-  // Tier 1: subscription check (most specific — subscription overrides env for this provider)
+  // Tier 1: subscription check (most specific, subscription overrides env for this provider)
   const subs = subscriptionManager.list();
   if (subs.some((s) => s.provider === providerId)) return 'subscription';
 
@@ -107,7 +107,6 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   async function resolveSecretProviderIds(): Promise<ReadonlySet<string>> {
     if (!secretsManager) return new Set<string>();
     const configuredIds = new Set(getConfiguredProviderIds());
-    // For each configured provider, check if secretsManager has a key for it by provider ID.
     // We use provider ID as the lookup key since we don't have BUILTIN_PROVIDER_ENV_KEYS here.
     const results = await Promise.all(
       [...configuredIds].map(async (providerId) => {
@@ -191,7 +190,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     // respecting) so a freshly-opened picker reflects models the provider
     // started or stopped serving. Fire-and-forget; a completed refresh re-renders
     // so the list updates in place without blocking the open. (Same wiring as
-    // the TUI's picker — the fix-everywhere convention for this defect class.)
+    // the TUI's picker, the fix-everywhere convention for this defect class.)
     void providerRegistry.refreshLiveModelDiscovery?.().then((reports) => {
       if (reports.some((report) => report.added.length > 0 || report.removed.length > 0)) render();
     }).catch(() => {});
@@ -252,7 +251,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   commandContext.openReasoningEffortPicker = () => {
     const currentModel = providerRegistry.getCurrentModel();
     const model = toEffortModel(currentModel);
-    // Only this model's real levels — a fallback-sourced guess does not get an
+    // Only this model's real levels, a fallback-sourced guess does not get an
     // automatic picker step, since the SDK's OpenAI/Gemini adapters drop the
     // level entirely for a model nothing recognises.
     publishActiveEffortOptions(model, runtime.sessionId);
@@ -265,7 +264,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     // re-chooses the preference, so it must preselect what was asked for even
     // while a model that caps lower is serving.
     const requested = requestedEffortLevel(configManager);
-    // Open on the level in EFFECT — the requested level snapped to this model.
+    // Open on the level in EFFECT, the requested level snapped to this model.
     // A requested level the model caps below is not in the list at all, and
     // preselecting a missing id lands on the lowest level rather than on what
     // is actually running.
@@ -284,7 +283,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
       (result) => {
         if (!result) return;
         const level = result.item.id;
-        // An explicit user choice — the one kind of write that is allowed to
+        // An explicit user choice, the one kind of write that is allowed to
         // change the stored preference.
         configManager.set('provider.reasoningEffort', level);
         const serving = servingEffortForLevel(level, model);
@@ -459,7 +458,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
         // persist above already flips the real local inhibitor, and a
         // separate configManager.subscribe('power.keepAwake', ...) in
         // services.ts forwards the toggle to an adopted daemon over the wire
-        // when one is reachable — both fire from the config change itself,
+        // when one is reachable, both fire from the config change itself,
         // not from this settings-modal callback.
         return syncServiceSettingToPlatform(
           { configManager, workingDirectory, homeDirectory },

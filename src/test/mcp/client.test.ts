@@ -22,7 +22,7 @@ function makeConfig(overrides?: Partial<McpServerConfig>): McpServerConfig {
 }
 
 // ---------------------------------------------------------------------------
-// McpClient — instance state tests (no process needed)
+// McpClient, instance state tests (no process needed)
 // ---------------------------------------------------------------------------
 describe('McpClient — instance behavior', () => {
   test('isConnected returns false before connect()', () => {
@@ -63,7 +63,7 @@ describe('McpClient — instance behavior', () => {
 });
 
 // ---------------------------------------------------------------------------
-// McpClient — process lifecycle with a stub MCP server
+// McpClient, process lifecycle with a stub MCP server
 // ---------------------------------------------------------------------------
 describe('McpClient — with stub MCP server', () => {
   // Minimal stub server: responds to initialize and tools/list JSON-RPC calls.
@@ -232,7 +232,7 @@ rl.on('line', (line) => {
 });
 
 // ---------------------------------------------------------------------------
-// McpClient — error responses
+// McpClient, error responses
 // ---------------------------------------------------------------------------
 describe('McpClient — error handling', () => {
   const errorScript = /* js */ `

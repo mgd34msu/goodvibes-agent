@@ -370,7 +370,7 @@ describe('extractSymbols (TypeScript grammar)', () => {
       const tree = await svc.parse('x.ts', TS_CODE, 'typescript');
       const parsedTree = expectPresent(tree, 'parsed TypeScript tree for scope lookup');
       const lang = svc['languages'].get('typescript')!;
-      // Line 2 is the class declaration line — inside the class, outside any method
+      // Line 2 is the class declaration line, inside the class, outside any method
       const scope = findEnclosingScope(parsedTree, lang, 'typescript', 2);
       expect(expectPresent(scope, 'Greeter enclosing scope').name).toBe('Greeter');
     },

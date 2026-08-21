@@ -1,5 +1,5 @@
 /**
- * daemon-config-routing.ts — the agent's single entry point to config
+ * daemon-config-routing.ts, the agent's single entry point to config
  * ownership routing.
  *
  * Every setting has an OWNER: the runtime that ACTS on it, not the client that
@@ -17,12 +17,12 @@
  * This exists because writing a setting to the wrong store silently costs real
  * behavior: a Telegram bot username written to the agent's own settings file
  * reports success, lands in `~/.goodvibes/agent/settings.json`, and configures
- * nothing — Telegram runs in the daemon, which reads a different file. The
+ * nothing, Telegram runs in the daemon, which reads a different file. The
  * same asymmetry runs backwards too: asked to confirm the value, the agent
  * reads its own store, finds it blank, and reports the setting as not set.
  *
  * Ownership itself is defined ONCE, in the SDK (`config-ownership.ts`). Nothing
- * in this repo re-derives it — `isDaemonOwnedConfigKey` / `configKeyScope` are
+ * in this repo re-derives it, `isDaemonOwnedConfigKey` / `configKeyScope` are
  * re-exported here so callers (including the settings policy guard) share one
  * table rather than maintaining a parallel one that will drift.
  */
@@ -65,7 +65,7 @@ export type { ConfigScope, ConfigWriteOutcome, EffectiveConfigView };
 // directly. That worked, and it is a second way to reach a host this process
 // already knows how to reach: the client seams all speak one verb route through
 // ONE resolved connection (runtime/client/daemon-verbs.ts), and a daemon-owned
-// setting is a verb — `config.set`. Installing the client here means the
+// setting is a verb, `config.set`. Installing the client here means the
 // settings modal, the settings tool and the harness all write through the same
 // connection, with the same refusal text, instead of three discovery paths that
 // can disagree about whether a daemon is reachable.
@@ -98,7 +98,7 @@ export function agentDaemonConfigClientInstalled(): boolean {
  * Write one daemon-owned setting over `config.set`.
  *
  * Returns `null` when this key is not the daemon's, or when no client is
- * installed — the caller then runs its own local path unchanged. Throws with
+ * installed, the caller then runs its own local path unchanged. Throws with
  * the refusal reason when the daemon owns the key and could not be reached: a
  * setting that configures nothing must not report success.
  */
@@ -136,7 +136,7 @@ export interface AgentConfigRoutingOptions {
    */
   readonly homeDir?: string | undefined;
   /**
-   * An explicitly configured daemon base URL — required when the daemon runs on
+   * An explicitly configured daemon base URL, required when the daemon runs on
    * another machine, where no local file or runtime record exists to discover.
    */
   readonly baseUrl?: string | undefined;
@@ -162,7 +162,7 @@ export function buildAgentConfigRouting(options: AgentConfigRoutingOptions = {})
     token,
     // Where the daemon listens is DERIVED from its own control-plane binding,
     // never from a stored base-URL string (which drifts on port, scheme and
-    // host — see the SDK's control-plane-base-url.ts). This is also what makes
+    // host, see the SDK's control-plane-base-url.ts). This is also what makes
     // a foreground daemon discoverable: it writes no detached-daemon record, so
     // without this a live daemon looked absent and daemon-owned writes went to
     // the local file while it was running.
@@ -172,18 +172,18 @@ export function buildAgentConfigRouting(options: AgentConfigRoutingOptions = {})
     // `routeConfigWrite` below prefers the installed connected-host client: one
     // already-resolved connection, reached through the runtime's verb route.
     // This leg was left on address discovery, so the two directions resolved the
-    // daemon INDEPENDENTLY — and independent resolution is free to disagree.
+    // daemon INDEPENDENTLY, and independent resolution is free to disagree.
     //
-    // It did. A settings read answered against `http://127.0.0.1:4444` — a port
+    // It did. A settings read answered against `http://127.0.0.1:4444`, a port
     // this machine's daemon genuinely used for weeks (installer-era daemon home,
-    // daemon versions 1.27.0 through 1.28.4) and had since left — while writes
+    // daemon versions 1.27.0 through 1.28.4) and had since left, while writes
     // in the SAME process, in the same minutes, reached the live daemon on 3421
     // through the connected client. Every daemon-owned key read back
     // `unavailable` against an address nothing had listened on for days.
     //
     // Discovery's own staleness recovery could not save it: a runtime record is
     // reaped when it does not answer, but the fallback is the control-plane
-    // binding in the daemon's config — and that named the same dead port. Both
+    // binding in the daemon's config, and that named the same dead port. Both
     // rungs of the ladder were stale together. The connection this process was
     // ALREADY holding knew the right answer the whole time; it was simply never
     // asked. So it is asked first now, and discovery becomes what it should have
@@ -241,7 +241,7 @@ function readDaemonBindingFromStore(daemonHomeDir: string) {
  * up front, so a settings listing stays a single call.
  *
  * `view.unavailable` names the keys whose live value could not be read. Callers
- * must report those as unknown rather than falling back to a default — a
+ * must report those as unknown rather than falling back to a default, a
  * default presented as the current setting is indistinguishable from a lie.
  */
 export async function openEffectiveConfigView(
@@ -273,7 +273,7 @@ export async function routeConfigWrite(
   //
   // Checked SYNCHRONOUSLY, and skipped entirely when nothing is installed. An
   // unconditional `await` here would add a microtask tick to every local write
-  // — including the ones a keystroke handler fires and reads back in the same
+  //, including the ones a keystroke handler fires and reads back in the same
   // turn, which then read the old value. That is a real ordering change for a
   // path that has no daemon in it at all.
   const routed = agentDaemonConfigClientInstalled() ? await routeDaemonOwnedConfigWrite(key, value) : null;

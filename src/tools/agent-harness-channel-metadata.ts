@@ -183,7 +183,7 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
   const ready = channels.filter((channel) => channel.ready).length;
 
   // A query that matches nothing used to return a bare `channels: []` next to
-  // `total: 14`, which reads as "this install has no channels" — and that is
+  // `total: 14`, which reads as "this install has no channels", and that is
   // exactly how it was read: a request to send an email searched the catalog,
   // matched nothing, and was reported to the user as "email is not
   // configured". An empty list must therefore explain itself and hand back a
@@ -206,7 +206,7 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
     ...(filteredOutByQuery
       ? {
         emptyReason: 'query-matched-nothing',
-        emptyExplanation: `No channel matched "${rawQuery}". This install has ${channels.length} channel(s); the search simply did not match any of them. It does NOT mean no channels are configured — re-run without a query to see them all.`,
+        emptyExplanation: `No channel matched "${rawQuery}". This install has ${channels.length} channel(s); the search simply did not match any of them. It does NOT mean no channels are configured, re-run without a query to see them all.`,
         availableChannelIds: channels.map((channel) => channel.id),
         retryModelRoute: 'channels action:"status"',
       }

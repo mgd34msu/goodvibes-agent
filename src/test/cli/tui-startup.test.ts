@@ -293,7 +293,7 @@ describe('resume-on-relaunch notice', () => {
       render: () => {},
     });
 
-    // The explicit path routes straight into the existing resume command —
+    // The explicit path routes straight into the existing resume command,
     // it does not also print the ambient relaunch notice.
     expect(printed).toEqual([]);
     expect(resumeCalls).toEqual([['resume', 'user-relaunch-1']]);

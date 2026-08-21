@@ -206,7 +206,7 @@ describe('local-registry submission: unsupported kind returns error', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Fix 3(c): Exhaustiveness — every editorKind for which
+// Fix 3(c): Exhaustiveness, every editorKind for which
 // createAgentWorkspaceEditor returns non-null must route to a handled path
 // (command-editor or local-registry). None must fall through to the routine
 // fallback unless kind === 'routine'.
@@ -240,14 +240,14 @@ describe('editor routing exhaustiveness: no kind reaches routine fallback unexpe
     'document-reviewer-readiness', 'document-review-packet-wizard',
     'document-review-packet-preset', 'document-review-packet-preset-refresh',
     'document-review-packet-share',
-    // Model compare (command-editor) — includes local-model-benchmark (the fixed kind)
+    // Model compare (command-editor), includes local-model-benchmark (the fixed kind)
     'model-compare', 'local-model-benchmark',
     'model-compare-review', 'model-compare-handoff-diff', 'model-compare-judge',
     'model-compare-apply', 'model-compare-route-decision', 'model-compare-export',
     'model-compare-analytics',
     // Scheduling (command-editor)
     'routine-schedule', 'reminder-schedule',
-    // Connect wizards (command-editor) — email-connect-wizard is NOT here:
+    // Connect wizards (command-editor), email-connect-wizard is NOT here:
     // it is a direct host-action kind (like subscription-login-*), handled by
     // trySubmitDirectHostActionEditor before this exhaustiveness path.
     'calendar-connect',
@@ -356,7 +356,7 @@ describe('editor routing exhaustiveness: no kind reaches routine fallback unexpe
     'submitAgentWorkspaceLocalRegistryEditor throws for command-editor kinds that reach it',
     () => {
       const shellPaths = makeTmpShellPaths();
-      // These are command-editor kinds — they must never reach the local-registry
+      // These are command-editor kinds, they must never reach the local-registry
       // path in normal operation (isAgentWorkspaceCommandEditorKind routes them
       // earlier). If they somehow reach it, the error must be clear, not silent.
       const commandKinds: AgentWorkspaceEditorKind[] = [
@@ -391,7 +391,7 @@ describe('editor routing exhaustiveness: no kind reaches routine fallback unexpe
 });
 
 // ---------------------------------------------------------------------------
-// Fix 5: settingKey exhaustiveness — every settingKey used in workspace
+// Fix 5: settingKey exhaustiveness, every settingKey used in workspace
 // categories must resolve against CONFIG_SCHEMA.
 // ---------------------------------------------------------------------------
 
@@ -406,7 +406,7 @@ describe('settingKey exhaustiveness against CONFIG_SCHEMA', () => {
    * document each key with its source module
    * (@pellux/goodvibes-sdk/platform/email).
    *
-   * display.themeMode is a real CONFIG_SCHEMA entry (SDK 2.0.0+) — it
+   * display.themeMode is a real CONFIG_SCHEMA entry (SDK 2.0.0+), it
    * resolves via the ordinary schema lookup now (agent-workspace-settings.ts's
    * agentWorkspaceSettingSchema), so it no longer needs an allowlist entry
    * here.

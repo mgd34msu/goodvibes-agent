@@ -1,5 +1,5 @@
 /**
- * occasions-boot.ts — both halves of the agent's occasion-nudge wiring, in one
+ * occasions-boot.ts, both halves of the agent's occasion-nudge wiring, in one
  * call.
  *
  * Split out of bootstrap.ts at this repo's 800-line file cap, and the cut is a
@@ -11,11 +11,11 @@
  *
  * ## The two halves, and why neither replaces the other
  *
- * **Push** — the daemon addresses a message to `agent` and the router calls this
+ * **Push**, the daemon addresses a message to `agent` and the router calls this
  * product's sender, which lands it in the conversation. This is what reaches him
  * during the hours he is not sitting at the terminal.
  *
- * **Pull** — at a turn boundary the surface asks `occasions.pending` what is
+ * **Pull**, at a turn boundary the surface asks `occasions.pending` what is
  * outstanding and raises it. This is what covers everything the push could not:
  * `agent` configured with no sender registered, a send that failed, a nudge
  * raised while the process was not running.
@@ -24,7 +24,7 @@
  * the daemon's, over the ONE open item both read. A push that LANDS on the agent
  * stamps the item, and while the agent is a configured push destination the pull
  * leaves stamped items out. The condition is the push that LANDED rather than the
- * one that was configured — which is exactly why the pull is not redundant, and
+ * one that was configured, which is exactly why the pull is not redundant, and
  * why nothing in this file coordinates the two or keeps a local record of what
  * was pushed. A second ledger here would be a second answer to "has he already
  * been told", and the two would disagree the first time one missed a write.
@@ -60,7 +60,7 @@ export interface OccasionsBootDeps {
 /**
  * Wire the push destination and build the pull surface.
  *
- * Returns the pull surface because its caller owns WHEN it runs — bootstrap fires
+ * Returns the pull surface because its caller owns WHEN it runs, bootstrap fires
  * it on the turn's completion, which is a decision about the transcript rather
  * than about occasions (see occasions-nudge-surface.ts on why the end of a turn
  * and not the start).

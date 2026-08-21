@@ -12,7 +12,7 @@ async function makeDB(): Promise<TelemetryDB> {
 }
 
 // ---------------------------------------------------------------------------
-// TelemetryDB — lifecycle
+// TelemetryDB, lifecycle
 // ---------------------------------------------------------------------------
 
 describe('TelemetryDB', () => {
@@ -174,7 +174,7 @@ describe('TelemetryDB', () => {
   });
 
   // -------------------------------------------------------------------------
-  // save (in-memory — no path)
+  // save (in-memory, no path)
   // -------------------------------------------------------------------------
 
   test('save — returns false for in-memory db (no path)', async () => {
@@ -184,7 +184,7 @@ describe('TelemetryDB', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TelemetryDB — error guard
+// TelemetryDB, error guard
 // ---------------------------------------------------------------------------
 
 describe('TelemetryDB — uninitialized guards', () => {

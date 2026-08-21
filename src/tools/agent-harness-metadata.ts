@@ -58,7 +58,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'connected-host-state',
       confirmation,
       preferredModelTool: settingsActions('list', 'get', 'set'),
-      boundary: 'Budgets, windows, CVV handling and the two addresses are ordinary daemon-owned settings and can be read or written through the settings adapter. The card itself cannot: number, expiry, verification code and cardholder name are typed only by the person at a local terminal, through a masked prompt that echoes nothing, and are stored write-only in the daemon secret store. Nothing here returns them and nothing here sets them, and no card prompt is ever offered over Telegram, ntfy, Discord, Slack, WhatsApp, Signal or a webhook — approving or cancelling a purchase over those channels still works.',
+      boundary: 'Budgets, windows, CVV handling and the two addresses are ordinary daemon-owned settings and can be read or written through the settings adapter. The card itself cannot: number, expiry, verification code and cardholder name are typed only by the person at a local terminal, through a masked prompt that echoes nothing, and are stored write-only in the daemon secret store. Nothing here returns them and nothing here sets them, and no card prompt is ever offered over Telegram, ntfy, Discord, Slack, WhatsApp, Signal or a webhook, approving or cancelling a purchase over those channels still works.',
     };
   }
   if (root === 'settings' || root === 'config') {
@@ -66,7 +66,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'mixed',
       confirmation,
       preferredModelTool: settingsActions('list', 'get', 'set', 'reset', 'import'),
-      boundary: 'Settings can be changed through the first-class settings adapter, including daemon-owned ones — a write routes to the runtime that owns the key and reports the store it landed in. A short list of keys that turn off approval gates, weaken the exec sandbox, or expose this host to the network needs the user to ask first; the refusal names the key and says why.',
+      boundary: 'Settings can be changed through the first-class settings adapter, including daemon-owned ones, a write routes to the runtime that owns the key and reports the store it landed in. A short list of keys that turn off approval gates, weaken the exec sandbox, or expose this host to the network needs the user to ask first; the refusal names the key and says why.',
     };
   }
   if (root === 'model' || root === 'effort') {
@@ -90,7 +90,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'local-state',
       confirmation,
       preferredModelTool: settingsActions('get', 'set'),
-      boundary: 'Turns the local-network model-server scan on or off and persists that decision to a local consent file; it never probes the network itself. Enabling it requires the user\'s explicit request — do not turn it on unprompted.',
+      boundary: 'Turns the local-network model-server scan on or off and persists that decision to a local consent file; it never probes the network itself. Enabling it requires the user\'s explicit request, do not turn it on unprompted.',
     };
   }
   if (root === 'refresh-models') {
@@ -230,7 +230,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       confirmation,
       // agent_operator_method, NOT agent_operator_action: the action tool's
       // allowlist covers only approvals.* and automation.* and cannot invoke
-      // ci.*/principals.*/channels.profiles.* — pointing the model there would
+      // ci.*/principals.*/channels.profiles.*, pointing the model there would
       // dead-end in "unknown action".
       preferredModelTool: 'agent_operator_method (methodId "ci.status", "ci.watches.*", "principals.*", "channels.profiles.*")',
       boundary: 'CI status/watches, principal identity mappings, and per-channel profile defaults live on the connected host. Reads run through agent_operator_method without confirmation; writes require confirm + explicitUserRequest there, and mutating slash/CLI subcommands require --yes.',
@@ -249,7 +249,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'external-network',
       confirmation,
       preferredModelTool: 'google',
-      boundary: 'Connects the Google account that backs mail and calendar. /google connect runs the connection flow; /google adopt takes up credentials from files you point it at. Once connected, the google tool is the model route — no MCP server is involved.',
+      boundary: 'Connects the Google account that backs mail and calendar. /google connect runs the connection flow; /google adopt takes up credentials from files you point it at. Once connected, the google tool is the model route, no MCP server is involved.',
     };
   }
   if (root === 'email') {
@@ -257,7 +257,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'external-network',
       confirmation,
       preferredModelTool: `${agentHarnessModes('run_command')} (use /email set to configure, /email config to view settings)`,
-      boundary: 'Email IMAP reads are read-only (EXAMINE); sends require explicit --yes confirmation and route only to the configured account. Use /email set email.<key> <value> to configure email settings; use /email config to view current settings. The generic settings action cannot set email.* keys — /email set is the only supported path.',
+      boundary: 'Email IMAP reads are read-only (EXAMINE); sends require explicit --yes confirmation and route only to the configured account. Use /email set email.<key> <value> to configure email settings; use /email config to view current settings. The generic settings action cannot set email.* keys, /email set is the only supported path.',
     };
   }
   if (root === 'calendar' || root === 'cal') {
@@ -393,7 +393,7 @@ export function settingsPolicySummary(): Record<string, unknown> {
     secretHandling: 'Raw secret values are persisted through the secret manager; config receives only a secret reference and tool output is redacted.',
     writablePolicy: 'Each setting descriptor includes writable and visibleInWorkspace. No setting is read-only to the model any more; danger.httpListener is visible and settable, and is one of the keys that needs the user to ask for it first.',
     // Still declared, and still true: this key needs the user to ask for it
-    // first. What changed is the mechanism — it is protected by the narrow
+    // first. What changed is the mechanism, it is protected by the narrow
     // confirmation gate in agent-settings-write-policy.ts, which names the key
     // and states the hazard, rather than by the deleted blanket read-only lock.
     protectedRawDangerKeys: ['danger.httpListener'],

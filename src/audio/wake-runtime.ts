@@ -1,11 +1,11 @@
 /**
- * wake-runtime.ts — wake-word detection on the Agent surface.
+ * wake-runtime.ts, wake-word detection on the Agent surface.
  *
  * The SDK owns the policy that would otherwise be rewritten per surface: the
  * front end, the patience/cooldown rules, keeping ONE stream open across a wake
  * so the utterance that follows is not clipped, resetting the engine afterwards
  * so the command just spoken is not scored again, and the supervisor's restart
- * and latch decisions. What is local is everything that touches this machine —
+ * and latch decisions. What is local is everything that touches this machine,
  * the recorder subprocess (capture.ts), the inference runtime (wake-inference.ts),
  * transcription through this process's own voice service
  * (core/voice-stt-gateway.ts), the activation sound, and the footer's listening
@@ -13,7 +13,7 @@
  *
  * TWO THINGS ARE DELIBERATELY NOT AUTOMATIC
  *
- *  - **Turning it on is not a download trigger — but a missing model is not the
+ *  - **Turning it on is not a download trigger, but a missing model is not the
  *    user's errand either.** Enabling wake detection on a host whose artifacts
  *    are absent FETCHES them here, once, and says what it fetched. What it never
  *    does is start a detector that could not score anything, and what it must
@@ -22,7 +22,7 @@
  *  - **Disabled means no device is opened at all.** `settings.active` is the only
  *    thing consulted before opening a microphone, and the SDK listener re-checks
  *    it and refuses without touching the capture opener. A configuration that is
- *    off must never produce a microphone permission prompt — and on this surface
+ *    off must never produce a microphone permission prompt, and on this surface
  *    that gate is a DOUBLE one: `voice.wake.enabled` and
  *    `voice.wake.surfaces.agent` both have to be on, because the Agent shares a
  *    terminal with the coding shell and two surfaces acting on one spoken
@@ -67,8 +67,8 @@ export { AGENT_WAKE_SURFACE } from './wake-surface.ts';
  * the listening row. A start that never finished therefore rendered "listening
  * for the wake phrase" for an entire boot on a machine with no capture stream,
  * no recorder process and nothing in the log. The SDK now answers what may be
- * claimed — `describeWakeListening`, which requires a stream open AND frames
- * arriving — and this only chooses which row shows it.
+ * claimed, `describeWakeListening`, which requires a stream open AND frames
+ * arriving, and this only chooses which row shows it.
  */
 function indicatorFor(state: WakeListenerState): VoiceCaptureIndicatorState['kind'] | null {
   const claim = describeWakeListening(state);
@@ -89,7 +89,7 @@ export interface WakeRuntimeDeps {
   /** Runtime toggling: `voice.wake.enabled` and `voice.wake.surfaces.agent`. */
   readonly subscribeConfig: (key: string, listener: () => void) => () => void;
   readonly openCapture: AudioCaptureOpener;
-  /** Managed root the wake tree hangs off — `<managed>/wake` (SDK resolveManagedWakePaths). */
+  /** Managed root the wake tree hangs off, `<managed>/wake` (SDK resolveManagedWakePaths). */
   readonly managedRoot: string;
   /** Directory this surface owns for the extracted onnxruntime assets. */
   readonly assetDirectory: string;
@@ -102,7 +102,7 @@ export interface WakeRuntimeDeps {
   readonly resolveTranscriber: () => { readonly available: true; readonly gateway: VoiceSttGateway } | { readonly available: false; readonly reason: string };
   /**
    * Fetch the wake artifacts this host is missing. Called when the feature is
-   * on and the models are not on disk — the platform completes the request
+   * on and the models are not on disk, the platform completes the request
    * rather than handing back a command to type. Absent in a composition with no
    * provisioner, where the honest report is that they are missing.
    */
@@ -110,7 +110,7 @@ export interface WakeRuntimeDeps {
   /**
    * Lists this host's input devices so the SDK can validate
    * `voice.wake.inputDevice` rather than believe it. Omitted, the pin is used
-   * as written — the behaviour before any of this existed.
+   * as written, the behaviour before any of this existed.
    */
   readonly enumerateInputDevices?: AudioInputDeviceEnumerator | undefined;
   /** Plays the resolved activation sound at the moment of a wake. */
@@ -175,7 +175,7 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
    * Cached rather than read inside `resolve()` on purpose: `status()` resolves
    * settings and is called from the render path, so a disk read there would put
    * five `stat`s behind every frame. False until the first refresh, which is the
-   * safe direction — it means `voice.wake.vadThreshold` above 0 is refused until
+   * safe direction, it means `voice.wake.vadThreshold` above 0 is refused until
    * this surface has actually confirmed it has the gate.
    */
   let vadReady = false;
@@ -285,7 +285,7 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
       if (settings.autoSubmit) deps.submitTurn(text);
       else {
         deps.writeDraft(text);
-        deps.notify('[Wake] Transcript placed in the composer (voice.wake.autoSubmit is off — press Enter to send it).');
+        deps.notify('[Wake] Transcript placed in the composer (voice.wake.autoSubmit is off, press Enter to send it).');
         deps.render();
       }
     } catch (error) {
@@ -319,7 +319,7 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
         return;
       }
       // The models are the platform's job, not an errand for the user.
-      deps.notify('[Wake] The wake models are not on this host yet — fetching and verifying them now.');
+      deps.notify('[Wake] The wake models are not on this host yet, fetching and verifying them now.');
       deps.render();
       const outcome = await deps.ensureProvisioned();
       ready = outcome.ready;
@@ -339,7 +339,7 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
     }
     const paths = resolveManagedWakePaths(deps.managedRoot);
     // The SDK resolves `voice.wake.models` to files: the pinned id inside the
-    // managed tree, any other id against voice.wake.customModelDir — and when that
+    // managed tree, any other id against voice.wake.customModelDir, and when that
     // row is empty, against the managed `custom` directory, which is the fallback
     // the row's description promises and the one a host would otherwise get wrong
     // by looking in the process's working directory.
@@ -400,7 +400,7 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
           // Reported to the user, not only logged: a detector that stopped
           // listening is exactly the thing a silent log entry hides.
           deps.notify(restarting
-            ? `[Wake] The capture stream ended (${error.message}) — ${failureDetail}.`
+            ? `[Wake] The capture stream ended (${error.message}), ${failureDetail}.`
             : `[Wake] The wake-word detector stopped: ${failureDetail}. It stays off until voice.wake.enabled is turned off and on again.`);
           deps.render();
         },

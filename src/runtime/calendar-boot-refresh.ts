@@ -3,23 +3,23 @@
  *
  * Fires once from bootstrap's Phase-8 area (after first render, like the gated
  * LAN scan and MCP discovery), fully async and non-blocking: boot never waits on
- * the network. Consent was given at subscribe time — the subscribe flow states
+ * the network. Consent was given at subscribe time, the subscribe flow states
  * "this will fetch the calendar from the URL you provided, now and on each
- * refresh" — so refreshing already-subscribed feeds at boot is the promised
+ * refresh", so refreshing already-subscribed feeds at boot is the promised
  * behavior, not a silent new fetch. Feeds that were never subscribed are never
  * touched; when there are no subscriptions this function does nothing at all
  * (no network, no store write, no activity line).
  *
  * Bounded: only feeds actually DUE per their per-subscription refresh interval
- * are fetched (`force: false` — the SDK store skips the rest without network),
+ * are fetched (`force: false`, the SDK store skips the rest without network),
  * and due fetches send stored etag/last-modified validators so an unchanged
  * feed costs one conditional 304 round trip.
  *
  * Honest reporting: ONE aggregate activity line, emitted only when something
- * was actually checked or failed — e.g.
- *   [Calendar] checked 2 subscriptions (1 updated); 'work' unreachable — will retry next refresh
+ * was actually checked or failed, e.g.
+ *   [Calendar] checked 2 subscriptions (1 updated); 'work' unreachable, will retry next refresh
  * A conditional-GET 304 ("not-modified") means the feed WAS checked but had
- * nothing new — F6 fix: that no longer counts toward "updated", so the line
+ * nothing new, F6 fix: that no longer counts toward "updated", so the line
  * never claims something changed when the round trip only confirmed nothing
  * did. An all-skipped (nothing due) boot stays silent. Failures keep the
  * last-good cached events, and /calendar subscriptions still shows the honest
@@ -43,7 +43,7 @@ export interface CalendarBootRefreshOptions {
   readonly secretsManager: SubscriptionSecretStore;
   readonly systemMessageRouter: SystemMessageSinkLike;
   readonly requestRender: () => void;
-  /** Injectable for tests — production callers omit it and get the real registry (real HTTP fetch). */
+  /** Injectable for tests, production callers omit it and get the real registry (real HTTP fetch). */
   readonly buildRegistry?: () => CalendarSubscriptionRegistry;
 }
 
@@ -52,7 +52,7 @@ export interface CalendarBootRefreshOptions {
  * user-visible happened (everything skipped as not-due).
  *
  * F6 fix: a 304-not-modified round trip is a genuine check (it counts toward
- * "checked N subscriptions"), but it is NOT a change — only outcome ===
+ * "checked N subscriptions"), but it is NOT a change, only outcome ===
  * 'updated' counts toward "(M updated)". The old wording ("refreshed N")
  * counted both the same, so an all-304 boot ("nothing changed anywhere")
  * still read as "refreshed 2 subscriptions", which claims an update that
@@ -70,7 +70,7 @@ export function formatCalendarBootRefreshLine(outcomes: readonly RefreshOutcome[
   }
   for (const f of failed) {
     const label = f.outcome === 'unreachable' ? 'unreachable' : 'parse error';
-    parts.push(`'${f.name}' ${label} — will retry next refresh`);
+    parts.push(`'${f.name}' ${label}, will retry next refresh`);
   }
   return `[Calendar] ${parts.join('; ')}`;
 }
@@ -89,7 +89,7 @@ export function scheduleCalendarSubscriptionBootRefresh(options: CalendarBootRef
         : CalendarSubscriptionRegistry.create(options.shellPaths, options.secretsManager, createHttpFeedFetcher());
       if (!registry.hasAny()) return; // nothing subscribed -> no network, no line
 
-      // force:false — only feeds due per their own bounded interval are fetched;
+      // force:false, only feeds due per their own bounded interval are fetched;
       // the rest are skipped without touching the network.
       const outcomes = await registry.refresh(undefined, { force: false });
       const line = formatCalendarBootRefreshLine(outcomes);

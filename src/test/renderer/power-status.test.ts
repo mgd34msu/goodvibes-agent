@@ -40,7 +40,7 @@ describe('describePowerStatus', () => {
   it('appends the honest lid-switch split note when the OS denied that class', () => {
     const note = 'idle sleep blocked; lid-close suspend is controlled by your OS here';
     expect(describePowerStatus(state({ keepAwakeEnabled: true, keepAwakeNote: note })))
-      .toBe(`sleep disabled — ${note}`);
+      .toBe(`sleep disabled, ${note}`);
   });
 
   it('shows the real work-hold reasons while automatic inhibition holds', () => {

@@ -1,11 +1,11 @@
 /**
- * voice-capture-shell.ts — the shell's side of microphone capture.
+ * voice-capture-shell.ts, the shell's side of microphone capture.
  *
  * Its own module with a single call from main.ts, for the same reason the other
  * shell wiring modules here are: the entrypoint is held under a source-line gate,
  * and new shell composition gets a file rather than another inline block.
  *
- * What this owns is only the shell-facing half — where a transcript lands (the
+ * What this owns is only the shell-facing half, where a transcript lands (the
  * composer, through the same public `prompt`/`cursorPos` fields the external
  * editor path writes), how a turn is submitted, and the teardown registration that
  * guarantees a live recorder subprocess dies with the process. Everything about
@@ -23,12 +23,12 @@ import type { DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/cl
 
 export interface VoiceCaptureShellDeps {
   readonly configManager: ConfigManager;
-  /** This process's own voice service — what the `voice.stt` verb is served from here. */
+  /** This process's own voice service, what the `voice.stt` verb is served from here. */
   readonly voiceService: VoiceService;
   readonly voiceProviders: Pick<VoiceProviderRegistry, 'findProvider'>;
   /**
    * This surface's plug into the connected host, so a captured utterance can be
-   * transcribed by the daemon — which owns the managed whisper install and
+   * transcribed by the daemon, which owns the managed whisper install and
    * answers even when this process's own provider cannot.
    */
   readonly daemonVerbs?: Pick<DaemonVerbCaller, 'probe' | 'invoke'> | null | undefined;
@@ -42,7 +42,7 @@ export interface VoiceCaptureShellDeps {
   readonly sessionId: string;
   /** The shell's teardown registry; the device release is appended to it. */
   readonly unsubs: Array<() => void>;
-  /** The live composer buffer — InputHandler exposes public `prompt`/`cursorPos`. */
+  /** The live composer buffer, InputHandler exposes public `prompt`/`cursorPos`. */
   readonly buffer: { prompt: string; cursorPos: number };
   readonly submitInput: (text: string) => void;
   readonly notify: (message: string) => void;

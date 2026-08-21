@@ -1,6 +1,6 @@
 /**
  * Fleet honesty on the activity sidebar: agent rows render the fleet
- * read-model's per-node headline (replaced in place — never a feed) and the
+ * read-model's per-node headline (replaced in place, never a feed) and the
  * stall tell as a quiet-duration marker.
  */
 import { describe, expect, test } from 'bun:test';

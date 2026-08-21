@@ -3,7 +3,7 @@
  *
  * Exercises the agent-side registry that wraps the SDK's platform/calendar
  * SubscriptionStore: real JSON persistence to a tmp store, an in-memory secret
- * store for the feed URL, and a FAKE fetcher — no real network is ever touched.
+ * store for the feed URL, and a FAKE fetcher, no real network is ever touched.
  * Asserts the honest surface: subscribe caches events + stores the URL as a
  * secret (never in the JSON), refresh updates status, stale carries its age,
  * merged views are read-only + source-labeled, and unsubscribe clears the secret.
@@ -188,7 +188,7 @@ describe('CalendarSubscriptionRegistry', () => {
 
 /**
  * F2: refresh() snapshots the store, awaits network for as long as the fetch
- * takes, then used to blind-write the whole file from that stale snapshot —
+ * takes, then used to blind-write the whole file from that stale snapshot,
  * so a concurrent subscribe/unsubscribe landing during that window was
  * silently reverted. Fixed by serializing every mutation's WRITE through one
  * in-process queue and having refresh() re-read the store fresh and merge
@@ -204,7 +204,7 @@ describe('CalendarSubscriptionRegistry: concurrent-mutation safety (F2)', () => 
     // written first: refresh() awaits secrets.get() before it ever reaches
     // the fetcher, while subscribe()'s store.add() reaches the fetcher with
     // no intervening await. So the concurrent second subscribe's fetch
-    // (call 1) actually lands before refresh's own fetch (call 2) — call 0
+    // (call 1) actually lands before refresh's own fetch (call 2), call 0
     // is the initial (fully-awaited) subscribe that seeds the registry.
     const { fetcher, release } = gatedFetcher([{ kind: 'ok', body: ICS }, { kind: 'ok', body: ICS }, { kind: 'ok', body: ICS }], 2);
     const reg = new CalendarSubscriptionRegistry({ storePath, secrets, fetcher, clock: () => 1000, defaultRefreshIntervalMs: 60_000 });
@@ -222,7 +222,7 @@ describe('CalendarSubscriptionRegistry: concurrent-mutation safety (F2)', () => 
     const [outcome] = await refreshPromise;
     expect(outcome?.outcome).toBe('updated');
 
-    // The subscribe that landed mid-refresh must still be there afterward —
+    // The subscribe that landed mid-refresh must still be there afterward,
     // the old bug reverted it via a blind full-file overwrite.
     expect([...reg.names()].sort()).toEqual(['Second Feed', 'Work Calendar']);
     const onDisk = JSON.parse(readFileSync(storePath, 'utf-8')) as { subscriptions: readonly { name: string }[] };

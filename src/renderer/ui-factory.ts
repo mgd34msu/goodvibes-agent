@@ -22,10 +22,10 @@ const PHRASE_ROTATION_FRAMES = 375;
 const THINKING_STALL_FREEZE_MS = 2_500;
 
 /**
- * Per-turn stall signal derived from stream metrics — computed from the last
+ * Per-turn stall signal derived from stream metrics, computed from the last
  * delta clock every render (not from any event), so it degrades gracefully with
  * zero new SDK events. `reconnect` is set only when the transport surfaces retry
- * counters (the agent's SDK orchestrator does not today — see computeStallInfo).
+ * counters (the agent's SDK orchestrator does not today, see computeStallInfo).
  */
 export interface ThinkingStallInfo {
   /** Ms since the last output-token advance (or the turn start if none yet). */
@@ -51,7 +51,7 @@ const POWER_NOTE_FG = '#f59e0b';
 /**
  * Compose the danger-mode (auto-approve) and power (sleep/keep-awake) safety
  * notices for the footer status line's right-side slot. Both are
- * safety-relevant and must render SIMULTANEOUSLY — neither ever silently
+ * safety-relevant and must render SIMULTANEOUSLY, neither ever silently
  * suppresses the other (the defect this replaces: the two notices shared one
  * slot with dangerMode always winning, so the sleep-disabled note vanished
  * exactly when danger mode made it matter most).
@@ -62,7 +62,7 @@ const POWER_NOTE_FG = '#f59e0b';
  * text at any reasonable width, rather than one disappearing outright. Only
  * at pathologically narrow widths does it fall through to a single
  * ellipsis-truncated combined string (truncateDisplay never overlaps or
- * cuts a glyph in half — it always ends the string cleanly).
+ * cuts a glyph in half, it always ends the string cleanly).
  */
 export function composeSafetyNoticeSegments(
   dangerMode: boolean | undefined,
@@ -127,7 +127,7 @@ export class UIFactory {
     let curX = 0;
     for (const char of brand) { line[curX++] = { char, fg: CYAN, bg: '', bold: true, dim: false, underline: false, italic: false, strikethrough: false }; }
     for (const char of ver) { line[curX++] = { char, fg: GREY, bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false }; }
-    // Optional conversation title — shown after brand/ver, truncated to fit
+    // Optional conversation title, shown after brand/ver, truncated to fit
     if (title) {
       const titleStr = `│ ${title} `;
       // Reserve space for model/provider on the right.
@@ -231,7 +231,7 @@ export class UIFactory {
     promptLines.forEach((text, i) => {
       const contentW = boxWidth - 4;
       const prefix = i === 0 ? ' › ' : '   ';
-      // Render text without cursor insertion — cursor is overlaid after
+      // Render text without cursor insertion, cursor is overlaid after
       const rawText = `${prefix}${text}`;
       const paddedText = fitDisplay(rawText, contentW);
       const contentLine = createBaseLine();
@@ -269,7 +269,7 @@ export class UIFactory {
           }
         }
       } else if (promptFocused && i === promptLines.length - 1) {
-        // No cursorPos provided — show block at end (fallback)
+        // No cursorPos provided, show block at end (fallback)
         const endX = boxStartX + 2 + prefix.length + text.length;
         if (endX < boxStartX + boxWidth - 2) {
           contentLine[endX] = { char: GLYPHS.surface.cursor, fg: '252', bg: promptFocused ? BG_COLOR : '#334155', bold: false, dim: false, underline: false, italic: false, strikethrough: false };
@@ -328,27 +328,27 @@ export class UIFactory {
     if (inp > 0 || out > 0) {
       statusTokens.push({ text: `↑${fmtNum(inp)} ↓${fmtNum(out)}`, fg: '240' });
     }
-    // The attachment chip — the ONE composer flag this row renders.
+    // The attachment chip, the ONE composer flag this row renders.
     //
     // The status line is deliberately compact here: mode, state and the flag
     // list are all withheld on purpose (see the test that pins it, and the note
     // below about the retired approval-wait token). An attachment is the
     // exception that earns its place, because it changes what the next message
     // actually carries, and because the only other evidence of it is the
-    // [IMAGE: ...] marker sitting in the prompt — which reads as text you typed,
+    // [IMAGE: ...] marker sitting in the prompt, which reads as text you typed,
     // not as a picture that is going to be sent. Every other flag stays silent.
     if (composerFlags?.includes('attachments')) {
       statusTokens.push({ text: `${GLYPHS.status.active} image attached`, fg: '81', bold: true });
     }
     // The disconnected footer 'waiting for your approval' token is retired
-    // here — the approval-wait truth now lives in the unified waiting state of the
+    // here, the approval-wait truth now lives in the unified waiting state of the
     // thinking indicator (createThinkingFragment's approvalPending path) and in the
     // permission prompt itself, so the footer no longer carries a separate,
     // easily-desynced copy. composerPendingRisk stays in the signature for the
     // composer flags row; it just no longer mints its own status token.
     //
     // The transient "copied" flash stays exclusive (it is a 2-second
-    // confirmation, not a persistent safety state) — but dangerMode and
+    // confirmation, not a persistent safety state), but dangerMode and
     // powerNote are BOTH safety-relevant and must never suppress each other;
     // see composeSafetyNoticeSegments.
     const statusLine = createBaseLine();
@@ -372,7 +372,7 @@ export class UIFactory {
     if (rightNoticeSegments.length > 0) {
       const totalWidth = rightNoticeSegments.reduce((sum, seg) => sum + getDisplayWidth(seg.text), 0);
       // A single trailing space of breathing room against the right border,
-      // when there's spare width for it — purely cosmetic.
+      // when there's spare width for it, purely cosmetic.
       if (totalWidth < availableNoticeWidth) {
         const last = rightNoticeSegments[rightNoticeSegments.length - 1]!;
         rightNoticeSegments[rightNoticeSegments.length - 1] = { ...last, text: `${last.text} ` };
@@ -399,7 +399,7 @@ export class UIFactory {
   }
 
   /**
-   * Per-frame stall info from stream metrics — computed from a last-delta clock
+   * Per-frame stall info from stream metrics, computed from a last-delta clock
    * every render (not from any event) so it degrades gracefully with zero new
    * SDK events. Undefined until a delta clock exists this turn. Renderer-local
    * by design (per the S1 decision record: the SDK owns state->wording; deriving
@@ -424,9 +424,9 @@ export class UIFactory {
    * deltas and is never advanced during tool execution (the model isn't
    * producing tokens then), so without this gate any tool call longer than
    * THINKING_STALL_FREEZE_MS would print "Stalled Ns..." above a ticking tool
-   * row — a false positive. Genuine no-delta silence while waiting on the
+   * row, a false positive. Genuine no-delta silence while waiting on the
    * provider (including pre-first-token) still stall-detects here, since no tool
-   * is active then — the honest stall case this indicator exists for.
+   * is active then, the honest stall case this indicator exists for.
    */
   public static computeRenderStallInfo(
     metrics: { toolActive: boolean; lastDeltaAtMs: number | undefined; nowMs: number },
@@ -459,7 +459,7 @@ export class UIFactory {
       frame,
     });
     // A tok/s figure next to an approval prompt reads as if the model were still
-    // working — suppress it while waiting on the user.
+    // working, suppress it while waiting on the user.
     const speedSuffix = (!approvalPending && tokenSpeed !== undefined && tokenSpeed > 0) ? ` (${Math.round(tokenSpeed)} tok/s)` : '';
     const text = `  ${spinner} ${phrase}${speedSuffix} `;
 

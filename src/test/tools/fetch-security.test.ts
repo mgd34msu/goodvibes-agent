@@ -185,7 +185,7 @@ describe('classifyHostTrustTier — blocked: SSRF vectors', () => {
   const noConfig: TrustTierConfig = {};
 
   // Localhost variants: plainly-written loopback targets are their own
-  // approvable tier ('localhost', per-project fetch.allowLocalhost ask) —
+  // approvable tier ('localhost', per-project fetch.allowLocalhost ask),
   // NOT hard-blocked. Encoded/obfuscated loopback stays blocked below.
   it('classifies localhost as the approvable localhost tier', () => {
     const result = classifyHostTrustTier('localhost', noConfig);
@@ -364,7 +364,7 @@ describe('classifyHostTrustTier — trusted tier', () => {
   it('does not trust a host that only partially matches a glob', () => {
     const config: TrustTierConfig = { trustedHosts: ['*.anthropic.com'] };
     const result = classifyHostTrustTier('evil.anthropic.com.attacker.com', config);
-    // Should be unknown — glob `*.anthropic.com` does not cross dots in that way
+    // Should be unknown, glob `*.anthropic.com` does not cross dots in that way
     expect(result.tier).not.toBe('trusted');
   });
 
@@ -472,7 +472,7 @@ describe('extractHostname', () => {
 });
 
 // ---------------------------------------------------------------------------
-// fetchOne integration tests — end-to-end pipeline via fetchTool.execute()
+// fetchOne integration tests, end-to-end pipeline via fetchTool.execute()
 // ---------------------------------------------------------------------------
 
 describe('fetchOne pipeline — SSRF blocked pre-request (integration)', () => {
@@ -493,7 +493,7 @@ describe('fetchOne pipeline — SSRF blocked pre-request (integration)', () => {
         urls: [{ url: 'http://10.0.0.1/secret' }],
         verbosity: 'standard',
       });
-      // Sanitization is enabled — SSRF must always be blocked
+      // Sanitization is enabled, SSRF must always be blocked
       expect(fetchCalled).toBe(false);
       expect(result.success).toBe(true);
       const output = JSON.parse(result.output ?? '{}');
@@ -527,7 +527,7 @@ describe('fetchOne pipeline — unknown host upgraded from none to safe-text (in
       const output = JSON.parse(result.output ?? '{}');
       const urlResult = output.results?.[0];
       // When sanitization feature flag is enabled: unknown host forces upgrade from none to safe-text.
-      // When the flag is disabled, the upgrade does not occur (none is preserved) — both are valid.
+      // When the flag is disabled, the upgrade does not occur (none is preserved), both are valid.
       // The test asserts the structural pipeline contract:
       //   - the result has a sanitization_tier field
       //   - the content field is present

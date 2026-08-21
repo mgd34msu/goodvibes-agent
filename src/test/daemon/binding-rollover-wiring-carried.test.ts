@@ -12,8 +12,8 @@
  *
  * This fork composes NO daemon facade of its own, and composes no server at
  * all. What it hands the SDK's discovery path is
- * `asDaemonGradeView()` — the graph with its two client narrowings substituted
- * back — so THAT is the object these seams have to be reachable on. Re-doing
+ * `asDaemonGradeView()`, the graph with its two client narrowings substituted
+ * back, so THAT is the object these seams have to be reachable on. Re-doing
  * either here would be a second sender competing with the first for the same
  * channel.
  *
@@ -22,7 +22,7 @@
  * `routeBindings` and `channelPlugins`, and calls a specific method on each. A
  * composition root that stopped returning one of those members, or returned
  * something that no longer carried the method, would leave a daemon whose
- * rollovers announce nothing — and it would still compile, because the call
+ * rollovers announce nothing, and it would still compile, because the call
  * sites are inside the SDK.
  *
  * The type pin in services.ts (`_ClientRuntimeServicesPin`) proves the graph is

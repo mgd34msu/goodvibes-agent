@@ -1,13 +1,13 @@
 /**
- * broker-approval — render a broker-originated approval ask as a real
+ * broker-approval, render a broker-originated approval ask as a real
  * agent-terminal permission card.
  *
  * The shared ApprovalBroker (constructed once in runtime/services.ts,
  * @pellux/goodvibes-sdk/platform/control-plane) publishes every ask this
- * agent process raises: local tool-call asks (which carry a `localPrompt` —
+ * agent process raises: local tool-call asks (which carry a `localPrompt`,
  * see bootstrap-core.ts's PermissionManager construction, which opens its
  * own card through permissionPromptRef.requestPermission), plus asks with no
- * local prompt attached at all — e.g. one raised by another attached command-
+ * local prompt attached at all, e.g. one raised by another attached command-
  * authority surface (webui, a channel like Telegram via approval-reply.ts)
  * against this same broker instance. Before this module existed, the second
  * kind was invisible in the agent terminal: the ask sat pending with no
@@ -16,23 +16,23 @@
  * A local ask's own prompt is opened by the broker immediately AFTER it
  * publishes (see ApprovalBroker.requestApproval), so the open here is
  * deferred one microtask and re-checks: if a card (the local one, or another
- * broker card) is already up, it does nothing — only a genuinely unhandled
+ * broker card) is already up, it does nothing, only a genuinely unhandled
  * ask surfaces. The card's resolve answers the broker directly via
  * resolveApproval, so an agent-terminal decision on a broker-originated ask
- * reaches every waiter on that record — including a tool call blocked on it
+ * reaches every waiter on that record, including a tool call blocked on it
  * in this same process, and any other surface polling/watching the record.
  *
  * Deliberately narrower than the TUI's broker-approval-card.ts: this product's
  * PendingPermissionState (shell/blocking-input.ts) has no hunk-selection, no
  * typed-reply modes, and no CI fix-session concept (the agent does not own
- * build/fix/review worktrees — see DisabledAgentWorktreeRegistry in
+ * build/fix/review worktrees, see DisabledAgentWorktreeRegistry in
  * runtime/services.ts), so none of that TUI-only machinery is ported here.
  */
 
 import type { PendingPermissionState } from '../shell/blocking-input.ts';
 import type { PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 
-/** The broker seam this module answers through — a subset of ApprovalBroker. */
+/** The broker seam this module answers through, a subset of ApprovalBroker. */
 export interface BrokerApprovalBroker {
   getApproval(approvalId: string): { readonly status: string; readonly request: PermissionPromptRequest } | null;
   resolveApproval(
@@ -75,7 +75,7 @@ export function handleBrokerApprovalChange(params: BrokerApprovalChangeParams): 
 
   const pending = getPending();
   if (pending && pending.callId === approval.callId) {
-    // This is the card already on screen — clear it once its approval
+    // This is the card already on screen, clear it once its approval
     // resolves, whichever surface (or expiry) resolved it.
     if (!active) { setPending(null); render(); }
     return;

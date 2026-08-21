@@ -1,5 +1,5 @@
 /**
- * LastSeenStore — persists the timestamp of the user's last TUI session.
+ * LastSeenStore, persists the timestamp of the user's last TUI session.
  *
  * Used by the away-digest feature to know what happened since the user was
  * last present. Follows the same file-backed JSON pattern as the agent
@@ -72,7 +72,7 @@ export class LastSeenStore {
       const data: LastSeenFile = { version: 1, lastSeenAt: at };
       writeFileSync(this.storePath, JSON.stringify(data, null, 2), 'utf-8');
     } catch {
-      // Silently ignore — last-seen is a best-effort hint, not critical state.
+      // Silently ignore, last-seen is a best-effort hint, not critical state.
     }
   }
 }

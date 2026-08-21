@@ -1,4 +1,4 @@
-# Getting Started
+# Getting started
 
 GoodVibes Agent is the installable autonomous operator assistant for GoodVibes.
 
@@ -8,7 +8,7 @@ GoodVibes Agent is the installable autonomous operator assistant for GoodVibes.
 - A connected GoodVibes daemon or compatible host with operator routes. Installing this package installs one: it depends on `goodvibes-daemon`.
 - Token/config state accepted by that daemon.
 
-## Install From Package
+## Install from package
 
 ```sh
 bun add -g @pellux/goodvibes-agent
@@ -17,7 +17,7 @@ goodvibes-agent --help
 goodvibes-agent
 ```
 
-Bun blocks lifecycle scripts for untrusted global packages. `goodvibes-daemon` — which this package depends on, so one install brings both commands — needs trusting so its own postinstall can place the daemon binary. Nothing else needs trusting: this package has no postinstall of its own, and its libraries are bundled into the published runtime. Verify the install with:
+Bun blocks lifecycle scripts for untrusted global packages. This package depends on `goodvibes-daemon`, so one install brings both commands. It needs trusting so its own postinstall can place the daemon binary. Nothing else needs trusting: this package has no postinstall of its own, and its libraries are bundled into the published runtime. Verify the install with:
 
 ```sh
 bun pm -g untrusted
@@ -25,7 +25,7 @@ goodvibes-agent --version
 goodvibes-daemon --version
 ```
 
-The two versions differ on purpose — the Agent and the daemon are separate products on separate version lines.
+The two versions differ on purpose. The Agent and the daemon are separate products on separate version lines.
 
 If `goodvibes-agent` is not on `PATH`:
 
@@ -36,7 +36,7 @@ goodvibes-agent --help
 
 `goodvibes-agent` starts the interactive TUI. On a fresh Agent home, setup opens first. After setup is applied, the TUI opens directly into the Agent workspace.
 
-## Run From Source
+## Run from source
 
 ```sh
 git clone https://github.com/mgd34msu/goodvibes-agent.git
@@ -45,7 +45,7 @@ bun install
 bun run dev
 ```
 
-## First Run
+## First run
 
 Use the interactive workspace first. CLI subcommands are secondary support paths for install checks, setup inspection, and scriptable mirrors.
 
@@ -65,7 +65,7 @@ Primary first-run areas:
 
 Press `/` inside the Agent workspace to search actions by name, category, command, or detail.
 
-## Model Access
+## Model access
 
 The main Agent model can use the Agent-controlled harness through Agent-owned tools. Use `agent_harness mode:"summary"` for a compact map, `mode:"modes"` to search every harness mode by task or id, and `mode:"mode"` to inspect one mode contract. Then drill into plural catalogs or single-item inspect modes.
 
@@ -110,7 +110,7 @@ All effects require explicit user request and confirmation. Ambiguous lookup is 
 
 Registered tool definitions are intentionally terse. The default model catalog keeps top-level descriptions short, removes nested parameter descriptions, and includes direct harness inspection routes; use `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode when detailed contracts are needed.
 
-## Isolated Agent Profiles
+## Isolated Agent profiles
 
 Use a separate Agent home for isolated local state:
 
@@ -131,7 +131,7 @@ goodvibes-agent profiles templates import ./research-starter.json --yes
 
 Named profiles isolate Agent-local config, sessions, VIBE.md, memory, notes, personas, skills, routines, and setup state. Starter export/from-discovered flows can include the current safe VIBE.md with `--include-vibe`; blocked VIBE.md files must be repaired first. Shared GoodVibes settings import can reuse existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings from goodvibes-tui and other published GoodVibes platform stores. The direct `settings action:"import"` route, `import_goodvibes_settings` compatibility route, and workspace action all preview changed counts first, show source-package ownership metadata, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions without mutating the source package stores.
 
-## Local Behavior
+## Local behavior
 
 VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, surfaced in the Local Context and Personas workspaces, setup, and the learning curator when blocked or truncated, optionally carried through profile starter export/import with `--include-vibe`, and applied to the serial Agent conversation. The model-visible route is `vibe action:"status|show"` for inspection and `vibe action:"init|import_persona" confirm:true explicitUserRequest:"..."` for confirmed personality changes; previews also return exact model and CLI `confirmationRoutes` for the same init/import action. They do not write into default knowledge or other product segments.
 
@@ -153,7 +153,7 @@ Use the workspace first:
 
 Starting a routine records local usage and prints its steps in the main conversation. Promotion to a connected schedule or automation job is separate, explicit, confirmation-gated, visible in the autonomy queue, and keeps Agent Knowledge isolated. When the user asks for recurring autonomous work directly, use `schedule action:"create"` to create one connected schedule only with explicit task, cadence, success criteria, confirmation, and user request provenance; use `schedule action:"remind"` for reminders and `schedule action:"pause|resume|run|delete"` for exact-id lifecycle controls. Confirmed schedule creation, routine promotion, reminders, edits, and lifecycle actions return next routes for schedule list, autonomy queue inspection, run, edit, pause, resume, and delete when applicable.
 
-## Knowledge And Artifacts
+## Knowledge and artifacts
 
 Use Agent Workspace -> Knowledge for source-backed Agent Knowledge. The valid connected-host route family is:
 
@@ -169,7 +169,7 @@ Use Agent Workspace -> Research for read-only web research, URL inspection, visi
 
 Use the Artifacts area and Voice & Media workspace for images, source files, generated media, and exported sessions. Generated media returns artifact ids and metadata, not inline base64.
 
-## Connected Host
+## Connected host
 
 Connect Agent to a GoodVibes daemon before using daemon-backed features. Agent expects:
 
@@ -202,7 +202,7 @@ Model-visible diagnostics prefer `host action:"status|capabilities|capability|se
 
 When no connected host is reachable, inspect `setup action:"item" setupItemId:"connected-host-readiness"` for the offline bootstrap plan. It returns user-run commands to verify Bun, install and trust the owning GoodVibes host package, verify host entrypoints, start the GoodVibes service, and reconnect Agent. Agent does not run those host install/start commands implicitly. One bounded exception happens at boot: when the host is already installed on this machine but its service is stopped, Agent starts it once through the platform service manager, waits briefly for it to answer, and reports what it did. When the host auth token is missing or malformed on the local machine, use `setup action:"token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."`; it uses the GoodVibes SDK pairing helper to create or repair `~/.goodvibes/daemon/operator-tokens.json`, preserves valid existing tokens, leaves environment tokens untouched, and returns only path/fingerprint metadata.
 
-## Current Product Notes
+## Current product notes
 
 Agent uses the GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. Use `execution action:"status"` before computer-work handoffs: local read/edit/exec is the preferred route when the current workspace and permissions are sufficient, and Agent Workspace -> Work & Approvals shows local process supervision with tracked/running/completed counts, stdin/PTY/sudo parity, and Background processes / Process capabilities actions. Local shell/edit routes advertise process monitor/live tail/tool inspector supervision; first-class `execution`, `terminal`, and `process` adapters expose `execution action:"status|route|history|record|processes|process_capabilities|process|recovery"`, `terminal(command, background:true)`, and `process(action:"list|poll|wait|log|kill|write")` over the same tracked ProcessManager lifecycle. `execution action:"capabilities|doctor|parity"` now goes straight to the read-only process capability report, while `process action:"capabilities"` remains available for users already in the process lifecycle tool. Lower-level `mode:"execution_posture|execution_route|browser_control_route|background_processes|background_process|run_background_process|execution_history|execution_history_item|file_recovery|run_file_recovery"` routes remain available for compatibility and detailed inspection. The process capability report probes SDK ProcessManager methods plus daemon terminal/PTY, session-input, and credential routes so unsupported interactive features are tied to exact contract evidence instead of stale assumptions. PTY remains unsupported until a typed interactive session contract exists, and background sudo prompts are blocked in favor of visible user-supervised escalation. `setup action:"item" setupItemId:"sudo-execution-posture"` exposes SUDO_PASSWORD presence only, `~/.goodvibes/.env` guidance, blocked background sudo/stdin password routes, and the foreground shell route without reading or returning raw password values. `setup action:"status"` also exposes connected-host setup repair cards with live service probe evidence, token-safe auth posture, exact pairing route ids, confirmed local token provisioning, status, service posture, recommended diagnostic/status routes, and confirmed service install/start/restart routes that stay inspect-first until service status proves need, plus browser/desktop-control readiness with ready, attention, or setup-needed state, workflow cards, setup checklist, fallback routes, MCP review routes, and `computer action:"plan"` for selecting a browser navigation, screenshot/observation, or desktop-control workflow before any trusted live-control tool is invoked. Visible subagents stay serial-by-default unless independent work materially helps the user. `agent_harness mode:"agent_orchestration"` exposes the live Agent manager, managed multi-agent plan milestones, per-agent plan cards, linked work-plan receipts, closeout review/update routes, remote-runner contracts/artifact trails, certified daemon/SDK live capture/export/closeout outcome records, certified workspace/worktree isolation evidence with schema/version/publication/publisher/provenance/freshness-cursor/receipt metadata and missing-signal surfacing, auto-attached remote artifact review routes matched by runner id, spawn/batch-spawn decision cards, templates, and exact `agent` list/inspect/message/wait/cancel routes; `mode:"agent_orchestration_agent"` inspects one visible agent record with its plan card. Approved visible work-plan items can be converted into visible agents through confirmed `agent_work_plan action:"dispatch_agents"`; the route previews without spawning, then calls first-class `agent` spawn or batch-spawn, writes linked-agent receipts back to the plan, and returns next routes for orchestration, work-plan detail, agent inspect/wait/message/cancel, and closeout. Delegation is reserved for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review. `delegation action:"status|routes"` exposes local-first, TUI handoff, delegated-review, remote-inspection, and hidden-fanout-blocked decision cards; `delegation action:"route"` rows show required fields, success evidence, status routes, and recovery routes, while lower-level `agent_harness mode:"delegation_posture|delegation_route"` remains available for detailed compatibility inspection. The confirmed `/delegate` and Agent Workspace handoff form preserve the original ask plus delegation reason, success criteria, workspace/worktree hint, priority, and explicit review intent. The active autonomy policy is visible autonomy: long-running work must have a user-readable task, status/progress, cancellation route, success criteria, and confirmation gates for external or daemon-mutating effects. Use `autonomy action:"intake"` to turn an ongoing-work request into the safest visible route and missing fields; webhook/event-trigger requests expose trigger workflow posture and route applicable incoming watcher setup to the published `watchers.create` operator method, with trusted source/scope, task or run target, success criteria, `confirm:true`, and `explicitUserRequest` required. Confirmed autonomous schedule creation uses `schedule action:"create"`, and confirmed existing-schedule edits use `schedule action:"edit"` with read-only current-state diffs before confirmation. Inspect current autonomy cards with `autonomy action:"queue"` or one card with `action:"item"`; lower-level `agent_harness mode:"autonomy_intake|autonomy_queue|autonomy_queue_item"` remains available for detailed compatibility inspection. Research runs, connected-host tasks, approvals, automation runs, schedules, and delegated subagents surface live records or exact orchestration routes with progress/status, source ids, next steps, log tails when available, task retry/output/correlation diagnostics, bounded redacted host task output route/preview descriptors, automation telemetry/delivery/route diagnostics, normalized available/unavailable controls with reasons, and exact inspect/checkpoint/pause/resume/cancel/approve/deny/retry/run/edit/enable/disable/delete routes where the owning surface supports them. Schedule records also expose pause/resume aliases over daemon enable/disable lifecycle routes so the queue speaks in user intent instead of scheduler internals. Connected-host task cancel/retry stays on exact confirmed `agent_operator_method` routes, while `/tasks` remains inspection-only.
 

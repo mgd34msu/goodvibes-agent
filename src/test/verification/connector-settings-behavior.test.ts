@@ -1,5 +1,5 @@
 /**
- * connector-settings-behavior.test.ts — behaviour coverage for the connector
+ * connector-settings-behavior.test.ts, behaviour coverage for the connector
  * settings platform runtime 2.0.8 declared: the daemon's mail and calendar keys
  * (`email.*`, `calendar.*`).
  *
@@ -19,7 +19,7 @@
  * the REAL code in this repository that consumes it, and each assertion is an
  * observable difference in outcome between those values. A ConfigManager
  * set/get round-trip would verify ConfigManager, not the setting, and that file
- * rules it out by name — so nothing here is one.
+ * rules it out by name, so nothing here is one.
  *
  * ## The consumers being driven
  *
@@ -216,7 +216,7 @@ describe('email.* settings are validated before anything is written', () => {
     const accepted = recordingConfig();
     const stored = await persistEmailConfigField(accepted, NO_SECRETS, 'imapPort', '993');
     expect(stored.ok).toBe(true);
-    // A number, not the string it arrived as — a string here reaches the IMAP
+    // A number, not the string it arrived as, a string here reaches the IMAP
     // client as a port it cannot dial.
     expect(accepted.written.get('email.imapPort')).toBe(993);
   });
@@ -292,7 +292,7 @@ describe('calendar.google.clientSecretRef decides whether a confidential client 
     });
 
     // A Desktop-app client using PKCE needs no secret, so "unset" is a real
-    // configuration rather than an error — but a Web-app registration cannot
+    // configuration rather than an error, but a Web-app registration cannot
     // exchange a code without one, and this is where that value comes from.
     expect((await withoutRef.resolveOverrides('google')).clientSecret).toBeUndefined();
     expect((await withRef.resolveOverrides('google')).clientSecret).toBe('google-confidential-secret');

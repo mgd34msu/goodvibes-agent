@@ -14,7 +14,7 @@ export interface CompleteOnboardingParams {
 }
 
 export interface CompleteOnboardingResult {
-  /** True when the dismiss path was taken — caller should close immediately. */
+  /** True when the dismiss path was taken, caller should close immediately. */
   readonly dismissed: boolean;
   /** New value for _awaitingRecapDismiss (only meaningful when dismissed=false). */
   readonly awaitingRecapDismiss: boolean;
@@ -125,7 +125,7 @@ export function onSubscriptionLoginSuccessAction(params: OnSubscriptionLoginSucc
 
   const entry = deriveOnboardingEntry(obs);
   const status = obs.readyToChat
-    ? 'Signed in. You are ready to chat — Apply & close when ready.'
+    ? 'Signed in. You are ready to chat, Apply & close when ready.'
     : `Signed in. ${entry.status}`;
 
   return { onboardingState: obs, targetCategoryId: entry.categoryId, status };

@@ -1,12 +1,12 @@
 /**
- * daemon-repair.ts — the one-touch repair for a machine whose daemon is off in
+ * daemon-repair.ts, the one-touch repair for a machine whose daemon is off in
  * both places at once.
  *
  * ── The state this exists for ──────────────────────────────────────────────
  *
  * A laptop sat unusable for weeks. Two things were true on it at the same time:
  * its daemon service was stopped, and its Agent settings carried
- * `daemon.enabled: false`. Neither alone is a fault — a stopped service is
+ * `daemon.enabled: false`. Neither alone is a fault, a stopped service is
  * started by the boot-time autostart in bootstrap-external-services.ts, and a
  * deliberate `false` is a choice the platform honors. Together they are a dead
  * end, because the flag short-circuits discovery before the autostart is ever
@@ -29,7 +29,7 @@
  * - The offer is only ever made when BOTH halves are true. A `false` flag on a
  *   machine whose daemon is up and answering is a working configuration and is
  *   left alone.
- * - Declining changes nothing at all — not the setting, not the service — and
+ * - Declining changes nothing at all, not the setting, not the service, and
  *   is remembered for the rest of the session, so the answer is asked for once
  *   and never again turn after turn.
  * - Every step of a repair reports what it actually did, including a partial
@@ -73,7 +73,7 @@ export interface DaemonRepairConfig {
  * Deliberately NOT persisted to disk, unlike the workspace-registration
  * decline it otherwise resembles. That one answers "should this directory ever
  * get checkpoints", which is a standing preference. This one answers "fix this
- * machine now", asked about a state that is still broken — a durable "no" would
+ * machine now", asked about a state that is still broken, a durable "no" would
  * turn one dismissal into permanent silence about a laptop that still cannot
  * reach its daemon. The next session asks again; this one does not.
  */
@@ -92,7 +92,7 @@ export function createDaemonRepairSessionMemory(): DaemonRepairSessionMemory {
 
 /** The wedged state, once both halves have been confirmed. */
 export interface DaemonRepairOffer {
-  /** Whether a unit exists already — decides install-service vs start-service. */
+  /** Whether a unit exists already, decides install-service vs start-service. */
   readonly serviceInstalled: boolean;
   /** The unit name the daemon CLI reported, when it named one. */
   readonly serviceName: string | null;
@@ -112,7 +112,7 @@ export interface DaemonRepairDiagnosisOptions {
 /**
  * Decide whether this machine is in the wedged state, and say so.
  *
- * Returns null — silently, having spawned nothing — in every ordinary case.
+ * Returns null, silently, having spawned nothing, in every ordinary case.
  * The daemon CLI is only consulted when the flag is already off, so a machine
  * with `daemon.enabled: true` (which is every healthy machine, since true is
  * the default) pays nothing for this check at boot.
@@ -137,7 +137,7 @@ export function diagnoseDaemonRepair(options: DaemonRepairDiagnosisOptions): Dae
 
   // Only the two states that mean "there is no daemon running here" are
   // offered on. 'running' is a working machine whose flag merely declines to
-  // adopt a daemon of its own — a real configuration, left exactly alone.
+  // adopt a daemon of its own, a real configuration, left exactly alone.
   // 'unknown' means the question was not answered (no daemon CLI on this
   // machine, or a service manager that refused), and guessing on top of an
   // unanswered question is how a helpful offer becomes a wrong one.
@@ -159,7 +159,7 @@ export function diagnoseDaemonRepair(options: DaemonRepairDiagnosisOptions): Dae
 export interface DaemonRepairResult {
   /** True only when the daemon answered on its configured address afterwards. */
   readonly repaired: boolean;
-  /** One line per step performed — the receipt, in the order things happened. */
+  /** One line per step performed, the receipt, in the order things happened. */
   readonly steps: readonly string[];
   /** The single line a surface shows the user. */
   readonly summary: string;
@@ -215,7 +215,7 @@ export async function runDaemonRepair(options: DaemonRepairRunOptions): Promise<
   const recordReceipt = options.recordReceipt
     ?? ((text: string) => { logger.info(text); });
 
-  // Step 1 — the setting. Done first and on its own, because it is the half
+  // Step 1, the setting. Done first and on its own, because it is the half
   // that silenced discovery, and because it is the half that survives even if
   // the service work below fails: the next boot's ordinary autostart path can
   // then finish the job without anyone being asked anything.
@@ -230,7 +230,7 @@ export async function runDaemonRepair(options: DaemonRepairRunOptions): Promise<
     return { repaired: false, steps, summary };
   }
 
-  // Step 2 — the service. `install-service` installs AND starts, so an absent
+  // Step 2, the service. `install-service` installs AND starts, so an absent
   // unit takes one command, not two.
   const action = offer.serviceInstalled ? startDaemonService(run) : installDaemonService(run);
   const verb = offer.serviceInstalled ? 'started the daemon service' : 'installed and started the daemon service';
@@ -240,7 +240,7 @@ export async function runDaemonRepair(options: DaemonRepairRunOptions): Promise<
     steps.push(`could not ${offer.serviceInstalled ? 'start' : 'install'} the daemon service: ${action.detail}`);
   }
 
-  // Step 3 — proof. The service manager accepting a command is not the daemon
+  // Step 3, proof. The service manager accepting a command is not the daemon
   // answering, and only the second one means the machine is repaired.
   const verifyReachable = options.verifyReachable ?? defaultVerifyReachable(config);
   const reachable = action.ok ? await waitForDaemon(verifyReachable, options) : false;
@@ -254,7 +254,7 @@ export async function runDaemonRepair(options: DaemonRepairRunOptions): Promise<
     ? `[Daemon] Repaired: ${DAEMON_ENABLED_KEY} is true, the daemon service is running, and it answers. ${steps.length} steps recorded in the activity log.`
     : action.ok
       ? `[Daemon] Partly repaired: ${DAEMON_ENABLED_KEY} is now true and the service command was accepted, but the daemon is not answering yet. Its own logs will say why; the Agent will try to start it again at the next launch.`
-      : `[Daemon] Not repaired: ${DAEMON_ENABLED_KEY} is now true, but the daemon service could not be ${offer.serviceInstalled ? 'started' : 'installed'} — ${action.detail}.`;
+      : `[Daemon] Not repaired: ${DAEMON_ENABLED_KEY} is now true, but the daemon service could not be ${offer.serviceInstalled ? 'started' : 'installed'}, ${action.detail}.`;
 
   recordReceipt(`${summary} Steps: ${steps.join('; ')}`);
   return { repaired: reachable, steps, summary };
@@ -286,8 +286,8 @@ async function waitForDaemon(
 /**
  * The two lines headless `run` writes to stderr.
  *
- * Run mode never prompts — stdout is a machine-readable contract and stdin is
- * not a person — but staying silent about a wedged machine is how the incident
+ * Run mode never prompts, stdout is a machine-readable contract and stdin is
+ * not a person, but staying silent about a wedged machine is how the incident
  * this repairs lasted weeks. It states the diagnosis and quotes the offer the
  * interactive surface would have made, so the reader knows the fix exists and
  * what taking it involves, then the run proceeds exactly as before.

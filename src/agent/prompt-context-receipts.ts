@@ -1,6 +1,7 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname } from 'node:path';
+import { writeStoreFile } from '@/utils/store-file.ts';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import type { MemoryRecallSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
@@ -86,12 +87,12 @@ export interface RuntimePromptCompositionInput {
   readonly memoryRegistry: MemoryRegistry;
   /**
    * What the agent can actually do right now, resolved by the capability index.
-   * Null when the index has not been resolved — the prompt then says the list
+   * Null when the index has not been resolved, the prompt then says the list
    * is unknown rather than implying the agent can do nothing.
    */
   readonly capabilityIndex?: CapabilityIndexReport | null;
   /** The active turn's raw text (TURN_SUBMITTED's `prompt`), used only to rank the
-   *  already-eligible memory set by relevance to this turn — see rankMemoryForTurn.
+   *  already-eligible memory set by relevance to this turn, see rankMemoryForTurn.
    *  Null/undefined when there is no active turn (e.g. a follow-up composition). */
   readonly turnText?: string | null;
   /**
@@ -103,15 +104,15 @@ export interface RuntimePromptCompositionInput {
    * the SDK defines as non-async, while a wire client's memory reads are async. Rather
    * than reading `memoryRegistry.getAll()` directly (a frozen local snapshot that would
    * silently miss whatever the daemon wrote after this process last opened its own
-   * copy — the exact failure the 1.1.0-era `memorySpineMode` degrade note used to flag),
+   * copy, the exact failure the 1.1.0-era `memorySpineMode` degrade note used to flag),
    * the caller drives an ASYNC pre-turn hook (`MemorySpineClient.refreshRecallSnapshot`)
    * and passes the resulting freshness-stamped `MemoryRecallSnapshot` in here. When
-   * present, its `records` (captured with `{ recall: false }` — an unfiltered browse
+   * present, its `records` (captured with `{ recall: false }`, an unfiltered browse
    * set, matching the old `getAll()` semantics exactly) replace the direct registry
    * read, and its own honest `stale`/`mode`/`note` fields drive the 'memory' receipt
    * segment's note instead of the old blanket "client mode is always degraded" note.
    * `undefined` falls back to reading `memoryRegistry` directly (e.g. a caller that
-   * has not wired the spine, or an existing test) — the pre-1.2.0 behavior, unchanged.
+   * has not wired the spine, or an existing test), the pre-1.2.0 behavior, unchanged.
    */
   readonly memoryRecallSnapshot?: MemoryRecallSnapshot;
 }
@@ -125,13 +126,13 @@ export interface RuntimePromptCompositionInput {
 const RECEIPT_STORE_LIMIT = 200;
 /**
  * Age TTL on the receipt journal. A receipt's value is diagnostic and decays fast
- * — nobody audits a prompt built three weeks ago, and receipt segments carry
+ *, nobody audits a prompt built three weeks ago, and receipt segments carry
  * prompt/context material we do not want lying around indefinitely. 14 days
  * covers "what happened last week". Applied WITH the cap: a record survives both.
  */
 const RECEIPT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 /**
- * Appends allowed before the journal is re-compacted mid-run — the file grows once
+ * Appends allowed before the journal is re-compacted mid-run, the file grows once
  * per turn, so a days-long session would otherwise only be bounded at the next
  * restart. 250 sits just above RECEIPT_STORE_LIMIT: between compactions the file
  * holds at most ~(cap + threshold) records, and the rewrite is paid once per 250
@@ -139,8 +140,6 @@ const RECEIPT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
  */
 const RECEIPT_COMPACT_AFTER_APPENDS = 250;
 const OUTCOME_DETAIL_LIMIT = 240;
-/** Keeps two compactions in the same millisecond (and, with the pid, two processes) off one temp path. */
-let compactionTempCounter = 0;
 
 function approxTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -167,13 +166,13 @@ function joinPromptParts(...parts: Array<string | null | undefined>): string {
 /**
  * The honest freshness note for the 'memory' receipt segment, sourced from the
  * memory spine's own recall snapshot (see RuntimePromptCompositionInput.
- * memoryRecallSnapshot). Surfaced only when there is something worth flagging —
+ * memoryRecallSnapshot). Surfaced only when there is something worth flagging,
  * the snapshot came from a wire-adopted daemon (worth knowing regardless of
  * freshness, since the wire's own copy is what was captured, not this process's),
  * or the snapshot is stale (including "never yet captured", which the snapshot
  * itself always reports as stale). `undefined` for the boring common case (local
- * mode, freshly captured) — matching the pre-1.2.0 note's "nothing to degrade"
- * behavior — or when the caller passed no snapshot at all.
+ * mode, freshly captured), matching the pre-1.2.0 note's "nothing to degrade"
+ * behavior, or when the caller passed no snapshot at all.
  */
 function memoryRecallSnapshotNote(snapshot: MemoryRecallSnapshot | undefined): string | undefined {
   if (!snapshot) return undefined;
@@ -184,7 +183,7 @@ function memoryRecallSnapshotNote(snapshot: MemoryRecallSnapshot | undefined): s
 /** Combines up to two optional short notes with a single separator; undefined when both are absent. */
 function combineNotes(first: string | null | undefined, second: string | null | undefined): string | undefined {
   const parts = [first, second].map((part) => part?.trim()).filter((part): part is string => Boolean(part));
-  return parts.length > 0 ? parts.join(' — also: ') : undefined;
+  return parts.length > 0 ? parts.join(', also: ') : undefined;
 }
 
 function modelLabel(model: unknown): string {
@@ -223,10 +222,10 @@ function receiptSegment(input: Omit<PromptContextReceiptSegment, 'approxTokens'>
 
 /**
  * Read via the memory spine's cached recall snapshot when the caller has one (SDK
- * 1.2.0 sync-recall seam — see RuntimePromptCompositionInput.memoryRecallSnapshot);
+ * 1.2.0 sync-recall seam, see RuntimePromptCompositionInput.memoryRecallSnapshot);
  * fall back to the direct registry read otherwise (unchanged pre-1.2.0 behavior).
  * Shared by the prompt text build and the receipt segment build so both derive
- * from the exact same record set — the receipt must describe what was actually
+ * from the exact same record set, the receipt must describe what was actually
  * injected, never a different snapshot than the prompt text itself used.
  */
 function resolveMemoryRecords(input: RuntimePromptCompositionInput): readonly MemoryRecord[] {
@@ -242,7 +241,7 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
   const projectContextPrompt = buildProjectContextPrompt(input.shellPaths) ?? '';
   const memoryRecords = resolveMemoryRecords(input);
   // Bound to one arg: Array.filter passes (element, index, array), and
-  // isPromptActiveMemory's second param is `now` — passing the callback bare
+  // isPromptActiveMemory's second param is `now`, passing the callback bare
   // would leak the array index in as `now`, breaking the temporal-validity
   // check for every record past index 0.
   const eligibleMemory = memoryRecords.filter((record) => isPromptActiveMemory(record));
@@ -335,11 +334,11 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       promptChars: memoryPrompt.length,
       promptText: memoryPrompt,
       // Honest degrade note: when per-turn relevance scoring did not
-      // run — no active-turn text, semantic index unavailable, or no vector match —
+      // run, no active-turn text, semantic index unavailable, or no vector match,
       // say so instead of silently presenting the fallback confidence/recency order as
       // if it were a relevance ranking. Combined with the memory spine's own
       // freshness note (see memoryRecallSnapshotNote) when the recall snapshot is
-      // wire-sourced or stale — the ranking itself still runs against
+      // wire-sourced or stale, the ranking itself still runs against
       // `input.memoryRegistry` directly (rankMemoryForTurn's per-turn semantic query
       // needs a live vectorStats/searchSemantic call, which stays local-direct by the
       // same vector-diagnostics ruling used elsewhere in the 1.2.0 adoption), so this
@@ -360,23 +359,23 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
         ...(memoryRanking.scored ? { relevance: `relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}% (${relevanceBand(memoryRanking.relevanceById.get(record.id) ?? 0)})` } : {}),
       })),
       suppressed: suppressedMemory.slice(0, 12).map((record) => {
-        // Honest, per-record reason (confidence + reviewState + provenance) — never a
+        // Honest, per-record reason (confidence + reviewState + provenance), never a
         // blanket "not reviewed"/"outside prompt limit" guess. A record lands in
         // "suppressed" either because it genuinely failed eligibility, or because it
-        // passed eligibility but the top-10 prompt slice cut it off — those are
+        // passed eligibility but the top-10 prompt slice cut it off, those are
         // different situations and must read differently. When the slice was
         // relevance-ranked, say what this record's relevance to the turn was too, so a
         // budget-limited cut reads as "less relevant than the other ten", not arbitrary.
         const eligibility = describeMemoryPromptEligibility(record);
         const relevanceSuffix = memoryRanking.scored
-          ? ` (relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}% — ${relevanceBand(memoryRanking.relevanceById.get(record.id) ?? 0)})`
+          ? ` (relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}%, ${relevanceBand(memoryRanking.relevanceById.get(record.id) ?? 0)})`
           : '';
         return {
           id: record.id,
           reviewState: record.reviewState,
           confidence: record.confidence,
           reason: eligibility.eligible
-            ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice${relevanceSuffix} — budget-limited, not a trust problem`
+            ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice${relevanceSuffix}, budget-limited, not a trust problem`
             : eligibility.reason,
         };
       }),
@@ -510,7 +509,7 @@ export interface PromptContextTurnOutcomeInput {
   readonly detail?: string;
 }
 
-/** What a single journal compaction reclaimed — the disclosure record for the reap. */
+/** What a single journal compaction reclaimed, the disclosure record for the reap. */
 export interface PromptContextReceiptCompaction {
   readonly path: string;
   readonly reason: 'load' | 'append-threshold';
@@ -654,9 +653,9 @@ export class AgentPromptContextReceiptStore {
    * Rewrite the journal holding only the records that survive BOTH bounds, and
    * disclose what that reclaimed. Crash-safe: survivors go to a temp file renamed
    * into place, so a process dying mid-compaction leaves the original journal
-   * intact (a truncate-then-rewrite would lose the whole journal). The temp name
-   * carries the pid and a per-process counter, so concurrent compactions never
-   * share a temp file and the last rename wins with a bounded, validated journal.
+   * intact (a truncate-then-rewrite would lose the whole journal). Concurrent
+   * compactions never share a temp file (see utils/store-file.ts), so the last
+   * rename wins with a bounded, validated journal.
    * Idempotent: when nothing needs dropping the file is left untouched.
    */
   private compact(reason: 'load' | 'append-threshold'): ReceiptJournalSurvivors | null {
@@ -671,19 +670,10 @@ export class AgentPromptContextReceiptStore {
     const bytesAfter = Buffer.byteLength(body, 'utf-8');
     let rewritten = false;
     if (dropped > 0) {
-      compactionTempCounter += 1;
-      const tmpPath = `${path}.${process.pid}.${Date.now()}.${compactionTempCounter}.tmp`;
       try {
-        mkdirSync(dirname(path), { recursive: true });
-        writeFileSync(tmpPath, body, 'utf-8');
-        renameSync(tmpPath, path);
+        writeStoreFile(path, body);
         rewritten = true;
       } catch (error) {
-        try {
-          unlinkSync(tmpPath);
-        } catch {
-          // Absent temp file is the desired end state; ENOENT here is success.
-        }
         logger.warn('Prompt context receipt journal compaction failed; journal left as-is', { path, error: summarizeError(error) });
       }
     }
@@ -702,7 +692,7 @@ export class AgentPromptContextReceiptStore {
       rewritten,
     };
     this.lastCompactionSummary = summary;
-    // Disclosure carries counts, byte totals and the path only — receipt segments hold prompt/context material and never go to the log.
+    // Disclosure carries counts, byte totals and the path only, receipt segments hold prompt/context material and never go to the log.
     if (rewritten) logger.info('Prompt context receipt journal compacted', { ...summary });
     return survivors;
   }

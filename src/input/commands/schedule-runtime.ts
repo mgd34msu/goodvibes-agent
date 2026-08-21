@@ -57,7 +57,7 @@ const RECENT_RUN_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 /**
  * /schedule list's data source: the connected host's live schedules
  * (automation.schedules.list) annotated with each schedule's latest run
- * outcome (automation.runs.list) — so a missed or failed run shows up as an
+ * outcome (automation.runs.list), so a missed or failed run shows up as an
  * honest outcome line instead of silence. Never reads the agent's local
  * automation manager (local execution is disabled by design).
  */
@@ -94,7 +94,7 @@ async function printScheduleList(ctx: CommandContext): Promise<void> {
     const latestRun = latestByJob.get(schedule.id);
     if (latestRun && (latestRun.status === 'missed' || latestRun.status === 'failed')) {
       const when = latestRun.endedAt ? new Date(latestRun.endedAt).toLocaleString() : 'unknown time';
-      lines.push(`    outcome ${latestRun.status} — last attempt ${when}`);
+      lines.push(`    outcome ${latestRun.status}, last attempt ${when}`);
     }
   }
   ctx.print(lines.join('\n'));

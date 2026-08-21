@@ -632,7 +632,7 @@ export class SettingsModal {
         effectiveSource: resolved?.effectiveSource,
         // `locked`/`lockReason` now come only from a genuine higher-priority
         // config layer. The blanket host-owned lock that used to force them here
-        // is gone — those keys route to the daemon that owns them.
+        // is gone, those keys route to the daemon that owns them.
         locked: resolved?.locked,
         conflict: resolved?.conflict,
         sourceLabel: resolved?.sourceLabel,
@@ -640,7 +640,7 @@ export class SettingsModal {
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
       // A root with no category of its own is listed where it belongs instead
-      // of being dropped — see CROSS_LISTED_SETTING_ROOTS.
+      // of being dropped, see CROSS_LISTED_SETTING_ROOTS.
       const crossListed = CROSS_LISTED_SETTING_ROOTS[rawCat];
       if (crossListed !== undefined && this.groups.has(crossListed)) {
         this.groups.get(crossListed)!.push(entry);
@@ -649,7 +649,7 @@ export class SettingsModal {
 
     // Inject the four card-material fields (number, expiry, CVV, cardholder
     // name). They are synthetic because CONFIG_SCHEMA deliberately carries no
-    // scalar entry for card material — it lives write-only in the daemon
+    // scalar entry for card material, it lives write-only in the daemon
     // secret store and config holds only a goodvibes:// reference. Listing
     // them here is what gives the settings modal a visible "set / not set"
     // row for each and a masked edit path; the primary entry point remains
@@ -719,7 +719,7 @@ export class SettingsModal {
     // This runs before the local write and returns instead of it, so a
     // daemon-owned key never has two writers. The modal cannot await from a
     // keystroke handler, so the outcome lands on `lastSettingEffectMessage` a
-    // moment later — including the refusal, which is the message that matters.
+    // moment later, including the refusal, which is the message that matters.
     const routed = routeSettingWriteToConnectedHost(key, value, (update) => {
       this.lastSettingEffectMessage = update.message;
       if (update.ok) this._refreshAllEntries();
@@ -739,7 +739,7 @@ export class SettingsModal {
         this.lastSettingEffectMessage = result?.message ?? null;
         this._refreshAllEntries();
       }
-      // The SDK's own trade-off wording, shown at the moment of selection — not
+      // The SDK's own trade-off wording, shown at the moment of selection, not
       // authored here, and never shown against the 'stored' default.
       if (key === 'payments.cvvHandling' && value === 'prompt') {
         this.lastSettingEffectMessage = CVV_PROMPT_TRADEOFF_WARNING;

@@ -111,7 +111,7 @@ describe('SecretsManager', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Tier 1 — Environment variable resolution
+  // Tier 1, Environment variable resolution
   // -------------------------------------------------------------------------
 
   describe('get() — env var resolution', () => {
@@ -124,9 +124,7 @@ describe('SecretsManager', () => {
 
     test('env var takes priority over encrypted file', async () => {
       const mgr = createProjectStoreManager();
-      // Store a value in encrypted file first
       await mgr.set('MY_API_KEY', 'file-value');
-      // Then set env var
       process.env['MY_API_KEY'] = 'env-value';
       const result = await mgr.get('MY_API_KEY');
       expect(result).toBe('env-value');
@@ -140,7 +138,7 @@ describe('SecretsManager', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Tier 2 — Encrypted file round-trip
+  // Tier 2, Encrypted file round-trip
   // -------------------------------------------------------------------------
 
   describe('set() + get() — round-trip', () => {

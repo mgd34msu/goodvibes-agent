@@ -56,7 +56,7 @@ describe('new runtime event domains', () => {
       'surfaces',
       'knowledge',
       'workspace',
-      // SDK 1.6.1 adds the fleet domain (runtime/fleet/*) — background-agent
+      // SDK 1.6.1 adds the fleet domain (runtime/fleet/*), background-agent
       // fleet lifecycle events. Adopted: runtime/services.ts attaches the
       // SDK's attachFleetEmitBridge onto the runtime bus so orchestrator-
       // spawned agents' spawn/progress/attention/completion deltas publish on
@@ -66,7 +66,7 @@ describe('new runtime event domains', () => {
       // SDK 1.21.0 adds the config domain: in-process settings changes become
       // key-level events, so a client whose settings live in the daemon gets
       // live change notices instead of polling for them. Verb-side, and the
-      // daemon is what attaches the emit bridge — this surface reads the
+      // daemon is what attaches the emit bridge, this surface reads the
       // notices rather than producing them, so the vocabulary is all it needs
       // from this row.
       'config',

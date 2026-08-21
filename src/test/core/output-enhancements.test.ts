@@ -197,7 +197,7 @@ describe('ConversationManager — diff detection (no false positives)', () => {
     cm.addToolResults([{ callId: 'c1', success: true, output: fakeDiff }]);
     cm.getDisplayBlocks();
 
-    // getDiffAtLine should return null — it's not a real diff
+    // getDiffAtLine should return null, it's not a real diff
     expect(cm.getDiffAtLine(0)).toBeNull();
   });
 

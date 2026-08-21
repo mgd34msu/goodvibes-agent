@@ -6,7 +6,7 @@
  *     x64/arm64 (the release tag maps darwin → "macos");
  *   - per-platform sqlite-vec native addon ARCHIVES named
  *     `sqlite-vec-<platform>-<arch>.tar.gz` (Node-style platform tag), each
- *     carrying the exact layout the runtime resolves relative to the binary —
+ *     carrying the exact layout the runtime resolves relative to the binary,
  *     `lib/sqlite-vec-<platform>-<arch>/vec0.<suffix>`;
  *   - one platform-independent `browser-driver.tar.gz` carrying the Playwright
  *     driver package as `playwright-core/…`, which is the first place
@@ -17,7 +17,7 @@
  * The checksum manifest name and parser are the SDK's canonical ones
  * (platform/runtime/self-update) so the agent verifies with the same
  * mechanism every other surface uses. Asset NAMING stays local because it
- * encodes THIS repo's release layout — the SDK's resolveArtifactNames names
+ * encodes THIS repo's release layout, the SDK's resolveArtifactNames names
  * the TUI's `goodvibes` binary and the daemon repo's `goodvibes-daemon-*`
  * assets, neither of which this repo ships.
  */

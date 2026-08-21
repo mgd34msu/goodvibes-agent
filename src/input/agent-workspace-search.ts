@@ -139,7 +139,7 @@ export function clearAgentWorkspaceActionSearch(host: AgentWorkspaceSearchHost):
   // selectedActionIndex was an index into the SEARCH RESULTS, which can span
   // every category. Reinterpreting that number as an index into the
   // originating category's own (unrelated) action list silently highlights
-  // an arbitrary, wrong action — the highlight desyncs from what the user
+  // an arbitrary, wrong action, the highlight desyncs from what the user
   // was just looking at. There is no principled position to preserve across
   // an arbitrary category switch, so return to the top of the list, same as
   // beginning/typing/backspacing a search already does.

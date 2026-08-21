@@ -1,6 +1,6 @@
 /**
  * The forget path, exercised against the REAL owner-profile store and the real
- * `profile.*` handlers — not a stub that agrees with whatever this surface
+ * `profile.*` handlers, not a stub that agrees with whatever this surface
  * happens to send.
  *
  * Every other suite in this lane injects a fake gateway, which is right for
@@ -26,7 +26,7 @@
  * from in here, and this lane already lost time to exactly that. So the
  * contract is read out of the installed handler itself, by the wording the
  * change introduced and the wording it removed. That works against whatever is
- * installed — a published package or a local pack.
+ * installed, a published package or a local pack.
  *
  * This used to assert a SOURCE_COMMIT stamp first. That stamp is written by the
  * platform's local pack step and is absent from the published tarball, so once
@@ -38,7 +38,7 @@
  * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
- * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * over this graph, the agent's own `services.gatewayMethods` carries no handler
  * for any of these any more, and that absence is itself pinned in
  * daemon/gateway-ws-only-invokable.test.ts.
  *
@@ -143,18 +143,18 @@ async function liveProfile(): Promise<LiveProfile> {
   //
   // It was load-bearing once. The composition used to start the file read and
   // return without awaiting it, so for the first few milliseconds every verb
-  // answered "has not been loaded yet" — a fourth state, where §4.4 allows
+  // answered "has not been loaded yet", a fourth state, where §4.4 allows
   // exactly three (loaded, disabled, unavailable-with-a-reason). Four of these
   // tests passed against THAT before this wait existed: they expected a refusal
   // and got a not-loaded, which is not the gate they were written to prove.
-  // Below the verbs it was worse, because nothing logged it — the consumer
+  // Below the verbs it was worse, because nothing logged it, the consumer
   // fallback was attached but resolved nothing, so a consumer key read as unset
   // rather than as its profile value.
   //
   // The platform closed it, and not with the readiness promise once expected
   // here: `registerGatewayVerbGroups` is synchronous, so an awaited load would
   // have rippled through the whole composition root. The store grew `loadSync()`
-  // instead, and routes/owner-profile-composition.ts calls it before returning —
+  // instead, and routes/owner-profile-composition.ts calls it before returning,
   // by then the state is one of the three, always. That is in the SDK this
   // package pins, and it is the composition this suite drives.
   //
@@ -185,7 +185,7 @@ afterEach(() => {
 
 describe('the installed platform runtime carries the contract this lane was built against', () => {
   // Asserted as CAPABILITIES, not as a commit. Pinning the stamp here would
-  // fail on every legitimate repack — including ones that fix things — and a
+  // fail on every legitimate repack, including ones that fix things, and a
   // test that fails on every update is one people learn to re-stamp without
   // reading. These assertions fail only if the contract actually moves.
   //
@@ -247,7 +247,7 @@ describe('forget, against the real store', () => {
     expect(result.success).toBe(true);
     const after = profile.read();
     expect(after).not.toContain('Allergic to shellfish');
-    // The line he had just added is untouched — a positional delete would have
+    // The line he had just added is untouched, a positional delete would have
     // taken this one and reported success.
     expect(after).toContain('Renewed passport in March');
     expect(after).toContain('Prefers aisle seats');
@@ -290,7 +290,7 @@ describe('forget, against the real store', () => {
 
     // Content addressing can be ambiguous where a position never is. The store
     // answers that plainly instead of removing whichever it saw first, and the
-    // file is untouched — the right trade, since deleting the wrong one of two
+    // file is untouched, the right trade, since deleting the wrong one of two
     // identical lines is unrecoverable and asking is not.
     expect(result.success).toBe(false);
     expect(result.output).toContain('read exactly that');
@@ -301,7 +301,7 @@ describe('forget, against the real store', () => {
     const profile = await liveProfile();
     const before = profile.read();
 
-    // 'Allergic to shellfish' — the same line without its list marker — is
+    // 'Allergic to shellfish', the same line without its list marker, is
     // deliberately NOT in this list. It is due to become a match; see the
     // list-marker pin below.
     for (const text of ['allergic to shellfish', '- Allergic to shellfish and peanuts']) {
@@ -319,7 +319,7 @@ describe('forget, against the real store', () => {
   test('a list marker is not part of the line: his own wording names it', async () => {
     // He says "forget that I'm allergic to shellfish". The leading "- " is a
     // markdown artefact of how the line is stored, not something he uttered, so
-    // requiring it would push a storage detail into the model's prompt — and a
+    // requiring it would push a storage detail into the model's prompt, and a
     // prompt that carries a format rots silently when the format moves.
     //
     // This was a self-converting pin while the matcher still compared raw text:

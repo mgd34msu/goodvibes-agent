@@ -1,8 +1,8 @@
-# Providers and Routing
+# Providers and routing
 
 GoodVibes Agent uses the provider/model configuration exposed by the connected GoodVibes host. The Agent TUI should make the active route easy to see and easy to change, but it should not duplicate provider hosting logic.
 
-## Agent Expectations
+## Agent expectations
 
 Provider and model state should be visible in:
 
@@ -16,7 +16,7 @@ Provider and model state should be visible in:
 
 When a selected model is provider-qualified, Agent keeps the runtime provider row and raw model id separate. For example, `openai-subscriber` plus `openai:gpt-5.5` should route as provider `openai-subscriber` and model `gpt-5.5` where the public route expects provider/model fields.
 
-## Local Provider Definitions
+## Local provider definitions
 
 Agent-owned provider definitions live under the Agent profile root when supported by the shared GoodVibes provider registry:
 
@@ -26,7 +26,7 @@ Agent-owned provider definitions live under the Agent profile root when supporte
 
 These files are local configuration. They are not Agent Knowledge records and should not be copied into knowledge search state.
 
-## Local Model Cookbook
+## Local model cookbook
 
 Agent Workspace -> Model Routing exposes `Inspect route readiness`, `Local model cookbook`, `Check local servers`, `Run local benchmark`, and `Review benchmark evidence` as separate actions so users can inspect, compare, and decide without implicit route changes. `Local model cookbook` and `models action:"local"` provide recommendations for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers. The cookbook detects local-compatible provider ids and model routes when available, scans local OS CPU/RAM/platform data with safe accelerator hints, ranks recipe fit, recommends the easiest first route, and exposes setup plans with download/start guidance, local server endpoint candidates, exact `models action:"route"` endpoint inspection, model-list smoke commands, success criteria, failure triage, confirmed `models action:"smoke"` checks for detected or default local endpoints, provider-add route hints when no route exists yet, provider-refresh routes, a confirmed `Run local benchmark` model-lane action backed by `agent_model_compare`, and saved local benchmark comparison artifacts when they exist.
 
@@ -34,11 +34,11 @@ Every selectable model and local recipe gets a 0-100 readiness score with dimens
 
 The cookbook does not probe drivers, call local network endpoints, install servers, download models, or change the selected route. Live local benchmark execution is a separate confirmed action that spends model tokens, saves comparison evidence, and leaves default-model changes to a separate revealed judgment and confirmed apply step.
 
-## Discovery And Health
+## Discovery and health
 
 Provider discovery and health are owned by the connected GoodVibes host. Agent can display discovered provider status, model context information, and route failures. It should not hide provider failures behind fallback wording that makes a failed chat or knowledge request look successful.
 
-## Search, Voice, And Media Providers
+## Search, voice, and media providers
 
 Search, voice, media, and multimodal providers are valid Agent features when they are presented as assistant workflows:
 
@@ -51,7 +51,7 @@ Outputs that should become durable knowledge must go through Agent Knowledge rou
 
 Setting discovery is compact by default through `settings action:"list"` and full with `includeParameters:true` or `settings action:"get"`. Setting changes use `settings action:"set|reset"` only when the user explicitly asks and provides confirmation. `models action:"status|route|local|providers|provider"` is read-only; `models action:"smoke"` is confirmation-gated. Model/provider selection, catalog refresh, pin/unpin, custom provider edits, and route setting changes stay visible picker, settings, workspace, or slash-command flows. Secret-backed provider or channel values are stored through the secret manager and displayed as redacted references.
 
-## Related Docs
+## Related docs
 
 - [Getting started](getting-started.md)
 - [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)

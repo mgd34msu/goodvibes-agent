@@ -33,7 +33,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 /**
  * Text that tells someone to stand up an MCP server for mail or calendar.
  * The owner ruled that out: the native connector replaced it. Matching on the
- * bare word would be wrong — credential paths contain ".gmail-mcp", and saying
+ * bare word would be wrong, credential paths contain ".gmail-mcp", and saying
  * "no MCP server is involved" is the correct message, not a violation.
  */
 const MCP_INSTRUCTION = /(add|install|connect|configure)[^.]{0,60}MCP server/i;

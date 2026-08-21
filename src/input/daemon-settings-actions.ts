@@ -6,7 +6,7 @@ const UTC_UNSET_ID = '__daemon_timezone_utc_unset__';
 
 /**
  * A picker over every IANA zone name Intl actually recognizes on this host,
- * plus an explicit unset option — never a free-text field, so a typo can't
+ * plus an explicit unset option, never a free-text field, so a typo can't
  * silently produce an invalid zone the daemon then fails to parse.
  */
 export function openDaemonTimezonePicker(ctx: CommandContext): boolean {

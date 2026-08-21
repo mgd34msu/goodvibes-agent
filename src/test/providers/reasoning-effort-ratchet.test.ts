@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// reasoning-effort-ratchet.test.ts — the requested level survives a model hop.
+// reasoning-effort-ratchet.test.ts, the requested level survives a model hop.
 //
 // The defect these pin: both model-switch paths (`/model <id>` in shell-core.ts
 // and the picker's commit path in bootstrap-command-parts.ts) re-resolved the
@@ -97,7 +97,7 @@ function makeConfig(initial: Record<string, unknown> = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// `/model <id>` — the shell-core command path
+// `/model <id>`, the shell-core command path
 // ---------------------------------------------------------------------------
 
 function makeCommandContext(config: ReturnType<typeof makeConfig>, printed: string[]) {
@@ -281,7 +281,7 @@ describe('model picker commit — same rules as /model', () => {
     const { actions, runtime } = makePickerActions(config, logged);
 
     // No effort STEP ran, so `effort` here is the level carried over from the
-    // previously selected model — not a choice.
+    // previously selected model, not a choice.
     actions.completeModelSelection?.({ model: CAPPED, effort: 'xhigh' });
     expect(runtime.reasoningEffort).toBe('medium');
     expect(config.store['provider.reasoningEffort']).toBe('xhigh');
@@ -347,7 +347,7 @@ describe('requested-level helper', () => {
   test('a model that offers nothing low enough says THAT, not "no configurable level"', () => {
     // Resolution snaps DOWN only, so a request for 'low' against a model whose
     // lowest level is 'high' drops the field. Saying the model has no
-    // configurable reasoning would be false — it has levels, just none this low.
+    // configurable reasoning would be false, it has levels, just none this low.
     const highOnly: EffortModelLike = {
       id: 'test-only-high-floor-model',
       provider: 'testprov',

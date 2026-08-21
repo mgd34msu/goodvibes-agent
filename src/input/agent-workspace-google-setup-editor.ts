@@ -3,7 +3,7 @@
  *
  * `/google` shipped first and, for a release, was the only way in. A headline
  * capability reachable only by typing a slash command is not wired up as far as
- * a person clicking through the workspace is concerned — the same reasoning
+ * a person clicking through the workspace is concerned, the same reasoning
  * that produced the command in the first place, applied one layer out. These
  * cards cover every route the command exposes: the console walkthrough, the
  * app-password fast lane, the two OAuth client intakes, adoption of credentials
@@ -16,7 +16,7 @@
  * Security: these are DIRECT host actions, not slash commands. The client
  * secret and the client-JSON path never travel through
  * AgentWorkspace.dispatchWorkspaceCommand, which echoes its command argument
- * back into the rendered result — a command string carrying a client secret
+ * back into the rendered result, a command string carrying a client secret
  * would render it in the UI. Same rule as the email connect wizard and the
  * calendar OAuth card.
  */
@@ -46,7 +46,7 @@ export interface AgentWorkspaceGoogleSetupEditorHost {
 /**
  * Google blocks automated sign-in, so any flow that opens the browser stops and
  * waits for a person. Every card that can reach that point says so before it is
- * run rather than after — an unattended run that silently parks is the failure
+ * run rather than after, an unattended run that silently parks is the failure
  * this warning exists to prevent.
  */
 const SIGN_IN_PAUSE =
@@ -69,7 +69,7 @@ export function createGoogleStatusEditor(): AgentWorkspaceLocalEditor {
     title: 'Google connection status',
     selectedFieldIndex: 0,
     message:
-      'Report what Gmail and Calendar have configured, and — separately — whether Google credentials '
+      'Report what Gmail and Calendar have configured, and, separately, whether Google credentials '
       + 'already exist on this machine that nothing is using yet. Reads only; nothing is changed and no '
       + 'credential is shown.',
     fields: [confirmField('Type yes to read the current connection state.')],
@@ -79,8 +79,8 @@ export function createGoogleStatusEditor(): AgentWorkspaceLocalEditor {
 /**
  * The card people should reach for, and the reason the others are still here.
  *
- * `/google connect` works out the route by itself — a stored credential, a
- * stored client that only needs consent, or an authenticated gcloud — and asks
+ * `/google connect` works out the route by itself, a stored credential, a
+ * stored client that only needs consent, or an authenticated gcloud, and asks
  * for at most one thing. The path-specific cards below remain for someone who
  * knows they want a particular one; nobody should have to choose first.
  */
@@ -116,7 +116,7 @@ export function createGoogleReauthorizeEditor(): AgentWorkspaceLocalEditor {
     message:
       'Ask for a fresh Google consent covering mail and calendar together. Use this when something '
       + 'reports a missing scope, or when a credential has stopped working. The existing OAuth client is '
-      + 'reused, so there is no project or console work — just one consent link to approve. Check the '
+      + 'reused, so there is no project or console work, just one consent link to approve. Check the '
       + 'account shown on the consent screen: approving as a personal account by reflex is the most '
       + 'common way this goes wrong.',
     fields: [confirmField('Type yes to start a fresh Google consent.')],
@@ -137,7 +137,7 @@ export function createGoogleForgetEditor(): AgentWorkspaceLocalEditor {
     title: 'Remove stored Google credentials',
     selectedFieldIndex: 0,
     message:
-      'Remove the Google credentials held in the encrypted store — the refresh token, the OAuth client '
+      'Remove the Google credentials held in the encrypted store, the refresh token, the OAuth client '
       + 'secret, the Gmail app password and the private calendar address, whichever of them are there. '
       + 'This cannot be undone: getting the refresh token back means approving a consent screen again. '
       + 'Nothing is removed until you confirm, and the reply names exactly what was removed.',
@@ -246,11 +246,11 @@ function failed(host: AgentWorkspaceGoogleSetupEditorHost, editor: AgentWorkspac
  * Ordering, because the result pane cannot show everything.
  *
  * The context column compacts a result to its first sentence, and the actions
- * column renders wrapped lines until the viewport ends — there is no scroll and
+ * column renders wrapped lines until the viewport ends, there is no scroll and
  * no "more below" marker on the result block, so a thirty-line setup report
  * loses its tail. Printing to the conversation instead is not available here:
  * the workspace's command context does not surface `print` into the transcript
- * (verified against a built binary — the same text typed as `/google status`
+ * (verified against a built binary, the same text typed as `/google status`
  * appears, the same call from a card does not).
  *
  * What is in our gift is the order. Every result therefore leads with the
@@ -292,7 +292,7 @@ async function runFlowCard(
 ): Promise<void> {
   const transcript: string[] = [];
   try {
-    host.status = 'Google setup running — the browser may ask you to sign in.';
+    host.status = 'Google setup running, the browser may ask you to sign in.';
     const report = await runGoogleSetup(path, context, collectingProgress(transcript), intake);
 
     const outstanding = report.steps.find((step) => step.outcome !== 'done');
@@ -308,7 +308,7 @@ async function runFlowCard(
         ];
 
     host.localEditor = null;
-    host.status = report.ok ? 'Google connected.' : 'Google setup paused — one thing needs you.';
+    host.status = report.ok ? 'Google connected.' : 'Google setup paused, one thing needs you.';
     host.lastActionResult = {
       kind: report.ok ? 'refreshed' : 'error',
       title: report.ok ? `${title} complete` : `${title} paused`,

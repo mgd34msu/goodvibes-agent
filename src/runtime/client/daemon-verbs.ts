@@ -1,18 +1,18 @@
 /**
- * daemon-verbs.ts — this product's plug into the SDK's client seams.
+ * daemon-verbs.ts, this product's plug into the SDK's client seams.
  *
  * ── What is here and what deliberately is not ─────────────────────────────
  *
- * The POLICY for every seam this agent crosses — raising an approval, writing a
+ * The POLICY for every seam this agent crosses, raising an approval, writing a
  * daemon-owned setting, storing a credential, receiving inbound session work,
- * answering a conversation-rewind question, reaching a paired phone — lives in
+ * answering a conversation-rewind question, reaching a paired phone, lives in
  * `@pellux/goodvibes-sdk/platform/runtime/client`. Each of those modules takes
  * one thing: a `DaemonVerbCaller`, two methods.
  *
  * This file is that one thing, for this product. Resolving WHICH host this
  * agent talks to is a consumer trust-boundary concern the SDK core deliberately
  * never reaches into (the carve-out recorded beside the spine transports), and
- * this agent already had the resolution — `createSpineConnectionResolver` plus
+ * this agent already had the resolution, `createSpineConnectionResolver` plus
  * the connected-host operator token. So the resolution stays here and the seams
  * are shared, which is the split that lets both surface products use one
  * implementation of each policy without either handing its trust decisions to
@@ -33,7 +33,7 @@
  *
  * `probe()` answers with the honest reason rather than throwing it, because
  * callers use it to degrade or to print a line instead of crashing a turn. Once
- * a request is actually made, a non-2xx throws — including the 404 that means
+ * a request is actually made, a non-2xx throws, including the 404 that means
  * "this host has not wired that verb", which is a real answer about the host
  * and must never be laundered into an empty result.
  */
@@ -88,17 +88,17 @@ function resolveConnection(options: AgentDaemonVerbCallerOptions): ResolvedConne
   // `daemon.enabled` answers whether this surface ADOPTS a session daemon of
   // its own. It is the wrong question here, and asking it was a real defect:
   // on a machine with `daemon.enabled: false` and a connected host that was
-  // live and answering, this gate refused every call through this caller — the
+  // live and answering, this gate refused every call through this caller, the
   // session-inputs poll (every two seconds, thousands of log lines an hour),
   // the conversation-rewind host registration, the approvals update stream and
-  // the hosted-conversation handoff — while the session spine, the memory
+  // the hosted-conversation handoff, while the session spine, the memory
   // spine and the operator tools dialed the SAME host without trouble, because
   // none of them read the flag. Half the product believed there was no daemon.
   //
   // The two meanings are now two settings. This one is the dial permission.
   if (!resolveConnectedHostDialEnabled(configManager)) {
     return {
-      reason: 'this surface is set not to dial a connected host (daemon.connectedHost.enabled=false) — '
+      reason: 'this surface is set not to dial a connected host (daemon.connectedHost.enabled=false), '
         + 'nothing to reach. Set it to true in settings, then retry.',
     };
   }
@@ -114,8 +114,8 @@ function resolveConnection(options: AgentDaemonVerbCallerOptions): ResolvedConne
  * The same host resolution the verb caller uses, for the ONE consumer that
  * needs the address rather than a call: the `control.approval_update` stream.
  *
- * A stream is not a verb — it is a long-lived GET on the control plane's event
- * endpoint — so it cannot go through `invoke`. It must still reach exactly the
+ * A stream is not a verb, it is a long-lived GET on the control plane's event
+ * endpoint, so it cannot go through `invoke`. It must still reach exactly the
  * host `invoke` reaches, with exactly the token `invoke` sends, or the panel
  * would end up polling one daemon and streaming from another. Exporting the
  * resolution (rather than duplicating it) is what guarantees that.
@@ -147,7 +147,7 @@ export class ConnectedHostVerbError extends Error {
 export function describeConnectedHostVerbError(error: unknown): string {
   if (error instanceof ConnectedHostVerbError) {
     if (error.status === 404) {
-      return 'the connected host returned 404 — this verb is not wired up on that host yet.';
+      return 'the connected host returned 404, this verb is not wired up on that host yet.';
     }
     if (error.status === 401 || error.status === 403) {
       return `the connected host rejected the request (${error.status}): ${error.message}`;

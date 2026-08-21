@@ -5,13 +5,13 @@ import { makeLongLivedProjectTempDir } from '../helpers/project-temp.ts';
 import { TaskScheduler } from '@pellux/goodvibes-sdk/platform/scheduler';
 import { getTestTaskScheduler, resetTestTaskScheduler } from '../helpers/runtime-services.ts';
 
-// TaskScheduler persists its task list to storePath — a real file on real disk,
+// TaskScheduler persists its task list to storePath, a real file on real disk,
 // not an in-memory stub. These paths used to be hardcoded under `/tmp`, which
 // escapes the suite's temp sandbox entirely: a green run left 12
 // gv-scheduler-test-*.json files in the developer's actual /tmp (measured by
 // diffing /tmp across a full run). They are built inside one directory under
 // the repo's own .test-tmp root, created LONG-LIVED because it is a module-level
-// singleton every test in this file shares — the per-test sweep would take it
+// singleton every test in this file shares, the per-test sweep would take it
 // away after the first one. Its removal is registered at module top level: a
 // hook attached from inside a helper function does not reliably attach.
 const SCHEDULER_STORE_DIR = makeLongLivedProjectTempDir('gv-scheduler-store');
@@ -24,7 +24,7 @@ function schedulerStorePath(label: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Cron parser — tested indirectly via getNextRun
+// Cron parser, tested indirectly via getNextRun
 // ---------------------------------------------------------------------------
 
 describe('Cron parser', () => {
@@ -36,7 +36,7 @@ describe('Cron parser', () => {
   });
 
   test('wildcard (*) matches any minute', () => {
-    // "* * * * *" — next run is always 1 minute away
+    // "* * * * *", next run is always 1 minute away
     const from = new Date('2024-01-15T10:30:00Z');
     const next = scheduler.getNextRun('* * * * *', from);
     expect(next.getTime()).toBe(new Date('2024-01-15T10:31:00Z').getTime());
@@ -76,14 +76,14 @@ describe('Cron parser', () => {
   });
 
   test('combined: list with range 1,3-5', () => {
-    // Minutes 1,3,4,5 — from minute 2, next is 3
+    // Minutes 1,3,4,5, from minute 2, next is 3
     const from = new Date('2024-01-15T10:02:00Z');
     const next = scheduler.getNextRun('1,3-5 * * * *', from);
     expect(next.getMinutes()).toBe(3);
   });
 
   test('combined: range with step 1-5/2', () => {
-    // Minutes 1,3,5 — from minute 2, next is 3
+    // Minutes 1,3,5, from minute 2, next is 3
     const from = new Date('2024-01-15T10:02:00Z');
     const next = scheduler.getNextRun('1-5/2 * * * *', from);
     expect(next.getMinutes()).toBe(3);
@@ -103,7 +103,7 @@ describe('Cron parser', () => {
 });
 
 // ---------------------------------------------------------------------------
-// dayOfMonth / dayOfWeek — POSIX OR logic
+// dayOfMonth / dayOfWeek, POSIX OR logic
 // ---------------------------------------------------------------------------
 
 describe('computeNextRun — dayOfMonth/dayOfWeek OR logic', () => {
@@ -155,7 +155,7 @@ describe('computeNextRun — dayOfMonth/dayOfWeek OR logic', () => {
   });
 
   test('dayOfWeek range 5-7 includes Sunday (7 normalizes to 0)', () => {
-    // Fri(5), Sat(6), Sun(7->0) — from Monday Jan 15, next match is Friday Jan 19
+    // Fri(5), Sat(6), Sun(7->0), from Monday Jan 15, next match is Friday Jan 19
     const from = new Date('2024-01-15T12:00:00Z'); // Monday Jan 15
     const next = scheduler.getNextRun('0 8 * * 5-7', from);
     expect(next.getDay()).toBe(5); // Friday
@@ -163,7 +163,7 @@ describe('computeNextRun — dayOfMonth/dayOfWeek OR logic', () => {
 });
 
 // ---------------------------------------------------------------------------
-// computeNextRun — basic cases
+// computeNextRun, basic cases
 // ---------------------------------------------------------------------------
 
 describe('computeNextRun basic cases', () => {
@@ -196,7 +196,7 @@ describe('computeNextRun basic cases', () => {
   });
 
   test('throws if no match found within ~1 year (impossible expression)', () => {
-    // Feb 30 does not exist — cron won't fire within a year
+    // Feb 30 does not exist, cron won't fire within a year
     expect(() => scheduler.getNextRun('0 0 30 2 *')).toThrow();
   });
 });

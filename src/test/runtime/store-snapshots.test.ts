@@ -1,6 +1,6 @@
 /**
  * Adoption contract proof for the daily store-snapshot scheduler, now consumed
- * from the SDK's public export (platform/state/store-snapshots — the former
+ * from the SDK's public export (platform/state/store-snapshots, the former
  * agent-local fork-mirror and its local pruning engine existed only while the
  * class and RetentionPolicy/SnapshotPruner had no public export path). The
  * on-disk contract the agent composition relies on is unchanged:
@@ -31,7 +31,7 @@ afterEach(() => {
  * The scheduler's own `now` (injected below) drives WHEN a new daily copy is
  * due, but StoreSnapshotScheduler's default retention (defaultStoreSnapshotRetention())
  * builds a RetentionPolicy with no injected clock, so its age-based pruning
- * reads the REAL Date.now() — a real-clock dependency that made the
+ * reads the REAL Date.now(), a real-clock dependency that made the
  * boundary-exact retention test below drift further wrong every day past
  * this file's 2026-07-13 fixture date. Build the SAME default retention
  * classes (14 daily / 512MB, 30 forensic / 1GB) with the SAME injected clock
@@ -111,7 +111,7 @@ describe('StoreSnapshotScheduler (SDK public export, agent adoption contract)', 
     mkdirSync(dir, { recursive: true });
     const base = Date.parse('2026-07-13T08:00:00Z');
     // 16 pre-existing daily copies, one per day, all inside the 14-day age
-    // limit is impossible for the oldest two — seed them a day apart with the
+    // limit is impossible for the oldest two, seed them a day apart with the
     // newest one 'fresh' so the sweep itself writes nothing new.
     for (let i = 0; i < 16; i += 1) {
       const at = base - i * DAY_MS;

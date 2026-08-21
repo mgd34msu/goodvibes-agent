@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, parse, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { parse, resolve } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import {
   WorkspaceRegistrationStore,
@@ -36,14 +37,14 @@ export type {
  * The shared registration store is ONE file the whole platform reads and writes
  * (~/.goodvibes/control-plane/workspace-registrations.json). The TUI's first-open
  * self-recording writes a plain {@link RegisteredWorkspaceRecord} to it for any
- * directory a user merely opens — so "registered in the store" can no longer mean
+ * directory a user merely opens, so "registered in the store" can no longer mean
  * "the owner opted this workspace into automatic checkpoints". The agent's
  * checkpoint boundary must therefore consume ONLY records the owner EXPLICITLY
  * registered for checkpoints, marked by `checkpointEligible === true`.
  *
  * The SDK record schema natively carries both fields (typed on
- * {@link RegisteredWorkspaceRecord}): `origin` — which flow wrote/stamped the
- * record, provenance only — and `checkpointEligible`, where ABSENT MEANS FALSE.
+ * {@link RegisteredWorkspaceRecord}): `origin`, which flow wrote/stamped the
+ * record, provenance only, and `checkpointEligible`, where ABSENT MEANS FALSE.
  * The store's `add` stamps/upgrades them typed, and absent options never strip
  * an existing stamp, so one surface's plain self-recording cannot demote
  * another consumer's eligibility.
@@ -57,13 +58,13 @@ export const AGENT_EXPLICIT_REGISTRATION_ORIGIN = 'agent-explicit-registration';
  *
  * MIGRATION. The local registry's record shape (`{ root, registeredAt, label? }`)
  * is field-identical to the shared store's `RegisteredWorkspaceRecord`, so a local
- * file migrates in as a straight import — see migrateLegacyWorkspaceRegistryIfNeeded.
+ * file migrates in as a straight import, see migrateLegacyWorkspaceRegistryIfNeeded.
  *
  * WHY A SYNCHRONOUS RESOLVER EXISTS ALONGSIDE THE ASYNC STORE. The SDK's
  * WorkspaceRegistrationStore is Promise-based (it persists through
  * PersistentStore). createRuntimeServices() (../runtime/services.ts) is
- * synchronous by design — every consumer (the CLI, the TUI bootstrap, every
- * test file) calls it synchronously — and the automatic-checkpoint decision
+ * synchronous by design, every consumer (the CLI, the TUI bootstrap, every
+ * test file) calls it synchronously, and the automatic-checkpoint decision
  * (whether to pass runtimeBus to WorkspaceCheckpointManager) must be made AT
  * construction time, not after an async read resolves later. So this module
  * also ships a synchronous snapshot read + the SDK's PURE resolver
@@ -76,7 +77,7 @@ export const AGENT_EXPLICIT_REGISTRATION_ORIGIN = 'agent-explicit-registration';
 export type StoreShellPaths = Pick<ShellPathService, 'resolveUserPath' | 'homeDirectory'>;
 
 /**
- * Path of the shared store's JSON document — the SAME file the SDK's
+ * Path of the shared store's JSON document, the SAME file the SDK's
  * registerGatewayVerbGroups writes and the daemon reads for checkpoint
  * eligibility.
  *
@@ -86,7 +87,7 @@ export type StoreShellPaths = Pick<ShellPathService, 'resolveUserPath' | 'homeDi
  * here would vanish from the daemon while the daemon's vanished from here.
  *
  * This is a READ resolver, so it falls back to the pre-split location
- * (~/.goodvibes/control-plane/) while that is still where the state is — the
+ * (~/.goodvibes/control-plane/) while that is still where the state is, the
  * daemon's boot fold moves it, and until then an updated agent must not report
  * the operator's registered workspaces as gone. Writes always go to the shared
  * path; see createWorkspaceRegistrationStore below.
@@ -95,7 +96,7 @@ export function sharedWorkspaceRegistrationStorePath(shellPaths: StoreShellPaths
   return resolveWorkspaceRegisterReadPath(shellPaths, existsSync);
 }
 
-/** Construct a store instance over the shared file — for callers that can go async (CLI commands, interactive prompts). */
+/** Construct a store instance over the shared file, for callers that can go async (CLI commands, interactive prompts). */
 export function createWorkspaceRegistrationStore(shellPaths: StoreShellPaths): WorkspaceRegistrationStore {
   return new WorkspaceRegistrationStore({
     // WRITES go to the shared tier, always; reads fall back to the pre-split
@@ -148,7 +149,7 @@ interface SharedRegistrationSnapshot {
 /**
  * Synchronous read of the shared store's on-disk JSON, mirroring the store's
  * own validate() logic exactly (version 1, workspaces[], declines[]). A
- * missing or unparsable file reads as empty — never throws.
+ * missing or unparsable file reads as empty, never throws.
  */
 export function readSharedWorkspaceRegistrationSnapshotSync(shellPaths: StoreShellPaths): SharedRegistrationSnapshot {
   const path = sharedWorkspaceRegistrationStorePath(shellPaths);
@@ -176,7 +177,7 @@ export function readSharedWorkspaceRegistrationSnapshotSync(shellPaths: StoreShe
  * on-disk read plus the SDK's pure resolveWorkspaceRegistration. `git` defaults
  * to a real worktree-link probe (probeWorktreeLink spawns `git`), so a linked
  * orchestration worktree of a registered repo resolves as covered without any
- * extra wiring — the worktree-link inheritance the shared store provides.
+ * extra wiring, the worktree-link inheritance the shared store provides.
  * Callers that already have git metadata (or want to avoid the spawn, e.g. in
  * a pure unit test) can pass it explicitly.
  */
@@ -196,7 +197,7 @@ export function resolveWorkspaceRegistrationSync(
 }
 
 /**
- * Resolve `path` against ONLY the checkpoint-eligible registrations — the
+ * Resolve `path` against ONLY the checkpoint-eligible registrations, the
  * boundary the automatic/explicit checkpoint gate consumes. Identical to
  * {@link resolveWorkspaceRegistrationSync} except the registrations are filtered
  * to `checkpointEligible === true` first, so a plain TUI self-record (registered
@@ -226,7 +227,7 @@ export function resolveCheckpointEligibilitySync(
  * workspace root. `probeWorktreeLink` (a `git` subprocess spawn) runs ONCE here,
  * since a long-running process's working directory and its git-worktree
  * relationship do not change mid-launch; every subsequent call only re-reads the
- * shared registration JSON file (a small synchronous fs read) — cheap enough to
+ * shared registration JSON file (a small synchronous fs read), cheap enough to
  * call on every turn/agent-lifecycle event, unlike calling
  * `resolveCheckpointEligibilitySync` directly (which re-probes git every time).
  *
@@ -255,38 +256,9 @@ function legacyWorkspaceRegistryPath(shellPaths: StoreShellPaths): string {
 }
 
 function migrationReceiptPath(shellPaths: StoreShellPaths): string {
-  // This repo's own receipt, not shared state — it rides the agent's surface
+  // This repo's own receipt, not shared state, it rides the agent's surface
   // root like everything else this product owns.
   return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'workspace-registration-migration-receipt.json');
-}
-
-/**
- * Write `data` as JSON through a temp file and an atomic rename.
- *
- * The temp name carries the pid. It used to be a fixed `${path}.tmp`, which two
- * processes starting at the same moment share: both truncate it, both write
- * into it, and whichever renames second moves a file holding interleaved bytes
- * from two writers into the final path. For the receipt files below — whose
- * whole job is to record that a one-time migration already happened — that
- * produces exactly the failure this module must not have: an unreadable receipt
- * that no later boot can interpret. A pid-suffixed temp file cannot be shared,
- * and `rename` onto the final path is atomic, so a reader sees either the whole
- * previous file or the whole new one and never a splice of the two.
- */
-function atomicWriteJson(path: string, data: unknown): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.${process.pid}.tmp`;
-  try {
-    writeFileSync(tempPath, `${JSON.stringify(data, null, 2)}\n`, 'utf-8');
-    renameSync(tempPath, path);
-  } catch (error) {
-    try {
-      rmSync(tempPath, { force: true });
-    } catch {
-      // The temp file is inert; a failed cleanup is not worth masking the real error.
-    }
-    throw error;
-  }
 }
 
 /**
@@ -296,7 +268,7 @@ function atomicWriteJson(path: string, data: unknown): void {
  * A receipt is the ONLY memory that a one-time migration already ran. Gating on
  * `existsSync` alone accepts a zero-byte or half-written file as proof of
  * completion, which is why these are now parsed instead. See
- * {@link readReceipt} for what each caller does when the parse fails — the two
+ * {@link readReceipt} for what each caller does when the parse fails, the two
  * receipts answer that differently, on purpose.
  */
 const RECEIPT_SCHEMA_VERSION = 1;
@@ -328,8 +300,8 @@ type ReceiptState =
  *
  * A receipt written before this check existed carries neither field, so it
  * reads as `damaged` rather than `complete`. That is deliberate and the callers
- * handle it — one re-runs (its work is idempotent), the other does not (its
- * work is not) — and both say so out loud.
+ * handle it, one re-runs (its work is idempotent), the other does not (its
+ * work is not), and both say so out loud.
  */
 function readReceipt(path: string): ReceiptState {
   let raw: string;
@@ -367,7 +339,7 @@ interface RawSharedStoreDoc {
 
 /**
  * Raw read of the shared store document that preserves EVERY field on EVERY
- * record verbatim — unlike {@link readSharedWorkspaceRegistrationSnapshotSync},
+ * record verbatim, unlike {@link readSharedWorkspaceRegistrationSnapshotSync},
  * which strips each record to the known shape. Used by the synchronous
  * eligibility backfill below so it never drops another surface's fields (or a
  * future one) when it rewrites the file. A missing/unparsable file reads as an
@@ -393,10 +365,10 @@ function readSharedStoreRawDoc(path: string): RawSharedStoreDoc {
 /**
  * The agent's EXPLICIT checkpoint-registration path: one typed store `add` that
  * registers `root` (the SDK's own root-guarded write) AND stamps it
- * `checkpointEligible: true` with the agent-explicit origin — the store's `add`
+ * `checkpointEligible: true` with the agent-explicit origin, the store's `add`
  * carries both fields natively, upgrading an already-present record's stamp in
  * the same call. This is the ONLY way a record becomes checkpoint-eligible at
- * write time — a plain SDK `add` (the TUI's first-open self-recording) never
+ * write time, a plain SDK `add` (the TUI's first-open self-recording) never
  * sets the flag, so opening a directory in the TUI cannot widen the agent's
  * checkpoint boundary. Returns the SDK's register result unchanged so callers
  * keep their existing messaging.
@@ -438,7 +410,7 @@ export interface CheckpointEligibilityBackfillResult {
  *
  * The honest source of "which records were the agent's explicit list" is the
  * legacy per-user registry file (`<surface>/checkpoints/registered-workspaces.json`)
- * — written only by `workspaces register`, and never deleted by the migration
+ *, written only by `workspaces register`, and never deleted by the migration
  * that imported it into the shared store. Every root in it is an explicit owner
  * opt-in, so the matching shared-store record is stamped eligible. This covers
  * both a fresh import (records just migrated in without the flag) and a machine
@@ -456,7 +428,7 @@ export interface CheckpointEligibilityBackfillResult {
  * migration below: this pass only ever sets `checkpointEligible: true` on
  * records whose root is in the owner's own explicit legacy list, and it skips
  * any record already carrying the flag. Repeating it stamps the same records
- * with the same value or does nothing at all — it cannot resurrect, duplicate,
+ * with the same value or does nothing at all, it cannot resurrect, duplicate,
  * or un-remove anything. A crash mid-write therefore must not be allowed to
  * strand a user's pre-flag checkpoint opt-ins forever.
  */
@@ -467,7 +439,7 @@ export function backfillCheckpointEligibilityIfNeeded(
   const receipt = readReceipt(receiptPath);
   if (receipt.kind === 'complete') return null;
   if (receipt.kind === 'damaged') {
-    logger.warn('Checkpoint-eligibility backfill receipt is not usable — re-running the (idempotent) backfill', {
+    logger.warn('Checkpoint-eligibility backfill receipt is not usable, re-running the (idempotent) backfill', {
       receiptPath,
       reason: receipt.reason,
     });
@@ -501,14 +473,14 @@ export function backfillCheckpointEligibilityIfNeeded(
     const existingOrigin = readString(entry.origin);
     return { ...entry, checkpointEligible: true, origin: existingOrigin || AGENT_EXPLICIT_REGISTRATION_ORIGIN };
   });
-  if (stamped > 0) atomicWriteJson(sharedPath, { version: 1, workspaces, declines: doc.declines });
+  if (stamped > 0) writeStoreJson(sharedPath, { version: 1, workspaces, declines: doc.declines });
 
   const result: CheckpointEligibilityBackfillResult = {
     sourcePath: legacyPath,
     recordsStamped: stamped,
     backfilledAt: new Date().toISOString(),
   };
-  atomicWriteJson(receiptPath, stampReceipt(result));
+  writeStoreJson(receiptPath, stampReceipt(result));
   return result;
 }
 
@@ -524,7 +496,7 @@ export interface WorkspaceRegistrationMigrationResult {
  *
  * Runs synchronously (see this module's doc comment on why). Idempotent via a
  * receipt file: once written, later calls (any process, any startup) return
- * null immediately without touching either file again — even if the legacy
+ * null immediately without touching either file again, even if the legacy
  * file is still present, and even if an owner later unregisters a migrated
  * root through the new store (a migrated-then-removed root must not come back
  * on the next start). A missing legacy file is not an error and writes no
@@ -538,14 +510,14 @@ export interface WorkspaceRegistrationMigrationResult {
  * That is the opposite of {@link backfillCheckpointEligibilityIfNeeded}, and
  * the difference is not an oversight. This migration is NOT safe to repeat: the
  * legacy file is deliberately never deleted, so a second pass would re-add
- * every legacy root — including ones the owner has since unregistered through
+ * every legacy root, including ones the owner has since unregistered through
  * the new store. Re-running to recover from a torn receipt would therefore
  * resurrect workspaces the owner explicitly removed, which is a worse outcome
  * than skipping a migration that has, in every realistic case, already run
  * (the receipt is written last, through a pid-unique temp file and an atomic
  * rename, so a torn one means something outside this code damaged it).
  *
- * So a damaged receipt takes the safe branch — treat it as migrated — and says
+ * So a damaged receipt takes the safe branch, treat it as migrated, and says
  * so LOUDLY at warn level with the path and the reason, because the one thing
  * that must not happen is this being decided in silence. An operator who sees
  * that line can delete the receipt to force the migration deliberately.
@@ -558,7 +530,7 @@ export function migrateLegacyWorkspaceRegistryIfNeeded(
   if (receipt.kind === 'complete') return null;
   if (receipt.kind === 'damaged') {
     logger.warn(
-      'Workspace-registry migration receipt is not usable — treating the migration as already done, because repeating it '
+      'Workspace-registry migration receipt is not usable, treating the migration as already done, because repeating it '
       + 'would re-add legacy roots the owner may have since unregistered. Delete the receipt to force it.',
       { receiptPath, reason: receipt.reason },
     );
@@ -596,7 +568,7 @@ export function migrateLegacyWorkspaceRegistryIfNeeded(
   }
 
   if (migrated > 0) {
-    atomicWriteJson(sharedPath, { version: 1, workspaces: merged, declines: existing.declines });
+    writeStoreJson(sharedPath, { version: 1, workspaces: merged, declines: existing.declines });
   }
 
   const result: WorkspaceRegistrationMigrationResult = {
@@ -605,7 +577,7 @@ export function migrateLegacyWorkspaceRegistryIfNeeded(
     recordsAlreadyPresent: alreadyPresent,
     migratedAt: new Date().toISOString(),
   };
-  atomicWriteJson(receiptPath, stampReceipt(result));
+  writeStoreJson(receiptPath, stampReceipt(result));
   return result;
 }
 
@@ -623,7 +595,7 @@ function canonicalPath(path: string): string {
 
 /**
  * Would the shared store refuse to register `root` as too broad? Mirrors the
- * SDK's broadRootReason (checkpoint/root-guard.ts — not part of the public
+ * SDK's broadRootReason (checkpoint/root-guard.ts, not part of the public
  * platform/workspace export, so replicated here at the same single-purpose
  * level as this module's other store-internal-logic mirrors) closely enough
  * for a PRE-registration "would this be refused?" check. Used only to decide
@@ -641,11 +613,11 @@ export function isBroadWorkspaceRoot(shellPaths: StoreShellPaths, root: string):
 /**
  * Resolve a first-start registration prompt's answer against the shared
  * store: fire-and-forget (the caller is a keypress handler, not an async
- * context) but never a silent failure — a write error is logged, not lost.
+ * context) but never a silent failure, a write error is logged, not lost.
  */
 export function answerWorkspaceRegistrationPrompt(shellPaths: StoreShellPaths, root: string, accepted: boolean): void {
   // Accepting the first-start prompt is an EXPLICIT owner opt-in, so it goes
-  // through registerWorkspaceForCheckpoints (registers AND stamps eligibility) —
+  // through registerWorkspaceForCheckpoints (registers AND stamps eligibility),
   // not a plain store.add, which would register without making the workspace
   // checkpoint-eligible. Declining stays a plain decline.
   const outcome = accepted

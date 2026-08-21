@@ -60,7 +60,7 @@ function summarizeCallId(callId: string, maxLength = 24): string {
 }
 
 /**
- * The `▸ N lines` badge — a folded block's only statement of its own size, and
+ * The `▸ N lines` badge, a folded block's only statement of its own size, and
  * the one badge every fold class carries. The row's geometry (leftover columns,
  * the preview tail, the fallback when neither fits) belongs to
  * renderConversationFoldedRow in the renderer surface.
@@ -87,7 +87,7 @@ export function renderConversationUserMessage(
   }
   // Compaction-continuation handoff: a user-ROLE message the compactor
   // authored, not something the user typed. Rendered in full it repeats the
-  // entire re-injected instruction block after every automatic compaction —
+  // entire re-injected instruction block after every automatic compaction,
   // a multi-kilobyte wall in the transcript. Fold it like a tool result; the
   // full payload stays reachable through the normal expand toggle.
   if (msgIdx !== undefined && displayText.startsWith(COMPACTION_HANDOFF_HEADER)) {
@@ -164,21 +164,21 @@ export function renderConversationAssistantMessage(
     if (message.model) {
       assistantHeaderDetails.push({ text: ` ${message.model}${message.provider ? ` (${message.provider})` : ''} `, fg: T.modelNameDim, dim: true });
     }
-    // The count spans the whole run, not just this message — that is the point
+    // The count spans the whole run, not just this message, that is the point
     // of merging. `tools:1` repeated over five headers becomes one `5 tools`.
     const toolCount = turn?.toolCallCount ?? message.toolCalls?.length ?? 0;
     if (toolCount > 0) {
       assistantHeaderDetails.push({ text: ` ${GLYPHS.status.pending} ${toolCount} tool${toolCount === 1 ? '' : 's'} `, fg: T.toolAccent });
     }
     // A label every call in the run shares belongs here, once, instead of on
-    // every branch — the branches then lead with what distinguishes them.
+    // every branch, the branches then lead with what distinguishes them.
     // Spoken in the transcript's own vocabulary (friendlyToolLabel), the same
     // phrase the per-row label would have used.
     //
     // Hoisted ONLY when it fits whole. A label chopped mid-word ("Calling the
     // assistant serv") is worse than no label: it costs a third of the header
     // and tells you less than the rows below it already do, since each row
-    // leads with its own distinguishing token. So it either fits or it goes —
+    // leads with its own distinguishing token. So it either fits or it goes,
     // never a truncated stub. Dropping it loses nothing reachable: the rows
     // still name every call, and omitToolName is unaffected either way.
     const sharedLabel = turn?.sharedToolLabel !== undefined
@@ -202,7 +202,7 @@ export function renderConversationAssistantMessage(
     if (turnCollapsed && toolCount > 0) {
       assistantHeaderDetails.push({ text: ` ${GLYPHS.navigation.collapsed} hidden `, fg: '244', dim: true });
     }
-    // An empty run — no model, no tools, no reasoning — emits no header rather
+    // An empty run, no model, no tools, no reasoning, emits no header rather
     // than a bare `● assistant` with nothing under it.
     if (assistantHeaderDetails.length > 0) {
       const headerStartLine = context.history.getLineCount();
@@ -215,7 +215,7 @@ export function renderConversationAssistantMessage(
         detailFg: '244',
       }, assistantHeaderDetails));
 
-      // Turns are collapsible as a unit and default to EXPANDED — a turn
+      // Turns are collapsible as a unit and default to EXPANDED, a turn
       // collapsed by default would hide the activity the transcript exists to
       // show. Registered only when there is machinery to hide.
       if (turn && toolCount > 0) {
@@ -228,7 +228,7 @@ export function renderConversationAssistantMessage(
           type: 'assistant_turn',
           startLine: headerStartLine,
           lineCount: 1,
-          rawContent: `assistant turn — ${toolCount} tool call${toolCount === 1 ? '' : 's'}${sharedLabel ? ` (${sharedLabel})` : ''}`,
+          rawContent: `assistant turn, ${toolCount} tool call${toolCount === 1 ? '' : 's'}${sharedLabel ? ` (${sharedLabel})` : ''}`,
           groupMemberIndexes: turn.resultIndexes,
           toolName: sharedLabel,
         });
@@ -296,7 +296,7 @@ export function renderConversationAssistantMessage(
 }
 
 /**
- * Assistant prose — the model's actual answer — at full prominence and full
+ * Assistant prose, the model's actual answer, at full prominence and full
  * width.
  *
  * Prose is never drawn as a tree branch. It is what closes a group (see
@@ -404,7 +404,7 @@ export function renderConversationSystemMessage(
  *
  * The call row is its own plan node rather than part of the assistant
  * message's render, which is what lets a result be interleaved BETWEEN two
- * calls of the same message — the ordering guarantee that makes a
+ * calls of the same message, the ordering guarantee that makes a
  * late-finishing call's result land inside its own subtree instead of after a
  * call issued later.
  */
@@ -422,7 +422,7 @@ export function renderConversationToolCallNode(
   const turn = context.assistantTurns?.get(node.absIdx);
   if (isTurnCollapsed(turn, context.collapseState)) return;
 
-  // A call with no result message yet has not run — show it in flight rather
+  // A call with no result message yet has not run, show it in flight rather
   // than withholding the row or pretending it settled. When a result HAS
   // arrived this row carries its outcome, not merely the fact that it
   // finished: the result row below no longer repeats a marker, so this glyph
@@ -448,7 +448,7 @@ export function renderConversationToolCallNode(
     undefined,
     { indentCols: indent, omitToolName: turn?.sharedToolLabel !== undefined },
   );
-  // Recursion stopped here — say so rather than silently showing a subtree as
+  // Recursion stopped here, say so rather than silently showing a subtree as
   // if it were a leaf.
   if (node.truncated) {
     const noteIndent = treeIndentCols(node.depth + 1, width);
@@ -510,7 +510,7 @@ export function renderConversationToolMessage(
   const contentLines = message.content.split('\n');
   const isDiff = isDiffContent(message.content);
   const blockType: 'diff' | 'tool' = isDiff ? 'diff' : 'tool';
-  // The header's "N lines" badge names what expanding would actually reveal —
+  // The header's "N lines" badge names what expanding would actually reveal,
   // a raw JSON blob that pretty-prints to 50 lines must say 50, not 1, even
   // while it is still folded. The COUNT is memoised (see
   // countExpandedToolResultLines); the lines themselves are only materialised
@@ -522,14 +522,14 @@ export function renderConversationToolMessage(
   // row's width less the column its own text starts in) and the body is then
   // shifted into place, so the count still names exactly what expansion
   // produces. Counting full-width and displaying indented would desynchronise
-  // the two — the markdown-table-drops-columns bug class — and displaying it
+  // the two, the markdown-table-drops-columns bug class, and displaying it
   // flush punches the row's rails out for the whole body.
   const bodyShift = inTree ? Math.max(0, treeTextCol(indent) - LAYOUT.LEFT_MARGIN) : 0;
   const bodyWidth = Math.max(LAYOUT.LEFT_MARGIN + LAYOUT.RIGHT_MARGIN + 8, width - bodyShift);
   const lineCount = countExpandedToolResultLines(message.content, bodyWidth);
 
   // The fold decision is the canonical policy's, reached through this
-  // product's adapter (conversation-fold.ts) — never re-derived here, which is
+  // product's adapter (conversation-fold.ts), never re-derived here, which is
   // how the two renderers drifted apart before.
   const isCollapsed = foldedToolResultContent(message.content, context.collapseState.get(collapseKey));
 
@@ -540,8 +540,8 @@ export function renderConversationToolMessage(
   }
 
   // In the tree a result hangs under the call that produced it, so repeating
-  // the generic label ("tool result") and the tool's own name — which the
-  // parent call row already shows — is exactly the boilerplate this layout
+  // the generic label ("tool result") and the tool's own name, which the
+  // parent call row already shows, is exactly the boilerplate this layout
   // removes. The row leads with its size badge instead. `diff` keeps its
   // label: it carries information the parent row does not.
   const label = blockType === 'diff' ? 'diff' : (inTree ? '' : 'tool result');
@@ -569,13 +569,13 @@ export function renderConversationToolMessage(
   const rows: Line[] = [headerLine];
 
   if (!isCollapsed) {
-    // The expanded body — exactly the render the "N lines" badge above counts.
+    // The expanded body, exactly the render the "N lines" badge above counts.
     //
     // Deliberately NOT indented. renderExpandedToolResultLines (and the
     // memoised countExpandedToolResultLines the badge reads) is the single
     // source of truth for the "N lines" badge above; re-wrapping it at a
     // reduced width would desynchronise that count from what expansion
-    // actually reveals — the markdown-table-drops-columns bug class. The body
+    // actually reveals, the markdown-table-drops-columns bug class. The body
     // is already visually bound to its row by the header directly above it.
     // In the tree it is rendered at `bodyWidth` and shifted into the row's own
     // indent, which is what leaves the rail columns to its left free.

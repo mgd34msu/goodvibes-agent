@@ -1,5 +1,5 @@
 /**
- * ui-factory-waiting.test.ts — the honest waiting-state wording.
+ * ui-factory-waiting.test.ts, the honest waiting-state wording.
  *
  * createThinkingFragment now derives WHICH waiting state applies (renderer-local)
  * and defers the exact wording to the SDK presentation contract's

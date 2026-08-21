@@ -270,7 +270,7 @@ describe('AgentOrchestrator context-window awareness', () => {
     });
 
     expect(record.status).toBe('failed');
-    // contextRetried flag prevents a third attempt — only 2 chat calls made
+    // contextRetried flag prevents a third attempt, only 2 chat calls made
     expect((provider.chat as ReturnType<typeof mock>).mock.calls.length).toBe(2);
   });
 
@@ -291,7 +291,7 @@ describe('AgentOrchestrator context-window awareness', () => {
 
     expect(record.status).toBe('failed');
     expect(record.error).toContain('401');
-    // Only one call — no compaction retry for auth errors
+    // Only one call, no compaction retry for auth errors
     expect((provider.chat as ReturnType<typeof mock>).mock.calls.length).toBe(1);
   });
 
@@ -300,11 +300,11 @@ describe('AgentOrchestrator context-window awareness', () => {
     // Strategy: create a provider that captures params.messages on each call,
     // then run with a task large enough (plus system prompt) to push over threshold.
     // We also seed the conversation with many prior turns by running the agent
-    // in a way that each response adds a user follow-up — but the simplest approach
+    // in a way that each response adds a user follow-up, but the simplest approach
     // is to directly verify the compaction path runs when a large task is provided.
     //
     // The task text (~3150 chars ≈ 790 tokens) + system prompt (~200 tokens) = ~990.
-    // 990 / 4096 ≈ 24% — not enough alone. We need many messages.
+    // 990 / 4096 ≈ 24%, not enough alone. We need many messages.
     // Simulate prior turns: make the first response emit a tool call so the orchestrator
     // adds a tool-result message and loops, building up message history quickly.
     // After enough turns, compaction triggers. Then reply 'done'.
@@ -378,7 +378,7 @@ describe('AgentOrchestrator context-window awareness', () => {
 
     await withMockProvider(provider, MOCK_MODEL_LARGE, async () => {
       const orch = getTestAgentOrchestrator();
-      // @ts-expect-error — duck-typed mock for FeatureFlagManager
+      // @ts-expect-error, duck-typed mock for FeatureFlagManager
       orch.setFeatureFlagManager(mockFlagManager);
       await orch.runAgent(record);
     });

@@ -1,9 +1,9 @@
 /**
- * ics-calendar.ts — Dependency-free iCalendar (RFC 5545) parse and render.
+ * ics-calendar.ts, Dependency-free iCalendar (RFC 5545) parse and render.
  *
  * RRULE boundary: only FREQ=DAILY, FREQ=WEEKLY, and FREQ=MONTHLY are expanded.
  * COUNT and UNTIL (DATE and DATE-TIME forms) are honoured. INTERVAL, BYDAY,
- * BYMONTHDAY, EXDATE, and all other recurrence keywords are NOT processed —
+ * BYMONTHDAY, EXDATE, and all other recurrence keywords are NOT processed,
  * occurrences that would require them are silently omitted. Callers should
  * treat the `rrule` field as informational for any rule that includes those
  * keywords. Expansion is capped at 90 days from the reference date passed to
@@ -163,7 +163,7 @@ function parseDateValue(
       const utcMs = wallClockToUtcMs(iso, tzid);
       return { iso, allDay: false, tzid, utcMs };
     }
-    // Floating: no TZID, no Z suffix — treated as UTC for comparison
+    // Floating: no TZID, no Z suffix, treated as UTC for comparison
     return { iso, allDay: false };
   }
   // Fallback: return as-is
@@ -410,7 +410,7 @@ function utcMsToTzWallClock(utcMs: number, tzid: string): string {
  * Only FREQ=DAILY, FREQ=WEEKLY, and FREQ=MONTHLY with optional COUNT / UNTIL
  * are supported. INTERVAL defaults to 1. Any other RRULE keywords
  * (BYDAY, BYMONTHDAY, EXDATE, etc.) are present on the rule but NOT
- * processed — their presence does not cause an error, but the expansion will
+ * processed, their presence does not cause an error, but the expansion will
  * not reflect their constraints.
  *
  * Returns an empty array for any rule with FREQ other than those three.
@@ -418,7 +418,7 @@ function utcMsToTzWallClock(utcMs: number, tzid: string): string {
  * Timezone-correct stepping (TZID-qualified events):
  *   Each occurrence is stepped by computing the NEXT wall-clock time in the
  *   event's timezone (e.g. DAILY 09:00 NY stays 09:00 NY across DST). This
- *   means the UTC instant shifts by one hour across a DST boundary — which
+ *   means the UTC instant shifts by one hour across a DST boundary, which
  *   is the correct behaviour.
  */
 export function expandRecurringEvent(event: IcsEvent, referenceDate: Date, horizonDays = 90): IcsEvent[] {
@@ -518,7 +518,6 @@ function advanceTzMs(utcMs: number, tzid: string, freq: string, interval: number
     return addMonthsToMs(utcMs, interval);
   }
 
-  // Parse wall-clock components
   const m = wc.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/);
   if (!m) return utcMs + 86_400_000; // unexpected format
 

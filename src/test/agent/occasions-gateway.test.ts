@@ -9,7 +9,7 @@
  *
  * `authority` is what makes that matter. It is REQUIRED on the three verbs that
  * write to the owner's own profile file, and on `occasions.remove` it is the WHOLE
- * gate on a deletion — there is no derivation check and no verbatim quote to fall
+ * gate on a deletion, there is no derivation check and no verbatim quote to fall
  * back on, because a removal has neither a value to compare nor an utterance to
  * quote. This module forwards `body` verbatim on both routes, with no
  * verb-specific branching, and this suite exists so a future edit that introduced
@@ -94,7 +94,7 @@ describe('occasions gateway route decision', () => {
       transport: ['internal'],
       scopes: [],
     });
-    // The descriptor really is there — otherwise this test would pass for the
+    // The descriptor really is there, otherwise this test would pass for the
     // wrong reason, by exercising the no-descriptor case instead.
     expect(catalog.get(OCCASIONS_METHOD_IDS.pending)).toBeTruthy();
     expect(catalog.hasHandler(OCCASIONS_METHOD_IDS.pending)).toBe(false);

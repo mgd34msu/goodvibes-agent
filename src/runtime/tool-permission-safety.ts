@@ -71,8 +71,8 @@ const READ_ONLY_PERSONAL_OPS_ACTIONS = new Set(['', 'briefing', 'brief', 'daily'
 const READ_ONLY_RESEARCH_ACTIONS = new Set(['', 'briefing', 'brief', 'status', 'dashboard', 'cockpit', 'next', 'plan', 'workflow', 'research', 'runner', 'browser', 'browser_runner', 'browser_backed', 'deep_research', 'runs', 'list_runs', 'run_list', 'run', 'show_run', 'inspect_run', 'sources', 'queue', 'source_queue', 'source', 'show_source', 'inspect_source', 'bundle', 'bundle_sources', 'source_bundle', 'search', 'public_search', 'collect', 'collect_sources', 'source_candidates', 'reports', 'list_reports', 'report_list', 'visual_reports', 'report_artifact', 'show_report', 'inspect_report', 'show_visual_report', 'visual_report_artifact']);
 const READ_ONLY_CHANNELS_ACTIONS = new Set(['', 'status', 'summary', 'list', 'readiness', 'channels', 'channel', 'show', 'inspect', 'setup', 'guide', 'setup_guide', 'channel_setup_guide', 'triage', 'inbox', 'blockers', 'retries', 'channel_triage', 'deliveries', 'delivery', 'receipts', 'history', 'channel_deliveries']);
 const READ_ONLY_MEMORY_ACTIONS = new Set(['', 'status', 'summary', 'posture', 'memory_posture', 'recall', 'providers', 'provider', 'memory_provider', 'embedding', 'external', 'external_provider', 'refinement', 'refinement_tasks', 'semantic_refinement', 'self_improvement', 'semantic_self_improvement', 'learning_loop', 'curator', 'learning', 'learning_curator', 'queue', 'review_queue', 'plan', 'candidate', 'learning_candidate', 'card', 'inspect_candidate', 'list', 'records', 'memories', 'search', 'find', 'lookup', 'get', 'show', 'inspect', 'read']);
-// Browser actions that only observe. Everything else — navigating, clicking,
-// typing, launching, screenshots — is an external effect and is categorized as
+// Browser actions that only observe. Everything else, navigating, clicking,
+// typing, launching, screenshots, is an external effect and is categorized as
 // a write so it goes through the same approval path as any other real action.
 const READ_ONLY_BROWSER_ACTIONS = new Set(['', 'status', 'tabs', 'snapshot', 'read_text']);
 const READ_ONLY_COMPUTER_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'computer', 'computer_use', 'plan', 'route', 'control_plan', 'browser_plan', 'desktop_plan', 'control', 'browser_control', 'desktop', 'desktop_control', 'screenshot', 'screen', 'screen_recording', 'observe', 'browser', 'pwa', 'cockpit', 'browser_cockpit', 'web', 'setup', 'configure', 'browser_desktop_control', 'mcp', 'tools', 'servers', 'mcp_servers']);
@@ -302,7 +302,7 @@ export function fallbackPermissionCategoryForArgs(toolName: string, args: Record
   }
   if (toolName === 'profile') {
     // The owner-profile actions split cleanly: four look things up, four change
-    // the file. Classified honestly rather than conveniently — an autonomous
+    // the file. Classified honestly rather than conveniently, an autonomous
     // write is still a write, and the owner declined a confirmation prompt on
     // the profile FEATURE, not on the permission layer's posture for the tool.
     // Both sides read the SAME action vocabulary, so an alias can never
@@ -314,7 +314,7 @@ export function fallbackPermissionCategoryForArgs(toolName: string, args: Record
   if (toolName === 'occasions') {
     // Same treatment, and for the same reason, as `profile` above: the actions
     // split cleanly between the five that only look and the eight that change
-    // durable state — the acknowledgement store for an answer or an interview, and
+    // durable state, the acknowledgement store for an answer or an interview, and
     // the owner's own profile file for a capture or a removal. Both sides read the
     // SAME action vocabulary (tools/agent-occasions-types.ts), so an alias can
     // never classify as a read here and act as a write there. An action the tool

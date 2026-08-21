@@ -3,7 +3,7 @@
  * daemon's, over the SDK's poll + local-wins merge policy.
  *
  * Driven through the real seam (a DaemonVerbCaller double), so what is proven
- * here is the binding the sidebar actually reads — not a restatement of the
+ * here is the binding the sidebar actually reads, not a restatement of the
  * SDK's merge rule.
  */
 import { describe, expect, test } from 'bun:test';

@@ -1,10 +1,10 @@
 /**
- * tool-result-expanded-lines.ts — the single source of truth for how many
+ * tool-result-expanded-lines.ts, the single source of truth for how many
  * screen lines a tool-result message's EXPANDED form actually renders to.
  *
  * Tool-result content gets pretty-printed (JSON.stringify(parsed, null, 2))
  * before display, so the raw message's `content.split('\n')` length is not
- * what the user sees once expanded — a one-line JSON blob can pretty-print to
+ * what the user sees once expanded, a one-line JSON blob can pretty-print to
  * 50 lines. Both the per-block "N lines" badge (conversation-rendering.ts) and
  * every collapsed row's badge (conversation-rendering.ts) must count the SAME
  * post-render lines, or the two disagree with each other and both can disagree
@@ -12,7 +12,7 @@
  *
  * Adapted from the goodvibes-tui module of the same name. The TUI version has
  * an extra branch that renders unified diffs through renderDiffView; this
- * renderer does NOT — a tool result whose content looks like a diff is still
+ * renderer does NOT, a tool result whose content looks like a diff is still
  * rendered through the markdown path here (only its header glyph/label and
  * BlockMeta type differ). Keeping that difference means these counts stay
  * byte-honest about what this app's expand toggle really reveals.
@@ -44,7 +44,7 @@ export function renderExpandedToolResultLines(content: string, width: number): L
       const parsed = JSON.parse(contentToRender);
       contentToRender = `\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\``;
     } catch {
-      // Leave invalid JSON as-is — falls through to the plain markdown render below.
+      // Leave invalid JSON as-is, falls through to the plain markdown render below.
     }
   }
   return renderMarkdownTracked(contentToRender, width).lines;
@@ -55,14 +55,14 @@ export function renderExpandedToolResultLines(content: string, width: number): L
  *
  * Why this exists: the "N lines" badge on a COLLAPSED tool result, and the
  * folded group header's total, must both name the expanded render's line count
- * — so the number tells the truth about what expanding reveals. Computing that
+ *, so the number tells the truth about what expanding reveals. Computing that
  * honestly means running the expanded render even when its lines are thrown
  * away.
  *
  * This renderer has no per-message line cache: ConversationManager rebuilds the
  * entire transcript on every markDirty(), which includes every streaming delta.
  * Re-rendering every tool result's full body on every delta allocates
- * enormously — a handful of 190-line JSON payloads in scrollback turns each
+ * enormously, a handful of 190-line JSON payloads in scrollback turns each
  * keystroke of streamed output into megabytes of throwaway Line[] objects.
  * Measured before this cache: heap climbed 89 MB -> 205 MB across ten rebuilds
  * of a 20-turn transcript, with forced GC between samples.
@@ -78,7 +78,7 @@ let expandedLineCountEntries = 0;
 const MAX_EXPANDED_LINE_COUNT_ENTRIES = 2048;
 
 /**
- * Line count of `content`'s EXPANDED render at `width` — the same number
+ * Line count of `content`'s EXPANDED render at `width`, the same number
  * renderExpandedToolResultLines(content, width).length would give, without
  * retaining the rendered lines and without recomputing it on every rebuild.
  */

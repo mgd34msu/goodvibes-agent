@@ -172,7 +172,7 @@ export async function handleRecallLink(args: string[], context: CommandContext):
   }
   const link = await memory.link(fromId, toId, relation);
   if (!link) {
-    context.print('[memory] Link failed — check that both IDs exist.');
+    context.print('[memory] Link failed, check that both IDs exist.');
     return;
   }
   context.print([

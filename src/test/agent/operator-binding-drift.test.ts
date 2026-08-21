@@ -1,10 +1,10 @@
 /**
- * operator-binding-drift.test.ts — every verb this product calls is bound to
+ * operator-binding-drift.test.ts, every verb this product calls is bound to
  * the route the contract publishes for it, and nothing else.
  *
  * The failure this guards against does not look like a failure. A path moves in
  * the daemon, the contract moves with it, and a product carrying its own copy
- * keeps calling the old one — so an approval that will not approve, a schedule
+ * keeps calling the old one, so an approval that will not approve, a schedule
  * that will not run, and a 404 that reads to an operator as a broken feature
  * rather than as a stale binding. The webui derives its table and drift-tests
  * it; this is the same guard for the Agent's three tables.
@@ -12,12 +12,12 @@
  * Two things are checked, and they fail for different reasons:
  *
  *  - DERIVATION: what the product will actually send equals what the contract
- *    says. This cannot drift while the tables are derived — the point is that it
+ *    says. This cannot drift while the tables are derived, the point is that it
  *    stays that way, so the test fails if someone re-hardcodes a path.
  *  - PRESENCE: every id the product depends on is still IN the contract. This
  *    is the one that catches a retired method, and it is why the ids are
  *    written out here in full rather than read back from the same table under
- *    test — a list that derives its own expectations proves nothing.
+ *    test, a list that derives its own expectations proves nothing.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -96,7 +96,7 @@ describe('operator action bindings', () => {
 
   test('each action names a target field that appears in its own path template', () => {
     // A target field that is not in the path is a request that silently drops
-    // the id — the route resolves, the daemon acts on nothing, and the caller
+    // the id, the route resolves, the daemon acts on nothing, and the caller
     // is told it worked. DELETE-with-no-suffix included: the id is still in the
     // path, it is just the last segment.
     for (const id of EXPECTED_ACTION_IDS) {

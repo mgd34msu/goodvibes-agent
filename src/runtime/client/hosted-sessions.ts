@@ -1,5 +1,5 @@
 /**
- * hosted-sessions.ts — the sessions THIS process is running, and whether one of
+ * hosted-sessions.ts, the sessions THIS process is running, and whether one of
  * them is mid-turn.
  *
  * ── Why this exists ────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@
  *   - memory consolidation and the periodic self-update: "is anything busy?"
  *
  * The broker answered them from a cross-surface register this process writes
- * into. As a client it does not own that register — the daemon does — and every
+ * into. As a client it does not own that register, the daemon does, and every
  * one of those questions is about THIS process. So they are answered from what
  * this process actually knows: the set of session ids it is running, and
  * whether a turn is in flight.
@@ -26,7 +26,7 @@
  * releases the busy flag rather than pinning it until the next successful one.
  * A turn that never reports a terminal event would leave a session busy
  * forever, which errs toward "do not consolidate memory / do not restart the
- * binary" — the safe direction for both consumers.
+ * binary", the safe direction for both consumers.
  */
 import type { RuntimeEventBus, TurnEvent } from '@/runtime/index.ts';
 
@@ -56,7 +56,7 @@ type TurnEnd = Extract<TurnEvent, { type: 'TURN_COMPLETED' | 'TURN_ERROR' | 'TUR
  * Build the registry.
  *
  * `bus` is optional so a composition that has no runtime bus (a one-shot CLI
- * subcommand, a narrow test double) still gets a working hosted set — it simply
+ * subcommand, a narrow test double) still gets a working hosted set, it simply
  * never reports anything busy, which is the honest answer for a process that
  * runs no turns.
  */
@@ -70,8 +70,8 @@ export function createHostedSessionRegistry(bus?: TurnBus | undefined): HostedSe
    *
    * The envelope carries the id when the emitter had one; a turn emitted before
    * the session id was final does not. In that case the turn belongs to
-   * whichever session this process is holding — an agent process runs one
-   * interactive session — so the single hosted id is used rather than the signal
+   * whichever session this process is holding, an agent process runs one
+   * interactive session, so the single hosted id is used rather than the signal
    * being dropped.
    */
   const sessionForTurn = (envelopeSessionId: string | undefined): string | null => {

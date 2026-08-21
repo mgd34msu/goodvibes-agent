@@ -13,7 +13,7 @@ function statusText(storePath: string, decision: ReturnType<typeof loadLanScanCo
   if (!decision || decision.decision === 'declined') {
     return [
       'Local network scanning: off',
-      '  What it would do   Check other devices on your local network (your subnet only — nothing beyond it) for model servers such as Ollama or LM Studio.',
+      '  What it would do   Check other devices on your local network (your subnet only, nothing beyond it) for model servers such as Ollama or LM Studio.',
       `  What it stores     Found servers would be saved to ${storePath}.`,
       `  Turn it on         ${NETWORK_SCAN_ENABLE_COMMAND}`,
     ].join('\n');
@@ -21,7 +21,7 @@ function statusText(storePath: string, decision: ReturnType<typeof loadLanScanCo
   return [
     'Local network scanning: on',
     `  Turned on           ${decision.decidedAt}`,
-    '  What it does        Checks other devices on your local network (your subnet only — nothing beyond it) for model servers such as Ollama or LM Studio, each time the agent starts.',
+    '  What it does        Checks other devices on your local network (your subnet only, nothing beyond it) for model servers such as Ollama or LM Studio, each time the agent starts.',
     `  What it stores      Found servers are saved to ${storePath}.`,
     '  See discovered      /provider',
     `  Turn it off         ${NETWORK_SCAN_DISABLE_COMMAND}`,
@@ -29,7 +29,7 @@ function statusText(storePath: string, decision: ReturnType<typeof loadLanScanCo
 }
 
 /**
- * /network-scan — the consent + status surface for the Phase-8 LAN provider
+ * /network-scan, the consent + status surface for the Phase-8 LAN provider
  * discovery scan (see src/runtime/lan-scan-consent.ts). Declining or never
  * deciding is a first-class, fully supported path: the scan simply never
  * runs until this command turns it on.

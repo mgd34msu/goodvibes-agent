@@ -1,10 +1,10 @@
 /**
- * agent-harness-operator-method-vocabulary.ts — the plain words a person uses
+ * agent-harness-operator-method-vocabulary.ts, the plain words a person uses
  * for a family of operator methods.
  *
  * The operator catalog is written in the platform's own vocabulary. The five
  * calendar methods describe themselves as reading "the configured CalDAV
- * calendar" — accurate, and the word CalDAV is nowhere in anyone's question.
+ * calendar", accurate, and the word CalDAV is nowhere in anyone's question.
  * Asked `host action:"methods" query:"google"`, the catalog answered
  * `{ methods: [], returned: 0, total: 434 }` over and over, and the only way
  * forward was to guess method ids from memory. The calendar the daemon reads
@@ -18,7 +18,7 @@
  * description and category, and never displayed as if the contract had said
  * them. Nothing here can add, hide, rename or make callable a method.
  *
- * Every category named here must exist in the live operator contract — a test
+ * Every category named here must exist in the live operator contract, a test
  * pins that, so an alias for a category that was renamed or removed fails the
  * build instead of quietly indexing nothing.
  */
@@ -53,7 +53,7 @@ export const OPERATOR_METHOD_CATEGORY_VOCABULARY: Readonly<Record<string, readon
   profile: [
     // The owner profile's sections and mechanical fields are free-form, so
     // "which account is mine, which address is mine" is recorded there and
-    // nowhere else — the questions a connect-an-account flow ends up asking,
+    // nowhere else, the questions a connect-an-account flow ends up asking,
     // and the ones a caller reaching for "google" was in the middle of.
     'google', 'about me', 'owner profile', 'my details', 'personal details', 'who i am',
     'my address', 'my email', 'shipping address', 'billing address', 'person', 'people',

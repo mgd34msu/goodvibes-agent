@@ -1,11 +1,11 @@
 /**
- * agent-profile-types.ts — the owner-profile control-plane payloads, as this
+ * agent-profile-types.ts, the owner-profile control-plane payloads, as this
  * surface handles them.
  *
  * The nine `profile.*` verbs (docs/owner-profile.md §11.1) are in the platform
  * runtime's generated operator contract, so every request and response type
- * here is the CONTRACT'S type — `OperatorMethodInput` / `OperatorMethodOutput`
- * — rather than a hand-written copy that could drift from it.
+ * here is the CONTRACT'S type, `OperatorMethodInput` / `OperatorMethodOutput`
+ *, rather than a hand-written copy that could drift from it.
  *
  * What the contract types do not do is check anything at runtime. Both routes a
  * call can take hand back `unknown`: the in-process gateway catalog's `invoke`
@@ -13,8 +13,8 @@
  * wire payload. So each verb gets one narrower that checks the fields the
  * response is discriminated on and then makes the cast explicit
  * (`as unknown as <contract type>`), returning null when the payload is not
- * that shape. A daemon that answers something unexpected — an older build, a
- * proxy, a truncated body — makes the verb say it could not read the answer,
+ * that shape. A daemon that answers something unexpected, an older build, a
+ * proxy, a truncated body, makes the verb say it could not read the answer,
  * instead of throwing part-way through a turn.
  *
  * Nothing in this module logs, stores or formats a profile VALUE. §11.3 keeps
@@ -38,14 +38,14 @@ export const PROFILE_AUTHORITIES: readonly ProfileAuthority[] = [
 ];
 
 /**
- * `ProfileAuthority` above already IS the SDK's own type — `AuthoritySurface`,
- * imported through `trust/untrusted-content.ts`'s re-export — so there is no
+ * `ProfileAuthority` above already IS the SDK's own type, `AuthoritySurface`,
+ * imported through `trust/untrusted-content.ts`'s re-export, so there is no
  * local copy of the union to drift. `PROFILE_AUTHORITIES`, the runtime array
  * of its members, is a different question: the SDK
  * (`platform/security/untrusted-content.ts`) exports `AuthoritySurface` as a
- * type only. It has no runtime array enumerating that type's members — only
+ * type only. It has no runtime array enumerating that type's members, only
  * functions that take one already-known surface (`surfaceTrustTier`,
- * `surfaceIsUntrusted`, `surfaceHasCommandAuthority`) — and the generated
+ * `surfaceIsUntrusted`, `surfaceHasCommandAuthority`), and the generated
  * operator contract's JSON schema for `authority` is an unconstrained
  * `{"type":"string"}`, not an enum. So there is genuinely no upstream VALUE
  * this array could import or be asserted equal to; this array stays local by
@@ -55,7 +55,7 @@ export const PROFILE_AUTHORITIES: readonly ProfileAuthority[] = [
  * `ProfileAuthority` with an `assertNever` default. If the SDK's
  * `AuthoritySurface` ever gains or loses a member, this file fails to compile
  * until the switch (and `PROFILE_AUTHORITIES` alongside it) is updated to
- * match, instead of the array silently going stale — the exact drift class
+ * match, instead of the array silently going stale, the exact drift class
  * behind three defects this session. Exercised in
  * `src/test/tools/agent-profile-types.test.ts`, which also asserts
  * `PROFILE_AUTHORITIES` and this switch's cases name the same set at runtime.

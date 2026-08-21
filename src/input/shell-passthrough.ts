@@ -1,10 +1,10 @@
 /**
- * ShellPassthrough — runs user-typed `!<command>` shell escapes.
+ * ShellPassthrough, runs user-typed `!<command>` shell escapes.
  *
  * The composer routes a leading `!` to "shell" mode; this runs the command
  * directly (a user-initiated terminal escape, not an agent tool call), shows
  * its output, and buffers a context block that is prepended to the user's next
- * real message — making the result visible to the model on the next turn
+ * real message, making the result visible to the model on the next turn
  * without triggering a turn of its own.
  *
  * A buffer is used rather than appending a conversation message because the
@@ -15,7 +15,7 @@
 const MAX_SHELL_OUTPUT = 16_000;
 
 export const SHELL_USAGE_HINT =
-  '[Shell] Usage: !<command> — runs a shell command; its output is shown and added as context for your next message.';
+  '[Shell] Usage: !<command>, runs a shell command; its output is shown and added as context for your next message.';
 
 export interface ShellRunResult {
   /** Formatted output for the conversation/activity feed. */

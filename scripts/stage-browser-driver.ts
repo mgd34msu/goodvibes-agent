@@ -7,11 +7,11 @@ import { join } from 'node:path';
  *
  * A `bun build --compile` executable carries no node_modules, so
  * `require('playwright-core')` finds nothing inside it. The driver also cannot
- * be bundled — it reads its own files by path at runtime. Shipping it beside
+ * be bundled, it reads its own files by path at runtime. Shipping it beside
  * the executable is what makes browser control exist in the released artifact
  * rather than only in a source checkout; the runtime looks here first (see
  * driverSearchDirectories in the SDK's platform/browser entry, which is where
- * the browser engine lives now — this script stages the driver the SDK will
+ * the browser engine lives now, this script stages the driver the SDK will
  * look for, and `playwright-core` reaches this repo as that package's optional
  * dependency rather than one of its own).
  */

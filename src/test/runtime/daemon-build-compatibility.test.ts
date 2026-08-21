@@ -1,5 +1,5 @@
 /**
- * daemon-build-compatibility.test.ts — this process judging the daemon it
+ * daemon-build-compatibility.test.ts, this process judging the daemon it
  * attached to.
  *
  * The forward guard (client-build-compatibility) covers this build being too
@@ -13,7 +13,7 @@
  *  - An UNREADABLE version is 'unknown', never 'ok'. A peer that cannot prove
  *    it carries a behavior is treated as one that does not.
  *  - The finding LATCHES, so a later read that cannot determine a version does
- *    not silently clear it — but `reset()` drops it, because a verdict about
+ *    not silently clear it, but `reset()` drops it, because a verdict about
  *    one daemon says nothing about a different one.
  */
 
@@ -68,7 +68,7 @@ describe('judging for adoption, as the adoption path does', () => {
     expect(guard.mayUseDaemonCapabilities()).toBe(false);
 
     // The operator updates the daemon. The next adoption attempt must be able
-    // to say yes — a latch here would strand the process on a fixed daemon.
+    // to say yes, a latch here would strand the process on a fixed daemon.
     expect(guard.judgeForAdoption({ version: '1.28.0' }).status).toBe('ok');
     expect(guard.mayUseDaemonCapabilities()).toBe(true);
   });
@@ -211,7 +211,7 @@ describe('reading the daemon build off /status', () => {
   });
 
   test('an unreachable daemon yields null rather than throwing', async () => {
-    // Null is "nothing observed", which the guard treats as no verdict at all —
+    // Null is "nothing observed", which the guard treats as no verdict at all,
     // an offline laptop must not be reported as running an old daemon.
     const fetchImpl = (async () => { throw new Error('ECONNREFUSED'); }) as unknown as typeof fetch;
 

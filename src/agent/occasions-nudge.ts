@@ -1,5 +1,5 @@
 /**
- * occasions-nudge.ts — which outstanding occasions have not yet been put to him
+ * occasions-nudge.ts, which outstanding occasions have not yet been put to him
  * in this session, and the exact words to say.
  *
  * Pure by construction: it is handed one `occasions.pending` answer and what has
@@ -16,7 +16,7 @@
  * the date": *"in 10 days" is the date with arithmetic applied*, so the daemon
  * chooses a proximity WORD from a day count that never leaves `occasions/nudge.ts`
  * and there is no code path from an occurrence date to a rendered nudge. The
- * pending payload deliberately carries no date at all — so a surface that passes
+ * pending payload deliberately carries no date at all, so a surface that passes
  * the composed message through unchanged cannot reintroduce one, and a surface
  * that rewrote it would be re-implementing §4.3's decision with worse
  * information. §7 says the same thing about the whole feature: a consumer that
@@ -41,8 +41,8 @@
  * This is de-duplication of a RENDER: `occasions.pending` keeps answering with
  * the same open item until it is resolved, so a surface that re-read it would
  * repeat itself within one session. Each stream is therefore keyed by the
- * daemon's OWN id for what is outstanding — the nudge's id, the conflict's
- * occasion id, the interview's step id — so "has this already been said" is
+ * daemon's OWN id for what is outstanding, the nudge's id, the conflict's
+ * occasion id, the interview's step id, so "has this already been said" is
  * answered by the daemon's identity for the thing, never by a timer of ours. The
  * ledger is pruned to the streams still present in the answer, so it is bounded
  * by the number of occasions declared rather than by how long the session runs.
@@ -56,7 +56,7 @@ import type {
  * One thing to say, and the ledger entry that records having said it.
  *
  * `text` is the daemon's own wording. `stream`/`token` are the daemon's own ids
- * for what is outstanding — see the note above on why identity comes from there.
+ * for what is outstanding, see the note above on why identity comes from there.
  */
 export interface OccasionsRaise {
   readonly kind: 'nudge' | 'conflict' | 'interview';
@@ -95,7 +95,7 @@ const EMPTY_DECISION: OccasionsRaiseDecision = { raises: [], ledger: new Map() }
  *
  * Order: the batched nudge first, then conflicts, then interviews. A conflict is
  * a fact about the record he can fix in one sentence, and an interview is a
- * thread he is already inside — putting the interview question before the nudge
+ * thread he is already inside, putting the interview question before the nudge
  * that opened it would read backwards.
  */
 export function decideOccasionsRaises(
@@ -168,7 +168,7 @@ export function decideOccasionsRaises(
     raises.push(candidate);
   }
   // `next` holds only the streams this answer carried, so an occasion he has
-  // answered — or one he removed — leaves the ledger on the next read.
+  // answered, or one he removed, leaves the ledger on the next read.
   return { raises, ledger: next };
 }
 
@@ -176,7 +176,7 @@ export function decideOccasionsRaises(
  * The lines to put in the transcript for one decision.
  *
  * Separate from the decision so the wording passthrough is testable without a
- * conversation, and so there is exactly one place that turns raises into text —
+ * conversation, and so there is exactly one place that turns raises into text,
  * a second one would be a second chance to decorate a message that must not be
  * decorated.
  */

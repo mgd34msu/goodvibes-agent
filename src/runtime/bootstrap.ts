@@ -109,7 +109,7 @@ export type BootstrapContext = RuntimeContext & {
   inputHistory: InputHistory;
   /** Unsubscribe functions owned by bootstrap (cleared on shutdown). */
   bootstrapUnsubs: Array<() => void>;
-  /** Ref holding the periodic agent-status interval (use ref — not local var — to keep shutdown in sync). */
+  /** Ref holding the periodic agent-status interval (use ref, not local var, to keep shutdown in sync). */
   agentStatusIntervalRef: { value: ReturnType<typeof setInterval> | null };
   /** Mutable refs for viewport/scroll/render functions; main.ts patches these after constructing UI state. */
   orchestratorRefs: { getViewportHeight: () => number; scrollToEnd: (vHeight: number) => void; requestRender: () => void };
@@ -200,7 +200,7 @@ export async function bootstrapRuntime(
     runtimeSessionIdRef,
   } = await initializeBootstrapCore(stdout, options, (limit) => controlPlaneRecentEventsRef.value(limit));
   const providerRegistry = services.providerRegistry;
-  // A saved custom-provider model must never crash boot — see provider-boot.ts.
+  // A saved custom-provider model must never crash boot, see provider-boot.ts.
   await ensureBootModelResolvable(providerRegistry, options.configManager);
   const promptContextReceipts = new AgentPromptContextReceiptStore(
     services.shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'prompt-context-receipts.jsonl'),
@@ -209,7 +209,7 @@ export async function bootstrapRuntime(
   // The current turn's raw text: the injection seam
   // (composeRuntimePromptWithReceipt, invoked from getSystemPrompt below) needs the
   // active turn's intent to rank the already-eligible memory set by relevance. This is
-  // the real seam that was left unthreaded — TURN_SUBMITTED already carries `prompt`, it
+  // the real seam that was left unthreaded, TURN_SUBMITTED already carries `prompt`, it
   // was just never captured. Mirrors activePromptTurnId's lifecycle exactly: set on
   // TURN_SUBMITTED, cleared on every terminal event for that turn.
   let activePromptTurnText: string | null = null;
@@ -221,13 +221,13 @@ export async function bootstrapRuntime(
   // Usage-outcome instrumentation: records which memories were injected and, at
   // turn completion, whether the model output plausibly referenced them (honest
   // heuristic overlap). No longer feeds consolidation's decay ranking (the SDK's
-  // own composition root does not wire a usageLookup into its scheduler either —
+  // own composition root does not wire a usageLookup into its scheduler either,
   // matched here for parity); still tracked for its own reporting.
   const memoryUsageTracker = createMemoryUsageTracker(services.shellPaths, services.memoryRegistry);
   // Both halves of the owner ruling that occasion nudges go to Telegram AND the
   // agent (docs/occasions.md §4.2): this product is a PUSH destination the daemon
   // addresses, and the surface that PULLS what is outstanding. Neither replaces
-  // the other and they cannot double-speak — see runtime/occasions-boot.ts for
+  // the other and they cannot double-speak, see runtime/occasions-boot.ts for
   // why, and for the guard that makes it true.
   const occasionsNudgeSurface = installOccasionsNudging({
     router: services.channelDeliveryRouter,
@@ -276,7 +276,7 @@ export async function bootstrapRuntime(
       // the agent's own line while a response was still streaming would
       // interleave two voices in one transcript, which is why this rides the
       // turn's completion rather than its submission. Not awaited and it never
-      // throws — a nudge that could not be pulled must not disturb the turn it
+      // throws, a nudge that could not be pulled must not disturb the turn it
       // rode in on.
       void occasionsNudgeSurface.raiseNow();
     }),
@@ -368,7 +368,7 @@ export async function bootstrapRuntime(
   // controls holder (SDK round: sessions.toolCalls.cancel, sessions.
   // queuedMessages.list/edit/delete). The Orchestrator's public cancelToolCall/
   // listQueuedMessages/editQueuedMessage/deleteQueuedMessage methods already
-  // structurally satisfy SessionLiveTurnControls — no adapter needed. Until this
+  // structurally satisfy SessionLiveTurnControls, no adapter needed. Until this
   // bind call the gateway verbs refuse honestly (LIVE_TURN_CONTROLS_UNAVAILABLE).
   services.sessionLiveTurnControls.bind(orchestrator);
   // Wire orchestratorHandleUserInputRef so COMPANION_MESSAGE_RECEIVED fires a real LLM turn.
@@ -393,7 +393,7 @@ export async function bootstrapRuntime(
   // reports real session data instead of the unbound-holder honesty message.
   // Must run after setCoreServices (nothing here depends on it, but this
   // keeps every orchestrator.* wiring call grouped) and before the first
-  // turn — see context-accounting-source.ts for what each facet reads.
+  // turn, see context-accounting-source.ts for what each facet reads.
   runtimeUnsubs.push(bindOrchestratorContextAccounting({
     orchestrator,
     holder: services.contextAccountingHolder,
@@ -406,14 +406,14 @@ export async function bootstrapRuntime(
   // featureFlags is REQUIRED here in practice, even though the SDK types it
   // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
   // omitting it did not disable task tracking when runtime.unifiedTasks was
-  // turned off — it made the setting configure nothing: createTask/etc. kept
+  // turned off, it made the setting configure nothing: createTask/etc. kept
   // working either way. The SDK has corrected this key's recorded default to
   // match the behaviour every install has always shipped (true/enabled), so
   // threading the flag manager here changes nothing for an existing install
   // and only makes turning the setting off now actually turn it off.
   const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId, services.featureFlags);
 
-  // Surface-bound closure, not the raw multi-arg SDK function — see
+  // Surface-bound closure, not the raw multi-arg SDK function, see
   // the SDK's bindWriteLastSessionPointerToSurface for why that matters.
   const writeLastSessionPointerForSurface = bindWriteLastSessionPointerToSurface(services.surface);
   const restoreTurnAnchorsForSurface = bindRestoreTurnAnchorsToSurface(services.surface);
@@ -492,7 +492,7 @@ export async function bootstrapRuntime(
   const deferredStartup = createDeferredStartupCoordinator();
 
   // GoodVibes Agent does not own the connected daemon's (or HTTP listener's)
-  // lifecycle — see bootstrap-external-services.ts for the adopt-only wiring
+  // lifecycle, see bootstrap-external-services.ts for the adopt-only wiring
   // and the deferred discovery probe it schedules. One bounded exception at
   // boot: a host that is INSTALLED on this machine but stopped is started
   // once through the platform service manager, with an honest receipt.
@@ -561,7 +561,7 @@ export async function bootstrapRuntime(
   // rather than trying the wire per call. Reuses the SAME reachability signal as the
   // session-spine fold above (services.sessionSpineClient.probeReachability(), one
   // daemon, one connected-host token) instead of inventing a second probe. On a
-  // reachable daemon, activate the spine for CLIENT mode — every wire-covered memory
+  // reachable daemon, activate the spine for CLIENT mode, every wire-covered memory
   // op now routes over HTTP and the local store is never written again. Embedded/
   // offline is unaffected: the agent must keep working with no daemon running, and a
   // failed/absent probe simply leaves the client in its constructed LOCAL mode.
@@ -569,7 +569,7 @@ export async function bootstrapRuntime(
   // A daemon can also appear or disappear AFTER boot, so this keeps checking for the
   // whole process lifetime on the same cadence as the runtime heartbeat: adopt late
   // if one shows up, and hand back to local (deactivate) the moment a PREVIOUSLY
-  // adopted daemon stops answering — never guess and keep routing to a dead wire.
+  // adopted daemon stops answering, never guess and keep routing to a dead wire.
   let memorySpineHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
   //
   // Inbound continuation dispatch rides the SAME adoption edge. It has to: the
@@ -610,7 +610,7 @@ export async function bootstrapRuntime(
       await reconcileMemorySpine();
       // Prime the recall snapshot (SDK 1.2.0 sync-recall seam) so the FIRST
       // system prompt built after boot already has a real snapshot to read
-      // instead of the honest-but-empty "not yet captured" one — see
+      // instead of the honest-but-empty "not yet captured" one, see
       // recallSnapshot's doc comment on prompt-context-receipts.ts's
       // memoryRecallSnapshot field. { recall: false } captures an unfiltered
       // browse set: the receipt's own eligibility/suppression logic (not the
@@ -664,7 +664,7 @@ export async function bootstrapRuntime(
   // Refresh explicitly-subscribed external calendar feeds that are DUE
   // per their own bounded interval (conditional 304 requests keep it cheap).
   // Consent was given at subscribe time ("now and on each refresh"); with no
-  // subscriptions this touches nothing. Non-blocking — boot never waits on it;
+  // subscriptions this touches nothing. Non-blocking, boot never waits on it;
   // one honest aggregate line only when something refreshed or failed.
   void scheduleCalendarSubscriptionBootRefresh({
     shellPaths: services.shellPaths,

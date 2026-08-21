@@ -17,16 +17,14 @@ function evaluate(
 }
 
 // ---------------------------------------------------------------------------
-// Safety checks (Layer 1 — bypass-immune)
+// Safety checks (Layer 1, bypass-immune)
 // ---------------------------------------------------------------------------
 
 describe('permission-decisions contract', () => {
   describe('safety checks', () => {
     test('SAFETY_DENY_DESTRUCTIVE_PREFIX — rm -rf / is denied', () => {
-      // Arrange + Act
       const result = runSafetyChecks('exec', { command: 'rm -rf /' });
 
-      // Assert
       expect(result.blocked).toBe(true);
       expect(result.reason).toBe('SAFETY_DENY_DESTRUCTIVE_PREFIX');
     });
@@ -279,7 +277,7 @@ describe('permission-decisions contract', () => {
         'DEFAULT_DENY',
       ];
 
-      // Verify the type is satisfied (compile-time) — each element is a valid DecisionReason
+      // Verify the type is satisfied (compile-time), each element is a valid DecisionReason
       for (const reason of reachableReasons) {
         expect(typeof reason).toBe('string');
       }

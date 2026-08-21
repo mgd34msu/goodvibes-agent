@@ -243,7 +243,7 @@ export async function handleSecrets(runtime: CliCommandRuntime): Promise<string>
       `  key ${key}`,
       `  scope ${scope}`,
       ...(credentialWriteScopeWasRelocated(key, requestedScope)
-        ? [`  note filed in the daemon tier instead of ${requestedScope} — the daemon is what reads this credential, and it reads only its own tier`]
+        ? [`  note filed in the daemon tier instead of ${requestedScope}, the daemon is what reads this credential, and it reads only its own tier`]
         : []),
     ].join('\n');
   }
@@ -253,7 +253,7 @@ export async function handleSecrets(runtime: CliCommandRuntime): Promise<string>
     const flags = new Set(rest.filter((arg) => arg.startsWith('--')));
     // A daemon-read credential lives in the daemon tier whatever the caller
     // asked for, so the delete sweeps every tier rather than the requested one:
-    // a narrowed delete would report success and leave the live copy in place —
+    // a narrowed delete would report success and leave the live copy in place,
     // a credential the operator believes is revoked and is not.
     await secrets.delete(key, {
       scope: resolveCredentialDeleteScope(key, flags.has('--user') ? 'user' : flags.has('--project') ? 'project' : undefined),

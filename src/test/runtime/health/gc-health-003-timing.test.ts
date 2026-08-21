@@ -218,7 +218,7 @@ describe('CascadeTimer — remediationPlaybookIds attachment', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. deriveCascadeSeverity — unit tests
+// 4. deriveCascadeSeverity, unit tests
 // ---------------------------------------------------------------------------
 
 describe('deriveCascadeSeverity', () => {
@@ -295,7 +295,7 @@ describe('deriveCascadeSeverity', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. createCascadeAppliedEvent — timing field preservation
+// 5. createCascadeAppliedEvent, timing field preservation
 // ---------------------------------------------------------------------------
 
 describe('createCascadeAppliedEvent — timing field preservation', () => {
@@ -308,7 +308,7 @@ describe('createCascadeAppliedEvent — timing field preservation', () => {
     for (const timedResult of cascades) {
       const event = createCascadeAppliedEvent(timedResult);
 
-      // Timing fields must be propagated — not dropped
+      // Timing fields must be propagated, not dropped
       expect(event.latencyMs).toBe(timedResult.latencyMs);
       expect(event.severity).toBe(timedResult.severity);
       expect(event.remediationPlaybookIds).toEqual(timedResult.remediationPlaybookIds);

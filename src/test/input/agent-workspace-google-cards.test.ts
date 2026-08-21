@@ -4,8 +4,8 @@
  * The defect these guard against is the one that produced the whole round: a
  * capability that exists in code but that a person cannot reach. `/google` fixed
  * it for people who type commands; these cards fix it for people who click. So
- * the load-bearing test here is the parity one — every route the command
- * exposes has a card — because that is the assertion that fails if someone adds
+ * the load-bearing test here is the parity one, every route the command
+ * exposes has a card, because that is the assertion that fails if someone adds
  * a seventh subcommand and stops there.
  */
 import { describe, expect, test } from 'bun:test';
@@ -75,7 +75,7 @@ describe('the Google connection cards', () => {
     // workspace card is dispatchable by the model through `workspace
     // action:"run"`. Giving it a card would hand the model the button that
     // clears the boundary, which is the exact route content that was just read
-    // would take — the same hole the `invokedByModel` check closes on the
+    // would take, the same hole the `invokedByModel` check closes on the
     // slash-command path. It is typed by the owner or it does not happen.
     const covered = new Set(['account', 'calendar-address', 'runbook', 'approve']);
     for (const [, , route] of GOOGLE_CARDS) covered.add(route.split(' ')[0] as string);
@@ -90,7 +90,7 @@ describe('the Google connection cards', () => {
     // `/google approve` clears an outward-effect refusal, and every workspace
     // card is dispatchable by the model via `workspace action:"run"`. A card
     // here would let a message the agent had just read talk the model into
-    // pressing the button that authorizes the send that message wanted — with
+    // pressing the button that authorizes the send that message wanted, with
     // no keystroke from the owner anywhere in the chain.
     //
     // If a future change adds an approval card, this fails, and that is the
@@ -159,7 +159,7 @@ describe('the Google connection cards', () => {
     for (const source of [runtime, card]) {
       expect(source).toContain('google-connection-actions.ts');
       // The flow is run through the shared helper, not by assembling runners
-      // locally — assembling them twice is how the two surfaces would drift.
+      // locally, assembling them twice is how the two surfaces would drift.
       expect(source).not.toContain('buildGoogleSetupRunners');
     }
   });

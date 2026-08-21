@@ -23,7 +23,7 @@ function makeTempRepo(): string {
 
 // Unlike makeExternalDir below, these targets (git-bare-init, clone,
 // worktree-add destinations) do NOT need to sit outside any git repo or
-// avoid TMPDIR redirection — git happily creates a bare repo, a clone, or a
+// avoid TMPDIR redirection, git happily creates a bare repo, a clone, or a
 // worktree inside an already-existing EMPTY directory anywhere, including
 // nested inside another repo's own untracked scratch tree. So this routes
 // through makeProjectTempDir like every other ordinary scratch directory in
@@ -38,7 +38,7 @@ function makeTempPath(prefix: string): string {
 // os.tmpdir() either: these cases need a directory that is guaranteed not
 // to be inside any git repository (isGitRepo/commit probes). This repo's
 // `.test-tmp/` is itself inside the goodvibes-agent git tree, which rules
-// out makeProjectTempDir — and `scripts/run-tests.ts` points TMPDIR/TMP/TEMP
+// out makeProjectTempDir, and `scripts/run-tests.ts` points TMPDIR/TMP/TEMP
 // at a directory INSIDE this repo for the suite run, which means
 // `tmpdir()` would silently resolve back inside the git tree too (the same
 // trap documented at the non-repo case in
@@ -332,7 +332,6 @@ describe('GitService', () => {
       const list = await svc.worktreeList();
       const paths = list.map((w) => w.path);
       expect(paths).toContain(wtPath);
-      // Cleanup
       await svc.worktreeRemove(wtPath);
     });
 

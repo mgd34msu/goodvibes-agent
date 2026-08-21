@@ -1,5 +1,5 @@
 /**
- * Pins for buildEnterSequence / buildExitSequence — main.ts's terminal
+ * Pins for buildEnterSequence / buildExitSequence, main.ts's terminal
  * enter/restore sequencing. Mirrors goodvibes-tui's
  * src/test/runtime/process-lifecycle-restore.test.ts pins: the exit teardown
  * must never wipe the user's scrollback (ESC[3J) and must show the cursor

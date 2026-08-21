@@ -1,13 +1,13 @@
 /**
- * agent-conversation-sender.ts — this product as a PUSH destination for the
+ * agent-conversation-sender.ts, this product as a PUSH destination for the
  * daemon.
  *
  * The SDK owns the destination and the contract: `agent` is a channel-delivery
  * surface kind, a strategy in the router claims targets addressed to it, and
  * `AgentConversationMessage` is the shape it hands over
  * (platform/channels/delivery/strategies-agent.ts). What it cannot own is the
- * landing — putting a message in an agent conversation means taking a turn inside
- * this process — so this file is the callable the router calls, registered
+ * landing, putting a message in an agent conversation means taking a turn inside
+ * this process, so this file is the callable the router calls, registered
  * through `ChannelDeliveryRouter.agentDelivery`.
  *
  * ## Push AND pull, and one thing said once
@@ -21,7 +21,7 @@
  * daemon, over the one open item both paths read. A push that LANDS on the agent
  * stamps the item with the day it landed, and while the agent is a configured
  * push destination the pull leaves stamped items out. The condition is the push
- * that landed rather than the one that was configured — an item no push ever
+ * that landed rather than the one that was configured, an item no push ever
  * landed here carries no stamp and still comes back through the pull, which is
  * what covers `agent` configured with no sender registered and a send that
  * failed. Neither of those may cost him the nudge.
@@ -33,7 +33,7 @@
  *
  * ## The body goes in unaltered, and the title does not go in at all
  *
- * `addAssistantMessage(message.body)` — the same verbatim path the pull uses, for
+ * `addAssistantMessage(message.body)`, the same verbatim path the pull uses, for
  * the same reason. §4.3's rule is that a nudge never carries the date in any
  * form, the daemon composes the sentence from a day count that never leaves its
  * own module, and a surface that rewrote or decorated it would be re-deciding
@@ -60,7 +60,7 @@ export type AgentSenderConversation = Pick<ConversationManager, 'addAssistantMes
 
 export interface AgentConversationSenderDeps {
   /**
-   * The conversation a message with no address lands in — this process's active
+   * The conversation a message with no address lands in, this process's active
    * one. Read through a function rather than captured, because bootstrap wires
    * the sender before the session id is final and a captured reference would pin
    * the conversation this process started with.
@@ -89,7 +89,7 @@ export function createAgentConversationSender(
    * The same resolution order the SDK strategy already applied to build the
    * message: what the caller addressed, then the session it belongs to, then this
    * process's active conversation. An addressed id that resolves to nothing does
-   * NOT silently fall back — see the throw below.
+   * NOT silently fall back, see the throw below.
    */
   const conversationFor = (
     message: AgentConversationMessage,
@@ -101,7 +101,7 @@ export function createAgentConversationSender(
       if (found !== null) return { conversation: found, addressed: id };
       // Addressed somewhere this process does not have. Falling back to the
       // active conversation would put a message meant for one conversation into
-      // another, and the daemon would record it as delivered — so this is a
+      // another, and the daemon would record it as delivered, so this is a
       // failure, and the router reports it against the surface and strategy.
       return `This runtime has no live conversation "${id}" to land a message in.`;
     }
@@ -119,7 +119,7 @@ export function createAgentConversationSender(
       // Throwing is the contract's honest answer: the router logs the surface,
       // the strategy and the reason, and the caller is told rather than left with
       // a message that went nowhere. The occasions sweep additionally records the
-      // failure per destination, and — because nothing landed — leaves the open
+      // failure per destination, and, because nothing landed, leaves the open
       // item unstamped so the pull still raises it.
       if (typeof target === 'string') throw new Error(target);
 
@@ -159,7 +159,7 @@ export interface InstallAgentConversationSenderDeps extends AgentConversationSen
  * Register this product as the agent push destination, and file the undo.
  *
  * A named function rather than three lines inline in bootstrap, because bootstrap
- * itself cannot be driven from a test — it needs a terminal — and "the sender is
+ * itself cannot be driven from a test, it needs a terminal, and "the sender is
  * registered at startup, and released at shutdown" is exactly the property worth
  * pinning. Inline, the only available check would have been reading the source.
  */

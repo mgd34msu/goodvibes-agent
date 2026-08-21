@@ -8,7 +8,7 @@
  * other things.
  *
  * The native Gmail/Calendar route. The operator contract catalogs `email.send`
- * and `calendar.events.list` with `invokable: false` — no daemon serves them —
+ * and `calendar.events.list` with `invokable: false`, no daemon serves them,
  * so this is the route the capability index points at.
  */
 
@@ -34,14 +34,14 @@ export function wireAgentGoogleTool(registry: ToolRegistry, deps: GoogleToolWiri
     //
     // Here so `connect.client` can finish what the setup walkthrough started.
     // Without these the tool could only ever tell the owner to go and run a
-    // command with the two values he had just pasted into the conversation —
+    // command with the two values he had just pasted into the conversation,
     // a chore handed over at the exact moment the platform held everything it
     // needed, which is precisely what the intent-completion rule forbids.
     //
     // No scope is passed, and that is deliberate. Every key the connector
     // writes derives from a daemon-owned config path, so the store files it in
     // the daemon tier by itself. Forcing a surface scope here would override
-    // that and hide the credential from the daemon — the runtime that has to
+    // that and hide the credential from the daemon, the runtime that has to
     // answer mail at 3am, long after this surface has exited.
     configSet: (key: string, value: unknown) => { deps.configManager.setDynamic(key, value); },
     secretSet: (key: string, value: string) => deps.secretsManager.set(key, value),
@@ -51,7 +51,7 @@ export function wireAgentGoogleTool(registry: ToolRegistry, deps: GoogleToolWiri
     loopback: startLoopbackListener,
 
     // The approval path, wired. It used to be absent, and the refusal invented
-    // a remedy to fill the gap — telling the owner to reply "send it now" to a
+    // a remedy to fill the gap, telling the owner to reply "send it now" to a
     // mechanism no code implemented. A surface that supplies no store now gets
     // a refusal that says so plainly instead.
     approvals: getOutwardApprovalStore(),

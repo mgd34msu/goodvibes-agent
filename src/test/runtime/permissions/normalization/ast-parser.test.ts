@@ -177,7 +177,7 @@ describe('parseCommandAST — subshell expressions', () => {
   it('parses backtick subshell as subshell node', () => {
     const ast = parseCommandAST('echo `date`');
     // The backtick token causes parseAtom to return a SubshellNode
-    // (the echo portion is lost — conservative approach)
+    // (the echo portion is lost, conservative approach)
     // We validate the subshell is parsed
     const nodes = collectCommandNodes(ast);
     // Should have at least one node (the subshell inner or echo)

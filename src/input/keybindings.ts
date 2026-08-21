@@ -1,5 +1,5 @@
 /**
- * KeybindingsManager — loads and merges keyboard shortcut configuration.
+ * KeybindingsManager, loads and merges keyboard shortcut configuration.
  *
  * Default bindings are hardcoded here. Users can override any binding by
  * creating ~/.goodvibes/agent/keybindings.json.
@@ -157,7 +157,7 @@ function resolveKeybindingsPath(options?: KeybindingsManagerOptions): string {
 }
 
 /**
- * KeybindingsManager — owns the resolved keybinding table.
+ * KeybindingsManager, owns the resolved keybinding table.
  *
  * Call loadFromDisk() once at startup (in main.ts) to merge user config.
  * Then use matches() anywhere a key token is being evaluated.
@@ -228,7 +228,7 @@ export class KeybindingsManager {
   }
 
   /**
-   * buildLookupMap — Rebuild the inverted lookup map from the current bindings table.
+   * buildLookupMap, Rebuild the inverted lookup map from the current bindings table.
    * Called after constructor init and after loadFromDisk().
    * Map key format: "logicalName:ctrl:shift:alt" (booleans as 0/1).
    * Last writer wins for duplicate combos (deterministic: iterate actions in order).
@@ -244,7 +244,7 @@ export class KeybindingsManager {
   }
 
   /**
-   * lookup — O(1) keybinding lookup by token.
+   * lookup, O(1) keybinding lookup by token.
    * Returns the matching KeyAction, or null if no binding matches.
    */
   lookup(token: { logicalName?: string; ctrl?: boolean; shift?: boolean; alt?: boolean }): KeyAction | null {
@@ -258,7 +258,7 @@ export class KeybindingsManager {
   }
 
   /**
-   * matches — Check whether a keyboard token matches the given action.
+   * matches, Check whether a keyboard token matches the given action.
    *
    * @param action  The action to test.
    * @param token   The parsed keyboard token from InputTokenizer.
@@ -286,7 +286,7 @@ export class KeybindingsManager {
   }
 
   /**
-   * getAll — Return the full resolved binding table for display purposes.
+   * getAll, Return the full resolved binding table for display purposes.
    */
   getAll(): Array<{ action: KeyAction; combos: KeyCombo[]; description: string }> {
     return (Object.keys(this.bindings) as KeyAction[]).map((action) => ({
@@ -297,7 +297,7 @@ export class KeybindingsManager {
   }
 
   /**
-   * getComboLabel — Return a human-readable label for the first combo of an action.
+   * getComboLabel, Return a human-readable label for the first combo of an action.
    * Example: { key: 'f', ctrl: true } → "Ctrl+F"
    */
   getComboLabel(action: string): string {
@@ -308,7 +308,7 @@ export class KeybindingsManager {
   }
 
   /**
-   * formatCombo — Format a KeyCombo as a human-readable string.
+   * formatCombo, Format a KeyCombo as a human-readable string.
    */
   formatCombo(combo: KeyCombo): string {
     const parts: string[] = [];

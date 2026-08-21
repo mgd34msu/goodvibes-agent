@@ -3,7 +3,7 @@
  *
  * Handing an inbound channel conversation to the daemon to host: the setting
  * governs it both ways, the first message creates the hosted session and every
- * later one is steered into it, and no refusal ever costs the owner a message —
+ * later one is steered into it, and no refusal ever costs the owner a message,
  * every one of them falls back to answering in this process.
  */
 import { describe, expect, test } from 'bun:test';

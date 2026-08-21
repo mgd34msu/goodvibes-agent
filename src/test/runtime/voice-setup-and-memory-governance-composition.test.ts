@@ -6,7 +6,7 @@
  * power-keep-awake-composition.test.ts:
  *
  *  1. `services.voiceSetup` is real, live wiring over the SDK's own managed
- *     voice provisioning — created by the platform's createVoiceSetupService
+ *     voice provisioning, created by the platform's createVoiceSetupService
  *     rather than mirrored here, which is also what gives this surface the
  *     wake-word artifact service. Both the direct service (what /voice status,
  *     /voice setup and /voice wake read) and the voice.local.* and voice.wake.*
@@ -25,7 +25,7 @@
  * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
- * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * over this graph, the agent's own `services.gatewayMethods` carries no handler
  * for any of these any more, and that absence is itself pinned in
  * daemon/gateway-ws-only-invokable.test.ts.
  *
@@ -85,7 +85,7 @@ describe('voice-setup + memory-governance composition', () => {
     try {
       expect(services.voiceSetup).toBeDefined();
       const status = services.voiceSetup.status();
-      // A fresh temp home has never been provisioned — this is the real
+      // A fresh temp home has never been provisioned, this is the real
       // provisioner reading real (absent) files on disk, not a stub.
       expect(status.state).toBe('not-provisioned');
       expect(typeof status.tts.engine).toBe('string');
@@ -118,7 +118,7 @@ describe('voice-setup + memory-governance composition', () => {
       const status = services.voiceSetup.wakeStatus();
       expect(status.ready).toBe(false);
       // A fresh temp home: absent, NOT corrupt. The distinction is the point of
-      // verifying by content — a wrong or truncated file must not read as present.
+      // verifying by content, a wrong or truncated file must not read as present.
       expect(status.classifier.verified).toBe(false);
       expect(status.classifier.corrupt).toBe(false);
       expect(status.embedding.verified).toBe(false);
@@ -137,7 +137,7 @@ describe('voice-setup + memory-governance composition', () => {
       const viaGateway = await buildDaemonGatewayCatalog(services).invoke('voice.wake.status', { context: {} });
       expect(viaGateway).toEqual(direct);
       // provision downloads ~3.7 MB, and model.get reads bytes that a fresh host
-      // does not have — so these assert the handler is REGISTERED, which is the
+      // does not have, so these assert the handler is REGISTERED, which is the
       // failure mode a cataloged-but-unhandled verb has.
       expect(buildDaemonGatewayCatalog(services).get('voice.wake.provision')?.invokable).toBe(true);
       expect(buildDaemonGatewayCatalog(services).get('voice.wake.model.get')?.invokable).toBe(true);
@@ -150,7 +150,7 @@ describe('voice-setup + memory-governance composition', () => {
     const services = makeServices();
     try {
       // Does not actually assert on a completed install (that downloads real
-      // files over the network) — only that the gateway found and ran a real
+      // files over the network), only that the gateway found and ran a real
       // handler rather than refusing with "no internal handler", proving
       // voiceSetup was genuinely wired into the catalog, not merely
       // constructed and left unregistered.
@@ -169,7 +169,7 @@ describe('voice-setup + memory-governance composition', () => {
       expect(services.cacheRegistry).toBeDefined();
       expect(services.pauseController).toBeDefined();
 
-      // Started by default — a safety feature, like the SDK's own daemon
+      // Started by default, a safety feature, like the SDK's own daemon
       // composition. start() sets the (unref'd) sampling interval; the timer
       // handle is the only truthful started/stopped tell the class exposes,
       // so this is a deliberate white-box probe: if the SDK renames the
@@ -193,7 +193,7 @@ describe('voice-setup + memory-governance composition', () => {
       // The admission gate is live and honest for an unpressured process.
       expect(services.memoryGovernor.admitExpensiveWork('composition pin').allowed).toBe(true);
 
-      // stop() flips the started tell off — pinning that cleanup is real too.
+      // stop() flips the started tell off, pinning that cleanup is real too.
       services.memoryGovernor.stop();
       expect(timerOf()).toBeNull();
     } finally {
@@ -205,7 +205,7 @@ describe('voice-setup + memory-governance composition', () => {
     const services = makeServices();
     try {
       const viaGateway = await buildDaemonGatewayCatalog(services).invoke('ops.memory.get', { context: {} }) as MemoryGovernorSnapshot;
-      // Real values from the real sampler — a live process has a nonzero RSS.
+      // Real values from the real sampler, a live process has a nonzero RSS.
       expect(viaGateway.rssMb).toBeGreaterThan(0);
       expect(viaGateway.heapUsedMb).toBeGreaterThan(0);
       expect(viaGateway.budgetMb).toBeGreaterThan(0);

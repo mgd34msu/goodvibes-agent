@@ -1,5 +1,5 @@
 /**
- * The operator payload type guard — the thing that would have caught two
+ * The operator payload type guard, the thing that would have caught two
  * breaking contract changes this round without any tarball at all.
  *
  * `invokeOperatorGatewayMethod` used to take `payload: unknown` and call
@@ -17,7 +17,7 @@
  * contract's input types, so if the contract moves, this file stops compiling
  * and `bun run typecheck:test` fails.
  *
- * A runtime `expect` cannot check this — the types are erased by then. The
+ * A runtime `expect` cannot check this, the types are erased by then. The
  * compile is the assertion; the runtime checks below only pin the field NAMES,
  * so a rename that kept the same shape still gets caught.
  */
@@ -55,7 +55,7 @@ type KeysOfUnion<T> = T extends unknown ? keyof T : never;
  * even a stale key typed straight into a fresh literal. The operator client
  * declares a typed overload and, beneath it,
  * `invoke<T = unknown>(id: string, input?: Record<string, unknown>)`. A body the
- * typed overload rejects does not error — it selects the loose one, which takes
+ * typed overload rejects does not error, it selects the loose one, which takes
  * any object. The only trace is the result degrading to `Promise<unknown>`,
  * verified by resolving both: a clean body returns the real output type, a
  * stale one returns `unknown`. That signal disappears the moment a caller
@@ -73,8 +73,8 @@ type KeysOfUnion<T> = T extends unknown ? keyof T : never;
  * Delete either and that half is caught by nothing at all.
  *
  * Both corrections to this table went the same direction: each earlier version
- * modelled one layer less than what actually runs — first a bare annotation,
- * then a single overload — and each time the real protection was weaker than
+ * modelled one layer less than what actually runs, first a bare annotation,
+ * then a single overload, and each time the real protection was weaker than
  * the previous number claimed. If a safety measurement keeps moving one way
  * under scrutiny, assume it has not finished moving, and re-measure against the
  * real call shape rather than a model of it.
@@ -144,7 +144,7 @@ const FORGET_FIELD_BODY = assertOperatorBody('profile.forget', {
   authority: 'owner-direct',
 });
 
-/** A prose line goes by its section and its exact text — never a position. */
+/** A prose line goes by its section and its exact text, never a position. */
 const FORGET_PROSE_BODY = assertOperatorBody('profile.forget', {
   section: 'Notes',
   text: '- Allergic to shellfish',
@@ -177,7 +177,7 @@ describe('operator payload conformance for the profile verbs', () => {
 
   test('no forget body carries a position', () => {
     // The field is gone from the contract. If it ever came back, the guard is
-    // the annotation on these constants, not this assertion — but a body built
+    // the annotation on these constants, not this assertion, but a body built
     // by hand somewhere else would still show up here.
     for (const body of [FORGET_FIELD_BODY, FORGET_PROSE_BODY]) {
       expect(Object.keys(body)).not.toContain('lineIndex');
@@ -191,7 +191,7 @@ describe('operator payload conformance for the profile verbs', () => {
 
     // Absence is asserted on the KEYS, not by reading the property. The guard
     // narrows each body to exactly what it declares, so `FORGET_PROSE_BODY.fieldId`
-    // is now a compile error rather than an `undefined` — which is the guard
+    // is now a compile error rather than an `undefined`, which is the guard
     // working. Reading keys keeps the assertion honest at runtime too.
     expect(Object.keys(FORGET_PROSE_BODY)).not.toContain('fieldId');
     expect(Object.keys(FORGET_FIELD_BODY)).not.toContain('section');
@@ -215,7 +215,7 @@ describe('operator payload conformance for the profile verbs', () => {
 
   test('every body this lane sends satisfies the shipped contract schema', () => {
     // The runtime half. The compile-time guard above catches a body whose TYPE
-    // is wrong; this catches one whose type is right against a STALE pin — it
+    // is wrong; this catches one whose type is right against a STALE pin, it
     // reads the schema out of the contract that actually shipped, so it
     // re-derives on every repin instead of agreeing with a copy that has since
     // gone out of date.

@@ -6,8 +6,8 @@
  * untrusted-content port, a host-script location and an install-kind profile
  * rather than knowing any of them. Those four answers are facts about THIS
  * product, and this is the one place that supplies them. Every engine the agent
- * constructs — the `browser` tool, the `browser` CLI command, and the Google
- * setup flow's browser step — comes through here, so a second set of wiring
+ * constructs, the `browser` tool, the `browser` CLI command, and the Google
+ * setup flow's browser step, comes through here, so a second set of wiring
  * cannot exist to drift from this one.
  *
  * The untrusted-content port is the load-bearing part. `BrowserEngineOptions`
@@ -54,7 +54,7 @@ export function agentManagedDriverRoot(homeDirectory: string): string {
 }
 
 /**
- * Every place the runtime loads the driver from, in order — the same list the
+ * Every place the runtime loads the driver from, in order, the same list the
  * capability probe reports, so the index agrees with what the browser tool
  * finds a moment later rather than merely looking in the same places.
  */

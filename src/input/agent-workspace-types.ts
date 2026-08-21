@@ -52,7 +52,7 @@ export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'e
 export type AgentWorkspaceSetupCheckpointOperation = 'show' | 'mark-current' | 'clear';
 
 // The editor-kind unions grow with every new card, so they live in their own
-// module and are re-exported here — this stays the one place to import them.
+// module and are re-exported here, this stays the one place to import them.
 export type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditorKind } from './agent-workspace-editor-kinds.ts';
 
 export type AgentWorkspaceLocalOperation =
@@ -179,7 +179,7 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly startCount?: number;
   /** Memory-only: whether this record currently clears the prompt-injection recall floor, per describeMemoryPromptEligibility. */
   readonly promptEligible?: boolean;
-  /** Memory-only: the honest, per-record reason from describeMemoryPromptEligibility — the same wording source prompt-context-receipts.ts and agent-harness-prompt-context.ts use. */
+  /** Memory-only: the honest, per-record reason from describeMemoryPromptEligibility, the same wording source prompt-context-receipts.ts and agent-harness-prompt-context.ts use. */
   readonly promptEligibilityReason?: string;
   readonly temporalStatus?: 'active' | 'pending' | 'expired'; // memoryRecordTemporalStatus; pending/expired stay stored, just not prompt-injected
 }

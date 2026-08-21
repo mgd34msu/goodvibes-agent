@@ -1,16 +1,16 @@
 /**
- * home-single-writer.test.ts — one live agent per home.
+ * home-single-writer.test.ts, one live agent per home.
  *
  * The gap this closes: a turn forked a SECOND full agent onto the home a live
  * agent was already running out of. Two processes then owned one
- * `.goodvibes/agent/` tree — two writers over the same session files, the same
- * state store, the same transcript — which is how a temp-file race killed a
+ * `.goodvibes/agent/` tree, two writers over the same session files, the same
+ * state store, the same transcript, which is how a temp-file race killed a
  * process and how a ghost session was left marked "active" by a writer that no
  * longer existed. Nothing refused, because nothing was asking.
  *
  * The SDK owns the rule (`claimSurfaceHome`) and proves the rule itself. What
  * this proves is that the AGENT'S OWN composition asks for it: the agent is the
- * singleton surface — one per machine, holding one home — so it passes
+ * singleton surface, one per machine, holding one home, so it passes
  * `homeSingleWriter: 'claim'` where the terminal deliberately does not.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
@@ -41,7 +41,7 @@ async function liveForeignProcess(): Promise<{ pid: number; identity: string }> 
   if (typeof pid !== 'number') throw new Error('could not start a holder process');
   // `spawn` hands back a pid before the child has finished replacing itself
   // with `sleep`, and `/proc/<pid>/cmdline` is empty until it has. Waiting for
-  // the argv is waiting for the holder to BE the program it claims to be —
+  // the argv is waiting for the holder to BE the program it claims to be,
   // reading it a moment too early is what made this flaky under a loaded run.
   const deadline = Date.now() + 10_000;
   let identity = runtimeComposition.readProcessIdentity(pid);

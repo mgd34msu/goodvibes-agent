@@ -148,7 +148,7 @@ describe('shell/blocking-input', () => {
       systemMessageRouter: router as never,
       render: () => { rendered++; },
       // consumeRecovery (SDK primitive) loads AND retires the snapshot in one
-      // operation — there is no separate delete callback for this branch.
+      // operation, there is no separate delete callback for this branch.
       consumeRecovery: () => {
         consumed++;
         return { messages: [{ role: 'user', content: 'restored' }] };
@@ -373,7 +373,7 @@ describe('shell/blocking-input — recovery targets exactly the offered snapshot
 // ── Real-SDK regression: exit retires only the exiting session's snapshot ──
 //
 // main.ts's exitApp calls removeRecoveryPoint(ctx.services.surface,
-// runtime.sessionId) — scoped to the session that is actually exiting. A
+// runtime.sessionId), scoped to the session that is actually exiting. A
 // keyless call (removeRecoveryPoint(surface) with no sessionId) clears every
 // snapshot in the scoped recovery directory, including offers the user never
 // answered and, in a dual-session workdir, the OTHER session's still-live

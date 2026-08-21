@@ -13,7 +13,7 @@ import { connectedHostBaseUrl } from '../config/connected-host-dial.ts';
  * Honesty is the whole point of the classification below: the metrics route
  * requires the read:telemetry scope, and a token without it is answered 403 by
  * the gateway. That case is reported as `scope_missing` and rendered as a plain
- * "not permitted" line — never as a screen of zeros that would misrepresent an
+ * "not permitted" line, never as a screen of zeros that would misrepresent an
  * unauthorized token as a healthy-but-idle host. Missing token, an unreachable
  * host, and an incompatible/absent route are each surfaced as their own honest
  * state too.

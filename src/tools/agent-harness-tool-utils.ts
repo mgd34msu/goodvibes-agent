@@ -20,7 +20,7 @@ export function settingLookupArgs(args: AgentHarnessToolArgs) {
  * Reads a caller-supplied page size, bounded by a ceiling.
  *
  * `max` defaults to 500 because that suits the small catalogs, but a surface
- * whose catalog can outgrow it must pass its own — a ceiling below the catalog
+ * whose catalog can outgrow it must pass its own, a ceiling below the catalog
  * silently drops the tail. Whatever ceiling applies, the caller of this
  * function still owes the response a `returned`/`total` pair (see
  * {@link catalogEnvelope}); clamping quietly is the failure this parameter
@@ -45,7 +45,7 @@ export type CatalogFilters = Readonly<Record<string, string | undefined>>;
  * Builds the `{ <key>: [...], returned, total }` envelope every catalog mode
  * returns, and makes an empty page explain itself.
  *
- * A catalog used to answer `{"actions": [], "returned": 0, "total": 463}` — it
+ * A catalog used to answer `{"actions": [], "returned": 0, "total": 463}`, it
  * reported that hundreds of entries exist and named none of them, and it never
  * echoed the filter that had excluded them. A caller who passed, say,
  * `category:"actions"` (matching no category) could not tell its own argument
@@ -82,7 +82,7 @@ export function catalogFilters(
  *
  * A capability lives on exactly one of these surfaces, and the model has no way
  * to know which before it looks. Asking `mode:"tools"` for "payment" returns
- * nothing — correctly, there is no payments tool — and that empty page was read
+ * nothing, correctly, there is no payments tool, and that empty page was read
  * as "this platform cannot take a payment", while a `payments.*` settings
  * section and a `/payments` command sat one mode away. An empty page now says
  * where else to look.

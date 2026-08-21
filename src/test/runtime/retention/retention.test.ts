@@ -120,7 +120,7 @@ class MockPruner implements Pruner {
 }
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — age-based pruning
+// RetentionPolicy, age-based pruning
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — age-based pruning', () => {
@@ -165,7 +165,7 @@ describe('RetentionPolicy — age-based pruning', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — count-based pruning
+// RetentionPolicy, count-based pruning
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — count-based pruning', () => {
@@ -216,7 +216,7 @@ describe('RetentionPolicy — count-based pruning', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — size-based pruning
+// RetentionPolicy, size-based pruning
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — size-based pruning', () => {
@@ -264,7 +264,7 @@ describe('RetentionPolicy — size-based pruning', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — dry-run mode
+// RetentionPolicy, dry-run mode
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — dry-run mode', () => {
@@ -305,7 +305,7 @@ describe('RetentionPolicy — dry-run mode', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — per-class breakdown
+// RetentionPolicy, per-class breakdown
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — per-class breakdown', () => {
@@ -338,7 +338,7 @@ describe('RetentionPolicy — per-class breakdown', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — error handling (partial failures)
+// RetentionPolicy, error handling (partial failures)
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — error handling', () => {
@@ -405,7 +405,7 @@ describe('RetentionPolicy — error handling', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — config validation
+// RetentionPolicy, config validation
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — config validation', () => {
@@ -460,7 +460,7 @@ describe('RetentionPolicy — config validation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — injectable clock
+// RetentionPolicy, injectable clock
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — injectable clock', () => {
@@ -477,7 +477,7 @@ describe('RetentionPolicy — injectable clock', () => {
       makeRecord('cpt_1', { createdAt: BASE_TIME, retentionClass: 'standard' }),
     );
 
-    // At base time, record is 0ms old — should not be pruned
+    // At base time, record is 0ms old, should not be pruned
     await policy.prune();
     expect(mock.calls[0]!.candidates).toHaveLength(0);
 
@@ -489,7 +489,7 @@ describe('RetentionPolicy — injectable clock', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SnapshotPruner — path validation
+// SnapshotPruner, path validation
 // ---------------------------------------------------------------------------
 
 describe('SnapshotPruner — path validation', () => {
@@ -525,7 +525,7 @@ describe('SnapshotPruner — path validation', () => {
 
   it('accepts legitimate path containing double-dot in a directory name like v1..2', async () => {
     // We expect a validation pass (no traversal error), but the file won't exist,
-    // so it will fail with an ENOENT fs error — that is correct behaviour.
+    // so it will fail with an ENOENT fs error, that is correct behaviour.
     const rec = makeRecord('legit', { path: '/data/v1..2/checkpoint.json' });
     const result = await pruner.delete([rec]);
     // Should NOT be a traversal failure
@@ -545,7 +545,7 @@ describe('SnapshotPruner — path validation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SnapshotPruner — dry-run semantics
+// SnapshotPruner, dry-run semantics
 // ---------------------------------------------------------------------------
 
 describe('SnapshotPruner — dry-run semantics', () => {
@@ -575,7 +575,7 @@ describe('SnapshotPruner — dry-run semantics', () => {
 });
 
 // ---------------------------------------------------------------------------
-// RetentionPolicy — injectable pruner
+// RetentionPolicy, injectable pruner
 // ---------------------------------------------------------------------------
 
 describe('RetentionPolicy — injectable pruner', () => {

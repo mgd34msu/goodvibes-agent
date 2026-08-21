@@ -1,18 +1,18 @@
-# GoodVibes Agent Docs
+# GoodVibes Agent docs
 
 These are the package-facing docs for the GoodVibes Agent `2.0.x` release line.
 
-## Current Docs
+## Current docs
 
-- [Docs Index](README.md)
-- [Getting Started](getting-started.md)
-- [Connected Host](connected-host.md)
-- [Knowledge, Artifacts, and Multimodal](knowledge-artifacts-and-multimodal.md)
-- [Tools and Commands](tools-and-commands.md)
-- [Channels, Remote Access, and API](channels-remote-and-api.md)
-- [Providers and Routing](providers-and-routing.md)
-- [Voice and Live TTS](voice-and-live-tts.md)
-- [Release And Publishing](release-and-publishing.md)
+- [Docs index](README.md)
+- [Getting started](getting-started.md)
+- [Connected host](connected-host.md)
+- [Knowledge, artifacts, and multimodal](knowledge-artifacts-and-multimodal.md)
+- [Tools and commands](tools-and-commands.md)
+- [Channels, remote access, and API](channels-remote-and-api.md)
+- [Providers and routing](providers-and-routing.md)
+- [Voice and live TTS](voice-and-live-tts.md)
+- [Release and publishing](release-and-publishing.md)
 
 ## Baseline
 
@@ -25,7 +25,7 @@ These are the package-facing docs for the GoodVibes Agent `2.0.x` release line.
 - Local state: VIBE.md personality, project context files, memory, notes, personas, skills, routines, sessions, setup, and profiles live under the Agent home or current project.
 - Computer work: local read/edit/exec routes are allowed when the current Agent workspace and permissions are sufficient; process monitor/live tail/tool inspector supervision and local file edit/write recovery are inspectable and confirmation-gated; delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
 
-## Model Access Baseline
+## Model access baseline
 
 Agent-owned model tools expose Agent-controlled product surfaces plus operator/audit inspection routes:
 

@@ -11,18 +11,18 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
  * fork's own composition, not just the SDK in isolation.
  *
  * This fork does not call `agentManager.wakeWithSteer` directly anywhere in
- * its own source — the wake-retry is entirely inside the SDK's
+ * its own source, the wake-retry is entirely inside the SDK's
  * ProcessRegistry.steer() (goodvibes-sdk/platform/runtime/fleet/registry.js),
  * which re-triggers a 'failed' (wedged) agent from its retained context when
  * steered, PROVIDED the registry was constructed with both a real
- * `agentManager` (carrying the real `wakeWithSteer` method — the deps type
+ * `agentManager` (carrying the real `wakeWithSteer` method, the deps type
  * only requires `list`/`cancel`, so a narrower stub would silently disable
- * this) and a `messageBus` (steer() refuses honestly without one — see
+ * this) and a `messageBus` (steer() refuses honestly without one, see
  * ProcessRegistryDeps.messageBus's own doc comment). services.ts constructs
  * `processRegistry` via `createArchivableFleetRegistry` (the SAME
  * terminal-shell wrapper the daemon front-end uses) with
  * `agentManager` and `messageBus: agentMessageBus` passed as the real,
- * unnarrowed instances — this test proves that exact shape wakes a failed
+ * unnarrowed instances, this test proves that exact shape wakes a failed
  * agent, so this fork is covered by the SDK's own behavior change with no
  * wiring gap.
  */

@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildLearningCandidates } from '../tools/agent-harness-learning-curator-proposals.ts';
 import type { AgentSkillRegistry } from './skill-registry.ts';
@@ -11,7 +11,7 @@ import type { SkillDraftPayload } from './skill-draft-proposer.ts';
 // ---------------------------------------------------------------------------
 
 export interface SkillDraftLedgerEntry {
-  /** Stable ledger entry id — matches the persisted skill id assigned by the registry. */
+  /** Stable ledger entry id, matches the persisted skill id assigned by the registry. */
   readonly skillId: string;
   /** Kebab-slug name of the proposed skill. */
   readonly name: string;
@@ -80,10 +80,7 @@ function readLedger(ledgerPath: string): SkillDraftLedgerFile {
 }
 
 function writeLedger(ledgerPath: string, file: SkillDraftLedgerFile): void {
-  mkdirSync(dirname(ledgerPath), { recursive: true });
-  const tmpPath = `${ledgerPath}.tmp`;
-  writeFileSync(tmpPath, `${JSON.stringify(file, null, 2)}\n`, 'utf-8');
-  renameSync(tmpPath, ledgerPath);
+  writeStoreJson(ledgerPath, file);
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +110,7 @@ function ledgerPathFromRegistry(registry: AgentSkillRegistry): string {
  * 4. Persists each accepted draft via registry.create().
  * 5. Appends new entries to the ledger.
  *
- * Returns a result summary. Never throws on partial failure — errors for
+ * Returns a result summary. Never throws on partial failure, errors for
  * individual proposals are caught so one bad candidate does not abort the pass.
  */
 export function runSkillDraftProposer(
@@ -189,7 +186,7 @@ export function runSkillDraftProposer(
 }
 
 // ---------------------------------------------------------------------------
-// Ledger read helper — for harness tool inspection
+// Ledger read helper, for harness tool inspection
 // ---------------------------------------------------------------------------
 
 /**

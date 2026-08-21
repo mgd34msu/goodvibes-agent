@@ -69,11 +69,11 @@ function drive(
   { total, diverging }: { total: number; diverging: number },
 ) {
   for (let i = 0; i < diverging; i++) {
-    // write tool — actual allows /tmp/ writes, simulated denies them
+    // write tool, actual allows /tmp/ writes, simulated denies them
     sim.evaluate('write', { path: `/tmp/file-${i}.txt` });
   }
   for (let i = diverging; i < total; i++) {
-    // read tool — both evaluators allow it with the same managed rule
+    // read tool, both evaluators allow it with the same managed rule
     sim.evaluate('read', { path: `/tmp/file-${i}.txt` });
   }
 }
@@ -212,7 +212,7 @@ describe('DivergenceDashboard.checkEnforceGate() — blocked', () => {
   });
 });
 
-// ── setMode — non-enforce modes always succeed ─────────────────────────────────
+// ── setMode, non-enforce modes always succeed ─────────────────────────────────
 
 describe('DivergenceDashboard.setMode() — non-enforce modes', () => {
   it('allows transitioning to simulation-only regardless of divergence', () => {

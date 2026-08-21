@@ -1,9 +1,9 @@
 /**
- * provider-boot.ts — boot-time custom-provider readiness.
+ * provider-boot.ts, boot-time custom-provider readiness.
  *
  * Custom providers register asynchronously (services.ts fires
- * initCustomProviders() without awaiting), while the boot path — including
- * the first render frame — resolves the current model synchronously. Without
+ * initCustomProviders() without awaiting), while the boot path, including
+ * the first render frame, resolves the current model synchronously. Without
  * waiting here, a saved provider.model that points at a custom provider
  * throws "not in registry" before the first frame.
  */
@@ -15,7 +15,7 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 /**
  * Await the initial custom-provider load, re-run the routability guard (its
  * services-composition pass bails when the provider itself isn't registered
- * yet — exactly the custom-provider case), and as a last resort switch to a
+ * yet, exactly the custom-provider case), and as a last resort switch to a
  * real selectable model instead of dying before the UI exists.
  */
 export async function ensureBootModelResolvable(

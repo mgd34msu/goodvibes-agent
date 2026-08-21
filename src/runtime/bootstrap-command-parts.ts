@@ -146,7 +146,7 @@ export interface BootstrapCommandSectionOptions {
   /**
    * The runtime's own memory-consolidation scheduler, exposed to the memory
    * review surface (input/commands/recall-review.ts) as
-   * clients.memoryConsolidation — see agent/memory-consolidation-proposals.ts.
+   * clients.memoryConsolidation, see agent/memory-consolidation-proposals.ts.
    */
   readonly memoryConsolidationScheduler?: ConsolidationReceiptSource;
 }
@@ -192,7 +192,7 @@ export function createBootstrapCommandActions(
   } = options;
 
   const pointToWorkspace = (what: string) => {
-    conversation.log(`${what} lives in the Agent workspace — press Ctrl+P or run /agent.`, { fg: '214' });
+    conversation.log(`${what} lives in the Agent workspace, press Ctrl+P or run /agent.`, { fg: '214' });
     requestRender();
   };
 
@@ -243,7 +243,7 @@ export function createBootstrapCommandActions(
           // writes the preference. That step is skipped for a model with
           // nothing configurable, so `effort` can otherwise be a level merely
           // carried over from whatever was selected before; storing that is
-          // what used to ratchet the preference down for good — one hop
+          // what used to ratchet the preference down for good, one hop
           // through a model that caps at 'medium' and 'xhigh' was gone from
           // config, so hopping back could not restore it.
           //

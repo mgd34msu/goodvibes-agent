@@ -8,7 +8,7 @@ import { FIRST_GLANCE_BANNED, EVERYWHERE_BANNED, validate } from '../../core/pla
 import { TOOL_LABELS_CATALOG } from '../../renderer/tool-labels.ts';
 
 /**
- * Plain-language gate — the operator-facing copy must read like a person
+ * Plain-language gate, the operator-facing copy must read like a person
  * wrote it for a person. Internal vocabulary (tool syntax, runtime jargon,
  * coding-agent terms) stays on model-facing surfaces, never in labels,
  * summaries, or hints the user reads first.
@@ -189,7 +189,7 @@ describe('plain-language gate', () => {
 
     const label = friendlyToolLabel(syntheticId);
 
-    // Must convert underscores to spaces — no raw identifier smell.
+    // Must convert underscores to spaces, no raw identifier smell.
     expect(label).not.toContain('_');
     // Must produce a phrase with meaningful content (not an empty stub).
     expect(label.length).toBeGreaterThan(3);

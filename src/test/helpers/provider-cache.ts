@@ -45,7 +45,7 @@ export function writeModelCatalogCache(models: CatalogModel[], cacheDir: string,
   // `modalities.input` list, which is what decides `multimodal` per model
   // rather than by vendor. Earlier versions are discarded and refetched by the
   // SDK loader, which silently empties this fixture unless the version matches
-  // the installed SDK's CATALOG_CACHE_VERSION — that constant is not exported,
+  // the installed SDK's CATALOG_CACHE_VERSION, that constant is not exported,
   // so this number is kept in step by hand. It is not left to go unnoticed: a
   // stale number empties every catalog fixture, and the catalog tests in
   // src/test/providers assert on real fixture rows rather than on "some

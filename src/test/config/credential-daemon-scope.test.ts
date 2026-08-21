@@ -1,10 +1,10 @@
 /**
- * credential-daemon-scope.test.ts — a credential captured at this terminal is
+ * credential-daemon-scope.test.ts, a credential captured at this terminal is
  * still there when the terminal is gone.
  *
  * The owner's rule: anything configured on one surface is automatically
  * available to the daemon afterwards, with that surface's process closed. Every
- * test here is written as that sentence — a credential is stored through the
+ * test here is written as that sentence, a credential is stored through the
  * REAL agent-side path, then read back by a manager standing in for the daemon:
  * a different surface root, a different project root, sharing only the machine's
  * home. If the value is filed in this surface's silo the read comes back null,
@@ -46,7 +46,7 @@ const EMAIL_PASSWORD_SECRET_KEY = 'GOODVIBES_EMAIL_PASSWORD_REF';
  * A config manager stand-in that behaves the way the real one does for the two
  * things these paths use it for: reading the storage policy, and accepting a
  * dynamic write of an app-layer key. `setDynamic` records rather than
- * validating — what is under test is where the SECRET went, and a real
+ * validating, what is under test is where the SECRET went, and a real
  * ConfigManager would need its whole schema and tier layout to say the same
  * thing about a string it stores.
  */
@@ -161,7 +161,7 @@ describe('a credential captured in the agent survives the agent closing', () => 
 
   test('the calendar OAuth refresh token is readable when only the daemon is left', async () => {
     // Built exactly as `/calendar connect google` builds it, then the REAL
-    // writer — the SDK's token store — is pointed at the very slice the service
+    // writer, the SDK's token store, is pointed at the very slice the service
     // hands its connector. The store calls set(key, value) with no scope of its
     // own, which is the whole reason the slice has to decide.
     const service = new CalendarOAuthService({
@@ -196,7 +196,7 @@ describe('a credential captured in the agent survives the agent closing', () => 
     expect(await daemonReader.get('GOODVIBES_SURFACES_TELEGRAM_BOT_TOKEN')).toBe('the-bot-token');
 
     // The second value: cleared. The config side goes back to empty and the
-    // credential is gone from the tier the daemon reads — not merely from this
+    // credential is gone from the tier the daemon reads, not merely from this
     // surface's own copy.
     const clearedRef = await persist('');
     expect(clearedRef).toBe('');
@@ -258,7 +258,7 @@ describe('a credential captured in the agent survives the agent closing', () => 
   test('a genuinely surface-local credential is NOT moved into the daemon tier', async () => {
     // A bare name an operator invented for their own tooling. Nothing derives it
     // from a config path the daemon acts on, so it keeps the scope it was given
-    // and stays out of the daemon's store — the relocation rule is a rule about
+    // and stays out of the daemon's store, the relocation rule is a rule about
     // credentials the daemon reads, not a rule that everything moves.
     await agentSecrets.set('MY_OWN_SCRATCH_TOKEN', 'local-only', { scope: 'project' });
 
@@ -372,8 +372,8 @@ describe('the scope each credential path asks for', () => {
  * A SOURCE gate, and it is here because the runtime gate cannot see these.
  *
  * At the SDK version this package depends on, `SecretsManager.set` relocates
- * any credential whose NAME derives from a daemon-owned config path — the
- * mailbox password, the surface chat tokens, the calendar client secrets — to
+ * any credential whose NAME derives from a daemon-owned config path, the
+ * mailbox password, the surface chat tokens, the calendar client secrets, to
  * the daemon tier no matter what scope the caller asked for. So pinning
  * `{ scope: 'user' }` at these call sites is invisible from the outside today:
  * revert the fix and the credential still lands in the daemon tier, because the
@@ -382,7 +382,7 @@ describe('the scope each credential path asks for', () => {
  * That is not a reason to leave `'user'` written down. It is a lie about where
  * the credential goes, it is what a reader copies into the NEXT call site, and
  * it is one narrowing of the SDK's relocation away from being the live defect
- * again — the version of that defect the owner already hit, where a mailbox
+ * again, the version of that defect the owner already hit, where a mailbox
  * configured at this terminal left the daemon reporting no email integration.
  * So the source shape is asserted directly.
  */
@@ -469,7 +469,7 @@ describe('credential scope decisions', () => {
 
     expect(writes[0]).toEqual(['GOODVIBES_CALENDAR_GOOGLE_TOKENS', '{}', 'daemon']);
     expect(writes[1]).toEqual(['SOMETHING_THE_DAEMON_NEVER_READS', 'x', 'project']);
-    // A delete carries no scope, so it sweeps every tier — including a copy left
+    // A delete carries no scope, so it sweeps every tier, including a copy left
     // in the project tier by a build from before this shipped.
     expect(deletes[0]).toEqual(['GOODVIBES_CALENDAR_GOOGLE_TOKENS', undefined]);
     expect(await wrapped.get('anything')).toBe('value');

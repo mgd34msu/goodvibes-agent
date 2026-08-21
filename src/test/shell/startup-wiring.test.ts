@@ -124,7 +124,7 @@ describe('wireSetupIncompleteHint — in-progress message content', () => {
 });
 
 // ---------------------------------------------------------------------------
-// MINOR-1: localReady signal — local model route detected, no cloud provider
+// MINOR-1: localReady signal, local model route detected, no cloud provider
 // ---------------------------------------------------------------------------
 
 describe('wireSetupIncompleteHint — localReady signal', () => {
@@ -145,7 +145,7 @@ describe('wireSetupIncompleteHint — localReady signal', () => {
     const { router, captured } = makeRouter();
     wireSetupIncompleteHint({ shellPaths, providerReady: false, localReady: true, systemMessageRouter: router });
     const allText = captured.low.join(' ').toLowerCase();
-    // Local model is ready so chat is possible — hint must convey this
+    // Local model is ready so chat is possible, hint must convey this
     expect(allText).toMatch(/chat|now/);
   });
 
@@ -155,7 +155,7 @@ describe('wireSetupIncompleteHint — localReady signal', () => {
     const { router, captured } = makeRouter();
     wireSetupIncompleteHint({ shellPaths, providerReady: false, localReady: false, systemMessageRouter: router });
     const allText = captured.low.join(' ').toLowerCase();
-    // Neither provider nor local is ready — must still prompt to pick a model
+    // Neither provider nor local is ready, must still prompt to pick a model
     expect(allText).toMatch(/model|pick/);
   });
 

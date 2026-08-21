@@ -148,7 +148,7 @@ function browserControlWorkflows(
   const status = workflowStatus(configured, needsReview);
   const inspectRoute = configured ? recommendedRoute : setupRoute;
   const next = configured
-    ? `Call ${recommendedRoute} — this route is invocable now.`
+    ? `Call ${recommendedRoute}, this route is invocable now.`
     : needsReview
       ? 'Review trust/schema freshness before treating this browser or desktop connector as usable.'
       : 'Configure a trusted browser/desktop MCP server or first-class tool before attempting live UI control.';
@@ -260,7 +260,7 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
       ...(mcpServers.length > 0 && !isAgentMcpCallRouteInstalled()
         ? ['MCP browser servers are connected but this session has no route that can call them.']
         : []),
-      'Fix: the first-class browser tool provides browser control with no setup — if it is missing from the tool list, this build did not register it.',
+      'Fix: the first-class browser tool provides browser control with no setup, if it is missing from the tool list, this build did not register it.',
     ];
   const recommendedRoute = invocationRoutes[0]?.modelRoute ?? 'agent_harness mode:"mcp_servers" query:"browser desktop"';
   const setupRoute = 'setup action:"item" setupItemId:"browser-desktop-control"';

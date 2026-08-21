@@ -32,7 +32,7 @@ import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createTaskManager } from '@/runtime/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 // The Agent's runtime barrel no longer re-exports OpsControlPlane (the Agent
-// never constructs the ops intervention plane — read-only tasks policy).
+// never constructs the ops intervention plane, read-only tasks policy).
 // These tests exercise the SDK-owned diagnostics-action wiring, so they take
 // the class straight from the SDK's public operations namespace.
 import { operations } from '@pellux/goodvibes-sdk/platform/runtime';
@@ -111,7 +111,7 @@ describe('permission checks', () => {
     const dispatcher = new DiagnosticActionDispatcher({});
     const action = buildLoadReplayAction('run-001');
     const result = await dispatcher.dispatch(action);
-    // No replayEngine registered — fails gracefully, but not due to permission
+    // No replayEngine registered, fails gracefully, but not due to permission
     expect(result.permissionDenied).toBeUndefined();
   });
 
@@ -272,7 +272,7 @@ describe('retry-task', () => {
   test('returns failure when task cannot be retried', async () => {
     const env = makeControlPlaneEnv();
     const task = makeTask(env);
-    // Task is queued (not failed/cancelled) — canRetryTask returns false
+    // Task is queued (not failed/cancelled), canRetryTask returns false
 
     const dispatcher = new DiagnosticActionDispatcher({
       controlPlane: env.controlPlane,
@@ -343,7 +343,7 @@ describe('cancel-agent', () => {
   });
 
   test('returns failure for non-cancellable agent state', async () => {
-    // Create a runtime API facade but no agent is registered — canCancelAgent returns false
+    // Create a runtime API facade but no agent is registered, canCancelAgent returns false
     const env = makeControlPlaneEnv();
     const dispatcher = new DiagnosticActionDispatcher({
       controlPlane: env.controlPlane,
@@ -355,7 +355,7 @@ describe('cancel-agent', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Factory helpers — acceptance criterion validation
+// Factory helpers, acceptance criterion validation
 // All high-severity diagnostics must have at least one remediation action.
 // ---------------------------------------------------------------------------
 
@@ -450,7 +450,7 @@ describe('HighSeverityDiagnostic factory helpers', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Error handling — handler throws
+// Error handling, handler throws
 // ---------------------------------------------------------------------------
 
 describe('error handling', () => {

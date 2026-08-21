@@ -25,7 +25,7 @@ function createConfigManager(workingDir: string): ConfigManager {
 // fleet.maxSize (schema-domain-fleet.ts, the orchestration.maxActiveAgents
 // rename) is a first-class member of the published ConfigKey union since sdk
 // 89690d07 completed the union (with a drift gate so a new domain can never
-// fall out of it again) — the ConfigKey cast workaround this file carried
+// fall out of it again), the ConfigKey cast workaround this file carried
 // while the union lagged the runtime schema is deleted: get/set below use
 // the plain key string, cast-free. These thin helpers remain only to keep
 // the many call sites short.
@@ -41,7 +41,7 @@ function setFleetMaxSize(mgr: ConfigManager, value: number): void {
 // type graph never loads that file (schema.d.ts imports the domain module
 // for VALUES only, so d.ts emission elides the import). A direct
 // DEFAULT_CONFIG.fleet property read therefore still fails to typecheck in
-// consumers even though the value is real at runtime — this one structural
+// consumers even though the value is real at runtime, this one structural
 // view covers exactly that object-shape read and nothing else.
 function fleetMaxSizeOf(cfg: unknown): number {
   return (cfg as { fleet: { maxSize: number } }).fleet.maxSize;
@@ -78,7 +78,7 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
     // orchestration.maxActiveAgents was renamed fleet.maxSize (the one agent
     // ceiling: native spawned agents, ACP-hosted rows, and elastic fixers all
-    // count against it) — see the SDK's schema-domain-fleet.ts.
+    // count against it), see the SDK's schema-domain-fleet.ts.
     test('fleet.maxSize has correct type when no project config exists', () => {
       const mgr = createConfigManager(tmpDir);
       expect(typeof getFleetMaxSize(mgr)).toBe('number');
@@ -87,7 +87,7 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
     test('danger category fields have correct types when no project config exists', () => {
       const mgr = createConfigManager(tmpDir);
       // `danger.daemon` (a deprecated alias for `daemon.enabled`) was removed from
-      // the schema — see docs/decisions/2026-07-05-daemon-by-default.md
+      // the schema, see docs/decisions/2026-07-05-daemon-by-default.md
       // in the SDK. `daemon.enabled` carries the real default.
       expect(typeof mgr.get('danger.httpListener')).toBe('boolean');
       expect(typeof mgr.get('daemon.enabled')).toBe('boolean');

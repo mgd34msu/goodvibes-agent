@@ -6,14 +6,14 @@
 // reader, the restore version-agreement check, workspace-package
 // enumeration incl. contracts) moved to the SDK checkout's own
 // scripts/sdk-dev.ts and is unit-tested there (goodvibes-sdk/test/sdk-dev-
-// tool.test.ts) — this is now the ONE place that logic is tested, closing
+// tool.test.ts), this is now the ONE place that logic is tested, closing
 // the drift the three independently-maintained copies had fallen into.
 //
 // This file covers what's left in the Agent's copy: the alias's own guard
 // clauses (missing checkout, checkout present but stale/missing the tool
 // script) and that it actually forwards to the checkout when present. The
 // forwarding assertions are skipped when no local SDK checkout exists at the
-// resolved path (CI has none — same precedent the pre-consolidation webui
+// resolved path (CI has none, same precedent the pre-consolidation webui
 // suite already used for its "real overlay active" case).
 // ---------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ const SCRIPT_PATH = resolve(import.meta.dir, '..', '..', '..', 'scripts/sdk-dev.
 const REPO_ROOT = resolve(import.meta.dir, '..', '..', '..');
 const DEFAULT_SDK_ROOT = resolve(process.env.GOODVIBES_SDK_PATH ?? resolve(homedir(), 'Projects/goodvibes-sdk'));
 // Forwarding only succeeds once the checkout HAS the canonical tool (this
-// brief's own deliverable) — a checkout dir existing without it (e.g. an
+// brief's own deliverable), a checkout dir existing without it (e.g. an
 // SDK main that hasn't landed the canonical tool yet) must gate the same as "no
 // checkout" for these assertions.
 const SDK_TOOL_AVAILABLE = existsSync(join(DEFAULT_SDK_ROOT, 'scripts/sdk-dev.ts'));

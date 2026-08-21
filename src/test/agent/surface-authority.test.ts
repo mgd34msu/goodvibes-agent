@@ -3,7 +3,7 @@
  *
  * PERMANENT REGRESSION GUARDS. These tests pin a trust boundary, not an
  * implementation detail. If one of them fails, the correct response is
- * almost never to update the test — it is to ask why a surface anyone can
+ * almost never to update the test, it is to ask why a surface anyone can
  * write to just gained the ability to direct the agent. The one legitimate
  * reason to edit the expectations here is an owner decision to move a
  * surface between the two categories, and that decision belongs in the diff
@@ -140,7 +140,7 @@ describe('effect gate', () => {
   test('the gate cannot be reached without stating where the request came from', () => {
     // Structural, checked at the type level: effectPermittedForProvenance takes
     // provenance as a required second parameter and has no third. There is no
-    // override argument to pass, so a caller cannot assert trust — it can only
+    // override argument to pass, so a caller cannot assert trust, it can only
     // name a surface, whose authority the declaration table already fixed.
     expect(effectPermittedForProvenance.length).toBe(2);
   });

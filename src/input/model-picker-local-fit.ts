@@ -6,7 +6,7 @@
  * represent common local model sizes so the picker opens with useful content.
  *
  * Rules:
- *   - These entries are purely informational — they are NOT installed models.
+ *   - These entries are purely informational, they are NOT installed models.
  *   - They must never appear when any real provider is configured.
  *   - Selecting one routes through the local-provider install/confirm path,
  *     never a silent model switch.
@@ -106,8 +106,8 @@ export function buildLocalFitRecommendations(
     const fitHint = fitVerdictLabel(verdict, spec.sizeLabel);
     // Plain-language detail: never imply the model is ready to use.
     const detail = fitHint
-      ? `recommended for your hardware — not yet installed (${fitHint})`
-      : 'recommended for your hardware — not yet installed';
+      ? `recommended for your hardware, not yet installed (${fitHint})`
+      : 'recommended for your hardware, not yet installed';
 
     const model: ModelDefinition = {
       id: spec.id,

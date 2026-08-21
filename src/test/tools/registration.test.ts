@@ -173,20 +173,20 @@ describe('registerAllTools', () => {
     const registry = new ToolRegistry();
     const workingDirectory = registerTools(registry);
     // Install the SAME guard layers production bootstrap installs
-    // (installAgentToolPolicyGuard, installToolExecutionSafetyGuard) —
+    // (installAgentToolPolicyGuard, installToolExecutionSafetyGuard),
     // neither wraps the write tool's execute function, but this proves that
     // rather than assumes it: diagnostics must still reach the result.
     installAgentToolPolicyGuard(registry);
     installToolExecutionSafetyGuard(registry);
     // hasTsProjectContext() walks up from the written file looking for
-    // tsconfig.json/jsconfig.json — without one, the provider honestly
+    // tsconfig.json/jsconfig.json, without one, the provider honestly
     // returns [] rather than fabricating "no errors".
     writeFileSync(join(workingDirectory, 'tsconfig.json'), '{}\n');
 
     const result = await registry.execute('write-diagnostics-smoke', 'write', {
       files: [{
         path: 'broken.ts',
-        // Deliberately unbalanced — a real syntax error, not a type error.
+        // Deliberately unbalanced, a real syntax error, not a type error.
         content: 'export function broken( {\n  return 1\n',
       }],
     });

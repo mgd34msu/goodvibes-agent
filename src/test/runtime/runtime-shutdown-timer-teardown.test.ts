@@ -1,5 +1,5 @@
 /**
- * runtime-shutdown-timer-teardown.test.ts — the graph must let go of its timers.
+ * runtime-shutdown-timer-teardown.test.ts, the graph must let go of its timers.
  *
  * `createRuntimeServices()` starts pollers while it composes: the config-file
  * watch, the fleet registry tick, the memory governor, the watcher registry,
@@ -9,7 +9,7 @@
  * schedulers. Every one of those owners already had a `stop()` or `dispose()`;
  * nothing called them, because the graph had no disposal seam.
  *
- * Unlike the SDK, this fork composes no DaemonServer of its own — it hands its
+ * Unlike the SDK, this fork composes no DaemonServer of its own, it hands its
  * graph to one via startHostServices, which passes `runtimeServices` in, so the
  * SDK's ownership rule deliberately leaves that graph alone. `dispose()` here is
  * the only thing that stops these, and this file is its proof.
@@ -21,16 +21,16 @@
  * Two properties are held down here, and they are different:
  *
  *  1. No poller survives dispose(). Measured the instant it returns, against
- *     the named set of modules that own repeating work. A poller is permanent —
- *     it never drains — so this is the assertion that proves the seam.
+ *     the named set of modules that own repeating work. A poller is permanent,
+ *     it never drains, so this is the assertion that proves the seam.
  *  2. Nothing at all survives shortly after. A handle owned by work genuinely
  *     in flight when dispose() was called is not a leak, but it must still end.
  *     This catches anything that merely looks transient and is not.
  *
  * The measurement runs in a SUBPROCESS (fixtures/runtime-shutdown-probe.ts).
  * It wraps the timer globals process-wide, so in-suite it counted whatever
- * other test files happened to have in flight — an MCP reconnect schedule, an
- * orchestrator-runner timeout, a knowledge cooperative-yield — and failed on
+ * other test files happened to have in flight, an MCP reconnect schedule, an
+ * orchestrator-runner timeout, a knowledge cooperative-yield, and failed on
  * timers this graph never created. Isolation is what makes the numbers mean
  * what they say.
  *
@@ -53,7 +53,7 @@ import type { ShutdownProbeReport } from '../fixtures/runtime-shutdown-probe.ts'
 /**
  * Modules that own repeating work started by the runtime graph. A handle
  * attributed to any of these after dispose() is a poller that was never torn
- * down — the exact defect this file exists to prevent regressing.
+ * down, the exact defect this file exists to prevent regressing.
  */
 const POLLER_OWNERS = [
   'config/config-file-watcher',

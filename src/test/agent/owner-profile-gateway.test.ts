@@ -5,14 +5,14 @@
  * `ProfileGatewayInvoke`, which never exercises `createProfileGatewayInvoke`
  * itself. That function is the one place deciding which of the two routes a
  * call takes (in-process catalog vs. connected-host operator gateway), and
- * under the new contract `authority` is REQUIRED on every write verb — an
+ * under the new contract `authority` is REQUIRED on every write verb, an
  * absent one is a 400 INVALID_ARGUMENT. `forget` and `undo` matter most: they
  * are the delete path, and §7's authority check is the WHOLE gate on a
- * removal (no derivation check, no verbatim quote — a deletion has neither a
+ * removal (no derivation check, no verbatim quote, a deletion has neither a
  * value to compare nor an utterance to quote).
  *
- * This module forwards `body` verbatim on both routes — there is no
- * verb-specific branching in `createProfileGatewayInvoke` — so a regression
+ * This module forwards `body` verbatim on both routes, there is no
+ * verb-specific branching in `createProfileGatewayInvoke`, so a regression
  * that dropped `authority` for one verb but not another could only happen one
  * layer up, in the tool. This suite exists so a future edit to THIS file that
  * introduced such branching (e.g. stripping a field before forwarding) would
@@ -91,7 +91,7 @@ describe('owner-profile-gateway — authority reaches the daemon on every write 
   });
 
   // forget and undo matter most: under the new contract they 400 without
-  // authority, and they are the delete path — §7's authority check is the
+  // authority, and they are the delete path, §7's authority check is the
   // WHOLE gate on a removal, with no derivation or verbatim-quote layer
   // behind it to catch a caller that slipped through with none.
   test('profile.forget forwards authority unchanged', async () => {

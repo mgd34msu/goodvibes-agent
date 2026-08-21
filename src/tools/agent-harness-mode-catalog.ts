@@ -125,7 +125,7 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'session', kind: 'inspect', family: 'sessions', summary: 'Inspect one saved session or bookmark entry.', parameters: ['sessionId', 'target', 'query'] },
   // The keywords are the domains a person asks for by name rather than by key
   // prefix. A model searching modes for "payment" used to find nothing and
-  // report that the platform has no payments — while payments.* held 32 live
+  // report that the platform has no payments, while payments.* held 32 live
   // keys. The settings mode is where those are, so it says so.
   { id: 'settings', kind: 'discover', family: 'settings', summary: 'Search Agent settings compactly by category, prefix, or query.', next: 'Prefer settings action:"list|get|set|reset|import".', keywords: ['payment', 'payments', 'credit card', 'spending limit', 'budget', 'purchase', 'billing address', 'shipping address', 'birthday', 'occasion', 'wake word', 'theme', 'model', 'api key', 'permission', 'telegram'], parameters: ['category', 'prefix', 'query', 'includeHidden', 'limit', 'includeParameters'] },
   { id: 'get_setting', kind: 'inspect', family: 'settings', summary: 'Inspect one Agent setting descriptor, value, default, and policy.', keywords: ['payment', 'payments', 'credit card', 'spending limit', 'budget'], parameters: ['key', 'target', 'query'] },

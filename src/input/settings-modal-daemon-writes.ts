@@ -1,5 +1,5 @@
 /**
- * settings-modal-daemon-writes.ts — the settings modal's half of the config
+ * settings-modal-daemon-writes.ts, the settings modal's half of the config
  * ownership split.
  *
  * A setting belongs to the runtime that ACTS on it. The modal writes to whichever
@@ -13,7 +13,7 @@
  * and the modal reported it as unset.
  *
  * Split out of settings-modal.ts, which is at the line cap check-architecture.ts
- * enforces — and the seam is a natural one either way, matching
+ * enforces, and the seam is a natural one either way, matching
  * settings-modal-secrets.ts next door for the credential half.
  */
 import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
@@ -33,14 +33,14 @@ export interface DaemonSettingWriteReport {
 /**
  * Route a setting write to the connected host when the host owns the key.
  *
- * Returns true when it took the write — the caller must then NOT write locally,
+ * Returns true when it took the write, the caller must then NOT write locally,
  * because two writers is exactly the problem. Returns false when the key is this
  * process's own, or when no connected-host client is installed (a one-shot CLI, a
  * unit test), which keeps the local path for a process that was never wired to
  * route rather than failing a write it cannot make.
  *
  * The modal is driven from a keystroke handler and cannot await, so the outcome
- * — including the refusal, which is the message that matters — arrives on
+ *, including the refusal, which is the message that matters, arrives on
  * `report` a moment later.
  */
 export function routeSettingWriteToConnectedHost(

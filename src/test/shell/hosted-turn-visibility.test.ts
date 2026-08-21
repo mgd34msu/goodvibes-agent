@@ -6,7 +6,7 @@
  * keystroke, no live streamed text.
  *
  * The cause was that every "a turn is in flight" signal reads the orchestrator's
- * `isThinking` and the animation frame beside it — and a LOCAL turn's 80ms
+ * `isThinking` and the animation frame beside it, and a LOCAL turn's 80ms
  * animation timer is what actually repaints the shell during a turn. Frame
  * arrival was never the pump. A hosted turn set none of it, so nothing painted
  * between keystrokes and the waiting state never appeared at all.
@@ -116,7 +116,7 @@ describe('symptom 2 — the shell repaints with no input events at all', () => {
     // The waiting state has to appear on the keystroke, not one interval later.
     expect(repaints).toBe(1);
 
-    // Zero input events happen here — only time passes.
+    // Zero input events happen here, only time passes.
     await wait(60);
     activity.end();
 
@@ -147,7 +147,7 @@ describe('symptom 2 — the shell repaints with no input events at all', () => {
 
   test('the cadence matches the local turn animation', () => {
     // A different interval would make a hosted spinner visibly faster or
-    // slower than a local one — a presentation change nobody ordered.
+    // slower than a local one, a presentation change nobody ordered.
     expect(HOSTED_SPINNER_INTERVAL_MS).toBe(80);
   });
 });
@@ -168,7 +168,7 @@ describe('symptom 3 — streamed text is visible as deltas arrive', () => {
 
     renderer.apply({ type: 'STREAM_START', payload: { turnId: 't1' } });
     renderer.apply({ type: 'STREAM_DELTA', payload: { turnId: 't1', content: 'The ', accumulated: 'The ' } });
-    // Visible NOW — not only once the turn completes.
+    // Visible NOW, not only once the turn completes.
     expect(updates).toEqual(['The ']);
     expect(repaints).toBeGreaterThan(0);
 

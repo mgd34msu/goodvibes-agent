@@ -54,10 +54,10 @@ export interface CliServicePosture {
     readonly enabled: boolean;
     readonly autostart: boolean;
     readonly restartOnFailure: boolean;
-    /** `daemon.enabled` — whether this surface adopts a session daemon of its own. */
+    /** `daemon.enabled`, whether this surface adopts a session daemon of its own. */
     readonly daemonEnabled: boolean;
     /**
-     * `daemon.connectedHost.enabled` — whether this surface may DIAL the host
+     * `daemon.connectedHost.enabled`, whether this surface may DIAL the host
      * it is connected to. Reported separately because it is what the
      * daemon-backed features actually consult; reporting only the adopt flag
      * described a machine that was not the one running.
@@ -200,7 +200,7 @@ export async function buildCliServicePosture(
     connectedHostDialEnabled: resolveConnectedHostDialEnabled(runtime.configManager),
   };
   // Dialing is what the daemon-backed features consult, so a machine that does
-  // not adopt a daemon but does dial a connected one is server-backed — which
+  // not adopt a daemon but does dial a connected one is server-backed, which
   // is exactly the topology this product is designed for.
   const serverBackedEnabled = config.daemonEnabled
     || config.connectedHostDialEnabled
@@ -209,8 +209,8 @@ export async function buildCliServicePosture(
   const advisories: string[] = [];
 
   if (serverBackedEnabled && !config.enabled) {
-    // Not a fault. The Agent is designed not to own the host — a connected
-    // GoodVibes daemon does — so this is the normal topology, and it became
+    // Not a fault. The Agent is designed not to own the host, a connected
+    // GoodVibes daemon does, so this is the normal topology, and it became
     // visible here only once the Agent began reading the shared daemon tier.
     advisories.push('Connected-host settings are present, but Agent host ownership is disabled by design.');
   }

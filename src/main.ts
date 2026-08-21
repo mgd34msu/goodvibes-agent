@@ -250,7 +250,7 @@ async function main() {
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   // sessionId of the offered recovery snapshot, or null when none is pending.
   let recoveryPending: string | null = null, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null, daemonRepairPrompt: DaemonRepairPrompt | null = null;
-  // The window in which this app owns the screen: opened by the enter sequence below, closed by exitApp before the terminal-restore write. render() paints only inside it — see shell/terminal-paint-window.ts for what the early frames did to the boot surface and to the shell's screen.
+  // The window in which this app owns the screen: opened by the enter sequence below, closed by exitApp before the terminal-restore write. render() paints only inside it, see shell/terminal-paint-window.ts for what the early frames did to the boot surface and to the shell's screen.
   const paintWindow = createTerminalPaintWindow({ enter: () => allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write(buildEnterSequence(cli.flags.noAltScreen)); }), discardCompositorState: () => compositor.resetDiff() });
 
   const sigintHandler = (): void => input.feed('\x03');
@@ -266,7 +266,7 @@ async function main() {
 
   let exiting = false;
   // `handOver` replaces the process AFTER the orderly teardown below and exits
-  // with its code — how a periodic self-update restarts onto its new binary.
+  // with its code, how a periodic self-update restarts onto its new binary.
   const exitApp = (handOver?: () => number): void => {
     // Reentrancy guard: a second /exit or keypress during the bounded
     // spoken-audio drain below must not re-run teardown.
@@ -290,7 +290,7 @@ async function main() {
       logger.debug('ctx.shutdown error during exitApp (non-fatal)', { error: summarizeError(err) });
     });
     if (recoveryInterval !== null) { clearInterval(recoveryInterval); recoveryInterval = null; }
-    // Scoped to this session only — a keyless call would clear every snapshot in the recovery dir.
+    // Scoped to this session only, a keyless call would clear every snapshot in the recovery dir.
     removeRecoveryPoint(ctx.services.surface, runtime.sessionId);
     stdin.removeAllListeners('data');
     stdout.removeListener('resize', resizeHandler);
@@ -328,7 +328,7 @@ async function main() {
     configManager,
     notify: (message) => { systemMessageRouter.high(message); render(); },
   }));
-  // Where a turn runs — see shell/remote-conversation-wiring.ts.
+  // Where a turn runs, see shell/remote-conversation-wiring.ts.
   const remoteConversation = installRemoteConversationRouting(ctx, {
     render: () => render(),
     notify: (message) => systemMessageRouter.high(message),
@@ -485,7 +485,7 @@ async function main() {
   input.filePicker.setOnUpdate(() => render());
   input.processModal.setOnRefresh(() => render());
 
-  // Model picker callback is handled in bootstrap.ts — do not duplicate here.
+  // Model picker callback is handled in bootstrap.ts, do not duplicate here.
   input.setHistory(inputHistory);
   // The wake-word capture host: one microphone path, opened only when voice.wake.enabled AND voice.wake.surfaces.agent are both on (shell/voice-capture-shell.ts).
   voiceCaptureStatus = installVoiceCapture({ configManager, voiceService: ctx.services.voiceService, voiceProviders: ctx.services.voiceProviders, daemonVerbs: ctx.services.daemonVerbs, ensureWakeProvisioned: async () => { const outcome = await ctx.services.voiceSetup.wakeEnsureProvisioned(); return { ready: outcome.ready, message: outcome.message }; }, shellPaths: ctx.services.shellPaths, sessionId: runtime.sessionId, unsubs, buffer: input, submitInput, notify: (m) => { systemMessageRouter.high(m); render(); }, render: () => render() });
@@ -500,7 +500,7 @@ async function main() {
 
   // A hoisted DECLARATION, not `const`: callbacks wired above fire before this
   // line (bindApprovalsPanel starts an unawaited refresh + stream that repaint).
-  // Under a `const` they hit the temporal dead zone — every boot logged "Cannot
+  // Under a `const` they hit the temporal dead zone, every boot logged "Cannot
   // access 'render' before initialization" as an unhandled rejection, which killed
   // that wiring, so the surface never repainted from any async source again.
   function render(): void {
@@ -565,7 +565,7 @@ async function main() {
       provider: runtime.provider,
       contextWindow: currentModel.contextWindow,
       compactThreshold: configManager.get('behavior.autoCompactThreshold') as number,
-      // Single source of truth for "will this bypass the approval prompt?" — computed
+      // Single source of truth for "will this bypass the approval prompt?", computed
       // the same way cli/status.ts and the policy-explain tool compute it (behavior.autoApprove
       // first, then permissions.mode), so the footer can never disagree with them.
       dangerMode: readApprovalPostureFromConfig(configManager).bypassesPrompts,
@@ -663,7 +663,7 @@ async function main() {
               processes: runningProcessCount,
             },
             needsYou: pendingPermission
-              ? ['Approval needed — answer the prompt under the conversation.']
+              ? ['Approval needed, answer the prompt under the conversation.']
               : [],
             comingUp: [...autonomy.comingUpItems()],
             recent: systemMessageRouter.getFeed()?.latest(Math.max(4, vHeight - 8)) ?? [],
@@ -791,7 +791,7 @@ main().catch((err: unknown) => {
     logError: (message, context) => logger.error(message, context),
     // NOT process.stderr.write: installFullScreenTerminalOutputGuard above
     // replaces it, so a failure raised after that install had its explanation
-    // intercepted and swallowed — measured on a compiled binary as exit 1 with
+    // intercepted and swallowed, measured on a compiled binary as exit 1 with
     // zero bytes on both streams. A descriptor write cannot be intercepted.
     writeStderr: writeFatalLine,
     exit: (code) => process.exit(code),

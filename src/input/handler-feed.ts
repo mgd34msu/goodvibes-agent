@@ -42,49 +42,49 @@ import { trackPanelPasteFloodGuard, type PanelBurstGuardState } from './panel-pa
 import type { FocusTracker } from '@/runtime/index.ts';
 
 /**
- * InputFeedContext — The single long-lived context object passed to feedInputTokens
+ * InputFeedContext, The single long-lived context object passed to feedInputTokens
  * on every keystroke. Allocated once at InputHandler construction; mutated in place
  * per-feed to avoid per-keystroke GC pressure from ~80-field object allocation.
  *
  * **Mutable per-feed** (synced from handler at the top of every feed() call, and
  * updated inside action closures via syncFeedContextMutableFields):
- *   - `prompt`, `cursorPos` — current text buffer state
- *   - `commandMode`, `indicatorFocused` — focus-mode flags
- *   - `helpOverlayActive`, `helpScrollOffset` — help overlay visibility and scroll
- *   - `shortcutsOverlayActive`, `shortcutsScrollOffset` — shortcuts overlay state
- *   - `nextPasteId`, `nextImageId` — monotonically increasing ID counters
- *   - `mouseDownRow`, `mouseDownCol` — drag-tracking coordinates
- *   - `contentWidth` — reflow width (semi-stable; synced at feed() entry only)
- *   - `selectionCallback` — current in-flight selection modal callback (nullable)
- *   - `requestRender` — swapped per-feed to a buffered version, restored after
+ *   - `prompt`, `cursorPos`, current text buffer state
+ *   - `commandMode`, `indicatorFocused`, focus-mode flags
+ *   - `helpOverlayActive`, `helpScrollOffset`, help overlay visibility and scroll
+ *   - `shortcutsOverlayActive`, `shortcutsScrollOffset`, shortcuts overlay state
+ *   - `nextPasteId`, `nextImageId`, monotonically increasing ID counters
+ *   - `mouseDownRow`, `mouseDownCol`, drag-tracking coordinates
+ *   - `contentWidth`, reflow width (semi-stable; synced at feed() entry only)
+ *   - `selectionCallback`, current in-flight selection modal callback (nullable)
+ *   - `requestRender`, swapped per-feed to a buffered version, restored after
  *
  * **Stable service handles** (set once at construction, never reallocated):
- *   - `commandRegistry`, `commandContext` — wired via setCommandRegistry() after
+ *   - `commandRegistry`, `commandContext`, wired via setCommandRegistry() after
  *     construction; synced at feed() entry (not per-action) since no action changes them
- *   - `autocomplete` — wired after construction; synced at feed() entry
- *   - `inputHistory`, `conversationManager` — late-wired service handles; synced at
+ *   - `autocomplete`, wired after construction; synced at feed() entry
+ *   - `inputHistory`, `conversationManager`, late-wired service handles; synced at
  *     feed() entry only since no in-feed action rewires them
- *   - `pasteRegistry`, `imageRegistry` — owned Maps, never replaced
- *   - `burstGuard` (ported from goodvibes-tui's panel-paste-flood-guard.ts) — the
+ *   - `pasteRegistry`, `imageRegistry`, owned Maps, never replaced
+ *   - `burstGuard` (ported from goodvibes-tui's panel-paste-flood-guard.ts), the
  *     unbracketed-paste-flood guard's sliding-window state, mutated in place
  *     across tokens by trackPanelPasteFloodGuard (see panel-paste-flood-guard.ts).
  *     Never reallocated. `burstSuppressedCount` is this wiring layer's own
  *     bookkeeping (not part of the ported module) for the honest resolution
- *     notice — see feedInputTokens below.
- *   - `focusTracker` (the SDK's FocusTracker) — tracks OS-level
+ *     notice, see feedInputTokens below.
+ *   - `focusTracker` (the SDK's FocusTracker), tracks OS-level
  *     terminal focus from `\x1b[I`/`\x1b[O` tokens (DECSET ?1004h, enabled in
  *     main.ts). Shared instance from RuntimeServices, threaded via
  *     uiServices.platform.focusTracker (mirrors the TUI's own wiring).
  *   - `selectionModal`, `bookmarkModal`, `settingsModal`, `sessionPickerModal`,
- *     `profilePickerModal` — modal objects constructed once in InputHandler constructor
+ *     `profilePickerModal`, modal objects constructed once in InputHandler constructor
  *   - `filePicker`, `modelPicker`, `processModal`, `liveTailModal`,
- *     `contextInspectorModal`, `blockActionsMenu`, `searchManager`, `historySearch` —
+ *     `contextInspectorModal`, `blockActionsMenu`, `searchManager`, `historySearch`,
  *     service objects constructed once
- *   - `keybindingsManager` — from uiServices, stable for app lifetime
- *   - `modalStack` — reference to the handler's shared array (mutated in place)
- *   - `getHistory`, `getViewportHeight`, `getScrollTop`, `scroll`, `exitApp` — stable
+ *   - `keybindingsManager`, from uiServices, stable for app lifetime
+ *   - `modalStack`, reference to the handler's shared array (mutated in place)
+ *   - `getHistory`, `getViewportHeight`, `getScrollTop`, `scroll`, `exitApp`, stable
  *     callbacks bound in the InputHandler constructor
- *   - All method closures (`modalOpened`, `handleEscape`, etc.) — bound once at init
+ *   - All method closures (`modalOpened`, `handleEscape`, etc.), bound once at init
  *
  * **Rationale:** per-feed mutation avoids per-keystroke allocation cost; stable
  * references are service handles whose identity never changes after construction.
@@ -106,7 +106,7 @@ export interface InputFeedContext {
   contentWidth: number;
   readonly pasteRegistry: Map<string, string>;
   readonly imageRegistry: Map<string, { data: string; mediaType: string }>;
-  /** Ported from goodvibes-tui's paste-flood guard — mutated in place, never reallocated. */
+  /** Ported from goodvibes-tui's paste-flood guard, mutated in place, never reallocated. */
   readonly burstGuard: PanelBurstGuardState;
   /** Wiring-layer bookkeeping (not part of the ported module) for the honest suppressed-count notice. */
   burstSuppressedCount: number;
@@ -147,7 +147,7 @@ export interface InputFeedContext {
   /**
    * Deliver an Enter submission to a pending composer line prompt (masked card
    * field, or plain address field). True means it was consumed and the normal
-   * submit path — including input history — must not run. See
+   * submit path, including input history, must not run. See
    * input/concealed-input.ts and input/plain-line-input.ts.
    */
   readonly submitConcealedInput: (value: string) => boolean;
@@ -185,14 +185,14 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
   const scrollTop = context.getScrollTop();
   const lineCount = history.getLineCount();
   const keybindings = context.keybindingsManager;
-  // One `now` per feed() call (not per token) — a genuine unbracketed-paste
+  // One `now` per feed() call (not per token), a genuine unbracketed-paste
   // flood delivers many tokens in one drain, and they should all measure as
   // arriving "at once" (mirrors the same doc note in goodvibes-tui's handler-feed.ts).
   const now = Date.now();
 
   for (const token of tokens) {
     // Focus-reporting tokens (CSI ?1004h)
-    // never reach the composer or any modal route — consumed here, first,
+    // never reach the composer or any modal route, consumed here, first,
     // unconditionally. No render needed.
     if (token.type === 'focus') {
       context.focusTracker.setFocused(token.action === 'in');
@@ -309,38 +309,38 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
     // below) from an unbracketed-paste-replay or control-character-injection
     // burst.
     //
-    // SCOPE — 'key' tokens, and only while commandMode is active: the TUI's
+    // SCOPE, 'key' tokens, and only while commandMode is active: the TUI's
     // own guard exempts any "capturing" text surface entirely (its own test
     // asserts a capturing panel "receives the full burst untouched by the
-    // flood guard" — see panel-focus-route.test.ts) and never touches its own
+    // flood guard", see panel-focus-route.test.ts) and never touches its own
     // non-panel-focused composer's key handling at all. This agent's plain
     // composer (commandMode false) is exactly that kind of capturing/untouched
-    // surface — handlePromptTextToken absorbs pasted/typed text of any length
+    // surface, handlePromptTextToken absorbs pasted/typed text of any length
     // by plain insertion, and handlePromptKeyToken's arrow/backspace/enter
     // handling is the same shape as the TUI's own unguarded composer key
     // route. Guarding those would falsely trip on ordinary fast/bulk delivery
     // (a single feed() call carrying many characters/keys shares one `now`,
     // indistinguishable from a real flood under this millisecond-resolution
-    // model — confirmed by a regression in this repo's own
+    // model, confirmed by a regression in this repo's own
     // command-modal-handoff.test.ts when an earlier version of this guard
     // covered all 'key'/'text' tokens unconditionally) and would add new,
     // product-inconsistent friction (e.g. held-arrow-key auto-repeat) to the
     // agent's default interaction mode that the TUI's own users don't have.
     //
     // commandMode's key dispatch is the genuine analog of a TUI panel's
-    // per-character hotkey dispatch — matching the R1 matrix's own adaptation
+    // per-character hotkey dispatch, matching the R1 matrix's own adaptation
     // note, "the burst instead becomes command/keybinding dispatch": once
     // commandMode is armed (state.prompt starts with '/'), Enter EXECUTES a
     // slash command (handler-command-route.ts), Tab completes, up/down
-    // navigate — real state-changing single-key actions. An unbracketed
+    // navigate, real state-changing single-key actions. An unbracketed
     // paste whose content happens to start with '/' and contains a bare '\r'
-    // partway through (not '\n' — the tokenizer maps '\n' to shift+enter/
+    // partway through (not '\n', the tokenizer maps '\n' to shift+enter/
     // newline-insert, code10; only '\r'/code13 is a genuine 'enter' key, see
     // platform/core/tokenizer.ts) would otherwise execute a slash command
     // early with truncated/wrong arguments. A human never sends 9 key-tokens
     // within 120ms.
     //
-    // UX-FIRST / HONEST DEGRADED STATE: never silent — a one-shot notice fires
+    // UX-FIRST / HONEST DEGRADED STATE: never silent, a one-shot notice fires
     // the moment the guard trips, and a second notice reports how many
     // keystrokes it suppressed once the burst quiets down.
     if (token.type === 'key' && context.commandMode) {
@@ -349,13 +349,13 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       if (!guard.dispatch) {
         context.burstSuppressedCount++;
         if (guard.showHintNow) {
-          context.commandContext?.print('[paste] unbracketed paste flood detected — suppressing extra keystrokes until it settles');
+          context.commandContext?.print('[paste] unbracketed paste flood detected: suppressing extra keystrokes until it settles');
           context.requestRender();
         }
         continue;
       }
       if (wasSuspended) {
-        context.commandContext?.print(`[paste] flood cleared — suppressed ${context.burstSuppressedCount} keystroke(s)`);
+        context.commandContext?.print(`[paste] flood cleared: suppressed ${context.burstSuppressedCount} keystroke(s)`);
         context.burstSuppressedCount = 0;
         context.requestRender();
       }

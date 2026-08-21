@@ -4,7 +4,7 @@ import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
  * RESUME-ON-RELAUNCH.
  *
  * The dogfood finding: relaunching the agent after a normal (non-crash) exit
- * silently starts fresh with no offer or notice about the prior session — the
+ * silently starts fresh with no offer or notice about the prior session, the
  * only way back was knowing the exact `goodvibes-agent sessions resume <id>`
  * command, or digging into `/health continuity`. This module builds an
  * honest, one-line boot notice that surfaces the resume affordance without
@@ -19,7 +19,7 @@ import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
  *    naming the EXISTING `/session resume <id>` path (this is surfacing, not
  *    new resume logic)
  *  - never auto-resume: the user always chooses, and declining is
- *    frictionless (just start typing — the saved session stays put)
+ *    frictionless (just start typing, the saved session stays put)
  */
 
 /** Minimal session facts needed to render an honest resume notice. */
@@ -46,7 +46,7 @@ export interface ResumeRelaunchNoticeInput {
  * Formats an elapsed duration the way a human would describe "how long ago".
  *
  * F4 fix: this used Math.round at every tier, which rounds UP near a
- * boundary — a session from 45 minutes ago (2,700,000ms) rounded to "1h ago"
+ * boundary, a session from 45 minutes ago (2,700,000ms) rounded to "1h ago"
  * (round(45/60) = 1), which reads as roughly twice as stale as it really is.
  * Every tier below now floors instead, so a duration is never described as
  * further in the past than it actually is: 45m through 59m59s all read as
@@ -68,7 +68,7 @@ export function formatRelaunchAge(elapsedMs: number): string {
 
 /**
  * Builds the boot-time resume notice text, or null when nothing should be
- * shown (no pointer at all — a clean first run, or the caller already routed
+ * shown (no pointer at all, a clean first run, or the caller already routed
  * an explicit resume/onboarding command elsewhere).
  */
 export function buildResumeRelaunchNotice(input: ResumeRelaunchNoticeInput): string | null {
@@ -81,7 +81,7 @@ export function buildResumeRelaunchNotice(input: ResumeRelaunchNoticeInput): str
     ].join('\n');
   }
 
-  // F5: a 0-message session has nothing to resume into — offering a resume
+  // F5: a 0-message session has nothing to resume into, offering a resume
   // action for it is a dead-end same as a stale pointer, but less honest,
   // since the session itself does resolve. Stay silent, exactly like the
   // no-pointer (clean first run) case above, rather than dangle a resume
@@ -94,9 +94,9 @@ export function buildResumeRelaunchNotice(input: ResumeRelaunchNoticeInput): str
   const messageWord = session.messageCount === 1 ? 'message' : 'messages';
 
   return [
-    `[Resume] Your last session is available: "${label}" — ${age} ago, ${session.messageCount} ${messageWord}.`,
+    `[Resume] Your last session is available: "${label}", ${age} ago, ${session.messageCount} ${messageWord}.`,
     `  Resume it: /session resume ${session.sessionId}`,
-    '  Or just start typing to begin a new session — the saved one stays put.',
+    '  Or just start typing to begin a new session, the saved one stays put.',
   ].join('\n');
 }
 
@@ -130,7 +130,7 @@ export interface SurfaceResumeRelaunchNoticeDeps {
 
 /**
  * Decides whether to surface the resume notice and prints it. Never throws,
- * never blocks startup, and never auto-resumes — the user always chooses by
+ * never blocks startup, and never auto-resumes, the user always chooses by
  * running the printed command or by just typing to start fresh.
  */
 export function surfaceResumeRelaunchNotice(deps: SurfaceResumeRelaunchNoticeDeps): void {

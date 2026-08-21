@@ -52,7 +52,7 @@ function buildProcedureBody(candidate: LearningCandidate): string {
   const fields = candidate.proposalFields ?? {};
   const sections: string[] = [];
 
-  // Context block — reason and source
+  // Context block, reason and source
   sections.push(`# ${extractDescription(candidate)}`);
   sections.push('');
   if (candidate.reason) {
@@ -61,7 +61,7 @@ function buildProcedureBody(candidate: LearningCandidate): string {
     sections.push('');
   }
 
-  // Triggers — derived from proposalFields.triggers or candidate.proposalTarget
+  // Triggers, derived from proposalFields.triggers or candidate.proposalTarget
   const triggerHint = (fields.triggers ?? '').trim();
   if (triggerHint) {
     sections.push(`## When to use`);
@@ -69,7 +69,7 @@ function buildProcedureBody(candidate: LearningCandidate): string {
     sections.push('');
   }
 
-  // Steps / body — prefer notes, then detail
+  // Steps / body, prefer notes, then detail
   const notes = (fields.notes ?? '').trim();
   const detail = (fields.detail ?? '').trim();
   const body = notes || detail;
@@ -142,7 +142,7 @@ export function proposeSkillDrafts(input: ProposeSkillDraftsInput): readonly Ski
 
   // Filter to skill-proposal candidates, sorted by priority desc (candidates
   // from buildLearningCandidates are already sorted but we enforce it here for
-  // purity — the function should not depend on caller sort order).
+  // purity, the function should not depend on caller sort order).
   const eligible = [...candidates]
     .filter(
       (c) =>
@@ -172,7 +172,7 @@ export function proposeSkillDrafts(input: ProposeSkillDraftsInput): readonly Ski
       proposedThisPass.has(nameLower)
     ) continue;
 
-    // Secret scan — skip candidate rather than throw, as individual dirty
+    // Secret scan, skip candidate rather than throw, as individual dirty
     // candidates should not block the whole pass
     const procedure = buildProcedureBody(candidate);
     const triggers = buildTriggers(candidate);

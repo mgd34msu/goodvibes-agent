@@ -1,5 +1,5 @@
 /**
- * The workspace cards for the owner profile — what the platform knows about him.
+ * The workspace cards for the owner profile, what the platform knows about him.
  *
  * Seven editors covering the four things the verbs expose and he will actually
  * want: read what is there, look one field up, see where a fact came from,
@@ -10,7 +10,7 @@
  *
  * **The People section is counted here, not listed.** The card is on screen
  * inside a session, so its output is in the transcript a later turn composes
- * from — the same reason `profile.read` is barred from a composition path
+ * from, the same reason `profile.read` is barred from a composition path
  * (docs/owner-profile.md §10). `owner-profile-person` is the way through, and it
  * asks for the words he used that pointed at that person before it will run.
  * That field is not decoration: it is what makes "he named them" a fact about
@@ -58,7 +58,7 @@ const OWNER_PROFILE_EDITOR_SPECS: Readonly<
     mode: 'create',
     title: 'What GoodVibes Knows About You',
     selectedFieldIndex: 0,
-    message: 'Print your whole profile, section by section, with the surface, date and your own words on every line it learned. The People section is counted rather than listed — look one person up by name instead. The file is yours: you can open and edit it by hand at any time, and your edits win.',
+    message: 'Print your whole profile, section by section, with the surface, date and your own words on every line it learned. The People section is counted rather than listed, look one person up by name instead. The file is yours: you can open and edit it by hand at any time, and your edits win.',
     fields: [
       { id: 'confirm', label: 'Show it', value: 'yes', required: true, multiline: false, hint: 'Type yes to print the profile here.' },
     ],
@@ -86,7 +86,7 @@ const OWNER_PROFILE_EDITOR_SPECS: Readonly<
     mode: 'create',
     title: 'Where Did You Get That',
     selectedFieldIndex: 0,
-    message: 'Trace one field: which surface recorded it, when, and your exact words at the time — plus every earlier value still kept, so a wrong correction can be put back. A line you typed yourself reports no provenance rather than being dressed up as a recorded source.',
+    message: 'Trace one field: which surface recorded it, when, and your exact words at the time, plus every earlier value still kept, so a wrong correction can be put back. A line you typed yourself reports no provenance rather than being dressed up as a recorded source.',
     fields: [
       { id: 'fieldId', label: 'Field id', value: '', required: true, multiline: false, hint: 'For example commerce.shippingAddress.' },
     ],
@@ -107,7 +107,7 @@ const OWNER_PROFILE_EDITOR_SPECS: Readonly<
     mode: 'delete',
     title: 'Forget A Profile Fact',
     selectedFieldIndex: 0,
-    message: 'Delete one field and every kept history comment for it. No tombstone and no retention window — deleting means deleting. Forgetting something that was not there says so instead of reporting success.',
+    message: 'Delete one field and every kept history comment for it. No tombstone and no retention window, deleting means deleting. Forgetting something that was not there says so instead of reporting success.',
     fields: [
       { id: 'fieldId', label: 'Field id', value: '', required: true, multiline: false, hint: 'For example contact.phone.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to delete the line and its kept history.' },
@@ -117,7 +117,7 @@ const OWNER_PROFILE_EDITOR_SPECS: Readonly<
     mode: 'delete',
     title: 'Forget A Note Or Person',
     selectedFieldIndex: 0,
-    message: 'Delete one prose line — a note, a person, a place, a work line. Give the line exactly as the profile reads it: lines are named by their content, never by their position, because you edit this file yourself and a position from an earlier read can point somewhere else by now. If the text no longer matches, nothing is deleted and it says so.',
+    message: 'Delete one prose line, a note, a person, a place, a work line. Give the line exactly as the profile reads it: lines are named by their content, never by their position, because you edit this file yourself and a position from an earlier read can point somewhere else by now. If the text no longer matches, nothing is deleted and it says so.',
     fields: [
       { id: 'section', label: 'Section', value: '', required: true, multiline: false, hint: 'Notes, People, Places, Work, or Style.' },
       { id: 'text', label: 'The line', value: '', required: true, multiline: false, hint: 'The line as it reads in your profile, without the trailing note about where it came from. Matched on the whole line, so a paraphrase finds nothing.' },

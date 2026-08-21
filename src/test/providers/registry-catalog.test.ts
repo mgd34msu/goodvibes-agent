@@ -6,7 +6,7 @@
  * custom providers override catalog entries, discovered servers merge
  * correctly, and the registry handles an empty catalog gracefully.
  *
- * Uses real catalog cache files to inject deterministic fixture data —
+ * Uses real catalog cache files to inject deterministic fixture data,
  * no network calls are made in tests.
  */
 
@@ -16,7 +16,7 @@ import { createTestManagers } from '../helpers/test-managers.ts';
 import { createProviderCacheFixture, writeModelCatalogCache } from '../helpers/provider-cache.ts';
 
 // ---------------------------------------------------------------------------
-// Test fixtures — deterministic, no network calls
+// Test fixtures, deterministic, no network calls
 // ---------------------------------------------------------------------------
 
 const FIXTURE_MODELS: CatalogModel[] = [
@@ -54,7 +54,7 @@ function loadCatalog(models: CatalogModel[]): void {
   writeModelCatalogCache(models, cacheFixture.cacheDir, FIXTURE_CATALOG.fetchedAt);
   providerRegistry.initCatalog();
   // initCatalog() updates catalogModels but does not invalidate the model registry
-  // cache — explicitly flush it so subsequent getModelRegistry() calls see the new catalog.
+  // cache, explicitly flush it so subsequent getModelRegistry() calls see the new catalog.
   const invalidate = Reflect.get(providerRegistry as object, '_invalidateModelRegistry') as (() => void) | undefined;
   invalidate?.call(providerRegistry);
 }
@@ -186,7 +186,7 @@ describe('getCatalogModelDefinitions', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getModelRegistry — catalog-sourced models
+// getModelRegistry, catalog-sourced models
 // ---------------------------------------------------------------------------
 
 describe('getModelRegistry — catalog-sourced models', () => {
@@ -215,7 +215,7 @@ describe('getModelRegistry — catalog-sourced models', () => {
       // They may appear as either the catalog entry or a synthetic wrapper
       const inRegistry = registryIds.has(def.id);
       // At minimum the registry should not be completely disjoint from the catalog
-      // (This is a soft check — full catalog coverage depends on Stage 1 completion)
+      // (This is a soft check, full catalog coverage depends on Stage 1 completion)
       if (inRegistry) {
         // Verify the registry entry has the expected provider (catalog model
         // not hijacked). A bare id may exist on several providers now (dated
@@ -264,7 +264,7 @@ describe('getModelRegistry — catalog-sourced models', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getModelRegistry — discovered servers merge
+// getModelRegistry, discovered servers merge
 // ---------------------------------------------------------------------------
 
 describe('getModelRegistry — discovered servers', () => {
@@ -287,7 +287,7 @@ describe('getModelRegistry — discovered servers', () => {
 
   it('discovered servers are excluded when they conflict with catalog models', () => {
     const models = providerRegistry.listModels();
-    // Catalog registry keys should appear only once — not duplicated by a
+    // Catalog registry keys should appear only once, not duplicated by a
     // hypothetical discovered server with the same provider-qualified key.
     const keys = models.map((m) => m.registryKey);
     const uniqueKeys = new Set(keys);
@@ -296,7 +296,7 @@ describe('getModelRegistry — discovered servers', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getModelRegistry — empty catalog fallback
+// getModelRegistry, empty catalog fallback
 // ---------------------------------------------------------------------------
 
 describe('getModelRegistry — empty catalog fallback', () => {
@@ -316,7 +316,7 @@ describe('getModelRegistry — empty catalog fallback', () => {
 
   it('registry returns the dated static fallback models when catalog is empty', () => {
     // Live model discovery ships dated static fallbacks per adapter, so an
-    // empty catalog no longer means an empty registry — every listed entry
+    // empty catalog no longer means an empty registry, every listed entry
     // must still be provider-qualified and well-formed.
     const result = providerRegistry.listModels();
     expect(Array.isArray(result)).toBe(true);
@@ -348,7 +348,6 @@ describe('Structural verification', () => {
   });
 
   it('getCatalogModelDefinitions is the catalog source (not a static array)', () => {
-    // Verify the function exists and is callable
     const defs = getCatalogModelDefinitions();
     expect(typeof getCatalogModelDefinitions).toBe('function');
     expect(defs.map((def) => def.id)).toEqual(FIXTURE_MODELS.map((model) => model.id));
@@ -359,7 +358,7 @@ describe('Structural verification', () => {
     const models = providerRegistry.listModels();
     const catalogIds = new Set(getCatalogModelDefinitions().map((d) => d.id));
 
-    // Custom models would override catalog — before any custom providers are loaded,
+    // Custom models would override catalog, before any custom providers are loaded,
     // all catalog models should appear with their catalog provider (not 'custom')
     const catalogModelsInRegistry = models.filter((m) => catalogIds.has(m.id));
     for (const model of catalogModelsInRegistry) {
@@ -386,7 +385,7 @@ describe('Structural verification', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ProviderRegistry.get() — alias resolution
+// ProviderRegistry.get(), alias resolution
 // ---------------------------------------------------------------------------
 
 describe('ProviderRegistry.get() — alias resolution', () => {

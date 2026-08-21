@@ -1,5 +1,5 @@
 /**
- * Push AND pull, and one thing said once — proved through the real daemon.
+ * Push AND pull, and one thing said once, proved through the real daemon.
  *
  * The owner's ruling is Telegram AND the agent (docs/occasions.md §4.2), so this
  * product is both a push destination and the surface that pulls. The guard that
@@ -8,7 +8,7 @@
  * the agent is a configured push destination `occasions.pending` leaves stamped
  * items out.
  *
- * That guard is the SDK's, so this file does not re-implement it — it proves this
+ * That guard is the SDK's, so this file does not re-implement it, it proves this
  * product is on the right side of it, end to end: a real composed runtime, the
  * real `occasions.*` verb handlers, the real ChannelDeliveryRouter with its real
  * agent strategy, a real owner-profile file on disk, and this repo's own sender
@@ -17,7 +17,7 @@
  *
  * The two outcomes get their OWN runtime rather than running in sequence, and
  * that is not tidiness. A raised nudge moves its open item's due date on by the
- * configured cadence, so a second sweep the same day correctly raises nothing —
+ * configured cadence, so a second sweep the same day correctly raises nothing,
  * sequencing "push fails" and then "push lands" against one runtime would test the
  * cadence and call it the stamp.
  *
@@ -31,7 +31,7 @@
  * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
- * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * over this graph, the agent's own `services.gatewayMethods` carries no handler
  * for any of these any more, and that absence is itself pinned in
  * daemon/gateway-ws-only-invokable.test.ts.
  *
@@ -105,7 +105,7 @@ function harness(): Harness {
   configManager.set('occasions.nudgeChannel', 'agent');
   // An always-active window, because this suite's subject is push/pull
   // coordination and not quiet hours. Left at the default 08:00-22:00 these tests
-  // pass or fail on the wall clock of whoever runs them — which is how the first
+  // pass or fail on the wall clock of whoever runs them, which is how the first
   // draft of this file "proved" the guard while actually observing a held sweep.
   // start === end is the SDK's own documented "no restriction" form. Quiet hours
   // are a real rule with their own tests in the SDK.
@@ -198,7 +198,7 @@ describe('sender registered: the push lands and the pull goes quiet', () => {
     expect(agentDelivery?.failure).toBeNull();
 
     // Platform runtime 2.0.9: the push arrives as a FRAMED, self-contained
-    // notice — named as an occasion reminder, carrying the daemon's composed
+    // notice, named as an occasion reminder, carrying the daemon's composed
     // sentence whole, never a bare line woven into other conversation.
     expect(h.said).toHaveLength(1);
     expect(h.said[0]).toContain('[Occasion reminder]');
@@ -213,7 +213,7 @@ describe('sender registered: the push lands and the pull goes quiet', () => {
     // The item is stamped, the agent is a configured push destination, so the pull
     // leaves it out. He was told once.
     expect(outstanding.nudge).toBeNull();
-    // And nothing else reached the transcript behind the pull's back — still
+    // And nothing else reached the transcript behind the pull's back, still
     // exactly the one framed notice.
     expect(h.said).toHaveLength(1);
     expect(h.said[0]).toContain(pushedMessage);

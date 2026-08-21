@@ -1,5 +1,5 @@
 /**
- * Friendly tool labels — turn internal tool names into the phrase a person
+ * Friendly tool labels, turn internal tool names into the phrase a person
  * would say. Shown on tool-call lines in the conversation; the raw tool name
  * is still discoverable in the Agent workspace tool catalog.
  */

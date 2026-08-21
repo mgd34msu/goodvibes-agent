@@ -42,7 +42,7 @@ function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContex
     // A merged assistant turn (type 'assistant_turn', see
     // conversation-turn-structure.ts) owns the whole tool subtree beneath its
     // header, so '/expand tool'/'collapse tool' treats it the same as a plain
-    // 'tool' block — toggling the header's collapse key shows or hides every
+    // 'tool' block, toggling the header's collapse key shows or hides every
     // tool row underneath it.
     const matchesType = typeFilter === 'all'
       || (typeFilter === 'tool' && (block.type === 'tool' || block.type === 'assistant_turn'))
@@ -55,7 +55,7 @@ function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContex
       // Expanding a turn also expands each result's own collapse key in the
       // same pass. A result hidden by a collapsed turn pushes no BlockMeta of
       // its own, so it never surfaces from this loop to be toggled
-      // individually — without this, '/expand tool' would only open the turn
+      // individually, without this, '/expand tool' would only open the turn
       // header and each result would still render at its own default collapse
       // state, needing a second pass. '/collapse tool' needs no matching step:
       // collapsing the turn hides every result regardless of its own key.
@@ -64,7 +64,7 @@ function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContex
           const memberKey = `msg_${memberIdx}`;
           ctx.session.conversationManager.setCollapsed(memberKey, false);
           // An explicit /expand is a deliberate user action on this key, same
-          // as Tab/Ctrl+Y/Ctrl+B — exempts it from search's close-time
+          // as Tab/Ctrl+Y/Ctrl+B, exempts it from search's close-time
           // auto-re-collapse (see ConversationManager.noteUserTouch).
           ctx.session.conversationManager.noteUserTouch(memberKey);
         }
@@ -247,14 +247,14 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         // operator typed is honoured for everything except a credential the
         // daemon reads, which goes to the daemon tier and is reported as having
         // gone there. The printed scope is the tier the value ACTUALLY landed
-        // in — printing the requested one would be a line that says the write
+        // in, printing the requested one would be a line that says the write
         // went somewhere it did not.
         const requestedScope = flags.has('--user') ? 'user' : 'project';
         const scope = resolveCredentialWriteScope(key, requestedScope);
         const medium = flags.has('--plaintext') ? 'plaintext' : 'secure';
         await mgr.set(key, value, { scope, medium });
         const relocationNote = credentialWriteScopeWasRelocated(key, requestedScope)
-          ? `\n  filed in the daemon tier instead of ${requestedScope} — the daemon is what reads this credential, and it reads only its own tier`
+          ? `\n  filed in the daemon tier instead of ${requestedScope}, the daemon is what reads this credential, and it reads only its own tier`
           : '';
         ctx.print(sub === 'link'
           ? `[secrets] Linked: ${key} -> ${describeSecretRef(value)} (${scope}, ${medium})${relocationNote}`
@@ -445,7 +445,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
       } catch (e) {
         ctx.print(`Token limits refresh failed ${summarizeError(e)}`);
       }
-      if (!catalogOk || !benchmarksOk || !limitsOk) ctx.print('Some refreshes failed — see messages above.');
+      if (!catalogOk || !benchmarksOk || !limitsOk) ctx.print('Some refreshes failed, see messages above.');
     },
   });
 

@@ -1,5 +1,5 @@
 /**
- * ProfilePickerModal — state management for the Agent profile picker modal.
+ * ProfilePickerModal, state management for the Agent profile picker modal.
  *
  * Lists profiles from ProfileManager.list(), tracks selected index,
  * and handles load actions.

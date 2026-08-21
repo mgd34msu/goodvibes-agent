@@ -2,14 +2,14 @@
  * One-touch daemon repair, at the seams a wedged machine actually has.
  *
  * The state under test is the incident state: the daemon service is stopped AND
- * `daemon.enabled` is false. Neither half alone is a fault — a stopped service
- * is started by the boot-time autostart, and a deliberate false is honored —
+ * `daemon.enabled` is false. Neither half alone is a fault, a stopped service
+ * is started by the boot-time autostart, and a deliberate false is honored,
  * but together the flag short-circuits discovery before the autostart is ever
  * consulted, so the machine has no path back to a daemon.
  *
  * Four layers, matching the module's seams:
  *   1. The diagnosis, against a real scripted `goodvibes-daemon` executable
- *      resolved through PATH — the live daemon is never touched.
+ *      resolved through PATH, the live daemon is never touched.
  *   2. The repair, driving that same real executable, proving what it was
  *      asked to do and what the receipt records.
  *   3. The interactive prompt controller: accept runs the repair, decline
@@ -384,7 +384,7 @@ describe('handleBlockingShellInput (daemon repair offer)', () => {
     const prompt = promptFor(() => { started = true; });
     const { options } = shellOptions(prompt);
     const result = handleBlockingShellInput(options);
-    // handled: true is what keeps the "y" out of the composer — the user
+    // handled: true is what keeps the "y" out of the composer, the user
     // answered a question, they did not type a character into their prompt.
     expect(result.handled).toBe(true);
     expect(prompt.pending()).toBe(false);
@@ -422,7 +422,7 @@ describe('describeDaemonRepairForHeadless', () => {
     expect(lines[0]).toContain('cannot reach a GoodVibes daemon');
     expect(lines[0]).toContain('daemon.enabled');
     // Run mode has nobody at the keyboard, so it must not tell the reader to
-    // press a key here — it names where the offer can actually be taken.
+    // press a key here, it names where the offer can actually be taken.
     expect(lines[1]).not.toContain('Press "y" and the Agent will');
     expect(lines[1]).toContain('Start goodvibes-agent interactively');
     // And it changes nothing: only the read happened.

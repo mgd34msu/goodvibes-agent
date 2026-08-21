@@ -14,7 +14,7 @@ export interface AgentWorkspaceSubscriptionEditorHost {
   clampSelection(): void;
   /**
    * Called after a successful sign-in so the host can refresh onboarding state
-   * and navigate to the next onboarding step (e.g. account-model). Optional —
+   * and navigate to the next onboarding step (e.g. account-model). Optional,
    * only available when running in ONBOARDING mode.
    */
   onSubscriptionLoginSuccess?(): void;

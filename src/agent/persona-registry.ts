@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreFile } from '@/utils/store-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { formatAgentRecordReviewState } from './record-labels.ts';
 import { containsSecretLikeText } from './memory-safety.ts';
@@ -350,10 +350,7 @@ export class AgentPersonaRegistry {
   }
 
   private writeStore(store: PersonaStoreFile): void {
-    mkdirSync(dirname(this.storePath), { recursive: true });
-    const tmpPath = `${this.storePath}.tmp`;
-    writeFileSync(tmpPath, formatStore(store), 'utf-8');
-    renameSync(tmpPath, this.storePath);
+    writeStoreFile(this.storePath, formatStore(store));
   }
 }
 

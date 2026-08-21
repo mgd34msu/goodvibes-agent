@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// buildStatusToken — always glyph + color, never color-only.
+// buildStatusToken, always glyph + color, never color-only.
 //
 // Maps a semantic state to a Unicode glyph AND a palette color so that
 // colorblind users and screen readers can distinguish states without color.
@@ -40,7 +40,7 @@ export interface StatusTokenOpts {
  * Always prepends the glyph so colorblind users can parse the state.
  * The color is applied to both glyph and label as a redundant cue.
  *
- * @param state   Semantic state — controls default glyph and color.
+ * @param state   Semantic state, controls default glyph and color.
  * @param label   Human-readable label string.
  * @param opts    Optional count suffix or glyph override.
  * @returns       Array of Cell objects ready to embed in a Line.

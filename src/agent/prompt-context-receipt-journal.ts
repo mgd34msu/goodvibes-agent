@@ -8,7 +8,7 @@ import type { PromptContextReceipt, PromptContextTurnOutcome } from './prompt-co
  * Split out of prompt-context-receipts.ts, whose job is composing the prompt.
  * Deciding what the model sees and maintaining the audit file on disk are
  * different concerns, and the composer is the file someone opens to find out
- * what goes into a turn — it should not be half journal-keeping. The type
+ * what goes into a turn, it should not be half journal-keeping. The type
  * import below is erased at build time, so this module is only ever imported
  * BY the composer, never the other way around at runtime.
  */
@@ -52,13 +52,13 @@ export function parseReceiptLine(line: string): { readonly receipt?: PromptConte
 export interface ReceiptJournalContents {
   readonly receipts: readonly PromptContextReceipt[];
   readonly outcomes: readonly PromptContextTurnOutcome[];
-  /** Lines that did not parse into an accepted shape — torn tails, zero-filled blocks. */
+  /** Lines that did not parse into an accepted shape, torn tails, zero-filled blocks. */
   readonly invalidLines: number;
   readonly bytes: number;
 }
 /**
  * Read the journal, dropping any line that does not parse into a shape the guards
- * accept — a crash's trailing half-line, a zero-filled block, anything. Never
+ * accept, a crash's trailing half-line, a zero-filled block, anything. Never
  * throws: an unreadable journal degrades to "no receipts".
  */
 export function readReceiptJournal(path: string): ReceiptJournalContents {
@@ -87,7 +87,7 @@ export interface ReceiptJournalSurvivors {
   readonly droppedOutcomes: number;
 }
 /**
- * Apply BOTH bounds — age TTL first, then the count cap — and retire every
+ * Apply BOTH bounds, age TTL first, then the count cap, and retire every
  * turn-outcome line whose receipt/turn no longer survives. Receipts arrive in
  * append order, so the tail is the newest set.
  */

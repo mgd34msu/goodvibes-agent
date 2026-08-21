@@ -1,8 +1,8 @@
 /**
  * The owner profile's registration in this surface (docs/owner-profile.md
  * §12.1). A config domain whose root names no settings category is dropped from
- * the workspace silently — `push.*` and `cluster.*` both vanished that way
- * before — so the registration is asserted rather than assumed, both
+ * the workspace silently, `push.*` and `cluster.*` both vanished that way
+ * before, so the registration is asserted rather than assumed, both
  * structurally (the root names a category in a group) and against the live
  * schema (every `profile.*` key actually lands in the rendered group).
  *
@@ -32,7 +32,7 @@ import { fallbackPermissionCategoryForArgs } from '../../runtime/tool-permission
  * ledger's settings denominator counts a key when its literal string appears
  * anywhere in this repo's TypeScript (src/verification/settings-consumed-keys.ts),
  * and these keys are read by the daemon's owner-profile store, not by a line of
- * this repo — spelling them here would put eight permanently unverifiable rows
+ * this repo, spelling them here would put eight permanently unverifiable rows
  * into this product's denominator, which is the decay that file exists to stop.
  */
 function profileSchemaKeys(): readonly string[] {

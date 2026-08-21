@@ -9,7 +9,7 @@ import type { UpdateFetchLike } from '../../runtime/update-check.ts';
 
 // Decision-logic coverage for the launch-time self-update, with every seam
 // stubbed: fetch (never the real network), apply (never a real swap), spawn
-// (never a real process), and pinned fixture versions '1.0.0'/'v1.1.0' —
+// (never a real process), and pinned fixture versions '1.0.0'/'v1.1.0',
 // never the live build VERSION, per this repo's version-decoupled-tests rule.
 
 const RELEASES_LATEST_URL = 'https://github.com/mgd34msu/goodvibes-agent/releases/latest';
@@ -33,7 +33,7 @@ const failingFetch: UpdateFetchLike = async () => {
   throw new Error('network unreachable');
 };
 
-/** A fetch that never settles — the timeout path, without a real slow network. */
+/** A fetch that never settles, the timeout path, without a real slow network. */
 const hangingFetch: UpdateFetchLike = () => new Promise(() => {});
 
 function baseOptions(overrides: Partial<RunLaunchAutoUpdateOptions>): { options: RunLaunchAutoUpdateOptions; printed: string[] } {
@@ -88,7 +88,7 @@ describe('runLaunchAutoUpdate', () => {
     const cases = [
       {
         execPath: '/home/u/.bun/install/global/node_modules/@pellux/goodvibes-agent/bin/goodvibes-agent',
-        line: 'auto-update skipped: package-managed install — update with: bun add -g @pellux/goodvibes-agent',
+        line: 'auto-update skipped: package-managed install, update with: bun add -g @pellux/goodvibes-agent',
       },
       {
         execPath: '/usr/local/bin/bun',
@@ -142,7 +142,7 @@ describe('runLaunchAutoUpdate', () => {
     const outcome = await runLaunchAutoUpdate(options);
     expect(outcome).toEqual({ action: 'restart', latestTag: 'v1.1.0' });
     expect(applyCalls).toEqual([{ execPath: '/opt/goodvibes/goodvibes-agent', currentVersion: '1.0.0' }]);
-    expect(printed).toEqual(['Updated to v1.1.0.', 'auto-update: v1.1.0 installed — restarting onto the new version']);
+    expect(printed).toEqual(['Updated to v1.1.0.', 'auto-update: v1.1.0 installed, restarting onto the new version']);
   });
 
   test('a failed install states the failure and starts the current version', async () => {
@@ -154,7 +154,7 @@ describe('runLaunchAutoUpdate', () => {
     const outcome = await runLaunchAutoUpdate(options);
     expect(outcome).toEqual({ action: 'continue', reason: 'update-failed' });
     expect(printed).toEqual([
-      'auto-update failed: checksum mismatch for goodvibes-agent-linux-x64 — starting the current version v1.0.0',
+      'auto-update failed: checksum mismatch for goodvibes-agent-linux-x64, starting the current version v1.0.0',
     ]);
   });
 

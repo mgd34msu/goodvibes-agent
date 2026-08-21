@@ -3,8 +3,8 @@ import type { CapabilityIndexReport } from './capability-types.ts';
 /**
  * The session's resolved capability index.
  *
- * Resolved once at startup and kept here so the prompt composer — which runs on
- * every turn, synchronously — can read it without re-probing the filesystem
+ * Resolved once at startup and kept here so the prompt composer, which runs on
+ * every turn, synchronously, can read it without re-probing the filesystem
  * each time. Callers that need a fresh answer re-resolve and set it again.
  *
  * Null means "not resolved yet", which is deliberately different from "nothing

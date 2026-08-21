@@ -1,15 +1,15 @@
 /**
- * credential-status.ts — client-side, secret-FREE credential STATUS read.
+ * credential-status.ts, client-side, secret-FREE credential STATUS read.
  *
  * When GoodVibes Agent acts as a CLIENT of an adopted
  * external daemon, it reads credential *status* (configured / usable) from the
- * daemon's shared store over the wire — the `credentials.get` operator method
+ * daemon's shared store over the wire, the `credentials.get` operator method
  * (GET /config/credentials, admin + read:config). It NEVER receives raw secret
  * bytes: the wire contract (CREDENTIALS_SNAPSHOT_SCHEMA) carries status metadata
  * only. This is a VISIBILITY path, not secret transport.
  *
  * Host-vs-client (see the SDK decision record 2026-07-06-config-sharing): a surface
- * that IS the daemon host reads its own local SecretsManager directly (no wire hop —
+ * that IS the daemon host reads its own local SecretsManager directly (no wire hop,
  * src/config/secrets.ts). A surface acting as a daemon client reads STATUS here.
  * Secret RESOLUTION (the value provider auth needs) always stays local/env; only the
  * status read moves to the daemon path.
@@ -17,10 +17,10 @@
  * The degrade contract mirrors goodvibes-webui v1.0.1 `deriveCredentialAvailability`
  * exactly: a 503 CREDENTIAL_STORE_UNAVAILABLE (by machine code), a METHOD_NOT_FOUND
  * from an older daemon, or any transport failure yields an honest reason-carrying
- * `available: false` — NEVER a fabricated "configured", NEVER a surfaced secret byte.
+ * `available: false`, NEVER a fabricated "configured", NEVER a surfaced secret byte.
  */
 
-/** One credential's status metadata from the daemon's shared store — never bytes. */
+/** One credential's status metadata from the daemon's shared store, never bytes. */
 export interface CredentialStatusEntry {
   readonly key: string;
   readonly configured: boolean;
@@ -60,7 +60,7 @@ function firstString(record: Record<string, unknown>, keys: readonly string[]): 
 }
 
 /**
- * Fold a `credentials.get` outcome into an honest availability value. Pure — this is
+ * Fold a `credentials.get` outcome into an honest availability value. Pure, this is
  * the exact degrade contract mirrored from webui v1.0.1: keyed on the MACHINE CODE, it
  * never fabricates "configured" and never carries a secret value. A malformed body (no
  * credentials array) is treated as unavailable, not silently empty-but-configured.
@@ -104,7 +104,7 @@ export function deriveCredentialAvailability(
 /**
  * Extract the machine code from a non-2xx daemon response body, falling back to the
  * HTTP status for legacy daemons that predate the code field. A 404 with no code is
- * treated as METHOD_NOT_FOUND (older daemon without the route — same as webui's
+ * treated as METHOD_NOT_FOUND (older daemon without the route, same as webui's
  * isMethodUnavailableError); a 503 with no code as CREDENTIAL_STORE_UNAVAILABLE.
  */
 function machineCodeFromResponse(body: unknown, status: number): string {
@@ -121,7 +121,7 @@ function machineCodeFromResponse(body: unknown, status: number): string {
 
 /**
  * Read credential status from the connected daemon as a client, honestly degraded.
- * Status only — the response is folded through {@link deriveCredentialAvailability},
+ * Status only, the response is folded through {@link deriveCredentialAvailability},
  * so a down store, an older daemon, an absent token, or a transport failure all become
  * a reason-carrying `available: false`, never a fabricated "configured" and never a
  * secret byte. `key` narrows to a single credential (the daemon's caller-named probe).

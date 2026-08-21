@@ -1,9 +1,9 @@
 /**
  * Ctrl+V with an image on the system clipboard attaches the image.
  *
- * The pieces of this were all present and individually tested — the keybinding
+ * The pieces of this were all present and individually tested, the keybinding
  * (`'paste': [{ key: 'v', ctrl: true }]`), the clipboard read, the marker
- * insertion, and the expansion of that marker into an image ContentPart — but
+ * insertion, and the expansion of that marker into an image ContentPart, but
  * nothing exercised them together through a real keystroke, and in between the
  * pieces the result was being thrown away.
  *

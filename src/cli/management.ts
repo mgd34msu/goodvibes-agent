@@ -146,7 +146,7 @@ function getLocalNetworkIp(): string {
 const connectHostForBindHost = dialHostForConfiguredHost;
 
 /**
- * Where ANOTHER machine dials — a pairing QR code, a phone-facing link. A
+ * Where ANOTHER machine dials, a pairing QR code, a phone-facing link. A
  * wildcard resolves to this host's LAN address here, NOT to loopback, because
  * loopback on the other device is the other device. Deliberately not the
  * function above.
@@ -246,8 +246,8 @@ export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promis
 
   const outputFormat = runtime.cli.flags.outputFormat;
 
-  // A machine wedged the way the incident laptop was — daemon service stopped
-  // AND daemon.enabled false — is diagnosed here too, but never prompted on.
+  // A machine wedged the way the incident laptop was, daemon service stopped
+  // AND daemon.enabled false, is diagnosed here too, but never prompted on.
   // Run mode has no person at the keyboard and stdout is a machine-readable
   // contract, so the diagnosis and the offer this Agent would have made go to
   // STDERR and the run proceeds exactly as it did before. Staying silent is how
@@ -271,8 +271,8 @@ export async function runNonInteractiveAgent(runtime: CliCommandRuntime): Promis
 
   let exitCode = 0;
   try {
-    // Where the turn runs is decided inside executeRunTurn — the connected
-    // daemon when routing says so, this process otherwise — and both endings
+    // Where the turn runs is decided inside executeRunTurn, the connected
+    // daemon when routing says so, this process otherwise, and both endings
     // arrive in one shape, so the output below never learns the difference.
     const result = await executeRunTurn({
       ctx,
@@ -632,8 +632,8 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
         return { handled: true, exitCode: result.exitCode };
       }
       case 'owner-profile': {
-        // A shell invocation prints to his terminal and nowhere else — no model
-        // reads it — so his own People list is not withheld from him here.
+        // A shell invocation prints to his terminal and nowhere else, no model
+        // reads it, so his own People list is not withheld from him here.
         const result = await handleOwnerProfileCommand(runtime, { outputEntersModelContext: false });
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };

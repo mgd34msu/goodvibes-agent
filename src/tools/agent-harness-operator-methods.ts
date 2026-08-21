@@ -44,7 +44,7 @@ interface OperatorMethodDescriptor {
    * `label` collapses the two (`title ?? description ?? id`) and is replaced
    * outright for an unavailable method, so a search over `label` alone reads
    * whichever one of them happened to win and never the other. Both are held
-   * here so {@link methodSearchText} can index both — the description is where
+   * here so {@link methodSearchText} can index both, the description is where
    * a method says what it is FOR, and it was the field the catalog search
    * could not see.
    */
@@ -66,26 +66,26 @@ interface OperatorMethodDescriptor {
 /**
  * Capability-advertisement honesty: the SDK operator contract marks
  * a method `invokable: false` when it is cataloged but not backed by a real
- * daemon route (see @pellux/goodvibes-sdk's method-catalog-route-reconcile —
+ * daemon route (see @pellux/goodvibes-sdk's method-catalog-route-reconcile,
  * email.inbox.list/read, email.draft.create, email.send are the dogfood
  * case: they advertise /api/email/* paths no router dispatch chain serves).
  * Before this, `invokable` was declared on the local contract-method shape
- * but never read — an unavailable method looked identical to a live one in
+ * but never read, an unavailable method looked identical to a live one in
  * this catalog, so the model (or a human skimming host action:"methods")
  * had no way to tell the ad from the reality short of trying the call and
- * getting a 404. Degrading the listing here means the ad itself — not just
- * the eventual answer — tells the truth.
+ * getting a 404. Degrading the listing here means the ad itself, not just
+ * the eventual answer, tells the truth.
  */
 function methodIsAvailable(method: OperatorContractMethod): boolean {
   return method.invokable !== false;
 }
 
-const UNAVAILABLE_MODEL_TOOL = 'none — unavailable; do not call this method';
+const UNAVAILABLE_MODEL_TOOL = 'none, unavailable; do not call this method';
 const UNAVAILABLE_CONFIRMATION = 'Unavailable: cataloged by the daemon but not backed by a served route. Do not call it; it will not succeed.';
-const UNAVAILABLE_BOUNDARY = 'This method is advertised in the operator contract but the daemon does not currently serve its route (invokable:false). Treat it as absent — do not attempt to call it, and tell the user the capability is not wired up rather than guessing at a workaround.';
+const UNAVAILABLE_BOUNDARY = 'This method is advertised in the operator contract but the daemon does not currently serve its route (invokable:false). Treat it as absent, do not attempt to call it, and tell the user the capability is not wired up rather than guessing at a workaround.';
 
 function unavailableLabel(method: OperatorContractMethod): string {
-  return `${method.id} — unavailable (route not served by this daemon)`;
+  return `${method.id}, unavailable (route not served by this daemon)`;
 }
 
 type OperatorMethodResolution =
@@ -213,8 +213,8 @@ function allOperatorMethods(): readonly OperatorMethodDescriptor[] {
  *    contributed hundreds of near-identical words to every haystack and
  *    distinguished nothing.
  *
- * It now indexes the contract's own four naming fields — id, title,
- * description, category — plus the route and scopes a caller might quote back,
+ * It now indexes the contract's own four naming fields, id, title,
+ * description, category, plus the route and scopes a caller might quote back,
  * plus the category's plain-word aliases (see
  * agent-harness-operator-method-vocabulary.ts). The harness boilerplate is
  * gone from the haystack: `effect` and `access` stay because they are short,
@@ -299,19 +299,19 @@ export function operatorMethodCatalogStatus(): Record<string, unknown> {
     unavailableMethods,
     categories,
     policy: unavailableMethods > 0
-      ? `Full GoodVibes SDK operator contract. Read-only routes can run through agent_operator_method; write/admin routes require confirm:true and explicitUserRequest. ${unavailableMethods} cataloged method(s) are currently unavailable (no served route) — check each method's "available" field before treating it as callable.`
+      ? `Full GoodVibes SDK operator contract. Read-only routes can run through agent_operator_method; write/admin routes require confirm:true and explicitUserRequest. ${unavailableMethods} cataloged method(s) are currently unavailable (no served route), check each method's "available" field before treating it as callable.`
       : 'Full GoodVibes SDK operator contract. Read-only routes can run through agent_operator_method; write/admin routes require confirm:true and explicitUserRequest.',
   };
 }
 
 /**
- * The `methods` page — `host action:"methods"`.
+ * The `methods` page, `host action:"methods"`.
  *
  * The filter used to be `methodSearchText(method).includes(query)`: the
  * caller's whole phrase, lowercased, as ONE CONTIGUOUS SUBSTRING. That is the
  * same rule the settings catalog was fixed off in agent 2.0.4, and it failed
  * here the same way. `host action:"methods" query:"google"` answered
- * `{ methods: [], returned: 0, total: 434 }` — repeatedly, in a live session —
+ * `{ methods: [], returned: 0, total: 434 }`, repeatedly, in a live session,
  * and the model went on to guess method ids from memory, because a page that
  * names 434 methods and shows none of them reads as "none of them is what you
  * asked for".
@@ -320,12 +320,12 @@ export function operatorMethodCatalogStatus(): Record<string, unknown> {
  *
  *  1. The haystack (see {@link methodSearchText}) now holds the contract's own
  *     title, description and category rather than a collapsed label.
- *  2. Matching goes through {@link searchCatalog} — whole phrase, or every
+ *  2. Matching goes through {@link searchCatalog}, whole phrase, or every
  *     word, and only if THAT finds nothing, any single word, flagged as a
  *     looser match so nothing pretends the phrase was found.
  *  3. The response goes out through {@link catalogEnvelope}, so a page that is
  *     short of `total` says so in words, and a query that matched nothing says
- *     what it was filtered on and how many methods exist — instead of three
+ *     what it was filtered on and how many methods exist, instead of three
  *     bare numbers a reader has to interpret.
  */
 export function operatorMethodSummary(args: AgentHarnessOperatorMethodArgs): Record<string, unknown> {

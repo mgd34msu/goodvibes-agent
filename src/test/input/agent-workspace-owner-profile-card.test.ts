@@ -3,8 +3,8 @@
  *
  * The four things the verbs expose have to be reachable from the screen he
  * actually looks at: read what is there, correct a field, delete a fact, see
- * where a fact came from. This drives each card through the real workspace —
- * open the category, select the action, activate it, fill the fields, submit —
+ * where a fact came from. This drives each card through the real workspace,
+ * open the category, select the action, activate it, fill the fields, submit,
  * and asserts on the command that reaches the shell-owned router.
  *
  * Two rules get their own tests because they are the ones a later edit could

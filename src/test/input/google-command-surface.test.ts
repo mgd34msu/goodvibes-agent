@@ -8,8 +8,8 @@
  * and the subcommand did not, so the sentence was authoritative and wrong. Five
  * more attempts died the same way on "Unknown setting calendar".
  *
- * So the SDK publishes `GOOGLE_REFERENCED_COMMANDS` — every invocation it names,
- * command AND subcommand — and this test walks that list against the real
+ * So the SDK publishes `GOOGLE_REFERENCED_COMMANDS`, every invocation it names,
+ * command AND subcommand, and this test walks that list against the real
  * registry, built by the real registration functions. A dead pointer on either
  * side goes red here.
  */
@@ -93,11 +93,11 @@ describe('every command the Google flow names actually resolves', () => {
       if (command === 'google' || sub === undefined) continue;
       const registered = full.get(command);
       if (registered === undefined) {
-        missing.push(`${invocation} — /${command} is not registered`);
+        missing.push(`${invocation}: /${command} is not registered`);
         continue;
       }
       const text = `${registered.usage ?? ''} ${registered.argsHint ?? ''}`;
-      if (!text.includes(sub)) missing.push(`${invocation} — /${command} does not offer "${sub}"`);
+      if (!text.includes(sub)) missing.push(`${invocation}: /${command} does not offer "${sub}"`);
     }
 
     expect(missing).toEqual([]);

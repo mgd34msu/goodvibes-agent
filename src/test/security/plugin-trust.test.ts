@@ -497,7 +497,7 @@ describe('security: PluginManager layer — trust/quarantine integration', () =>
     quarantineEngine.lift(pluginName);
     expect(quarantineEngine.isQuarantined(pluginName)).toBe(false);
 
-    // Step 3: plugin reloads — fresh manifest resolved with trusted tier
+    // Step 3: plugin reloads, fresh manifest resolved with trusted tier
     const freshManifest = makeManifest(['shell.exec', 'register.tool']);
     const tier = trustStore.getTier(pluginName);
     const resolved = resolveCapabilityManifest(pluginName, freshManifest, () => true, tier);

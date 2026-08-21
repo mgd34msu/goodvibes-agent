@@ -1,12 +1,12 @@
 /**
- * occasions-nudge-surface.ts — the Agent as one of the two channels a proactive
+ * occasions-nudge-surface.ts, the Agent as one of the two channels a proactive
  * occasion nudge is delivered on.
  *
  * The owner's ruling (docs/occasions.md §4.2) names Telegram AND the agent, and
  * excludes the TUI in his own words: *"that's more of a 'get work done' kind of
  * interface."* The SDK enforces the exclusion structurally rather than by
- * convention — `resolveNudgeDestinations` drops a `tui` entry outright, keeping
- * the rest of the list — so this file is not free to reach the owner by pushing
+ * convention, `resolveNudgeDestinations` drops a `tui` entry outright, keeping
+ * the rest of the list, so this file is not free to reach the owner by pushing
  * at the terminal surface, and it does not try to.
  *
  * ## This is the PULL half. The push half is a peer, not a replacement
@@ -20,7 +20,7 @@
  * is in the daemon, over the ONE open item both paths read: a push that LANDS on
  * the agent stamps the item with the day it landed, and while the agent is a
  * configured push destination `occasions.pending` leaves stamped items out. The
- * condition is the push that landed, not the one that was configured — so `agent`
+ * condition is the push that landed, not the one that was configured, so `agent`
  * configured with no sender registered, and a send that failed, both leave the
  * item unstamped and still raised here. Neither may cost him the nudge.
  *
@@ -47,7 +47,7 @@
  *
  * Those two setting keys are deliberately not spelled out above. This repo has
  * no consumer for either, and naming them would put two permanently unverifiable
- * rows into the verification ledger's settings denominator — the decay
+ * rows into the verification ledger's settings denominator, the decay
  * src/verification/settings-consumed-keys.ts exists to stop. `occasions.enabled`
  * below IS named, because the one line that reads it is right here.
  *
@@ -62,14 +62,14 @@
  * The pull is per turn either way. Saying it at the END is a rendering choice:
  * appending an assistant message while a response is still streaming interleaves
  * two voices in one transcript. This is the same placement the SDK's own
- * follow-up acknowledgements use — an assistant message after the turn settles.
+ * follow-up acknowledgements use, an assistant message after the turn settles.
  *
  * ## Why the daemon's words go in verbatim
  *
  * The nudge arrives already composed, and it is put in the transcript unchanged
  * rather than handed to the model to re-word. Two reasons, both structural:
  *
- *  - §4.3's rule is that a nudge never carries the date IN ANY FORM — "in 10
+ *  - §4.3's rule is that a nudge never carries the date IN ANY FORM, "in 10
  *    days" is the date with arithmetic applied. The daemon chooses a proximity
  *    word from a day count that never leaves its own module, and the pending
  *    payload carries no date at all. Passing the sentence through cannot
@@ -80,7 +80,7 @@
  *    he can act on and a statement he cannot.
  *
  * The SDK's `OrchestratorFollowUpRuntime` was the other candidate, and it is the
- * right mechanism for what it does — turning a background milestone into a
+ * right mechanism for what it does, turning a background milestone into a
  * model-written acknowledgement. It is the wrong one here: the prompt it builds
  * instructs the model "Do not ask questions" and "Do not call tools", which
  * would strip the ask out of every gift-giving nudge and block the interview the
@@ -89,7 +89,7 @@
  *
  * ## What happens next is an ordinary conversation
  *
- * His reply is a normal turn. The `occasions` tool relays it — `answer` for
+ * His reply is a normal turn. The `occasions` tool relays it, `answer` for
  * yes/no/later, the interview verbs for the short gift interview, and
  * `conflict.resolve` for a date conflict he has settled. Nothing in this file
  * interprets his words.
@@ -143,7 +143,7 @@ export function createOccasionsNudgeSurface(
   deps: OccasionsNudgeSurfaceDeps,
 ): OccasionsNudgeSurface {
   // Bounded by the occasions declared, and pruned to what the last answer
-  // carried — see occasions-nudge.ts on why this is render de-duplication and
+  // carried, see occasions-nudge.ts on why this is render de-duplication and
   // not suppression policy.
   let ledger: OccasionsRaiseLedger = new Map<string, string>();
 
@@ -154,7 +154,7 @@ export function createOccasionsNudgeSurface(
     if (!result.ok) {
       // Debug, not warn: with no daemon reachable this is the ordinary state of
       // a surface that has nothing to pull from, and a per-turn warn would be
-      // noise. Nothing about an occasion is logged at any level either way —
+      // noise. Nothing about an occasion is logged at any level either way,
       // this whole subject is closed tier.
       logger.debug('occasions: pending pull failed', {
         route: result.route,

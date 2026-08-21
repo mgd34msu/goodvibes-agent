@@ -4,7 +4,7 @@
  *
  * The footer's status row already received `composerFlags` and threw them
  * away, so the sole evidence that a message carried an image was the literal
- * `[IMAGE: img1, clipboard, 12KB]` text in the prompt — which reads as
+ * `[IMAGE: img1, clipboard, 12KB]` text in the prompt, which reads as
  * something you typed, not as an attachment the next message will carry.
  */
 import { describe, expect, test } from 'bun:test';

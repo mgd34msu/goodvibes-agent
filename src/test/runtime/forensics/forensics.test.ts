@@ -1,5 +1,5 @@
 /**
- * Failure Forensics — comprehensive unit tests.
+ * Failure Forensics, comprehensive unit tests.
  *
  * Covers:
  * - Classifier: all 9 FailureClass categories + priority ordering
@@ -75,7 +75,7 @@ async function emitTask(bus: RuntimeEventBus, payload: Record<string, unknown>, 
 }
 
 // ---------------------------------------------------------------------------
-// 1. Classifier — all 9 categories + priority
+// 1. Classifier, all 9 categories + priority
 // ---------------------------------------------------------------------------
 
 describe('classifyFailure — all 9 categories', () => {
@@ -225,7 +225,7 @@ describe('summariseFailure', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Registry — push/evict/getById/latest
+// 2. Registry, push/evict/getById/latest
 // ---------------------------------------------------------------------------
 
 describe('ForensicsRegistry — push and retrieve', () => {
@@ -445,7 +445,7 @@ describe('ForensicsRegistry — subscribe', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Collector lifecycle — turn terminal states
+// 3. Collector lifecycle, turn terminal states
 // ---------------------------------------------------------------------------
 
 describe('ForensicsCollector — turn lifecycle', () => {
@@ -550,7 +550,7 @@ describe('ForensicsCollector — turn lifecycle', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Collector lifecycle — task terminal states
+// 4. Collector lifecycle, task terminal states
 // ---------------------------------------------------------------------------
 
 describe('ForensicsCollector — task lifecycle', () => {
@@ -624,7 +624,7 @@ describe('ForensicsCollector — task lifecycle', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. Tracker size cap — orphan eviction
+// 5. Tracker size cap, orphan eviction
 // ---------------------------------------------------------------------------
 
 describe('ForensicsCollector — tracker size cap', () => {
@@ -633,12 +633,11 @@ describe('ForensicsCollector — tracker size cap', () => {
     const registry = makeRegistry();
     new ForensicsCollector(bus, registry);
 
-    // Add 501 turns without ever terminating them
     for (let i = 0; i < 501; i++) {
       await emitTurn(bus, { type: 'TURN_SUBMITTED', turnId: `orphan-${i}`, prompt: 'p' });
     }
 
-    // Now terminate the first turn (orphan-0) — it should have been evicted
+    // Now terminate the first turn (orphan-0), it should have been evicted
     // so no report is generated
     await emitTurn(bus, { type: 'TURN_ERROR', turnId: 'orphan-0', error: 'late error' });
     expect(registry.count()).toBe(0);

@@ -1,8 +1,8 @@
-# Knowledge, Artifacts, and Multimodal
+# Knowledge, artifacts, and multimodal
 
 GoodVibes Agent has its own Knowledge segment. It must not query or ingest through default knowledge or other product-specific knowledge spaces.
 
-## Context Layers
+## Context layers
 
 GoodVibes Agent uses these context layers:
 
@@ -14,7 +14,7 @@ GoodVibes Agent uses these context layers:
 
 These layers are intentionally separate. VIBE.md, project context files, local memory/routines/skills/personas, and default knowledge are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into default knowledge. Secrets are rejected or represented only by explicit secret references.
 
-## Agent Knowledge Boundary
+## Agent Knowledge boundary
 
 Agent Knowledge uses only the Agent route family:
 
@@ -47,7 +47,7 @@ Successful route responses are validated before rendering. Parseable public Agen
 
 Agent Knowledge writes are explicit-user-action paths. Slash commands that ingest, import, review issues, reindex, or run consolidation require `--yes`; ask/search/status/list/get/map/connector paths remain read-only.
 
-## Ask And Search
+## Ask and search
 
 Use Agent Workspace -> Knowledge -> Ask Agent Knowledge for source-backed Agent Knowledge answers. `/knowledge ask <query>` and `goodvibes-agent ask <query>` are scriptable equivalents over the same route. Default output is concise:
 
@@ -93,7 +93,7 @@ Connected-host ingest and read CLI routes target `/api/goodvibes-agent/knowledge
 
 Do not map VIBE.md, project context files, local memory, notes, routines, skills, personas, or default knowledge documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 
-## Artifacts And Multimodal
+## Artifacts and multimodal
 
 Artifacts are first-class runtime objects for files, images, audio, video, generated outputs, and delegation results. Agent Knowledge use of artifacts must still go through Agent-specific ingest routes when those are available.
 
@@ -105,7 +105,7 @@ The model can use first-class tools for the common route-selection, Knowledge, d
 
 Multimodal outputs should stay in the conversation, artifacts, local notes or memory, or explicit delegation results unless the user explicitly ingests a reviewed source through an Agent Knowledge route. They must not be inserted into default knowledge.
 
-## Related Docs
+## Related docs
 
 - [Tools and commands](tools-and-commands.md)
 - [Getting started](getting-started.md)

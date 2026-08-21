@@ -4,11 +4,11 @@
  * The Agent forks the SDK's runtime composition root and boot, so it must
  * produce the SAME receipts the SDK does:
  *
- * 1. Migration receipt — a populated legacy `featureFlags` config record
+ * 1. Migration receipt, a populated legacy `featureFlags` config record
  *    dissolves onto the domain settings keys on ConfigManager load, the
  *    rewritten file is persisted immediately, and the one-line receipt is
  *    logged EXACTLY once (a second load stays silent).
- * 2. Announce-once receipts — the persisted per-install store makes each
+ * 2. Announce-once receipts, the persisted per-install store makes each
  *    default-on announcement exactly once: the first contained exec run
  *    yields the one-time containment line, and boot collects the
  *    web-surface-URL line once. Ids and texts are pinned byte-identical to
@@ -67,7 +67,7 @@ describe('legacy featureFlags migration receipt (agent boot parity)', () => {
     const infoSpy = spyOn(logger, 'info').mockImplementation(() => {});
     let config: ConfigManager;
     try {
-      // The agent boots through the SDK ConfigManager — load() runs the
+      // The agent boots through the SDK ConfigManager, load() runs the
       // migration, persists the rewritten file, and logs the receipt.
       config = new ConfigManager({ surfaceRoot: 'agent', configDir });
 
@@ -133,7 +133,7 @@ describe('legacy featureFlags migration receipt (agent boot parity)', () => {
 describe('announce-once receipts (agent boot parity)', () => {
   test('announcement ids and texts stay byte-identical to the SDK contract', () => {
     // The store is shared per install across the daemon, the TUI, and this
-    // Agent — identical ids/texts are what make "exactly once" hold across
+    // Agent, identical ids/texts are what make "exactly once" hold across
     // surfaces. A drift here would double-announce.
     expect(WEB_SURFACE_ANNOUNCEMENT_ID).toBe('web-surface-url');
     expect(SANDBOX_CONTAINED_ANNOUNCEMENT_ID).toBe('exec-sandbox-contained');

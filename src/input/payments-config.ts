@@ -1,5 +1,5 @@
 /**
- * payments-config.ts — the agent's synthetic settings entries for the payment
+ * payments-config.ts, the agent's synthetic settings entries for the payment
  * capability's card MATERIAL fields, plus the config-key constants the
  * `/payments` command writes through.
  *
@@ -8,12 +8,12 @@
  * The SDK's CONFIG_SCHEMA already carries a full real `payments` section:
  * enabled, defaultCardId, currency, cvvHandling, the six budget keys,
  * shipping.preferredTier, the FOURTEEN billing/shipping address sub-fields
- * (name, line1, line2, city, region, postalCode, country — each repeated for
+ * (name, line1, line2, city, region, postalCode, country, each repeated for
  * billingAddress and shippingAddress), the two window keys, and
  * notifyChannels. Every one of those reads and writes through the ordinary
  * CONFIG_SCHEMA-driven loop in settings-modal.ts's _loadGroups, exactly like
  * `relay.*` or any other real SDK domain. This module builds NOTHING for them
- * and deliberately does not restate them — a second local copy of a schema is
+ * and deliberately does not restate them, a second local copy of a schema is
  * a second thing to drift.
  *
  * What this module does build is the four card MATERIAL fields: number,
@@ -30,8 +30,8 @@
  *
  * `payments.cardNumber`, not `payments.card.number`. The real ConfigManager's
  * dotted-path resolver throws "Invalid config path" only when an INTERMEDIATE
- * segment is missing — `payments.card.number` would fail because `card` is not
- * itself a declared section — but it tolerates an undeclared final leaf under
+ * segment is missing, `payments.card.number` would fail because `card` is not
+ * itself a declared section, but it tolerates an undeclared final leaf under
  * a section that does exist. So the flat shape is what makes
  * `ConfigManager.get`/`setDynamic` accept these keys against the real manager
  * rather than a local store.
@@ -40,7 +40,7 @@
  *
  * `payments.` is one of the SDK's DAEMON_OWNED_CONFIG_PREFIXES, so a write to
  * any of these keys lands in the daemon-owned settings tier, not an
- * agent-local file. The daemon — and the TUI, and the webui — read the same
+ * agent-local file. The daemon, and the TUI, and the webui, read the same
  * value, and they keep reading it after this program exits. A card that only
  * this process can see is the feature not working: the daemon is the thing
  * that completes an unattended purchase, and it does so with every surface
@@ -67,7 +67,7 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigKey } from '../config/index.ts';
 import type { SettingEntry } from './settings-modal-types.ts';
 
-/** Real ConfigManager's read surface — these four keys are defensive reads (see header). */
+/** Real ConfigManager's read surface, these four keys are defensive reads (see header). */
 export type PaymentsConfigReader = Pick<ConfigManager, 'get'>;
 
 export const PAYMENTS_CARD_NUMBER_CONFIG_KEY = 'payments.cardNumber' as ConfigKey;
@@ -75,20 +75,20 @@ export const PAYMENTS_CARD_EXPIRY_CONFIG_KEY = 'payments.cardExpiry' as ConfigKe
 export const PAYMENTS_CARD_CVV_CONFIG_KEY = 'payments.cardCvv' as ConfigKey;
 export const PAYMENTS_CARD_CARDHOLDER_NAME_CONFIG_KEY = 'payments.cardholderName' as ConfigKey;
 
-/** The real SDK schema key for the CVV-handling selector — not synthetic. */
+/** The real SDK schema key for the CVV-handling selector, not synthetic. */
 export const PAYMENTS_CVV_HANDLING_CONFIG_KEY = 'payments.cvvHandling' as ConfigKey;
 
 /**
  * The real SDK schema keys for the two addresses, in the order the guided
  * `/payments address` flow asks for them.
  *
- * These are ordinary (non-secret) CONFIG_SCHEMA string keys — listed here only
+ * These are ordinary (non-secret) CONFIG_SCHEMA string keys, listed here only
  * so the command and its tests share one ordering, not to redefine the schema.
  * A postal address is not a credential: it is printed on every parcel and is
  * already visible in the settings modal, so it is entered in the CLEAR. Routing
  * it through the concealed-input path would mask something that does not need
  * masking, and would teach the reflex that bullets mean "this field is fine to
- * type anywhere" — the opposite of what the card fields need it to mean.
+ * type anywhere", the opposite of what the card fields need it to mean.
  */
 export const PAYMENTS_ADDRESS_FIELD_SUFFIXES: readonly string[] = [
   'name',
@@ -107,9 +107,9 @@ export type PaymentsAddressKind = 'billing' | 'shipping';
  * a template.
  *
  * A `payments.${kind}Address.${field}` template is shorter and is the wrong
- * choice here. Written out, these keys are greppable — someone auditing what
+ * choice here. Written out, these keys are greppable, someone auditing what
  * the payment flow writes to the daemon's config can find every one of them by
- * searching for the key they are looking at — and the repo's own settings
+ * searching for the key they are looking at, and the repo's own settings
  * coverage scan (verification/settings-consumed-keys.ts) can see that this
  * product actually consumes them, which a runtime-assembled string hides. A
  * typo in a template also produces a silently wrong key that ConfigManager
@@ -150,7 +150,7 @@ export function paymentsAddressConfigKeys(kind: PaymentsAddressKind): readonly C
 function readStringField(configManager: PaymentsConfigReader, key: ConfigKey): string {
   // Defensive try/catch, the same posture every synthetic setting in this app
   // takes toward an unexpected value: the real ConfigManager does not throw for
-  // these particular keys (see header — flat leaf under an existing section),
+  // these particular keys (see header, flat leaf under an existing section),
   // but degrading to empty is better than taking the whole settings modal down
   // if that ever stops being true.
   try {

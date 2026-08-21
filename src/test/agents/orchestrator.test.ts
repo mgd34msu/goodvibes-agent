@@ -588,7 +588,6 @@ describe('AgentOrchestrator', () => {
 
       expect(record.status).toBe('completed');
       expect(record.toolCallCount).toBe(0);
-      // provider.chat should have been called exactly once
       expect((provider.chat as ReturnType<typeof mock>).mock.calls.length).toBe(1);
     });
 
@@ -710,7 +709,7 @@ describe('AgentOrchestrator', () => {
       );
 
       // Re-issue setDependencies with the SAME deps beforeEach already wired,
-      // adding permissionManager — proves the agent's own composition (not
+      // adding permissionManager, proves the agent's own composition (not
       // just the SDK in isolation) brokers the ask when one is present.
       orchestrator.setDependencies({
         surfaceRoot: 'tui',
@@ -751,7 +750,7 @@ describe('AgentOrchestrator', () => {
       const record = makeRecord({ tools: ['write'] });
       await withMockProvider(provider, () => orchestrator.runAgent(record));
 
-      // The gate brokered the ask — it did not silently approve or silently
+      // The gate brokered the ask, it did not silently approve or silently
       // skip the permission layer.
       expect(requestPermission).toHaveBeenCalledTimes(1);
       const askedRequest = requestPermission.mock.calls[0]![0];
@@ -759,7 +758,7 @@ describe('AgentOrchestrator', () => {
       // Subagent attribution rides on the brokered ask (background-permission-gate.js).
       expect(askedRequest.attribution).toEqual({ kind: 'background-agent', agentId: record.id, template: record.template });
 
-      // The denial was honored — the tool did not run — and the agent still
+      // The denial was honored, the tool did not run, and the agent still
       // completes cleanly (denial becomes a tool result fed back to the model).
       expect(record.status).toBe('completed');
       expect(record.toolCallCount).toBe(1);
@@ -821,7 +820,7 @@ describe('AgentOrchestrator', () => {
       await withMockProvider(provider, () => orchestrator.runAgent(record));
 
       // permissions.backgroundAgents:'allow-all' exempts background agents from
-      // the session mode entirely — the ask is never brokered.
+      // the session mode entirely, the ask is never brokered.
       expect(requestPermission).not.toHaveBeenCalled();
       expect(record.status).toBe('completed');
       orchestratorRuntime.configManager.set('permissions.backgroundAgents', 'inherit');
@@ -869,7 +868,7 @@ describe('AgentOrchestrator', () => {
 
   describe('max turn limit', () => {
     test('circuit breaker trips on consecutive all-error turns before MAX_TURNS', async () => {
-      // Provider that always returns an unknown tool call — every turn all tools fail,
+      // Provider that always returns an unknown tool call, every turn all tools fail,
       // triggering the circuit breaker (CONSECUTIVE_ERROR_BREAK = 10) before MAX_TURNS (50)
       const provider = makeMockProvider([
         { content: '', toolCalls: [{ id: 'call-inf', name: 'noop', arguments: {} }] },
@@ -900,7 +899,7 @@ describe('AgentOrchestrator', () => {
         }),
       };
 
-      // Ask for 'agent' to be included — it should be filtered out
+      // Ask for 'agent' to be included, it should be filtered out
       const record = makeRecord({ tools: ['agent', 'find'] });
       await withMockProvider(captureToolsProvider, () => orchestrator.runAgent(record));
 
@@ -1003,7 +1002,7 @@ describe('AgentOrchestrator', () => {
     test('says nothing when no argument names what the call is about', () => {
       // There used to be a "first string value found" fallback here. It is gone
       // deliberately: on an exec call it grabbed `verbosity`, whose default is
-      // the literal string `standard`, and the label read `exec — standard` —
+      // the literal string `standard`, and the label read `exec, standard`,
       // a tool name followed by a value with nothing to do with what it ran. A
       // bare tool name is the honest answer.
       expect(summarizeToolArgs({ unknownKey: 'some-value' })).toBe('');

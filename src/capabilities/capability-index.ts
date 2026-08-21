@@ -31,8 +31,8 @@ export function registerCapability(declaration: CapabilityDeclaration): void {
 /**
  * Registers a declaration only when nothing has claimed that id yet.
  *
- * Built-in placeholders use this so a real provider — the Google connector,
- * say — can register the same id later and win, no matter which order the two
+ * Built-in placeholders use this so a real provider, the Google connector,
+ * say, can register the same id later and win, no matter which order the two
  * run in. A placeholder describes what the agent would need in order to do
  * something; a provider describes how it actually does it.
  */
@@ -124,7 +124,7 @@ function resolveDeclaration(declaration: CapabilityDeclaration, context: ProbeCo
  *
  * This is the check that would have caught the incident this module exists for:
  * Google credentials present on disk, and an agent telling its owner it could
- * not send email. A disagreement is a defect in this index — it is reported
+ * not send email. A disagreement is a defect in this index, it is reported
  * loudly, never swallowed.
  */
 export function detectCapabilityDisagreements(

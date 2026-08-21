@@ -48,7 +48,7 @@ export function syncVersionSurfaces(root = ROOT): string {
 
   // docs/README.md pins the `X.Y.x` release line and is gated against
   // package.json's major.minor (agent-boundary-docs test). Every minor/major
-  // release used to trip that gate because nothing bumped it — sync it here
+  // release used to trip that gate because nothing bumped it, sync it here
   // alongside the badge so a release commit can never ship a stale line.
   const docsReadmePath = join(root, 'docs', 'README.md');
   try {

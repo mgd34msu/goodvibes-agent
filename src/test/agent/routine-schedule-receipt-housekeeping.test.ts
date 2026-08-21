@@ -15,6 +15,7 @@ import {
   type RoutineScheduleReceipt,
 } from '../../agent/routine-schedule-promotion.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { leftoverStoreTempFiles } from '../helpers/store-temp-files.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BASE_URL = 'http://127.0.0.1:7317';
@@ -218,13 +219,13 @@ describe('routine schedule receipt store housekeeping', () => {
     });
   });
 
-  test('writes through a pid-scoped temp file and leaves no fixed .tmp behind', () => {
+  test('writes through a private temp file and leaves none behind', () => {
     withStorePath((storePath) => {
       const now = Date.now();
       writeStoreFile(storePath, Array.from({ length: 5 }, (_, index) => makeReceipt(`r${index}`, now - (5 - index) * 1000)));
       const store = new RoutineScheduleReceiptStore(storePath, 2, 90 * DAY_MS);
       expect(store.snapshot().receipts).toHaveLength(2);
-      expect(existsSync(`${storePath}.tmp`)).toBe(false);
+      expect(leftoverStoreTempFiles(storePath)).toEqual([]);
     });
   });
 });

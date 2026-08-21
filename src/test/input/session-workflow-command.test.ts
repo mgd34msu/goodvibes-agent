@@ -5,7 +5,7 @@ import type { CommandContext } from '../../input/command-registry.ts';
 import { handleSessionWorkflowCommand } from '../../input/commands/session-workflow.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
-/** Reads a saved session's meta line straight off disk (no in-memory cache) — the raw-disk proof that saveSource was actually persisted. */
+/** Reads a saved session's meta line straight off disk (no in-memory cache), the raw-disk proof that saveSource was actually persisted. */
 function readMetaRaw(filePath: string): Record<string, unknown> {
   const raw = readFileSync(filePath, 'utf-8');
   const firstLine = raw.split('\n')[0]!;
@@ -162,7 +162,7 @@ describe('session workflow command', () => {
         expect(existsSync(filePath)).toBe(true);
         expect(readMetaRaw(filePath).saveSource).toBe('user');
 
-        // Fork re-homes the live session — the pointer must follow it.
+        // Fork re-homes the live session, the pointer must follow it.
         expect(writeLastSessionPointerCalls).toEqual([newId]);
       } finally {
         rmSync(tmpDir, { recursive: true, force: true });

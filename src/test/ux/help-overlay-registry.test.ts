@@ -22,7 +22,6 @@ function makeCmd(name: string): SlashCommand {
   };
 }
 
-// Import renderHelpOverlay
 import { renderHelpOverlay } from '../../renderer/help-overlay.ts';
 
 /**
@@ -31,7 +30,6 @@ import { renderHelpOverlay } from '../../renderer/help-overlay.ts';
  */
 function renderAllText(commands: SlashCommand[]): string {
   const allFrames: string[] = [];
-  // Render at multiple scroll offsets to capture all sections
   for (let offset = 0; offset <= 30; offset += 6) {
     const lines = renderHelpOverlay(120, KEYBINDINGS_STUB, commands, offset, 80);
     const frame = lines.map(line => line.map(cell => cell.char).join('').trimEnd()).join('\n');

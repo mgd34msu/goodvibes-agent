@@ -27,8 +27,8 @@ const ALIAS = 'owner+gv-example-com-abcd1234@example.com';
  *
  * These tests used to write `~/.gmail-mcp` files and leave both stores empty,
  * because the resolver scanned that directory on every call. It no longer goes
- * looking — rummaging through a home directory for another tool's credential
- * files is not something to do unasked — so the state under test is the state
+ * looking, rummaging through a home directory for another tool's credential
+ * files is not something to do unasked, so the state under test is the state
  * after adoption. The files are still written, unread, so a resolver that
  * quietly started scanning again would not make these pass for the wrong
  * reason.

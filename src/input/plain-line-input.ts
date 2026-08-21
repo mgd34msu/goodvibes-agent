@@ -1,5 +1,5 @@
 /**
- * Composer plain-line prompt — the unmasked sibling of concealed-input.ts.
+ * Composer plain-line prompt, the unmasked sibling of concealed-input.ts.
  *
  * Same chaining shape (ask, receive one line, ask the next), but the typed
  * text is echoed normally and reaches input history normally, because what it
@@ -14,8 +14,8 @@
  * rendering a PAN on screen, and whoever makes that change will not have read
  * concealed-input.ts's header first.
  *
- * So the masked request type carries no masking flag at all — it is masked by
- * its type — and this file is what a caller reaches for when it wants the
+ * So the masked request type carries no masking flag at all, it is masked by
+ * its type, and this file is what a caller reaches for when it wants the
  * ordinary behavior. The two cannot be confused at a call site, and no default
  * exists to get wrong.
  *

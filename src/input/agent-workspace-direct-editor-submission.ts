@@ -25,7 +25,7 @@ type DirectEditorHost = AgentWorkspaceSubscriptionEditorHost & AgentWorkspaceEma
 
 /**
  * Every Google connection card routes to one submit function, which branches on
- * the editor kind. The alternative — one entry per card here — would put the
+ * the editor kind. The alternative, one entry per card here, would put the
  * routing in two places and let them disagree about which kinds exist.
  */
 const GOOGLE_EDITOR_KINDS = new Set([

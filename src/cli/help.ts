@@ -374,7 +374,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'owner-profile forget --section <section> --text "<the line, exactly>" --yes',
       'owner-profile status',
     ],
-    summary: 'Read, trace, correct, and delete the owner profile the daemon keeps — one Markdown file holding your name, contact, location, commerce, preferences, people, places, work, and notes. read prints the whole document with the provenance suffix on every learned line; get prints one field; person prints one person by name and takes the words you used that pointed at them; provenance answers "where did you get that" for one field, including the values it superseded; set supersedes a field and keeps the old one; forget deletes a line and its kept history, and reports that a field was not there rather than reporting success — a prose line is named by its section and exact text, never by position, because you edit this file yourself and a position from an earlier read can point at a different line by now; status prints load state, path, counts, and any field whose value did not parse — never values.',
+    summary: 'Read, trace, correct, and delete the owner profile the daemon keeps: one Markdown file holding your name, contact, location, commerce, preferences, people, places, work, and notes. read prints the whole document with the provenance suffix on every learned line; get prints one field; person prints one person by name and takes the words you used that pointed at them; provenance answers "where did you get that" for one field, including the values it superseded; set supersedes a field and keeps the old one; forget deletes a line and its kept history, and reports that a field was not there rather than reporting success; a prose line is named by its section and exact text, never by position, because you edit this file yourself and a position from an earlier read can point at a different line by now; status prints load state, path, counts, and any field whose value did not parse: never values.',
     examples: [
       'owner-profile read',
       'owner-profile provenance commerce.shippingAddress',
@@ -433,7 +433,7 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'relay status',
       'relay pair',
     ],
-    summary: 'Report the connected GoodVibes host\'s imported relay.* configuration and the relay-connect feature flag. Agent hosts no daemon itself, so this is not a live check, and relay pair honestly refuses — pairing payloads are minted by whichever daemon holds the relay identity key.',
+    summary: 'Report the connected GoodVibes host\'s imported relay.* configuration and the relay-connect feature flag. Agent hosts no daemon itself, so this is not a live check, and relay pair honestly refuses, pairing payloads are minted by whichever daemon holds the relay identity key.',
     examples: [
       'relay status',
       'relay pair',

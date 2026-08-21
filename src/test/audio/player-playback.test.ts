@@ -92,7 +92,7 @@ class FakeProcess {
 }
 
 // Injected alongside the fake spawn factory so these tests never consult the
-// real PATH — CI runners have no mpv/ffplay and must not need one. The real
+// real PATH, CI runners have no mpv/ffplay and must not need one. The real
 // PATH resolution stays covered by player.test.ts (discovery + the honest
 // no-player error).
 const FAKE_COMMAND = { command: '/fake/bin/mpv', args: ['-'] as const, label: 'fake-mpv' };
@@ -171,7 +171,7 @@ describe('LocalStreamingAudioPlayer playback', () => {
     await flush();
 
     // All bytes are in and stdin is closed, but the sink has not confirmed it
-    // drained — play() must still be pending so the tail is not cut short.
+    // drained, play() must still be pending so the tail is not cut short.
     expect(proc.stdin.ended).toBe(true);
     expect(proc.stdin.bytes.equals(Buffer.from(tail))).toBe(true);
     expect(resolved).toBe(false);
@@ -199,8 +199,8 @@ describe('LocalStreamingAudioPlayer playback', () => {
     proc.emitSpawn();
     await flush(2);
 
-    // Interrupt mid-stream. No emitClose() is issued — a graceful drain never
-    // comes — yet play() must still settle promptly.
+    // Interrupt mid-stream. No emitClose() is issued, a graceful drain never
+    // comes, yet play() must still settle promptly.
     abort.abort();
     await playing;
 
@@ -212,7 +212,7 @@ describe('LocalStreamingAudioPlayer playback', () => {
 
   test('each chunk gets a fresh sink and each is head-gated independently', async () => {
     // The spoken-turn controller calls play() once per synthesized chunk, so a
-    // fresh player process spawns per CHUNK — the ready gate must therefore
+    // fresh player process spawns per CHUNK, the ready gate must therefore
     // hold per chunk, not just for the first one of a turn.
     const procs: FakeProcess[] = [];
     const player = new LocalStreamingAudioPlayer({
@@ -315,8 +315,8 @@ describe('LocalStreamingAudioPlayer playback', () => {
  * The activation sound a confirmed wake makes (src/audio/activation-sound.ts).
  *
  * These are the audible half of `voice.wake.activationSound` and
- * `voice.wake.activationSoundPath`: the wake runtime's half — that the configured
- * kind and path reach the player at the moment of a wake — is asserted in
+ * `voice.wake.activationSoundPath`: the wake runtime's half, that the configured
+ * kind and path reach the player at the moment of a wake, is asserted in
  * src/test/voice/wake-settings-behavior.test.ts. Together they mean a row that
  * stopped being honoured breaks a test whichever end it was dropped at.
  *

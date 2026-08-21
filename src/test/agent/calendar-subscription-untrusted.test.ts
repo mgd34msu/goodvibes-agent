@@ -1,5 +1,5 @@
 /**
- * Subscribed calendar feed content is untrusted content — the agent-side half.
+ * Subscribed calendar feed content is untrusted content, the agent-side half.
  *
  * A subscribed .ics feed's SUMMARY/LOCATION/DESCRIPTION are written by whoever
  * controls the feed. Reading them in a turn has to arm the outward-effect guard
@@ -12,7 +12,7 @@
  * and would refuse that turn's outward action over an event no turn read.
  * Anyone who could get an event onto a subscribed feed would own a remote off
  * switch. So the two READ accessors record, and the two ARRIVAL paths must not
- * — even when a recorder is wired.
+ *, even when a recorder is wired.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -163,7 +163,7 @@ describe('subscribed calendar feed content is untrusted content', () => {
    * This case CANNOT be built from a feed: the SDK's .ics parser substitutes the
    * literal '(no title)' for a missing SUMMARY, so every event that arrives
    * through `subscribe`/`refresh` carries text by the time it is cached. The
-   * store file is the reachable path — `coerceMeta` does not require a non-empty
+   * store file is the reachable path, `coerceMeta` does not require a non-empty
    * summary, so a hand-edited or differently-written store can hold one, and the
    * read must skip it rather than record an entry with empty content.
    */
@@ -229,7 +229,7 @@ describe('subscribed calendar feed content is untrusted content', () => {
 
   /**
    * The masked URL reaches the store at subscribe time and the raw one never
-   * does — the read path has no other source for it.
+   * does, the read path has no other source for it.
    */
   test('the store persists the MASKED feed url and never the raw one', async () => {
     const storePath = tmpStore();

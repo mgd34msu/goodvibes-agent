@@ -124,7 +124,7 @@ describe('Permission flow — allow-all mode', () => {
 });
 
 // ---------------------------------------------------------------------------
-// prompt mode — read tools auto-approved
+// prompt mode, read tools auto-approved
 // ---------------------------------------------------------------------------
 
 describe('Permission flow — prompt mode reads', () => {
@@ -161,7 +161,7 @@ describe('Permission flow — prompt mode reads', () => {
 });
 
 // ---------------------------------------------------------------------------
-// custom mode — per-tool config
+// custom mode, per-tool config
 // ---------------------------------------------------------------------------
 
 describe('Permission flow — custom mode', () => {

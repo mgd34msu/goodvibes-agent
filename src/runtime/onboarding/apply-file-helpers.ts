@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
+import { writeStoreFile } from '@/utils/store-file.ts';
 
 export type RollbackAction = () => Promise<void> | void;
 
@@ -15,8 +15,7 @@ export function readJsonObject(path: string): Record<string, unknown> {
 }
 
 export function writeJsonObject(path: string, payload: Record<string, unknown>): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`, 'utf-8');
+  writeStoreFile(path, `${JSON.stringify(payload, null, 2)}\n`);
 }
 
 export function setNestedValue(root: Record<string, unknown>, key: string, value: unknown): Record<string, unknown> {
@@ -42,8 +41,7 @@ export function restoreFile(path: string, previous: string | null, reload?: () =
   if (previous === null) {
     if (existsSync(path)) unlinkSync(path);
   } else {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, previous, 'utf-8');
+    writeStoreFile(path, previous);
   }
   reload?.();
 }

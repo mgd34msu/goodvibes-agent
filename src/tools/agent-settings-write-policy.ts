@@ -1,5 +1,5 @@
 /**
- * agent-settings-policy.ts — what the Agent may set, and the very short list of
+ * agent-settings-policy.ts, what the Agent may set, and the very short list of
  * keys that need the user to say so first.
  *
  * ## What the previous guard was protecting
@@ -13,7 +13,7 @@
  *    exposure settings require explicit user action outside the model tool
  *    surface."
  *
- * So the concern was narrow — credentials and host exposure — and the
+ * So the concern was narrow, credentials and host exposure, and the
  * implementation was total: it stripped every parameter from the schema and
  * refused every call, including reads of what it had refused. Nothing about a
  * bot username, a chat id, a theme or a model was ever the worry.
@@ -25,15 +25,15 @@
  *
  * ## What replaced it
  *
- * The credential half of the original concern still holds, and still runs — in
+ * The credential half of the original concern still holds, and still runs, in
  * the SDK tool itself, which refuses a raw secret in a credential-shaped key and
  * names the `goodvibes://` reference that would work instead. That protection is
  * value-shaped, not key-shaped, so it belongs there and is not duplicated here.
  *
  * The exposure half becomes {@link AGENT_CONFIRMATION_REQUIRED_CONFIG_KEYS}: a
  * short list of keys where an unattended write is itself the hazard. It is
- * modelled on this codebase's frozen catastrophic exec list — a small,
- * enumerated set of genuinely dangerous things, not a general policy — and it
+ * modelled on this codebase's frozen catastrophic exec list, a small,
+ * enumerated set of genuinely dangerous things, not a general policy, and it
  * covers exactly three classes:
  *
  *   1. approval gates the Agent would otherwise be granting itself,
@@ -46,7 +46,7 @@
  *
  * ## Nothing fails silently
  *
- * A gated key is not refused — it is *deferred to the user*, loudly. The denial
+ * A gated key is not refused, it is *deferred to the user*, loudly. The denial
  * names the key, states the hazard in plain language, and says exactly what
  * would let it proceed. Silence dressed as success is the whole reason this file
  * exists.
@@ -68,7 +68,7 @@ export interface ConfirmationRequiredConfigKey {
  * The frozen list. Keep it short and keep every entry justifiable on its own.
  *
  * Deliberately NOT here, and why: `surfaces.*` (chat surfaces the user is
- * actively configuring — the whole point), `provider.*` and `display.*`
+ * actively configuring, the whole point), `provider.*` and `display.*`
  * (ordinary preferences), and every credential-shaped key, whose protection is
  * the SDK tool's raw-secret refusal rather than a confirmation prompt.
  */
@@ -94,7 +94,7 @@ export const AGENT_CONFIRMATION_REQUIRED_CONFIG_KEYS: readonly ConfirmationRequi
   {
     match: 'sandbox.',
     hazard: 'exec-containment',
-    because: 'it controls the sandbox that contains commands run from here — including whether it is on, how escalations are judged, and which image and wrapper back it',
+    because: 'it controls the sandbox that contains commands run from here, including whether it is on, how escalations are judged, and which image and wrapper back it',
   },
   // 3. Host exposure. Moving a loopback listener onto the network, or trusting
   // remote callers, exposes this machine to everything that can route to it.
@@ -175,8 +175,8 @@ export type SettingsToolArgs = {
 };
 
 /**
- * Deny a gated write that has no explicit user request behind it. Returns null —
- * meaning "let it through" — for every other key, and for reads and resets of
+ * Deny a gated write that has no explicit user request behind it. Returns null,
+ * meaning "let it through", for every other key, and for reads and resets of
  * keys that are not gated.
  */
 export function validateSettingsToolInvocationForAgentPolicy(args: SettingsToolArgs): string | null {
@@ -192,7 +192,7 @@ export function validateSettingsToolInvocationForAgentPolicy(args: SettingsToolA
 /** Description the Agent surface shows for `goodvibes_settings`. */
 export const AGENT_SETTINGS_TOOL_DESCRIPTION = [
   'Read and change GoodVibes settings.',
-  'When the user gives you a concrete configuration value — a bot username, a chat id, a host, a port, a model, a path — that is a request to apply it:',
+  'When the user gives you a concrete configuration value, a bot username, a chat id, a host, a port, a model, a path, that is a request to apply it:',
   'set it, then tell them the key and the persistedTo store it landed in. A value you only repeat back in prose has not been set.',
   'Writes route to the runtime that owns the key, so daemon-owned settings (surfaces.*, control-plane binding, watchers, device pairing, provisioning, retention) land in the daemon config and take effect there,',
   'while Agent-owned settings stay in the Agent config. The value is re-read from that store afterwards, so a write that did not land is reported as a failure rather than as success.',
@@ -205,7 +205,7 @@ export const AGENT_SETTINGS_TOOL_DESCRIPTION = [
  * Let the Agent read and write settings, gating only
  * {@link AGENT_CONFIRMATION_REQUIRED_CONFIG_KEYS}.
  *
- * The tool's own parameters are left intact — the previous guard stripped them
+ * The tool's own parameters are left intact, the previous guard stripped them
  * all, which left the model unable to see that a settings write was even a thing
  * it could attempt. One property is ADDED, so there is a way to carry the user's
  * request for a gated key.

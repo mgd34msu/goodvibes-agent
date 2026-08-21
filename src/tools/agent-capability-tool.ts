@@ -5,8 +5,8 @@
  * The second half of the incident that produced the PATH-shadowing work. Asked
  * whether it could use Gmail, the agent reached for a code-index retrieval,
  * reasoned from what the search turned up, and recommended registering an MCP
- * server. The build it was running had no Google support at all — no
- * `google-runtime.ts`, no `google` tool — so the honest answer was "Gmail is
+ * server. The build it was running had no Google support at all, no
+ * `google-runtime.ts`, no `google` tool, so the honest answer was "Gmail is
  * absent from this build", and instead the user got a configuration errand
  * that would never have worked. A search over files answers "what does this
  * repository contain"; the user asked "what can you do", and those are
@@ -25,8 +25,8 @@
  *     native one. Nothing here ever offers an MCP server or an SMTP server as
  *     the way to reach Gmail or Google Calendar.
  *
- * Resolving a capability performs no effects — every probe reads (see
- * capability-probe-runner.ts) — so this is safe to call at any point in a
+ * Resolving a capability performs no effects, every probe reads (see
+ * capability-probe-runner.ts), so this is safe to call at any point in a
  * turn, as often as the model likes.
  */
 
@@ -91,7 +91,7 @@ function describeCapability(entry: ResolvedCapability): string[] {
     case 'unavailable':
       return [
         `${entry.title}: absent from this build. ${entry.reason ?? 'No route for it is registered here.'}`,
-        '  Nothing you configure will turn this on in this build — a build that carries the route is what adds it.',
+        '  Nothing you configure will turn this on in this build, a build that carries the route is what adds it.',
       ];
   }
 }
@@ -132,7 +132,7 @@ export function renderCapabilityStatus(subject: CapabilitySubject, inputs: Capab
 
   if (inputs.report.disagreements.length > 0) {
     lines.push('');
-    lines.push('Configured on this machine but not reported usable — say this rather than refusing:');
+    lines.push('Configured on this machine but not reported usable, say this rather than refusing:');
     for (const disagreement of inputs.report.disagreements) {
       lines.push(`  ${disagreement.problem} Found: ${disagreement.evidence.join('; ')}. Fix: ${disagreement.fix}`);
     }
@@ -145,7 +145,7 @@ export function renderCapabilityStatus(subject: CapabilitySubject, inputs: Capab
  * How Gmail and Google Calendar are reached in this build.
  *
  * When the in-process route is registered, the remedy is the native one and
- * nothing else is offered — the failure this replaces was a recommendation to
+ * nothing else is offered, the failure this replaces was a recommendation to
  * go and configure a separate server for something the build already served
  * itself. When the route is NOT registered, the honest answer is that the
  * build does not have it, not that something needs configuring.
@@ -154,7 +154,7 @@ function describeGoogleRoute(inputs: CapabilityStatusInputs): string[] {
   if (!inputs.googleToolRegistered) {
     return [
       'Gmail and Google Calendar are absent from this build: it registers no route to them.',
-      'Nothing configured on this machine will turn them on here — a build that carries the route is what adds them.',
+      'Nothing configured on this machine will turn them on here, a build that carries the route is what adds them.',
     ];
   }
   const lines = [
@@ -223,9 +223,9 @@ export function createAgentCapabilityTool(options: AgentCapabilityToolOptions): 
   return {
     definition: {
       name: 'capability_status',
-      // Short by policy (72 characters). The steering that used to sit here —
+      // Short by policy (72 characters). The steering that used to sit here,
       // call this rather than answering from a code search, a file listing or a
-      // knowledge lookup — ships in the system prompt as CAPABILITY_ROUTE_RULE
+      // knowledge lookup, ships in the system prompt as CAPABILITY_ROUTE_RULE
       // (src/agent/capability-summary-prompt.ts), in fuller form and where the
       // model reads it before deciding to call anything.
       description: 'What this build can do, read from its live runtime state.',

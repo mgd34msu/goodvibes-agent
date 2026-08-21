@@ -489,7 +489,7 @@ describe('exec tool — working directory', () => {
 
 describe('exec tool — output truncation', () => {
   test('truncates stdout at 50000 chars and sets stdout_truncated', async () => {
-    // Generate more than 50000 chars — use yes with head
+    // Generate more than 50000 chars, use yes with head
     const result = await execTool.execute(withWorkingDir({
       commands: [{ cmd: 'yes x | head -c 60000', timeout_ms: 5000 }],
     }));
@@ -498,7 +498,7 @@ describe('exec tool — output truncation', () => {
     expect(out.stdout_truncated).toBe(true);
     // SDK 0.38.0's head+tail truncation keeps ~50000 chars of preview plus a
     // bounded "[... N chars omitted ...]" marker and truncation footer, so the
-    // budget is 50000 + a small, bounded overhead — well under the 60000 input.
+    // budget is 50000 + a small, bounded overhead, well under the 60000 input.
     expect((out.stdout as string).length).toBeGreaterThanOrEqual(50_000);
     expect((out.stdout as string).length).toBeLessThanOrEqual(50_000 + 512);
   }, 8000);
@@ -534,7 +534,7 @@ describe('exec tool — safe mode warnings', () => {
 
   test('rm -rf / pattern is detected and logs warning (does not block execution)', async () => {
     // The dangerous pattern regex matches "rm -rf /" but we run a safe echo to
-    // verify the tool does NOT throw or return an error — it only warns via logger.
+    // verify the tool does NOT throw or return an error, it only warns via logger.
     // We use cmd_base64 to pass the text "rm -rf /" without the shell actually executing it.
     const cmdB64 = Buffer.from('echo "would have been: rm -rf /"').toString('base64');
     const result = await execTool.execute(withWorkingDir({
@@ -565,7 +565,7 @@ describe('exec tool — safe mode warnings', () => {
 describe('exec tool — verbosity', () => {
   test('count_only returns exit_code and success, and NAMES what it omitted', async () => {
     // Platform runtime 2.0.9: output shaping never hides that it dropped
-    // content — even count_only says what was omitted, with a count.
+    // content, even count_only says what was omitted, with a count.
     const result = await execTool.execute(withWorkingDir({
       commands: [{ cmd: 'echo verbosity_test' }],
       verbosity: 'count_only',

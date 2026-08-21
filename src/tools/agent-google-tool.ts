@@ -3,7 +3,7 @@
  *
  * Why this exists rather than a daemon operator method: `email.send`,
  * `email.inbox.list` and `calendar.events.list` are cataloged in the operator
- * contract with `invokable: false` — they advertise routes no daemon dispatch
+ * contract with `invokable: false`, they advertise routes no daemon dispatch
  * chain serves. A capability declared against one of those is unreachable by
  * construction, and no amount of configuration changes that, which is why
  * setting `email.smtpHost` or adopting credentials moved nothing. Declaring the
@@ -12,7 +12,7 @@
  *
  * So the capability index points at this tool instead. It is served here, in
  * this process, by the connector that already had a working `sendMessage`,
- * `listEvents` and OAuth refresh — nothing to install, nothing to configure by
+ * `listEvents` and OAuth refresh, nothing to install, nothing to configure by
  * hand, and no MCP server.
  *
  * Two boundaries are structural rather than advisory:
@@ -26,9 +26,9 @@
  * ── What this tool got wrong, and what it cost ────────────────────────────
  *
  * The owner asked for one mail to his own address to prove the connection
- * worked. The agent listed his inbox first — the obvious way to demonstrate
+ * worked. The agent listed his inbox first, the obvious way to demonstrate
  * that reading works, and what it does unprompted when asked to prove the
- * connection — and the send was refused because of the listing. Three faults
+ * connection, and the send was refused because of the listing. Three faults
  * here compounded, and each is worth naming because each looks harmless alone:
  *
  *   - The ingests recorded the ORIGIN but not the TEXT. Without the text there
@@ -38,7 +38,7 @@
  *   - The outward calls named no fields, so even retained text would not have
  *     been consulted. Two halves of one check, neither wired.
  *   - `mail.list` recorded exposure BEFORE testing whether anything matched.
- *     Listing an empty inbox therefore refused every later send in the turn —
+ *     Listing an empty inbox therefore refused every later send in the turn,
  *     exposure invented out of a result set with nothing in it. A read that
  *     read nothing is not exposure, and the ordering is the whole difference.
  *
@@ -104,7 +104,7 @@ const READ_ONLY_ACTIONS = new Set<string>(['status', 'mail.list', 'mail.read', '
  * Actions that register a credential the owner just handed over.
  *
  * Exempt from the confirm:true gate, and the reasoning matters. That gate
- * guards things that leave this machine — a mail send, a calendar write —
+ * guards things that leave this machine, a mail send, a calendar write,
  * where content read this turn could have steered the model into acting. A
  * credential write is neither: the values came from the owner's own message in
  * this turn, they go into the local encrypted store, and nothing is
@@ -135,7 +135,7 @@ export interface AgentGoogleToolOptions {
   readonly secretSet?: ((key: string, value: string) => Promise<void>) | undefined;
   /**
    * Binds the local port Google redirects back to after consent. Injected
-   * because binding a port is real machine I/O — the whole exchange runs
+   * because binding a port is real machine I/O, the whole exchange runs
    * against a fake listener in tests.
    */
   readonly loopback?: GoogleLoopbackListenerFactory | undefined;
@@ -144,7 +144,7 @@ export interface AgentGoogleToolOptions {
    * approval prompt wired.
    *
    * Absent means no path is wired here, and the refusal says exactly that
-   * rather than inventing a remedy — which is how the owner came to be told to
+   * rather than inventing a remedy, which is how the owner came to be told to
    * reply "send it now" to a mechanism that did not exist.
    */
   readonly approvals?: OwnerApprovalStore | undefined;
@@ -210,8 +210,8 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
    * Outward-effect gate.
    *
    * `content` is the fields about to leave the machine. Supplying them is what
-   * turns "has this process read anything" — permanently yes for anyone who
-   * uses the mail tool at all — into "does THIS message repeat what was read",
+   * turns "has this process read anything", permanently yes for anyone who
+   * uses the mail tool at all, into "does THIS message repeat what was read",
    * which is answerable and almost always no. Without it the tool took the
    * coarse path and refused every send that followed any read, which is the
    * defect the owner met: he listed his inbox to prove the connection worked,
@@ -229,8 +229,8 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
       ledger: getSessionUntrustedContentLedger(),
       content,
       ...(taintOptions === undefined ? {} : { taintOptions }),
-      // The `google` tool only ever runs inside a turn the owner started —
-      // it is not reachable from a schedule or a channel — so a refusal here
+      // The `google` tool only ever runs inside a turn the owner started,
+      // it is not reachable from a schedule or a channel, so a refusal here
       // must not tell him to go and ask the owner. He is the owner and he
       // already asked.
       requestedBy: 'owner-direct',
@@ -260,7 +260,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
    * The owner's own addresses, from configuration only.
    *
    * Read per call because he can connect a mailbox mid-session. Never from a
-   * header, a sender, or anything else a message can influence — see the SDK's
+   * header, a sender, or anything else a message can influence, see the SDK's
    * security/owner-identity.ts for what an attacker would have to control.
    */
   function ownerAddresses(): ReadonlySet<string> {
@@ -284,7 +284,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
     const loopback = options.loopback;
     if (configSet === undefined || secretSet === undefined || loopback === undefined) {
       // A surface with no writable store says so rather than reporting a
-      // success it did not perform — the same rule the approval path follows.
+      // success it did not perform, the same rule the approval path follows.
       return failure(
         'This surface cannot register a Google client: it was built without a writable credential store. '
         + 'The values you pasted were not stored anywhere.',
@@ -346,7 +346,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
     return ok([
       `Registered the OAuth client ending ${registration.clientIdTail}. The secret went straight into the encrypted store and is not shown again.`,
       '',
-      'Open this link and approve it — it asks for mail and calendar together, so one approval covers both:',
+      'Open this link and approve it, it asks for mail and calendar together, so one approval covers both:',
       session.consentUrl,
       '',
       ...(loginHint ? [`Approve as ${loginHint}, not a personal account.`] : []),
@@ -359,7 +359,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
       name: 'google',
       description:
         'Read and send Gmail; read and write Google Calendar. '
-        + 'When the user pastes a Google OAuth client id and secret, call connect.client with them — that is the '
+        + 'When the user pastes a Google OAuth client id and secret, call connect.client with them, that is the '
         + 'continuation of the setup walkthrough, and it returns the consent link to hand back. When they name a path '
         + 'to a client JSON, call connect.clientFile.',
       parameters: {
@@ -396,7 +396,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
       if (!requested) return failure(`google needs an action. Use one of: ${GOOGLE_ACTIONS.join(', ')}.`);
       // Matched case-insensitively but resolved to the CANONICAL spelling.
       // Lowercasing in place used to be the whole normalisation, which quietly
-      // made every camelCase action unreachable — `connect.clientFile` arrived
+      // made every camelCase action unreachable, `connect.clientFile` arrived
       // as `connect.clientfile` and matched nothing.
       const action = GOOGLE_ACTIONS.find((candidate) => candidate.toLowerCase() === requested.toLowerCase());
       if (action === undefined) {
@@ -414,7 +414,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
       // What the grant actually permits is only knowable AFTER a refresh.
       //
       // A credential read from the encrypted store is constructed with an empty
-      // scope list — the store records no scopes — and the real set arrives on
+      // scope list, the store records no scopes, and the real set arrives on
       // the refresh response. Gating on the pre-refresh summary therefore reads
       // an empty list as "no permissions" and refuses mail.send and
       // calendar.create on a perfectly good credential. That was invisible
@@ -456,7 +456,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         // A listing that matched nothing read nothing, so there is nothing it
         // could have derived an outward action from. Recording an ingest here
         // recorded that a READ HAPPENED rather than that any text arrived, and
-        // it refused subsequent sends on the strength of an empty result set —
+        // it refused subsequent sends on the strength of an empty result set,
         // exposure invented out of an empty inbox.
         if (result.value.length === 0) return ok('No messages matched.');
         // Subject lines and sender names are attacker-controlled text, so they
@@ -469,7 +469,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           at: new Date().toISOString(),
           content: result.value.map((message) => `${message.from} ${message.subject}`).join('\n'),
         });
-        return ok(result.value.map((message) => `${message.id}  ${message.from} — ${message.subject}`).join('\n'));
+        return ok(result.value.map((message) => `${message.id}  ${message.from}, ${message.subject}`).join('\n'));
       }
 
       if (action === 'mail.read') {
@@ -478,7 +478,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         const result = await client.getMessage(id);
         if (isFailure(result)) return describeFailure(result);
         // The whole body is MORE attacker-controlled text than a subject line,
-        // not less, so it is what gets retained — the guard can only weigh
+        // not less, so it is what gets retained, the guard can only weigh
         // derivation from text it was given.
         getSessionUntrustedContentLedger().record({
           surface: 'email',
@@ -524,7 +524,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         };
 
         // Inspect without consuming. A signup provokes more than one mail at the
-        // minted alias — a welcome note usually arrives before the verification —
+        // minted alias, a welcome note usually arrives before the verification,
         // and consuming on the match alone would spend the fifteen-minute window
         // on whichever landed first, leaving the real verification to be refused
         // as unexpected. The expectation is closed below, once a token is in hand.
@@ -568,14 +568,14 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         // The one exemption: a send whose EVERY recipient is the owner himself.
         //
         // He is the trust root, not a third party, and telling him what arrived
-        // is the point of an assistant reading his mail — "what came in
+        // is the point of an assistant reading his mail, "what came in
         // overnight" is a summary that necessarily reuses the words of what came
         // in, so without this the feature is refused in its most ordinary use.
         // Deliberately narrow: his configured addresses only, never a domain or
         // a pattern, and a send to him AND anyone else is not exempt. Identity
         // comes from configuration and never from anything a message can
         // influence. This matches the daemon's email.send route, which had the
-        // exemption while this path did not — the same defect class on two
+        // exemption while this path did not, the same defect class on two
         // surfaces, behaving differently.
         if (!isSendToOwnerOnly(to, ownerAddresses())) {
           const refused = outwardAllowed(
@@ -621,7 +621,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
       }
       // An event's title, location and description are what a stranger's text
       // would have to reach in order to plant something on the owner's calendar
-      // — an invite, a payment reminder, a link. They are enumerable, so they
+      //, an invite, a payment reminder, a link. They are enumerable, so they
       // are enumerated; the start and end times are not text and carry nothing.
       const refusedEvent = outwardAllowed(
         'calendar.create',

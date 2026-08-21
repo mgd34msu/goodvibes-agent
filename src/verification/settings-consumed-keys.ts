@@ -1,5 +1,5 @@
 /**
- * settings-consumed-keys.ts — the settings DENOMINATOR the verification ledger
+ * settings-consumed-keys.ts, the settings DENOMINATOR the verification ledger
  * measures against.
  *
  * ## The defect this closes
@@ -7,7 +7,7 @@
  * settings-behavior-coverage.ts names it in its own header: "The denominator is
  * the live CONFIG_SCHEMA length, so every config key anyone added anywhere
  * lowered the reported percentage without any coverage having actually
- * changed." That file fixed the NUMERATOR half — every claim is now an itemised
+ * changed." That file fixed the NUMERATOR half, every claim is now an itemised
  * row naming the test that would fail if the setting stopped being honoured.
  * The denominator half was left alone, and it kept decaying.
  *
@@ -16,14 +16,14 @@
  * breath. That disagreement was right. Lowering a quality floor to accommodate
  * arithmetic is not a fix; it is the arithmetic winning. Nothing about this
  * product's verification changed when the platform declared 25 keys for the
- * daemon's own mailbox and calendar — `surfaces.email.*` and
+ * daemon's own mailbox and calendar, `surfaces.email.*` and
  * `surfaces.calendar.*` are read by the daemon's mail and calendar handlers,
  * and this repo does not contain a line that mentions any of them.
  *
  * ## The rule
  *
  * A CONFIG_SCHEMA key belongs in this product's settings denominator when this
- * repository REFERENCES it — its literal key string appears somewhere in this
+ * repository REFERENCES it, its literal key string appears somewhere in this
  * repo's own TypeScript, in product code or in a test. Everything else is a
  * setting this product neither reads, writes, renders, nor drives, and a
  * percentage that counts those measures the platform's key count rather than
@@ -34,7 +34,7 @@
  *  - It is the same population the NUMERATOR is drawn from, which is what makes
  *    the ratio meaningful. settings-behavior-coverage.ts accepts a key when a
  *    test IN THIS REPOSITORY drives it to two values through the real consuming
- *    code — and that consuming code is sometimes platform code (the eight
+ *    code, and that consuming code is sometimes platform code (the eight
  *    `voice.wake.*` rows are driven from here against `platform/voice/wake`).
  *    A denominator restricted to non-test source would exclude keys the
  *    numerator counts, which is a worse inconsistency than the one being fixed.
@@ -79,7 +79,7 @@ const SELF_REFERENTIAL_FILES: readonly string[] = [
   // (`display.showTokenSpeed`, `planner.tokenCeiling`, `security.tokenAudit.*`)
   // that exists only so a widened word list cannot start hiding them. Nothing
   // there sets a setting, runs its consuming code path, or asserts an outcome
-  // that differs between two of its values — it is the same "talks about keys"
+  // that differs between two of its values, it is the same "talks about keys"
   // shape as the two entries above, and counting it would put a dozen keys in
   // the denominator on the strength of an assertion that the product does
   // NOTHING with them.
@@ -152,7 +152,7 @@ export function splitSettingsKeysByLocalConsumer(
       // A file that cannot be read is not evidence that a key is unused, but it
       // is also not evidence that one is used. Skipping it can only shrink the
       // denominator, which is the conservative direction for a coverage ratio
-      // — it never inflates the reported percentage.
+      //, it never inflates the reported percentage.
       continue;
     }
   }

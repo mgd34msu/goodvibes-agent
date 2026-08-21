@@ -1,5 +1,5 @@
 /**
- * perf-check.ts — CI performance budget gate.
+ * perf-check.ts, CI performance budget gate.
  *
  * Runs the performance monitor against a committed release snapshot.
  * Outputs a formatted budget report and exits non-zero if any budget is
@@ -9,8 +9,8 @@
  *   bun run scripts/perf-check.ts
  *
  * Exit codes:
- *   0 — all budgets passed
- *   1 — one or more budgets exceeded tolerance
+ *   0, all budgets passed
+ *   1, one or more budgets exceeded tolerance
  */
 
 import { DEFAULT_BUDGETS, PerfMonitor } from '@/runtime/index.ts';
@@ -286,14 +286,11 @@ function main(): void {
   const monitor = new PerfMonitor();
   const snapshot = buildCiSnapshot();
 
-  // Run a single evaluation pass
   const report = monitor.evaluate(snapshot);
   const agentReport = applyAgentPerfBudgetPolicy(report);
 
-  // Print formatted table to stdout
   process.stdout.write(formatAgentPerfReport(agentReport));
 
-  // Exit with appropriate code for CI
   process.exit(exitCode(agentReport));
 }
 

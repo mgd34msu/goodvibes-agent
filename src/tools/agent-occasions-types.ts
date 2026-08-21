@@ -1,10 +1,10 @@
 /**
- * agent-occasions-types.ts — the occasions control-plane payloads, as this
+ * agent-occasions-types.ts, the occasions control-plane payloads, as this
  * surface handles them.
  *
  * The sixteen `occasions.*` verbs (docs/occasions.md §7) are in the platform
  * runtime's generated operator contract, so every request and response type here
- * is the CONTRACT'S type — `OperatorMethodInput` / `OperatorMethodOutput` —
+ * is the CONTRACT'S type, `OperatorMethodInput` / `OperatorMethodOutput`,
  * rather than a hand-written copy that could drift from it.
  *
  * What the contract types do not do is check anything at runtime. Both routes a
@@ -13,7 +13,7 @@
  * wire payload. So each verb gets one narrower that checks the fields the
  * response is discriminated on and then makes the cast explicit, returning null
  * when the payload is not that shape. A daemon that answers something
- * unexpected — an older build, a proxy, a truncated body — makes the verb say it
+ * unexpected, an older build, a proxy, a truncated body, makes the verb say it
  * could not read the answer instead of throwing part-way through a turn.
  *
  * ## What this module deliberately does not hold
@@ -31,7 +31,7 @@ import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibe
 import type { AuthoritySurface } from '../trust/untrusted-content.ts';
 
 /**
- * Every write takes one, and the daemon requires it — an absent authority on
+ * Every write takes one, and the daemon requires it, an absent authority on
  * `occasions.remove` would be a deletion with no gate, exactly as it would be on
  * `profile.forget`. Only `owner-direct` carries write authority; the other
  * members exist so a fact arriving from an untrusted surface names that surface
@@ -220,7 +220,7 @@ export function narrowOccasionsList(value: unknown): OccasionsListResponse | nul
 }
 
 /**
- * `nudge` is `null` or an object — both are valid, and the difference is the
+ * `nudge` is `null` or an object, both are valid, and the difference is the
  * whole answer, so the check accepts either rather than requiring a nudge.
  */
 export function narrowOccasionsPending(value: unknown): OccasionsPendingResponse | null {

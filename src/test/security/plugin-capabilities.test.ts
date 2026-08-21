@@ -53,7 +53,7 @@ function allowOnlyPolicy(allowed: PluginCapability) {
 }
 
 // ---------------------------------------------------------------------------
-// resolveCapabilityManifest — default permissive policy
+// resolveCapabilityManifest, default permissive policy
 // ---------------------------------------------------------------------------
 
 describe('security: plugin capabilities', () => {

@@ -173,7 +173,7 @@ function makePendingRef(): { current: PendingPermissionState | null } {
  * A one-shot "it happened" latch. ApprovalBroker.requestApproval is itself
  * async (it awaits its own store load/persist before publishing), so a card
  * opening as a REAL broker's side effect is never observable synchronously
- * right after calling requestApproval — these tests await this latch instead
+ * right after calling requestApproval, these tests await this latch instead
  * of guessing a tick count.
  */
 function makeLatch(): { promise: Promise<void>; signal: () => void } {
@@ -196,7 +196,7 @@ describe('permissions/broker-approval — real ApprovalBroker (in-memory)', () =
       defer: (cb) => cb(), // synchronous re-check; the broker's own publish is still async
     }));
 
-    // No `localPrompt` — this is exactly how an ask raised by another surface
+    // No `localPrompt`, this is exactly how an ask raised by another surface
     // (or a daemon-side subsystem) against this same broker instance looks:
     // nothing in THIS process opens a card for it automatically.
     const decisionPromise = broker.requestApproval({
@@ -277,7 +277,7 @@ describe('permissions/broker-approval — real ApprovalBroker (in-memory)', () =
     const approvalId = broker.listApprovals().find((a) => a.callId === 'call-elsewhere')!.id;
 
     // Another surface (webui, a channel like Telegram via approval-reply.ts)
-    // resolves the SAME record directly through the broker — never through
+    // resolves the SAME record directly through the broker, never through
     // this agent's card.
     await broker.resolveApproval(approvalId, { approved: true, actor: 'operator', actorSurface: 'webui' });
 
@@ -313,7 +313,7 @@ describe('permissions/broker-approval — real ApprovalBroker (in-memory)', () =
     const pendingRef = makePendingRef();
     const localOpened = makeLatch();
     // Real default (microtask) defer here, exactly like main.ts's production
-    // subscription — this is the race the module's doc comment describes: the
+    // subscription, this is the race the module's doc comment describes: the
     // broker calls localPrompt AFTER it publishes, so the deferred broker-card
     // open must see the local card already in place and no-op.
     broker.subscribe((approval) => handleBrokerApprovalChange({
@@ -347,7 +347,7 @@ describe('permissions/broker-approval — real ApprovalBroker (in-memory)', () =
     await Promise.resolve();
     await Promise.resolve();
 
-    // Still exactly the local card — no second/replacement card was opened.
+    // Still exactly the local card, no second/replacement card was opened.
     expect(pendingRef.current).toBe(localCard);
 
     localCard.resolve(true, false);

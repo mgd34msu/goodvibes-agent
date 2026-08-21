@@ -121,7 +121,7 @@ function listCliCommands(root: string): string[] {
 }
 
 /**
- * The number of CONFIG_SCHEMA entries with local behaviour verification — tests that
+ * The number of CONFIG_SCHEMA entries with local behaviour verification, tests that
  * fail if the setting stops being honoured, as opposed to the structural signal every
  * row trivially satisfies.
  *
@@ -135,7 +135,7 @@ function listCliCommands(root: string): string[] {
  * The ledger formula uses Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settings) so that
  * if the schema shrinks below the count, localBehaviorVerified never overstates total.
  * The drift test in verification-ledger.test.ts asserts
- * SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE <= CONFIG_SCHEMA.length — the constant may never
+ * SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE <= CONFIG_SCHEMA.length, the constant may never
  * claim more verified settings than keys that actually exist.
  */
 export const SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE = SETTINGS_BEHAVIOR_COVERAGE_COUNT;
@@ -156,7 +156,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   // The settings denominator is the keys THIS repository references, not every
   // key the platform declares anywhere. Counting the latter made the reported
   // percentage fall whenever another product's settings were declared, with
-  // this product's verification unchanged — see settings-consumed-keys.ts for
+  // this product's verification unchanged, see settings-consumed-keys.ts for
   // the rule and the invariants that hold it in place.
   const settingsKeys = splitSettingsKeysByLocalConsumer(root, CONFIG_SCHEMA.map((entry) => entry.key));
   const settings = settingsKeys.consumed.length;
@@ -180,14 +180,14 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   const qualityReadiness = countQualityReadinessDimensions(root);
 
   // Use module-level exported constants (defined below buildVerificationLedger).
-  // Importing from here keeps test and production in sync — the drift test imports the same constants.
+  // Importing from here keeps test and production in sync, the drift test imports the same constants.
 
   const areas: VerificationLedgerArea[] = [
     {
       area: 'Settings schema and persistence',
       total: settings,
       localSignalVerified: settings,
-      // localBehaviorVerified uses SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE — a documented estimate,
+      // localBehaviorVerified uses SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, a documented estimate,
       // not a precise derivation. Drift test in verification-ledger.test.ts guards against silent
       // overstatement when the schema grows past the constant.
       localBehaviorVerified: Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settings),
@@ -198,7 +198,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Feature settings',
       total: featureFlags,
       localSignalVerified: featureFlags,
-      // localBehaviorVerified uses FEATURE_FLAGS_EXTERNAL_ESTIMATE — a documented estimate,
+      // localBehaviorVerified uses FEATURE_FLAGS_EXTERNAL_ESTIMATE, a documented estimate,
       // not a precise derivation. See backlog I1.
       localBehaviorVerified: Math.max(0, featureFlags - FEATURE_FLAGS_EXTERNAL_ESTIMATE),
       externalOutcomeRequired: Math.min(FEATURE_FLAGS_EXTERNAL_ESTIMATE, featureFlags),

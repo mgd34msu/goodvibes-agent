@@ -65,7 +65,7 @@ describe('workspace-registration: shared store resolution', () => {
 
     const siblingWorktree = makeProjectTempDir('goodvibes-agent-workspace-registration-worktree');
     // Outside `work`'s subtree entirely, so a plain path-ancestry check would
-    // miss it — only the injected worktree-link git metadata makes it resolve.
+    // miss it, only the injected worktree-link git metadata makes it resolve.
     const resolution = resolveWorkspaceRegistrationSync(shellPaths, siblingWorktree, {
       mainWorktreeRoot: work,
     });
@@ -187,7 +187,7 @@ describe('workspace-registration: legacy registry migration', () => {
 });
 
 describe('workspace-registration: checkpoint-eligibility boundary', () => {
-  // The agent's own receipt, under the agent's surface root — not the shared
+  // The agent's own receipt, under the agent's surface root, not the shared
   // (unscoped) tier the workspace register itself lives in.
   function backfillReceiptPath(home: string): string {
     return join(home, '.goodvibes', 'agent', 'control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
@@ -195,7 +195,7 @@ describe('workspace-registration: checkpoint-eligibility boundary', () => {
 
   test('a TUI-shaped self-record (plain store.add, no flag) is registered but NOT checkpoint-eligible', async () => {
     const { shellPaths, work } = makeShellPaths();
-    // The TUI's first-open self-recording is a plain SDK store.add — no flag.
+    // The TUI's first-open self-recording is a plain SDK store.add, no flag.
     await createWorkspaceRegistrationStore(shellPaths).add(work);
 
     // Registered in the shared store...
@@ -280,7 +280,7 @@ describe('workspace-registration: checkpoint-eligibility boundary', () => {
   test('backfill does NOT stamp a record absent from the legacy explicit list (a TUI self-record)', async () => {
     const { shellPaths, work, home } = makeShellPaths();
     // A TUI self-record in the shared store, and a legacy file that does NOT
-    // list it — so backfill must leave it ineligible.
+    // list it, so backfill must leave it ineligible.
     await createWorkspaceRegistrationStore(shellPaths).add(work);
     const legacyPath = legacyRegistryPath(home);
     mkdirSync(join(home, '.goodvibes', 'agent', 'checkpoints'), { recursive: true });

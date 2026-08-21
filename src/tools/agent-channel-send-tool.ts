@@ -119,7 +119,7 @@ export function createAgentChannelSendTool(
         ].join('\n'));
       }
       // Delivering a channel message is an outward effect and had no
-      // untrusted-content gate at all — the ledger was never consulted here, so
+      // untrusted-content gate at all, the ledger was never consulted here, so
       // a page or a mailbox the agent had just read could dictate the text of a
       // message to a webhook, a channel or a link. `confirm:true` and
       // `explicitUserRequest` do not close that: both are set by the model, and
@@ -127,7 +127,7 @@ export function createAgentChannelSendTool(
       // fail against.
       //
       // Every field is enumerated, so this asks the narrow question rather than
-      // the blunt one — a message the owner composed goes even when the turn has
+      // the blunt one, a message the owner composed goes even when the turn has
       // read something, and only one that repeats what was read is refused.
       const outwardDecision = evaluateOutwardEffect({
         request: {

@@ -324,7 +324,6 @@ describe('PolicyRegistry', () => {
       registry.attachSimulationReport(makeDivergenceReport(), makeGateResult('allowed'));
       registry.promote();
 
-      // Load candidate with 2 new rules
       registry.loadCandidate(makeBundle('v2', [makeRule('new-1'), makeRule('new-2')]));
 
       const diff = registry.diff()!;

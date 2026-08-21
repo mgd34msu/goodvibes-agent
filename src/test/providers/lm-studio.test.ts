@@ -25,7 +25,7 @@ function jsonStream(events: Record<string, unknown>[]): AsyncIterable<Record<str
 
 // Not migrated to makeProjectTempDir: this path is never materialized on
 // disk. SecretsManager/SubscriptionManager/ServiceRegistry only write on an
-// explicit save/set call (confirmed by reading their constructors — none
+// explicit save/set call (confirmed by reading their constructors, none
 // eagerly touch the filesystem), and the sole caller
 // (describeRuntime(makeRuntimeMetadataDeps())) only reads auth/secret
 // metadata to describe the provider's runtime, never persists anything.

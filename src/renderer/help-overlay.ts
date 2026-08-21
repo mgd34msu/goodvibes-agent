@@ -1,5 +1,5 @@
 /**
- * renderHelpOverlay — renders the help overlay with keyboard shortcuts and slash commands.
+ * renderHelpOverlay, renders the help overlay with keyboard shortcuts and slash commands.
  *
  * Toggle with `?` key or `/help` command.
  */
@@ -54,7 +54,7 @@ const HELP_OVERLAY_STATIC_TEXT = [
   'Quick Start',
   'Available Slash Commands',
   'More Commands',
-  'Hidden power commands still work — run /commands for the full catalog.',
+  'Hidden power commands still work, run /commands for the full catalog.',
   'Essentials',
   'Show this help overlay',
   'Keyboard shortcut reference',
@@ -234,7 +234,7 @@ export function renderHelpOverlay(
         commandRows.push(`  ${nameCol}  ${cmd.description}`);
       }
     }
-    commandRows.push('', '  Hidden power commands still work — run /commands for the full catalog.');
+    commandRows.push('', '  Hidden power commands still work, run /commands for the full catalog.');
   } else if (!hasCommand('help')) {
     commandRows.push('', '  Essentials', '  ' + '\u2500'.repeat(40));
     commandRows.push('  /help               Show this help overlay');
@@ -245,7 +245,7 @@ export function renderHelpOverlay(
 
   const allRows = [...shortcutRows, ...commandRows];
 
-  // Apply scroll offset — show a window of rows
+  // Apply scroll offset, show a window of rows
   const metrics = getOverlaySurfaceMetrics(width, viewportHeight, {
     chromeRows: 4,
     minContentRows: 8,
@@ -277,7 +277,7 @@ export function renderHelpOverlay(
 }
 
 /**
- * renderShortcutsOverlay — renders keyboard shortcuts as Line[].
+ * renderShortcutsOverlay, renders keyboard shortcuts as Line[].
  * Accessed via /shortcuts command. Reflects live keybindings (user overrides included).
  */
 export function renderShortcutsOverlay(

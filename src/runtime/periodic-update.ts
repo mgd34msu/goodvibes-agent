@@ -3,7 +3,7 @@
  *
  * Launch-time self-update (cli/launch-auto-update.ts) only ever helps a
  * process that restarts. An agent left running for days sat on whatever build
- * it started with while releases shipped past it — the launch check had
+ * it started with while releases shipped past it, the launch check had
  * already happened and nothing looked again. This is the loop that looks
  * again: the same boot-settle-then-hourly cadence the daemon runs, wired to
  * the agent's own update helpers so there is still exactly one updater in this
@@ -17,7 +17,7 @@
  *     has not reached the person yet),
  *   - no pending user confirmation (an approval waiting on a human answer).
  * While any of those is true the verified update simply waits and the loop
- * re-checks on a short cadence — the same "never mid-turn" contract the daemon
+ * re-checks on a short cadence, the same "never mid-turn" contract the daemon
  * swap follows.
  *
  * The restart hands over through the caller's ORDERLY exit path, so terminal
@@ -45,7 +45,7 @@ export const DEFAULT_PERIODIC_FIRST_CHECK_SECONDS = 30;
 
 /** The three activity signals the idle gate reads, injected so tests drive them. */
 export interface AgentUpdateIdleProbes {
-  /** Sessions with pending input — an agent mid-turn. */
+  /** Sessions with pending input, an agent mid-turn. */
   readonly countBusySessions: () => number;
   /** Approvals awaiting a human answer count as pending confirmations. */
   readonly listApprovals: () => readonly { readonly status: string }[];
@@ -81,7 +81,7 @@ export function agentIsIdleForUpdate(probes: AgentUpdateIdleProbes): boolean {
  * replace its own binary on its own", covering both updaters. The two settings
  * stay independent features rather than collapsing into one: an explicit
  * `update.auto` always wins, so "no launch updates, but do update at an idle
- * moment while running" is still expressible — it just has to be SAID
+ * moment while running" is still expressible, it just has to be SAID
  * (`autoUpdateAtLaunch: false, auto: true`) rather than being what a bare
  * off switch silently did.
  */
@@ -209,7 +209,7 @@ export class AgentPeriodicUpdater {
       toVersion: result.latestTag,
       trigger: 'periodic',
     });
-    this.options.notify(`updated to ${result.latestTag} — restarting onto the new version`);
+    this.options.notify(`updated to ${result.latestTag}, restarting onto the new version`);
     // Stop before handing over: the loop must not fire again from inside the
     // orderly exit that follows.
     this.stop();
@@ -231,7 +231,7 @@ export interface StartPeriodicSelfUpdateParams {
     readonly hostedSessions: { countBusySessions(): number };
     /**
      * Every ask waiting for this owner, from the daemon's record unioned with
-     * this process's own — NOT the local broker alone. An ask raised on this
+     * this process's own, NOT the local broker alone. An ask raised on this
      * surface is recorded on the daemon, so the broker by itself reports zero
      * while the owner has a prompt on screen, and the updater would swap the
      * binary out from under it.
@@ -242,7 +242,7 @@ export interface StartPeriodicSelfUpdateParams {
   /**
    * The caller's orderly exit. `handOver` runs after teardown (terminal
    * restored, session persisted, hooks run) and its return value becomes the
-   * process exit code — which is how the restart onto the new binary happens
+   * process exit code, which is how the restart onto the new binary happens
    * without a bare exit skipping shutdown.
    */
   readonly exit: (handOver?: () => number) => void;
@@ -270,14 +270,14 @@ export function startPeriodicSelfUpdate(params: StartPeriodicSelfUpdateParams): 
   if (!periodicUpdateEnabled(settings, { autoWasStated })) {
     logger.info(
       settings.auto === false
-        ? 'agent periodic update: off — update.auto is false; this agent will not update itself while running'
-        : 'agent periodic update: off — update.autoUpdateAtLaunch is false, so this install does not replace its own binary unattended; set update.auto to true to keep only the while-running updates',
+        ? 'agent periodic update: off, update.auto is false; this agent will not update itself while running'
+        : 'agent periodic update: off, update.autoUpdateAtLaunch is false, so this install does not replace its own binary unattended; set update.auto to true to keep only the while-running updates',
     );
     return () => {};
   }
   const installKind = detectInstallKind(execPath);
   if (installKind !== 'binary') {
-    logger.info('agent periodic update: off — only a compiled release binary can be swapped in place', { installKind });
+    logger.info('agent periodic update: off, only a compiled release binary can be swapped in place', { installKind });
     return () => {};
   }
   const updater = new AgentPeriodicUpdater({

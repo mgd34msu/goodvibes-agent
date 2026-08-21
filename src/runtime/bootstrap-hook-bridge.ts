@@ -54,7 +54,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
       if (meta?.provider) options.runtime.provider = meta.provider;
       options.writeLastSessionPointer(sessionId);
       void options.sharedSessionBroker.reopenSession(sessionId).catch((err) => { logger.debug('session broker reopen session failed', { err }); });
-      // Mirror the reopen into the daemon spine — reopen:true is sent ONLY on
+      // Mirror the reopen into the daemon spine, reopen:true is sent ONLY on
       // this explicit user resume verb (fire-and-forget; never blocks the resume).
       options.sessionSpineClient.reopen({ sessionId, project: options.projectRoot });
       options.conversation.log(`Resumed session: ${sessionId}`, { fg: '135' });

@@ -1,5 +1,5 @@
 /**
- * Integration: Hook lifecycle — Pre → execute → Post | Fail.
+ * Integration: Hook lifecycle, Pre → execute → Post | Fail.
  *
  * Tests the HookDispatcher's fire() method, event shape, and routing
  * through the full Pre/Post/Fail lifecycle.

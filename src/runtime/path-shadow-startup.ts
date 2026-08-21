@@ -1,13 +1,13 @@
 /**
- * path-shadow-startup.ts — the Agent's launch-time answer to "is this the
+ * path-shadow-startup.ts, the Agent's launch-time answer to "is this the
  * build you are actually reaching, and is it the current one".
  *
  * The check itself is the SDK's (platform/runtime reachability-check): it
  * scans PATH for an older copy shadowing this one, decides whether this
  * install is even reachable by name, compares against the newest release, and
  * turns all of that into lines. What lives here is the part only this product
- * can answer — its command name, its package name, and where the release
- * lookup comes from — plus the launch slot the lines are printed in.
+ * can answer, its command name, its package name, and where the release
+ * lookup comes from, plus the launch slot the lines are printed in.
  *
  * That slot is alongside the launch self-update and BEFORE the runtime
  * bootstrap or any terminal mode change, for the same reason the update
@@ -28,7 +28,7 @@ import { VERSION } from '../version.ts';
 /** The package a package-managed Agent install is upgraded through. */
 export const AGENT_PACKAGE_NAME = '@pellux/goodvibes-agent';
 
-/** The same release lookup /update uses — one source of truth for "latest". */
+/** The same release lookup /update uses, one source of truth for "latest". */
 function resolveLatestRelease(): Promise<string | undefined> {
   return boundedLatestRelease(() =>
     checkForUpdate(fetch as UpdateFetchLike, VERSION).then((result) => result.latestTag));

@@ -1,5 +1,5 @@
 /**
- * /payments — enter the payment instrument and the two addresses at the
+ * /payments, enter the payment instrument and the two addresses at the
  * agent's own terminal.
  *
  * Mirrors the TUI's commands/payment-card-intake.ts deliberately: the owner
@@ -7,8 +7,8 @@
  * should expose it in both"), and two surfaces that ask for a card in two
  * different shapes is how one of them ends up with a weaker rule than the
  * other. Same subcommands, same field order, same concealed-input mechanism,
- * same daemon-scoped storage. What differs is only this surface's identity —
- * `agent-terminal` rather than `tui` — and the guided address flow below,
+ * same daemon-scoped storage. What differs is only this surface's identity,
+ * `agent-terminal` rather than `tui`, and the guided address flow below,
  * which this surface adds.
  *
  * ── Card material: masked, and stored where the daemon can read it ───────
@@ -19,11 +19,11 @@
  * persistSecretBackedConfigValue: the raw value goes to the secret manager at
  * `scope: 'daemon'`, and only a `goodvibes://secrets/...` reference is written
  * to config. The plaintext never reaches the transcript, the input history
- * file, or a log line — only a redacted confirmation is printed after each
+ * file, or a log line, only a redacted confirmation is printed after each
  * field.
  *
  * `scope: 'daemon'` is the whole point, not a detail. The DAEMON completes an
- * unattended purchase, and it does so with every surface closed — this program
+ * unattended purchase, and it does so with every surface closed, this program
  * not running at all. A card that only this process can resolve is the feature
  * not working. The config reference half lands in the daemon-owned tier for
  * the same reason: `payments.` is one of the SDK's DAEMON_OWNED_CONFIG_PREFIXES,
@@ -37,7 +37,7 @@
  * this same command (`/payments address billing`), and they are NOT masked. A
  * postal address is not a credential: it is printed on every parcel, it is
  * already visible in the settings modal, and masking it would teach the reflex
- * that bullets mean "safe to type anywhere" — the opposite of what the card
+ * that bullets mean "safe to type anywhere", the opposite of what the card
  * fields need bullets to mean. They still land at daemon scope, by the same
  * `payments.` prefix rule, so the daemon has an address to ship to.
  *
@@ -45,7 +45,7 @@
  *
  * Gated on the SDK's own allowlist (platform/payments/entry-surface.ts), never
  * on a literal decided here. Card material may be TYPED only on `tui`,
- * `agent-terminal` or `webui` — never over Telegram, ntfy, Discord, Slack,
+ * `agent-terminal` or `webui`, never over Telegram, ntfy, Discord, Slack,
  * WhatsApp, Signal, a webhook, or any other remote messaging surface. A card
  * number typed into a hosted chat sits on that provider's servers, in history
  * this program cannot erase, and it passed through their infrastructure before
@@ -53,7 +53,7 @@
  * copied elsewhere.
  *
  * That is a SEPARATE question from which surfaces may APPROVE or VETO a
- * purchase — every command-authority channel still can, and the two checks are
+ * purchase, every command-authority channel still can, and the two checks are
  * never merged. See the SDK module's header.
  *
  * This command always runs in the agent's own composer, which the allowlist
@@ -110,7 +110,7 @@ interface AddressField {
 const ADDRESS_FIELD_LABELS: Readonly<Record<string, { label: string; placeholder: string }>> = {
   name: { label: 'Recipient name', placeholder: 'Jane Doe' },
   line1: { label: 'Address line 1', placeholder: '123 Main St' },
-  line2: { label: 'Address line 2', placeholder: 'Apt 4B — blank if none' },
+  line2: { label: 'Address line 2', placeholder: 'Apt 4B, blank if none' },
   city: { label: 'City', placeholder: 'Springfield' },
   region: { label: 'State / region', placeholder: 'IL' },
   postalCode: { label: 'Postal code', placeholder: '62704' },
@@ -138,7 +138,7 @@ function fieldConfigured(ctx: CommandContext, key: ConfigKey): boolean {
 }
 
 /**
- * Status. Card fields report set/not set and NOTHING else — not a last-four,
+ * Status. Card fields report set/not set and NOTHING else, not a last-four,
  * not a masked form. There is no operator path that can return card material,
  * and a status line is not the place to invent one.
  *
@@ -178,7 +178,7 @@ function promptCardFields(ctx: CommandContext, fields: readonly CardField[], ind
     ctx.print('[payments] Concealed input is unavailable on this surface; card entry requires it and cannot fall back to plaintext.');
     return;
   }
-  ctx.print(`[payments] Enter ${field.label} (e.g. ${field.placeholder}) — masked; Enter to store, Esc to stop.`);
+  ctx.print(`[payments] Enter ${field.label} (e.g. ${field.placeholder}), masked; Enter to store, Esc to stop.`);
   ctx.beginConcealedInput({
     label: field.label,
     onSubmit: (value) => {
@@ -214,14 +214,14 @@ function promptCardFields(ctx: CommandContext, fields: readonly CardField[], ind
 /**
  * Start the card-entry flow, gated on the SDK's own entry-surface allowlist
  * rather than an assumption baked into this command. `surface` defaults to this
- * command's real, fixed identity — exposed as a parameter only so tests can
+ * command's real, fixed identity, exposed as a parameter only so tests can
  * drive the refusal path without this program actually being reachable from a
  * remote channel.
  */
 export function startCardEntryFlow(ctx: CommandContext, surface: string = CARD_ENTRY_SURFACE): void {
   if (!mayOfferCardEntryFlow(surface)) {
     // The prompt is itself the harm: a surface that cannot accept the answer
-    // must never ask the question. Note that nothing is offered here at all —
+    // must never ask the question. Note that nothing is offered here at all,
     // beginConcealedInput is not reached.
     ctx.print(describeCardEntryRefusal(surface));
     return;
@@ -230,7 +230,7 @@ export function startCardEntryFlow(ctx: CommandContext, surface: string = CARD_E
     ctx.print('[payments] Concealed input is unavailable on this surface.');
     return;
   }
-  ctx.print(`Entering ${CARD_SECRET_FIELDS.length} card field(s) — masked; Esc to stop at any point.`);
+  ctx.print(`Entering ${CARD_SECRET_FIELDS.length} card field(s), masked; Esc to stop at any point.`);
   promptCardFields(ctx, CARD_SECRET_FIELDS, 0);
 }
 
@@ -238,7 +238,7 @@ export function startCardEntryFlow(ctx: CommandContext, surface: string = CARD_E
  * Chain a plain (unmasked) prompt for each address field.
  *
  * Uses the composer's ordinary submit path via `awaitPlainLine` below rather
- * than the concealed one — see this file's header for why an address is
+ * than the concealed one, see this file's header for why an address is
  * entered in the clear.
  */
 function promptAddressFields(
@@ -255,7 +255,7 @@ function promptAddressFields(
   const field = fields[index]!;
   const current = readConfigString(ctx, field.key);
   const currentNote = current.length > 0 ? ` [currently ${current}]` : '';
-  ctx.print(`[payments] Enter ${field.label} (e.g. ${field.placeholder})${currentNote} — Enter to save, Esc to stop.`);
+  ctx.print(`[payments] Enter ${field.label} (e.g. ${field.placeholder})${currentNote}, Enter to save, Esc to stop.`);
   awaitPlainLine(ctx, field, {
     onSubmit: (value) => {
       const trimmed = value.trim();
@@ -287,11 +287,11 @@ function promptAddressFields(
  * controlling whether a card number is echoed is one wrong default, one
  * refactor or one copied call site away from a PAN on screen, and whoever makes
  * that change will not have read this file first. The masked request type
- * therefore carries no masking flag at all — it is masked by its type. See
+ * therefore carries no masking flag at all, it is masked by its type. See
  * input/plain-line-input.ts.
  *
  * What this means in practice: address fields ARE echoed while being typed,
- * which is correct — they are ordinary config values, the same as typing them
+ * which is correct, they are ordinary config values, the same as typing them
  * through `/config`. Neither kind of guided answer is added to input history:
  * both are consumed by the composer's line-prompt route before the normal
  * submit path runs, so "62704" does not become a chat-recall entry.
@@ -302,7 +302,7 @@ function awaitPlainLine(
   handlers: { onSubmit: (value: string) => void; onCancel: () => void },
 ): void {
   if (!ctx.beginPlainInput) {
-    // Name the real config KEY, not the human label — the label is not
+    // Name the real config KEY, not the human label, the label is not
     // something /config accepts, and a hint that does not work is worse than
     // no hint.
     ctx.print(`[payments] Guided entry is unavailable on this surface. Set it directly with /config, key ${field.key}.`);
@@ -311,7 +311,7 @@ function awaitPlainLine(
   ctx.beginPlainInput({ label: field.label, onSubmit: handlers.onSubmit, onCancel: handlers.onCancel });
 }
 
-/** Entry point for `/payments [card|address|status]` — exported so tests can drive it without the registry. */
+/** Entry point for `/payments [card|address|status]`, exported so tests can drive it without the registry. */
 export function runPaymentsCommand(args: readonly string[], ctx: CommandContext): void {
   const sub = (args[0] ?? '').toLowerCase();
   if (sub === '' || sub === 'status') {
@@ -337,11 +337,11 @@ export function runPaymentsCommand(args: readonly string[], ctx: CommandContext)
 /** Start the guided address flow for one of the two addresses. */
 export function startAddressEntryFlow(ctx: CommandContext, kind: PaymentsAddressKind): void {
   const fields = addressFields(kind);
-  ctx.print(`Entering ${fields.length} ${kind} address field(s) — Esc to stop at any point. Blank keeps the current value.`);
+  ctx.print(`Entering ${fields.length} ${kind} address field(s), Esc to stop at any point. Blank keeps the current value.`);
   promptAddressFields(ctx, kind, fields, 0);
 }
 
-/** Card secret fields in prompt order — exported for tests that drive the chain field-by-field. */
+/** Card secret fields in prompt order, exported for tests that drive the chain field-by-field. */
 export { CARD_SECRET_FIELDS, addressFields };
 
 export function registerPaymentCardCommands(registry: CommandRegistry): void {

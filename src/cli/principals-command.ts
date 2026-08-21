@@ -200,7 +200,7 @@ async function handlePrincipalsResolve(runtime: CliCommandRuntime, args: readonl
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
-  // known: false means the identity lookup found nothing for this channel/value — never assert a match in that case.
+  // known: false means the identity lookup found nothing for this channel/value, never assert a match in that case.
   const text = result.data.known
     ? [`known: true`, renderPrincipal(result.data.principal)].join('\n')
     : `known: false\n  No principal is mapped to ${channel}:${value}.`;

@@ -1,5 +1,5 @@
 /**
- * harness-mutation-format.ts — how a completed settings write is reported.
+ * harness-mutation-format.ts, how a completed settings write is reported.
  *
  * Its own file because the reply is where two hard-won facts have to show up
  * together, and both of them cost a real session:
@@ -19,7 +19,7 @@ export function formatHarnessMutation(result: HarnessSettingMutationResult): str
     `  key ${result.key}`,
     `  previous ${String(result.previous)}`,
     `  current ${String(result.current)}`,
-    ...(result.alsoSet ? [`  also set ${result.alsoSet.key} to ${String(result.alsoSet.value)} — ${result.alsoSet.message}`] : []),
+    ...(result.alsoSet ? [`  also set ${result.alsoSet.key} to ${String(result.alsoSet.value)}, ${result.alsoSet.message}`] : []),
     ...(result.scope ? [`  owner ${result.scope}`] : []),
     ...(result.appliedBy ? [`  applied by ${result.appliedBy}`] : []),
     ...(result.persistedTo ? [`  stored in ${result.persistedTo}`] : []),

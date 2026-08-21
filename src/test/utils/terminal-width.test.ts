@@ -107,7 +107,7 @@ describe('ANSI escape stripping in getDisplayWidth', () => {
 
 describe('bracket-text-without-ESC over-strip guard', () => {
   test('literal bracket text without ESC counts every character', () => {
-    // '[31mhi' is 6 literal characters — no ESC prefix, must NOT be stripped.
+    // '[31mhi' is 6 literal characters, no ESC prefix, must NOT be stripped.
     expect(getDisplayWidth('[31mhi')).toBe(6);
   });
 

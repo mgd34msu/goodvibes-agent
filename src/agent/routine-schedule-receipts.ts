@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync, renameSync } from 'node:fs';
+import { writeStoreFile } from '@/utils/store-file.ts';
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { formatEveryInterval } from '@pellux/goodvibes-sdk/platform/automation';
@@ -38,9 +38,9 @@ interface RoutineScheduleReceiptStoreFile {
 const RECEIPT_STORE_VERSION = 1;
 
 /**
- * Count cap on stored routine-schedule receipts. These are low volume — one per
+ * Count cap on stored routine-schedule receipts. These are low volume, one per
  * promotion attempt, which is a deliberate user action rather than a per-turn
- * event — so 200 is many months of normal use while still bounding the file to a
+ * event, so 200 is many months of normal use while still bounding the file to a
  * few hundred KB. Applied together with the age TTL: a receipt must survive BOTH.
  */
 const ROUTINE_SCHEDULE_RECEIPT_LIMIT = 200;
@@ -60,7 +60,7 @@ const ROUTINE_SCHEDULE_RECEIPT_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
  */
 const ROUTINE_SCHEDULE_RECEIPT_REAP_GRACE_MS = 5 * 60 * 1000;
 
-/** What a store read/prune had to recover from or reclaim — the disclosure record. */
+/** What a store read/prune had to recover from or reclaim, the disclosure record. */
 export interface RoutineScheduleReceiptMaintenance {
   readonly path: string;
   /** How the last read had to degrade, if at all. */
@@ -72,7 +72,7 @@ export interface RoutineScheduleReceiptMaintenance {
   readonly kept: number;
 }
 
-/** What a reconcile-time reap removed — the disclosure record. */
+/** What a reconcile-time reap removed, the disclosure record. */
 export interface RoutineScheduleReceiptReaping {
   /** False when the connected host was not authoritative (unreachable/auth/route failure): nothing is ever reaped then. */
   readonly authoritative: boolean;
@@ -90,7 +90,7 @@ interface ReceiptPruneOutcome {
 /**
  * Apply BOTH bounds: the age TTL first, then the count cap over what is left.
  * Receipts are ordered oldest-first so the tail is the newest set. A receipt with
- * an unparseable createdAt is kept — a bad timestamp must never read as "old".
+ * an unparseable createdAt is kept, a bad timestamp must never read as "old".
  */
 function pruneReceipts(
   receipts: readonly RoutineScheduleReceipt[],
@@ -409,7 +409,7 @@ export class RoutineScheduleReceiptStore {
 
   /**
    * Read the store, degrading to "no receipts" for anything a crash can leave
-   * behind — an unreadable file, a zero-byte file, a truncated JSON body. A
+   * behind, an unreadable file, a zero-byte file, a truncated JSON body. A
    * corrupt (non-empty, unparseable) body is preserved by renaming it aside
    * rather than being silently discarded; the quarantine slot is a single fixed
    * name that is overwritten, so it cannot itself accumulate.
@@ -474,22 +474,7 @@ export class RoutineScheduleReceiptStore {
   }
 
   private writeStore(store: RoutineScheduleReceiptStoreFile): void {
-    mkdirSync(dirname(this.storePath), { recursive: true });
-    // The temp name carries the pid (and a timestamp) so two processes writing
-    // this store concurrently cannot clobber each other's temp file; the rename
-    // itself is what makes the swap atomic.
-    const tmpPath = `${this.storePath}.${process.pid}.${Date.now()}.tmp`;
-    try {
-      writeFileSync(tmpPath, formatReceiptStore(store), 'utf-8');
-      renameSync(tmpPath, this.storePath);
-    } catch (error) {
-      try {
-        unlinkSync(tmpPath);
-      } catch {
-        // Absent temp file is the desired end state; ENOENT here is success.
-      }
-      throw error;
-    }
+    writeStoreFile(this.storePath, formatReceiptStore(store));
   }
 }
 
@@ -498,7 +483,7 @@ export class RoutineScheduleReceiptStore {
  *
  * Only a successful `automation.schedules.list` is authoritative: when the host
  * is unreachable, unauthorized, or on an incompatible route, `result.ok` is false
- * and NOTHING is reaped — an absent list is not evidence of an absent schedule.
+ * and NOTHING is reaped, an absent list is not evidence of an absent schedule.
  * Receipts younger than the grace window are also left alone so a schedule created
  * moments ago is never mistaken for one that vanished. Idempotent: the second run
  * finds the receipts already gone and removes nothing.
@@ -758,7 +743,7 @@ export interface LiveSchedulesFetch {
 
 /**
  * Fetch every live schedule from the connected host, with no local-receipt
- * correlation attached — the plain list the /schedule list surface needs.
+ * correlation attached, the plain list the /schedule list surface needs.
  * Never throws; connection/auth/host failures resolve to { ok: false }.
  */
 export async function fetchLiveSchedules(connection: AgentConnectedHostConnection): Promise<LiveSchedulesFetch> {

@@ -25,7 +25,7 @@ describe('dependency surface', () => {
    * bundled, because it loads browsers.json and its own driver files by path
    * relative to its package directory, so an inlined copy would look for files
    * that are not there. It is still installed and still shipped beside the
-   * binary — but the browser engine is
+   * binary, but the browser engine is
    * `@pellux/goodvibes-sdk/platform/browser` now, and the SDK carries the
    * driver in ITS optionalDependencies. Declaring it here as well would pin the
    * same package in two places, which is exactly how the version the agent
@@ -33,7 +33,7 @@ describe('dependency surface', () => {
    *
    * `@pellux/goodvibes-daemon` is the one declared dependency, and it is not a library
    * this bundle could ever inline: it is a second PROGRAM. The Agent needs a
-   * daemon to talk to — docs/getting-started.md lists one as a prerequisite —
+   * daemon to talk to, docs/getting-started.md lists one as a prerequisite,
    * and since the daemon left the TUI's repository it has its own package whose
    * own postinstall places its own binary. Declaring it here is what keeps
    * `bun add -g @pellux/goodvibes-agent` a single act that leaves both commands

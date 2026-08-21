@@ -1,5 +1,5 @@
 /**
- * The 1.18.1 browser failure, pinned so it cannot ship again — the half of it
+ * The 1.18.1 browser failure, pinned so it cannot ship again, the half of it
  * that is still the agent's.
  *
  * Three independent defects had to line up to produce it, and each is covered
@@ -8,7 +8,7 @@
  *   1. the driver never reached the release asset, so a downloaded binary had
  *      none beside it;
  *   2. the capability probe resolved the driver as a MODULE, which can never
- *      succeed inside a compiled binary — so browser control reported
+ *      succeed inside a compiled binary, so browser control reported
  *      needs-setup even with a driver correctly in place, and the model relayed
  *      that instead of calling the tool;
  *   3. the remediation told a binary user to install the npm package.
@@ -112,7 +112,7 @@ describe('the driver archive this release ships', () => {
 
   test('the required entries are exactly the files the platform resolver demands', () => {
     // The release names them with the directory prefix; the resolver checks
-    // them inside a candidate directory. Same three files, stated twice — so
+    // them inside a candidate directory. Same three files, stated twice, so
     // this pins that they cannot drift apart.
     expect(BROWSER_DRIVER_REQUIRED_ENTRIES.map((entry) => entry.slice(BROWSER_DRIVER_DIR_NAME.length + 1)).sort())
       .toEqual([...DRIVER_REQUIRED_FILES].sort());
@@ -146,7 +146,7 @@ describe('the capability probe that made this unrecoverable', () => {
 
     const result = runCapabilityProbe(
       // A specifier that is deliberately not installed anywhere, so the only
-      // way this can pass is the on-disk search — the case a compiled binary is
+      // way this can pass is the on-disk search, the case a compiled binary is
       // always in.
       { kind: 'module-resolvable', specifier: 'playwright-core-not-a-real-package', label, searchDirectories: [driverDir] },
       emptyProbeContext(),
@@ -171,7 +171,7 @@ describe('the capability probe that made this unrecoverable', () => {
     // The resolver skips a directory without cli.js, because cli.js is what the
     // browser install step executes. The probe used a weaker rule, so it
     // reported "the browser driver is present at X" for a directory the tool
-    // then refused — the index disagreeing with the tool a moment later is
+    // then refused, the index disagreeing with the tool a moment later is
     // precisely what this probe exists to prevent.
     const noCli = join(scratch('gv-probe-nocli'), BROWSER_DRIVER_DIR_NAME);
     mkdirSync(noCli, { recursive: true });
@@ -195,7 +195,7 @@ describe('the capability probe that made this unrecoverable', () => {
 
   test('the browser capability declares the resolver rule, not a weaker one', () => {
     // Declaring the directories without the completeness rule is what let the
-    // two drift apart, so the declaration itself is pinned — including that it
+    // two drift apart, so the declaration itself is pinned, including that it
     // searches the AGENT's directories rather than some other surface's.
     const declaration = browserControlDeclaration({ homeDirectory: '/home/someone', workingDirectory: '/tmp' });
     const prerequisite = declaration.prerequisites?.find((entry) => entry.id === 'playwright-driver');

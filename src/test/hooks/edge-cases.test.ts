@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// edge-cases.test.ts — Hook system edge case tests
+// edge-cases.test.ts, Hook system edge case tests
 // ---------------------------------------------------------------------------
 
 import { describe, test, expect, beforeEach } from 'bun:test';
@@ -54,7 +54,7 @@ describe('Hook timeout behavior', () => {
     // Wait past the 1ms within window
     await new Promise(r => setTimeout(r, 15));
 
-    // Submit step-2 event — within timeout has expired, chain resets to step 0
+    // Submit step-2 event, within timeout has expired, chain resets to step 0
     await engine.evaluate(makeEvent({ path: 'Post:tool:read', phase: 'Post' }));
     // Post event doesn't match step 0 (Pre:tool:*), so stays at 0
     expect(engine.getStates().get('timeout-chain')!.currentStep).toBe(0);
@@ -81,7 +81,7 @@ describe('Hook timeout behavior', () => {
     expect(engine.getStates().get('fast-chain')!.currentStep).toBe(1);
 
     const result = await engine.evaluate(makeEvent({ path: 'Post:tool:write', phase: 'Post', specific: 'write' }));
-    // Chain completed — action was fired
+    // Chain completed, action was fired
     expect(result).toEqual(expect.objectContaining({ ok: true }));
     // Chain resets after firing
     expect(engine.getStates().get('fast-chain')!.currentStep).toBe(0);
@@ -91,7 +91,7 @@ describe('Hook timeout behavior', () => {
     engine.register({
       name: 'zero-within-chain',
       steps: [
-        // within: '0' is unparseable (no unit) — parseDuration returns 0, treated as disabled
+        // within: '0' is unparseable (no unit), parseDuration returns 0, treated as disabled
         { match: 'Pre:tool:*', within: '0' },
         { match: 'Post:tool:*' },
       ],
@@ -101,11 +101,11 @@ describe('Hook timeout behavior', () => {
     await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
     expect(engine.getStates().get('zero-within-chain')!.currentStep).toBe(1);
 
-    // Wait a bit — with 0 ms parsed, no timeout should trigger a reset
+    // Wait a bit, with 0 ms parsed, no timeout should trigger a reset
     await new Promise(r => setTimeout(r, 10));
 
     const result = await engine.evaluate(makeEvent({ path: 'Post:tool:read', phase: 'Post' }));
-    // Should still complete (no timeout reset) — chain fires action
+    // Should still complete (no timeout reset), chain fires action
     expect(result).toEqual(expect.objectContaining({ ok: true }));
     expect(engine.getStates().get('zero-within-chain')!.currentStep).toBe(0);
   });
@@ -167,7 +167,7 @@ describe('Circular chain behavior', () => {
       action: { match: 'Pre:tool:read', type: 'command', command: 'echo b-done' },
     });
 
-    // Fire chain A's triggering event — should not throw or recurse
+    // Fire chain A's triggering event, should not throw or recurse
     const result = await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
     // Chain A fires; chain B step doesn't get advanced by this evaluate call
     // (evaluate processes each chain sequentially against the single event)
@@ -179,7 +179,7 @@ describe('Circular chain behavior', () => {
   test('chain completing does not advance other chains via side effect', async () => {
     // Chain B is at step 0 waiting for 'Post:agent:*'
     // Chain A fires its action (dispatches 'Post:agent:done')
-    // The dispatcher hook runs synchronously — chain B's state is NOT
+    // The dispatcher hook runs synchronously, chain B's state is NOT
     // advanced by a separate evaluate() call here (evaluate is the caller's job)
     engine.register({
       name: 'chain-a',
@@ -196,14 +196,14 @@ describe('Circular chain behavior', () => {
     // Trigger chain A only (Pre:tool:* event)
     await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
 
-    // Chain B should still be at step 0 — it was not evaluated for 'Post:agent:done'
+    // Chain B should still be at step 0, it was not evaluated for 'Post:agent:done'
     // because evaluate() was only called with 'Pre:tool:read'
     expect(engine.getStates().get('chain-b')!.currentStep).toBe(0);
   });
 
   test('same chain name registered twice behaves as two independent chains', async () => {
     // Edge case: two chains with the same name registered
-    // The second one gets its own state slot (names are keys in the Map —
+    // The second one gets its own state slot (names are keys in the Map,
     // actually the chains array can have duplicates, but getStates() map will
     // overwrite on second register call. Verify second register call resets state.)
     engine.register({
@@ -216,7 +216,7 @@ describe('Circular chain behavior', () => {
     await engine.evaluate(makeEvent({ path: 'Pre:tool:read', phase: 'Pre' }));
     expect(engine.getStates().get('dup-chain')!.currentStep).toBe(1);
 
-    // Register a second chain with the same name — this RESETS the state slot
+    // Register a second chain with the same name, this RESETS the state slot
     engine.register({
       name: 'dup-chain',
       steps: [{ match: 'Fail:tool:*' }],
@@ -276,7 +276,7 @@ describe('Error propagation in chains', () => {
     });
 
     const result = await dispatcher.fire(makeEvent());
-    // First hook fails — ok becomes false
+    // First hook fails, ok becomes false
     expect(result.ok).toBe(false);
     // Second hook still runs (sequential, not short-circuited)
     expect(result.additionalContext).toBe('second');
@@ -455,7 +455,7 @@ describe('Concurrent hook execution limits', () => {
   });
 
   test('many hooks all execute within reasonable time (no artificial concurrency cap)', async () => {
-    // Register 10 fast hooks — all should run sequentially
+    // Register 10 fast hooks, all should run sequentially
     for (let i = 1; i <= 10; i++) {
       dispatcher.register('Post:tool:*', {
         match: 'Post:tool:*',

@@ -1,5 +1,5 @@
 /**
- * daemon-gateway.ts — the verb catalog THE DAEMON composes over this graph, for
+ * daemon-gateway.ts, the verb catalog THE DAEMON composes over this graph, for
  * tests whose subject only becomes observable through one.
  *
  * ── Why a test builds one and the product does not ────────────────────────
@@ -18,14 +18,14 @@
  * a copy of the dependency list still agrees with itself:
  *
  *   - goodvibes-daemon/src/test/daemon/gateway-verb-family-parity.test.ts
- *     — every verb family, with the reason each one registers
+ *    , every verb family, with the reason each one registers
  *   - goodvibes-daemon/src/test/daemon/gateway-checkin-round-trip.test.ts
  *   - goodvibes-daemon/src/test/daemon/gateway-ci-principals-channel-profiles-round-trip.test.ts
  *   - goodvibes-daemon/src/test/daemon/gateway-catalog-handler-or-route.test.ts
- *     — the whole-catalog partition, so an unwired verb fails loudly
+ *    , the whole-catalog partition, so an unwired verb fails loudly
  *
  * What it IS for: the handful of suites in this repository whose subject is an
- * AGENT seam that only becomes observable through a daemon-shaped catalog —
+ * AGENT seam that only becomes observable through a daemon-shaped catalog,
  * this process's conversation rewind port, its occasions push/pull, its
  * `profile` tool, its voice-setup and memory-governance wiring. Those assert
  * something about this package; they just need a catalog to look through.
@@ -55,7 +55,7 @@ export interface DaemonGatewayCatalogOptions {
  * Build the catalog a daemon composed from this graph would carry.
  *
  * The dep list is the full one the registrar takes, so a suite driving this
- * observes what a daemon over this graph does — not a narrower stand-in that
+ * observes what a daemon over this graph does, not a narrower stand-in that
  * happens to answer.
  */
 const cached = new WeakMap<RuntimeServices, GatewayMethodCatalog>();

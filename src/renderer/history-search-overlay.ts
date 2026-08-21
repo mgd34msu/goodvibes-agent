@@ -62,7 +62,6 @@ export function renderHistorySearchOverlay(
     : HISTORY_SEARCH_PREFIX;
   const matchText = hasMatch ? match?.entry ?? '' : '';
 
-  // Build the display string
   const label = historySearchLabel(prefix, historySearch.query);
   const full = truncateToWidth(label + matchText, width);
 

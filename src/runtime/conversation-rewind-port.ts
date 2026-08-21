@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// conversation-rewind-port.ts — this Agent's ConversationManager as the SDK
+// conversation-rewind-port.ts, this Agent's ConversationManager as the SDK
 // unified rewind service's RewindConversationPort.
 //
 // The SDK's UnifiedRewindService (platform/rewind) joins files rewind (workspace
@@ -9,7 +9,7 @@
 // truncation and captures the pre-/post-truncation snapshots so the reversal can
 // be undone and re-applied. The truncation boundary is the message count recorded
 // for the anchor's turnId at TURN_COMPLETED (the SDK's platform/rewind anchor
-// registry) — the same
+// registry), the same
 // join key files rewind uses against the workspace checkpoint.
 //
 // Ported from goodvibes-tui's src/runtime/conversation-rewind-port.ts (same
@@ -40,7 +40,7 @@ export interface ConversationRewindPort extends RewindConversationPort {
   restoreAfter(undoSnapshotId: string): boolean;
 }
 
-/** One truncation's captured state — the target conversation and its snapshots. */
+/** One truncation's captured state, the target conversation and its snapshots. */
 interface SnapshotPair {
   readonly conv: ConversationManager;
   readonly before: ConversationJson;
@@ -49,7 +49,7 @@ interface SnapshotPair {
 
 /**
  * Build a conversation rewind port. `resolveConversation` maps an anchor's
- * sessionId to the live ConversationManager — for this Agent (a single-session
+ * sessionId to the live ConversationManager, for this Agent (a single-session
  * process) that is the one bound conversation when the sessionId matches, and
  * null otherwise. A null resolution means no live conversation for that
  * session, reported as "nothing to drop" rather than a fabricated count.
@@ -104,7 +104,7 @@ export function createConversationRewindPort(
 }
 
 // ---------------------------------------------------------------------------
-// Live per-session conversation registry — the daemon-hosted mutable store the
+// Live per-session conversation registry, the daemon-hosted mutable store the
 // composed daemon's rewind.plan/apply verbs resolve conversations from. This
 // Agent registers its active session's ConversationManager at bootstrap; a
 // session with no registration reports conversation rewind as "nothing to
@@ -129,7 +129,7 @@ export function unregisterSessionConversation(sessionId: string): void {
  * A reader over the SAME map the rewind port resolves through, exported here
  * rather than rebuilt beside it: a second registry would let a daemon push land
  * in one conversation while a rewind truncated another. The push destination
- * (runtime/agent-conversation-sender.ts) is the second consumer — it addresses a
+ * (runtime/agent-conversation-sender.ts) is the second consumer, it addresses a
  * message by the conversation or session the daemon named, and falls back to the
  * primary conversation when it named neither.
  */
@@ -140,7 +140,7 @@ export function findSessionConversation(sessionId: string): ConversationManager 
 
 /**
  * The conversation rewind port the composed daemon threads into
- * registerGatewayVerbGroups — it resolves each anchor's live conversation from
+ * registerGatewayVerbGroups, it resolves each anchor's live conversation from
  * the registry above, so the daemon's own rewind verbs serve conversation scope
  * live in this process.
  */

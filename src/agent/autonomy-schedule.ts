@@ -1,24 +1,30 @@
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
-import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import { getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
 import {
+  classifyConnectedHostScheduleError,
   resolveAgentConnectedHostConnection,
   ROUTINE_SCHEDULE_METHOD,
   ROUTINE_SCHEDULE_ROUTE,
   type AgentConnectedHostConfigReader,
   type AgentConnectedHostConnection,
-  type RoutineScheduleDeliveryKind,
-  type RoutineScheduleDeliverySurfaceKind,
-  type RoutineScheduleDeliveryTargetSpec,
   type RoutineScheduleKind,
   type RoutineScheduleSpec,
 } from './routine-schedule-promotion.ts';
+import {
+  deliveryModeFromTargets,
+  normalizeProviderModel,
+  parseChannelDeliveryTarget,
+  parseLinkDeliveryTarget,
+  parseRouteDeliveryTarget,
+  parseWebhookDeliveryTarget,
+  readOptionValue as optionValue,
+  toDeliveryTargetInput,
+  validateDeliveryTargets,
+  type RoutineScheduleDeliveryTargetSpec,
+} from './schedule-delivery-targets.ts';
 
 type ScheduleCreateInput = OperatorMethodInput<'automation.schedules.create'>;
 type ScheduleCreateOutput = OperatorMethodOutput<'automation.schedules.create'>;
-type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
-type ScheduleDeliveryTargetInput = ScheduleDeliveryInput['targets'] extends readonly (infer T)[] ? T : never;
 
 export const AUTONOMY_SCHEDULE_METHOD = ROUTINE_SCHEDULE_METHOD;
 export const AUTONOMY_SCHEDULE_ROUTE = ROUTINE_SCHEDULE_ROUTE;
@@ -72,120 +78,6 @@ export interface AutonomyScheduleFailure {
 }
 
 export type AutonomyScheduleResult = AutonomyScheduleSuccess | AutonomyScheduleFailure;
-
-const DELIVERY_SURFACE_KINDS: readonly RoutineScheduleDeliverySurfaceKind[] = [
-  'tui',
-  'web',
-  'slack',
-  'discord',
-  'ntfy',
-  'webhook',
-  'telegram',
-  'google-chat',
-  'signal',
-  'whatsapp',
-  'telephony',
-  'imessage',
-  'msteams',
-  'bluebubbles',
-  'mattermost',
-  'matrix',
-  'service',
-];
-
-function optionValue(args: readonly string[], index: number, inlineValue: string | undefined): {
-  readonly value: string | undefined;
-  readonly nextIndex: number;
-} {
-  if (inlineValue !== undefined) return { value: inlineValue, nextIndex: index };
-  const next = args[index + 1];
-  if (next === undefined || next.startsWith('--')) return { value: undefined, nextIndex: index };
-  return { value: next, nextIndex: index + 1 };
-}
-
-function isDeliverySurfaceKind(value: string): value is RoutineScheduleDeliverySurfaceKind {
-  return DELIVERY_SURFACE_KINDS.includes(value as RoutineScheduleDeliverySurfaceKind);
-}
-
-function parseChannelDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const [surfaceKind = '', routeId, label] = raw.split(':');
-  if (!isDeliverySurfaceKind(surfaceKind)) {
-    return `Unsupported delivery channel "${surfaceKind}".`;
-  }
-  return {
-    kind: 'surface',
-    surfaceKind,
-    routeId: routeId?.trim() || undefined,
-    label: label?.trim() || undefined,
-  };
-}
-
-function parseWebhookDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const normalized = raw.trim();
-  if (!normalized) return '--delivery-webhook requires a URL.';
-  try {
-    const url = new URL(normalized);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '--delivery-webhook must be an http(s) URL.';
-  } catch {
-    return '--delivery-webhook must be a valid URL.';
-  }
-  return {
-    kind: 'webhook',
-    address: normalized,
-  };
-}
-
-function parseRouteDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const [routeId = '', label] = raw.split(':');
-  const normalizedRouteId = routeId.trim();
-  if (!normalizedRouteId) return '--delivery-route requires a route id.';
-  return {
-    kind: 'surface',
-    routeId: normalizedRouteId,
-    label: label?.trim() || undefined,
-  };
-}
-
-function parseLinkDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const normalized = raw.trim();
-  if (!normalized) return '--delivery-link requires a URL or label.';
-  return {
-    kind: 'link',
-    address: normalized,
-  };
-}
-
-function validateDeliveryTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): string | null {
-  const kinds = new Set(targets.map((target) => target.kind));
-  return kinds.size > 1 ? 'Use one delivery target kind per autonomous schedule command.' : null;
-}
-
-function normalizeProviderModel(provider: string | undefined, model: string | undefined): {
-  readonly provider?: string;
-  readonly model?: string;
-} {
-  if (!model) return provider ? { provider } : {};
-  const normalizedProvider = provider ?? getProviderIdFromModel(model);
-  return {
-    provider: normalizedProvider,
-    model: getModelIdFromProviderModel(model),
-  };
-}
-
-function deliveryModeFromTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): RoutineScheduleDeliveryKind | 'none' {
-  const first = targets[0];
-  return first ? first.kind : 'none';
-}
-
-function toDeliveryTargetInput(target: RoutineScheduleDeliveryTargetSpec): ScheduleDeliveryTargetInput {
-  return {
-    kind: target.kind,
-    surfaceKind: target.surfaceKind as ScheduleDeliveryTargetInput['surfaceKind'],
-    address: target.address,
-    routeId: target.routeId,
-    label: target.label,
-  };
-}
 
 export function parseAutonomyScheduleArgs(args: readonly string[]): ParsedAutonomyScheduleArgs {
   let task: string | null = null;
@@ -323,7 +215,7 @@ export function parseAutonomyScheduleArgs(args: readonly string[]): ParsedAutono
   if (!successCriteria) errors.push('Success criteria are required: use --success-criteria <what a good run reports or produces>.');
   if (!explicitUserRequest) errors.push('Explicit user request is required: use --explicit-user-request <authorizing request>.');
   if (!schedule) errors.push('Schedule is required: use --cron <expr>, --every <interval>, or --at <iso-time>.');
-  const deliveryError = validateDeliveryTargets(deliveryTargets);
+  const deliveryError = validateDeliveryTargets(deliveryTargets, 'autonomous schedule command');
   if (deliveryError) errors.push(deliveryError);
   return { task, successCriteria, schedule, deliveryTargets, name, timezone, provider, model, enabled, yes, explicitUserRequest, errors };
 }
@@ -429,55 +321,8 @@ export function buildAutonomySchedulePreview(parsed: ParsedAutonomyScheduleArgs)
   };
 }
 
-async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection): Promise<{
-  readonly ok: boolean;
-  readonly status: number;
-  readonly body: unknown;
-}> {
-  try {
-    const response = await fetch(`${connection.baseUrl}/status`, {
-      headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
-    });
-    const text = await response.text();
-    let body: unknown = text;
-    try {
-      body = text.trim() ? JSON.parse(text) as unknown : {};
-    } catch {
-      body = text;
-    }
-    return { ok: response.ok, status: response.status, body };
-  } catch (error) {
-    return { ok: false, status: 0, body: summarizeError(error) };
-  }
-}
-
-async function classifyAutonomyScheduleError(
-  error: unknown,
-  connection: AgentConnectedHostConnection,
-): Promise<AutonomyScheduleFailure> {
-  const message = summarizeError(error);
-  const lower = message.toLowerCase();
-  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
-    return { ok: false, kind: 'auth_required', error: message, route: AUTONOMY_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
-  }
-  if (lower.includes('404') || lower.includes('not found')) {
-    const connectedHost = await fetchConnectedHostStatus(connection);
-    if (connectedHost.ok) {
-      return {
-        ok: false,
-        kind: 'connected_host_incompatible',
-        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; automation.schedules.create is unavailable.',
-        route: AUTONOMY_SCHEDULE_ROUTE,
-        baseUrl: connection.baseUrl,
-      };
-    }
-    return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: AUTONOMY_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
-  }
-  if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'connected_host_unavailable', error: message, route: AUTONOMY_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
-  }
-  return { ok: false, kind: 'connected_host_error', error: message, route: AUTONOMY_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
-}
+const INCOMPATIBLE_MESSAGE =
+  'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; automation.schedules.create is unavailable.';
 
 export async function createAutonomySchedule(
   connection: AgentConnectedHostConnection,
@@ -505,7 +350,10 @@ export async function createAutonomySchedule(
       request: preview.payload,
     };
   } catch (error) {
-    return classifyAutonomyScheduleError(error, connection);
+    return classifyConnectedHostScheduleError(error, connection, {
+      route: AUTONOMY_SCHEDULE_ROUTE,
+      incompatibleMessage: INCOMPATIBLE_MESSAGE,
+    });
   }
 }
 

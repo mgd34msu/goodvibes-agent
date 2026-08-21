@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// conversation-assistant-turn-rendering.test.ts — end-to-end transcript
+// conversation-assistant-turn-rendering.test.ts, end-to-end transcript
 // behaviour for merged assistant turns (see src/core/conversation-turn-structure.ts
 // and renderConversationAssistantMessage / renderConversationToolCallNode /
 // renderConversationToolMessage in src/core/conversation-rendering.ts).
@@ -15,8 +15,8 @@
 // per run, a shared tool label named once, honest expanded-render line counts,
 // results reachable on expand, hidden rows anchoring navigation at their turn
 // header, independent turns staying independent, and the header toggling the
-// whole run. The two guarantees the new model ADDS — turns default to
-// EXPANDED, and collapsing never hides prose — are covered here too.
+// whole run. The two guarantees the new model ADDS, turns default to
+// EXPANDED, and collapsing never hides prose, are covered here too.
 // ---------------------------------------------------------------------------
 
 import { describe, test, expect } from 'bun:test';
@@ -35,7 +35,7 @@ function transcript(cm: ConversationManager): string {
 const RESULT_A = JSON.stringify({ results: [{ title: 'one', snippet: 'first result body' }] });
 const RESULT_B = JSON.stringify({ results: [{ title: 'two', snippet: 'second result body' }] });
 
-/** A conversation whose single assistant turn ran two web searches — the same
+/** A conversation whose single assistant turn ran two web searches, the same
  *  shape as the reported per-result spam. */
 function twoSearchTurn(): ConversationManager {
   const cm = new ConversationManager(() => WIDTH);
@@ -69,7 +69,7 @@ describe('merged assistant turns', () => {
 
     expect(text.split('\n').filter((l) => l.includes('assistant')).length).toBe(1);
     expect(text).toContain('2 tools');
-    // The per-result "tool result" headers are gone — each result hangs under
+    // The per-result "tool result" headers are gone, each result hangs under
     // its own call row, which already names the call.
     expect(text).not.toContain('tool result');
   });
@@ -77,7 +77,7 @@ describe('merged assistant turns', () => {
   test('a label every call shares is hoisted to the header exactly once', () => {
     const text = transcript(twoSearchTurn());
     // Both calls are web_search, so the friendly label rides on the header and
-    // appears once — not repeated on both branch rows.
+    // appears once, not repeated on both branch rows.
     expect(text.split('\n').filter((l) => l.includes('Searching the web')).length).toBe(1);
     // With the label hoisted, each branch leads with what distinguishes it.
     expect(text).toContain('library one');
@@ -182,7 +182,7 @@ describe('merged assistant turns', () => {
     // The header occupies exactly one line; the rows it hides add nothing.
     expect(turn.lineCount).toBe(1);
     expect(lines[turn.startLine]).toContain('assistant');
-    // Only the prose follows it — no stray blanks from the hidden rows.
+    // Only the prose follows it, no stray blanks from the hidden rows.
     expect(lines[turn.startLine + 1]).toContain('Searching for both.');
   });
 
@@ -239,7 +239,7 @@ describe('merged assistant turns', () => {
 
     // The merged run's calls are SIBLINGS of each other, so their connectors
     // read ├ ├ └. They attach to the run's head node rather than to their own
-    // (headerless) assistant message — attaching each to its own message would
+    // (headerless) assistant message, attaching each to its own message would
     // make every one of them an only child and render three └ in a row.
     const callConnectors = text.split('\n')
       .filter((l) => /[├└]/.test(l) && !l.includes('line'))
@@ -272,7 +272,7 @@ describe('merged assistant turns', () => {
     // First of two siblings continues the subtree; the last one closes it.
     expect(callRows[0]).toContain('├');
     expect(callRows[1]).toContain('└');
-    // Each settled call carries its status glyph in the BULLET column — the
+    // Each settled call carries its status glyph in the BULLET column, the
     // same column the `● assistant` header above it draws its bullet in, not a
     // separate gutter off to the left of the transcript.
     const bulletCol = treeBranchCol(0);

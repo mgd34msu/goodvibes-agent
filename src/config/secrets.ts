@@ -17,9 +17,9 @@ import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from './surface.ts';
 
 // Host-vs-client split: this SecretsManager is the LOCAL-HOST
-// read path — pinned to GOODVIBES_AGENT_SURFACE_ROOT, it resolves secret VALUES from the
+// read path, pinned to GOODVIBES_AGENT_SURFACE_ROOT, it resolves secret VALUES from the
 // surface store/env for provider auth, unchanged. When the Agent acts as a CLIENT of an
-// adopted external daemon, credential *status* (configured/usable — never bytes) is read
+// adopted external daemon, credential *status* (configured/usable, never bytes) is read
 // over the wire via ./credential-status.ts (`fetchDaemonCredentialAvailability`), which
 // degrades honestly and never fabricates "configured". Only STATUS visibility moves to
 // the daemon path; value resolution stays here, local and env-only for API keys.
@@ -81,7 +81,7 @@ const RAW_LITERAL_HANDLING_INSTALLED = Symbol.for('goodvibes.agent.rawSecretLite
  * those. A password that literally begins `op://` would be handed to a
  * subprocess instead of to the provider, and the provider would be told the
  * credential is unusable. So a value that parses as a NON-`goodvibes://`
- * reference is stored wrapped, and unwrapped on the way back out —
+ * reference is stored wrapped, and unwrapped on the way back out,
  * `goodvibes://secrets/…` is excluded because that IS this product's own
  * pointer form and must keep resolving (`/secrets link` writes exactly that).
  *
@@ -100,7 +100,7 @@ const RAW_LITERAL_HANDLING_INSTALLED = Symbol.for('goodvibes.agent.rawSecretLite
  * one behaviour for every reader. It is applied through the floor's
  * `providerRegistryFactory` callback (see runtime/services.ts), which is the
  * first point at which that instance is in this product's hands AND still runs
- * before the floor's own boot credential refresh reads it — `resolveApiKeys`
+ * before the floor's own boot credential refresh reads it, `resolveApiKeys`
  * calls `secrets.get(...)` inside the synchronous prefix of
  * `refreshProviderCredentials()`, so patching after the factory returns would
  * catch only part of that first sweep.
@@ -108,7 +108,7 @@ const RAW_LITERAL_HANDLING_INSTALLED = Symbol.for('goodvibes.agent.rawSecretLite
  * The SDK option that would retire this: a
  * `secretsManagerFactory?: (input: DaemonSecretsCompositionInput) => SecretsManager`
  * on `ClientRuntimeServicesOptions`, defaulting to `createRuntimeSecretsManager`
- * — the exact shape `providerRegistryFactory` already has for the registry.
+ *, the exact shape `providerRegistryFactory` already has for the registry.
  *
  * Idempotent: installing twice on the same instance is a no-op.
  */
@@ -158,8 +158,8 @@ export function applyRawSecretLiteralHandling<T extends SdkSecretsManager>(manag
  *
  * Still a class because the CLI subcommands, the readiness probes and the
  * suites construct one directly. The composed runtime graph does NOT go
- * through here — it takes the one `createClientRuntimeServices` built and
- * installs the same pair onto it — so the pair has one implementation, shared.
+ * through here, it takes the one `createClientRuntimeServices` built and
+ * installs the same pair onto it, so the pair has one implementation, shared.
  */
 export class SecretsManager extends SdkSecretsManager {
   constructor(options: SecretsManagerOptions) {

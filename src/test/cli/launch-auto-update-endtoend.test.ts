@@ -27,7 +27,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 //     lib/sqlite-vec-<platform>-<arch>/vec0.<suffix> file is verified,
 //     extracted, and swapped in lockstep with the binary;
 //   - the only seam used is UpdateFetchLike, and only to rewrite the GitHub
-//     host to the local server — the redirect-tag resolution, checksum
+//     host to the local server, the redirect-tag resolution, checksum
 //     manifest parsing, sha256 verification, archive extraction, atomic swap,
 //     keep-previous, and respawn are all the production code paths operating
 //     on real bytes.
@@ -145,7 +145,7 @@ function installOldVersion(prefix: string): Install {
   writeFileSync(appPath, oldBinarySource());
   chmodSync(appPath, 0o755);
   // A pre-existing addon from the old install, exactly where the loader
-  // resolves it — the update must swap it in lockstep with the binary.
+  // resolves it, the update must swap it in lockstep with the binary.
   const addonPath = join(dir, 'lib', addonAsset.dirName, addonAsset.fileName);
   mkdirSync(join(addonPath, '..'), { recursive: true });
   writeFileSync(addonPath, OLD_ADDON_BYTES);
@@ -230,7 +230,7 @@ describe.if(appAsset !== null && addonAsset !== null)('launch auto-update — en
     // The parent (old) process reported the update honestly before restarting.
     expect(run.stdout).toContain(`Update available: ${NEW_TAG} (running v${OLD_VERSION}). Downloading and verifying...`);
     expect(run.stdout).toContain(`Updated to ${NEW_TAG}.`);
-    expect(run.stdout).toContain(`auto-update: ${NEW_TAG} installed — restarting onto the new version`);
+    expect(run.stdout).toContain(`auto-update: ${NEW_TAG} installed, restarting onto the new version`);
 
     // The respawned process IS the downloaded payload: it prints the receipt
     // naming both versions, the NEW version banner, and the ORIGINAL argv.
@@ -249,7 +249,7 @@ describe.if(appAsset !== null && addonAsset !== null)('launch auto-update — en
 
     // ── rollback, for real, from the swapped state ──────────────────────────
     // rollbackUpdate is exactly what `/update rollback` invokes; only print is
-    // captured — the renames are the real filesystem operations.
+    // captured, the renames are the real filesystem operations.
     const printed: string[] = [];
     rollbackUpdate({
       execPath: install.appPath,
@@ -265,7 +265,7 @@ describe.if(appAsset !== null && addonAsset !== null)('launch auto-update — en
     expect(readFileSync(`${install.addonPath}${PREVIOUS_FILE_SUFFIX}`, 'utf-8')).toBe(NEW_ADDON_BYTES);
 
     // The restored binary RUNS (auto-update disabled for this launch so the
-    // still-serving release does not immediately re-update it — which also
+    // still-serving release does not immediately re-update it, which also
     // proves the off switch in a real process).
     const restored = await runInstalledBinary(install, ['--after-rollback'], {
       GV_TEST_RELEASES_BASE: base,

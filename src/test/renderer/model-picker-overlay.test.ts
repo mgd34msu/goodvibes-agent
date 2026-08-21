@@ -262,7 +262,6 @@ describe('renderModelPickerOverlay — model mode', () => {
     const picker = makePicker();
     // Simulate missing capabilities
     (picker.models[0] as ModelDefinition & { capabilities: unknown }).capabilities = undefined as unknown as ModelDefinition['capabilities'];
-    // Should not throw
     expect(() => renderModelPickerOverlay(picker, W)).not.toThrow();
   });
 

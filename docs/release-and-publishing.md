@@ -1,12 +1,12 @@
-# Release And Publishing
+# Release and publishing
 
 GoodVibes Agent's current installable version is recorded in `package.json` and `CHANGELOG.md`.
 
-## Package Identity
+## Package identity
 
 - registry package: `@pellux/goodvibes-agent`
 - executable: `goodvibes-agent`
-- connected-host compatibility: checked through public Agent routes; `AGENT_DAEMON_BUILD_FLOOR` (`src/runtime/daemon-build-compatibility.ts`) is `1.28.0` — a breaking change from the daemon/TUI product split, a daemon older than that build is REFUSED AT ADOPTION — the memory spine stays local, the inbound dispatch never binds, and the operator gets a one-time "update the daemon" notice naming both versions, and this floor's value and rationale belong in this repository's CHANGELOG and release notes whenever it is raised, not left to infer
+- connected-host compatibility: checked through public Agent routes; `AGENT_DAEMON_BUILD_FLOOR` (`src/runtime/daemon-build-compatibility.ts`) is `1.28.0`, a breaking change from the daemon/TUI product split. A daemon older than that build is REFUSED AT ADOPTION: the memory spine stays local, the inbound dispatch never binds, and the operator gets a one-time "update the daemon" notice naming both versions. This floor's value and rationale belong in this repository's CHANGELOG and release notes whenever it is raised, not left to infer.
 - runtime: Bun `1.3.10` or newer
 - source language: TypeScript
 - package docs: every Markdown file under `docs/*.md`
@@ -22,7 +22,7 @@ goodvibes-agent --help
 
 Do not add non-Bun install instructions for this product. The package is hosted on the public package registry, but the supported install and smoke path is the normal Bun global command above, followed by `goodvibes-agent` launching the TUI. The package-facing text policy rejects non-Bun Agent install/run snippets, references to other `@pellux/goodvibes-*` packages outside Agent support paths, and versioned Agent package references that drift from `package.json`.
 
-## Required Gates
+## Required gates
 
 The release-quality inventory, `release/release-readiness.json`, is the capability gate for the current release line. It must list every release capability that GoodVibes Agent is expected to cover, including capabilities owned by Agent, the connected host, the companion app, and release operations. A bare `covered` status is not enough: every inventory item must also carry `quality` evidence for capability coverage, direct user access, model access through Agent tools or harness routes, safety/product boundary, and release evidence. Package verification rejects any inventory item that is missing those dimensions or marks them as unknown, todo, gap, unverified, or unproven. The packaged Agent exposes the release evidence bundle through `agent_harness` modes `release_evidence` and `release_evidence_artifact`, and exposes the inventory through `release_readiness` and `release_readiness_item`, so the model can inspect the same operator/audit artifacts without relying on hidden project context.
 
@@ -66,7 +66,7 @@ Shared release metadata verification requires the package build scripts to keep 
 
 ### sqlite-vec native addon release assets
 
-A compiled Agent binary loads the sqlite-vec native addon from `<binary-dir>/lib/sqlite-vec-<os>-<arch>/vec0.<suffix>` (`vec0.so` on Linux, `vec0.dylib` on macOS). Bun cannot embed a native addon inside the compiled binary, so the release lane ships the addon as a separate per-platform asset. Each build matrix leg contributes its target's addon tree, and the GitHub Release job packages one archive per platform — `sqlite-vec-<os>-<arch>.tar.gz` — whose interior layout is exactly `lib/sqlite-vec-<os>-<arch>/vec0.<suffix>`, so it extracts in place next to the binary with no renaming. All four archives are checksummed in `SHA256SUMS.txt` alongside the binaries under the missing-entry-fatal convention: a directly-downloaded binary can restore the semantic vector index by co-locating the matching addon (see the README "Standalone binary and the semantic vector index" section). On macOS the system SQLite that `bun:sqlite` links refuses to load extensions, so the darwin archives ship for parity but the vector index stays unavailable there and memory search degrades to literal matching; this is a platform capability limit, not a packaging defect.
+A compiled Agent binary loads the sqlite-vec native addon from `<binary-dir>/lib/sqlite-vec-<os>-<arch>/vec0.<suffix>` (`vec0.so` on Linux, `vec0.dylib` on macOS). Bun cannot embed a native addon inside the compiled binary, so the release lane ships the addon as a separate per-platform asset. Each build matrix leg contributes its target's addon tree, and the GitHub Release job packages one archive per platform, `sqlite-vec-<os>-<arch>.tar.gz`, whose interior layout is exactly `lib/sqlite-vec-<os>-<arch>/vec0.<suffix>`, so it extracts in place next to the binary with no renaming. All four archives are checksummed in `SHA256SUMS.txt` alongside the binaries under the missing-entry-fatal convention: a directly-downloaded binary can restore the semantic vector index by co-locating the matching addon (see the README "Standalone binary and the semantic vector index" section). On macOS the system SQLite that `bun:sqlite` links refuses to load extensions, so the darwin archives ship for parity but the vector index stays unavailable there and memory search degrades to literal matching; this is a platform capability limit, not a packaging defect.
 
 Shared release metadata verification requires branch CI to run the compiled binary smoke after `bun run build`, and `scripts/post-build-smoke.ts` must keep the default `dist/goodvibes-agent` binary path, optional `--binary` override, isolated temp cwd, `--version` launch, sqlite-vec/`$bunfs` module-resolution leak guards, Agent version-prefix assertion, failure diagnostics, and cleanup.
 
@@ -99,7 +99,7 @@ Also run the package install smoke from a packed artifact. It must prove:
 
 Shared release metadata verification requires the install-check script to keep those packed artifact, Bun global install, installed CLI/status, blocked lifecycle command, PTY launch, required-path, runtime, token-sentinel, and cleanup markers.
 
-## Do Not Ship
+## Do not ship
 
 Do not publish if package-facing docs or install commands refer to another package name, another executable, or Agent-owned connected-host lifecycle.
 
@@ -109,6 +109,6 @@ Do not publish if Agent Knowledge commands can fall back to default knowledge or
 
 Do not ship connected-host binaries from this package. If Agent later gets compiled artifacts, they must use Agent artifact names and remain separate from connected-host ownership.
 
-## Product Rule
+## Product rule
 
 Stable patch releases can include mature terminal foundation code, but package-facing behavior must follow Agent product policy. Follow-up patch releases should continue pruning or reshaping coding-first surfaces while preserving the renderer, input, fullscreen workspace, command registry, and release foundation.

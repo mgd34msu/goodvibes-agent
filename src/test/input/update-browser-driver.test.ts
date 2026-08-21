@@ -20,7 +20,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
  * driver at all: the first pairs a new build with a driver version it was never
  * tested against, and the second silently removes browser control from an
  * install that had it. The driver is a DIRECTORY, so it cannot ride
- * swapFileAtomically and gets its own extract-then-rename swap — these tests
+ * swapFileAtomically and gets its own extract-then-rename swap, these tests
  * pin that it happens, that it is verified first, and that it rolls back with
  * the binary rather than being left behind.
  */

@@ -1,5 +1,5 @@
 /**
- * agent-phone-tool.test.ts — the agent's end of the paired-phone split.
+ * agent-phone-tool.test.ts, the agent's end of the paired-phone split.
  *
  * ── What this file used to pin, and why that could not stay ───────────────
  *
@@ -18,7 +18,7 @@
  * and nothing is re-decided on the way out.
  *
  * That is the assertion with teeth. A regression here would not look like a
- * crash — it would look like the agent quietly answering from a local store
+ * crash, it would look like the agent quietly answering from a local store
  * again, which is exactly what this suite exists to prevent.
  *
  * The refusal-vs-error line is the other half, and it is behavioural: someone
@@ -27,8 +27,8 @@
  * model reads it as something to retry and the person is prompted again for the
  * thing they just declined.
  *
- * The `device.*` settings themselves — which capabilities are offered, how
- * authority is established, how long a capture is retained — belong to the
+ * The `device.*` settings themselves, which capabilities are offered, how
+ * authority is established, how long a capture is retained, belong to the
  * daemon's runtime, and are verified against that runtime in
  * device-settings-behavior.test.ts beside this file.
  */
@@ -240,8 +240,8 @@ describe('a refusal is an answer; an unreachable host is a failure', () => {
 
     // Reporting a capture that did not happen is worse than reporting the
     // failure, so nothing here invents an empty success. The tool refuses at
-    // the first honest wall it meets — with no host it cannot even confirm the
-    // phone exists — so the message names THAT rather than a capture outcome.
+    // the first honest wall it meets, with no host it cannot even confirm the
+    // phone exists, so the message names THAT rather than a capture outcome.
     expect(succeeded(result)).toBe(false);
     expect(String((result as { error?: unknown }).error)).not.toContain('artifact');
 

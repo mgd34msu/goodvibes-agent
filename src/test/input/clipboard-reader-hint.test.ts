@@ -1,6 +1,6 @@
 /**
  * When no clipboard reader is installed, the composer says so and names the
- * package — it does not report an empty clipboard.
+ * package, it does not report an empty clipboard.
  *
  * On Linux an image has to be read out of the system clipboard by a helper
  * program, because the terminal only ever hands this process text. With no

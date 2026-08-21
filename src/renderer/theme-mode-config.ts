@@ -1,13 +1,13 @@
 /**
- * theme-mode-config — the appearance/theme-mode preference surface.
+ * theme-mode-config, the appearance/theme-mode preference surface.
  *
  * The preference lives at the config key `display.themeMode` (auto | dark |
  * light, default auto), stored under the existing SDK `display` section
- * alongside `display.theme` (the color palette — a separate, independent
+ * alongside `display.theme` (the color palette, a separate, independent
  * concept: theme picks the palette, themeMode picks light/dark appearance).
  *
  * `display.themeMode` is a real CONFIG_SCHEMA entry (SDK 2.0.0+); this module
- * no longer carries a synthetic descriptor for it — the settings modal and
+ * no longer carries a synthetic descriptor for it, the settings modal and
  * the agent workspace both resolve it through the normal schema path like
  * every other key.
  *
@@ -16,7 +16,7 @@
  * inlined resolveConfiguredThemeMode / coerceThemeModeSetting /
  * THEME_MODE_CONFIG_KEY / ThemeModeSetting into terminal-bg-probe.ts (so R2
  * could ship the probe before this file existed). Rather than duplicate those
- * (which would let the two copies drift — the exact failure S1 exists to
+ * (which would let the two copies drift, the exact failure S1 exists to
  * prevent), this module RE-EXPORTS them from terminal-bg-probe as the single
  * source. Deliberately free of terminal/probe state so the settings-modal
  * data layer can import it without pulling in the stateful probe class.
@@ -35,7 +35,7 @@ export {
  * Apply a display.themeMode settings change with the honest timing contract:
  * forced dark/light flip the active mode NOW (caller passes its full-repaint
  * hook); auto is only evaluated by the startup probe, so it takes effect on the
- * next launch — the returned message states which happened. Called by the
+ * next launch, the returned message states which happened. Called by the
  * settings-modal onSettingApplied hook (ui-openers).
  */
 export function applyThemeModeSettingChange(

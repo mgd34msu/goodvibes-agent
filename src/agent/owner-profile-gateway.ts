@@ -1,5 +1,5 @@
 /**
- * owner-profile-gateway.ts — how this surface reaches the nine `profile.*`
+ * owner-profile-gateway.ts, how this surface reaches the nine `profile.*`
  * control-plane verbs.
  *
  * The owner profile is one Markdown file at daemon scope and the daemon is its
@@ -7,8 +7,8 @@
  * calls the verbs. This module is the one place that decides which way the call
  * travels, so no tool or CLI command has to know:
  *
- * - When this process carries the handlers itself — the Agent composes a real
- *   gateway method catalog (runtime/services.ts) — the call runs in-process.
+ * - When this process carries the handlers itself, the Agent composes a real
+ *   gateway method catalog (runtime/services.ts), the call runs in-process.
  * - Otherwise the call goes to the connected host over the operator gateway,
  *   the same path `ci`, `principals` and `channel-profiles` already use.
  *
@@ -35,7 +35,7 @@ export interface ProfileGatewayResult {
   readonly ok: boolean;
   /** Raw daemon payload; the caller narrows it (tools/agent-profile-types.ts). */
   readonly data: unknown;
-  /** Present only when `ok` is false. Safe to show him — it never carries a profile value. */
+  /** Present only when `ok` is false. Safe to show him, it never carries a profile value. */
   readonly error?: string;
   /** Which route the call actually took, for honest "where did this answer come from". */
   readonly route: 'in-process' | 'connected-host' | 'unavailable';
@@ -65,7 +65,7 @@ export interface ProfileGatewayOptions {
 /**
  * The nine ids are in the generated operator contract, so `ProfileMethodId`
  * satisfies `OperatorMethodId` by assignment and the call below needs no widening
- * at all — if a verb is ever renamed or dropped, that call stops compiling.
+ * at all, if a verb is ever renamed or dropped, that call stops compiling.
  * `invokeOperatorGatewayMethod` resolves the real HTTP binding from the contract
  * the CONNECTED HOST serves, so an older host that does not know the verb answers
  * 404 and is classified as a route-unavailable failure rather than crashing.

@@ -4,7 +4,7 @@
  * `goodvibes-agent run "..."` called the in-process orchestrator directly, so
  * it stayed local after conversation turns started being routed to the
  * connected daemon. On the installed build the hosted-sessions store stayed
- * empty and daemon-side sessions carried zero messages for run-mode turns —
+ * empty and daemon-side sessions carried zero messages for run-mode turns,
  * the owner's ruling is that ALL LLM turns go through the daemon.
  *
  * These tests drive the real router against a fake daemon that speaks the real
@@ -35,8 +35,8 @@ function envelope(type: string, payload: Record<string, unknown>): string {
 /**
  * A fake connected host: its `/events` stream replays a scripted turn.
  *
- * Deliberately the real wire format — `event:`/`data:` frames carrying
- * serialized envelopes — so the SSE parsing and the frame mapping are both
+ * Deliberately the real wire format, `event:`/`data:` frames carrying
+ * serialized envelopes, so the SSE parsing and the frame mapping are both
  * genuinely exercised rather than stubbed past.
  */
 function fakeDaemonFetch(frames: readonly string[]): typeof fetch {
@@ -181,7 +181,7 @@ describe('a headless run whose turn the daemon ran', () => {
       createRouting: harness.createRouting,
     });
 
-    // The daemon-side session receives the message — an empty hosted session is
+    // The daemon-side session receives the message, an empty hosted session is
     // exactly the symptom this work exists to remove. The prompt rides a steer
     // rather than `initialPrompt` so the turn cannot start before the event
     // stream this surface renders from is open.
@@ -222,7 +222,7 @@ describe('a headless run whose turn the daemon ran', () => {
     expect(payload.ok).toBe(false);
     expect(payload.error).toBe('provider_exhausted');
     expect(payload.stopReason).toBe('provider_exhausted');
-    // The shape is the one it has always been — no field says where it ran.
+    // The shape is the one it has always been, no field says where it ran.
     expect(Object.keys(payload).sort()).toEqual(
       ['error', 'events', 'model', 'ok', 'provider', 'response', 'sessionId', 'stopReason'],
     );

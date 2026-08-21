@@ -1,5 +1,5 @@
 /**
- * PERMANENT REGRESSION GUARD — do not weaken.
+ * PERMANENT REGRESSION GUARD, do not weaken.
  *
  * Sender confidence must stay a display concern. This walks the real source
  * tree and fails if it starts being read anywhere that could turn it into
@@ -8,7 +8,7 @@
  * The check is deliberately a narrow allowlist rather than a clever heuristic:
  * a new file reading `displayedConfidence` has to be added here by hand, which
  * puts a human in front of the question "is this display, or is this becoming
- * authority?" — the exact question that gets skipped otherwise.
+ * authority?", the exact question that gets skipped otherwise.
  *
  * The IMAP/SMTP service and the `Authentication-Results` parser moved to
  * `@pellux/goodvibes-sdk/platform/email`, which carries its own copy of this

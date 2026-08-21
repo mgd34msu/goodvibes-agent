@@ -1,10 +1,10 @@
 /**
- * thinking-overlay.ts — the thinking-indicator overlay + its honest
+ * thinking-overlay.ts, the thinking-indicator overlay + its honest
  * stall clock, extracted from main.ts's render loop.
  *
  * The SDK orchestrator surfaces no lastDeltaAtMs / reconnect signal directly, so
  * ThinkingStallClock derives a per-turn last-delta clock from streaming
- * output-token advances — a real, honest proxy that degrades gracefully with
+ * output-token advances, a real, honest proxy that degrades gracefully with
  * zero new SDK events. buildThinkingOverlay turns that into the honest waiting
  * state (via UIFactory.createThinkingFragment, which consumes the SDK
  * presentation contract's waitingPhrase).
@@ -19,7 +19,7 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
  * Per-turn last-delta clock. tick() seeds at turn start, then pushes the clock
  * forward whenever the streaming output-token count advances; reset() clears it
  * so the next turn re-seeds. Suppresses stall detection while a tool is active
- * (the model isn't producing tokens then — a "Stalled" label would be a false
+ * (the model isn't producing tokens then, a "Stalled" label would be a false
  * positive).
  */
 export class ThinkingStallClock {

@@ -1,5 +1,5 @@
 /**
- * daemon-repair-prompt.ts — the interactive half of the one-touch daemon
+ * daemon-repair-prompt.ts, the interactive half of the one-touch daemon
  * repair: one line at boot, one keypress, and the platform does the rest.
  *
  * The policy, the diagnosis and every effect live in runtime/daemon-repair.ts.
@@ -30,7 +30,7 @@ export interface DaemonRepairPrompt {
   /** True while the offer is on screen awaiting the user's single keypress. */
   readonly pending: () => boolean;
   /**
-   * Consume one keystroke. `y` accepts, EVERY other key declines — default no,
+   * Consume one keystroke. `y` accepts, EVERY other key declines, default no,
    * matching every other boot-time offer in this shell. Returns true when this
    * prompt was the thing waiting, so the caller knows the key was spent.
    */
@@ -68,10 +68,10 @@ export function createDaemonRepairPrompt(options: DaemonRepairPromptOptions): Da
       if (!awaitingAnswer) return false;
       awaitingAnswer = false;
       if (key.toLowerCase().trim() !== 'y') {
-        // A decline changes nothing at all — not the setting, not the service —
+        // A decline changes nothing at all, not the setting, not the service,
         // and is remembered for the rest of the session so it is never re-asked.
         session.decline();
-        systemMessageRouter.high(`[Daemon] Left as it is — nothing was changed. Set ${DAEMON_ENABLED_KEY} to true in settings whenever you want this machine to reach the platform again.`);
+        systemMessageRouter.high(`[Daemon] Left as it is, nothing was changed. Set ${DAEMON_ENABLED_KEY} to true in settings whenever you want this machine to reach the platform again.`);
         render();
         return true;
       }
@@ -82,7 +82,7 @@ export function createDaemonRepairPrompt(options: DaemonRepairPromptOptions): Da
       render();
 
       // Fire-and-forget: this runs inside a keypress handler, and the repair
-      // installs or starts a service and then waits for the daemon to answer —
+      // installs or starts a service and then waits for the daemon to answer,
       // far too long to hold the terminal for. Each outcome lands on the router
       // when it happens, and runDaemonRepair never throws, so the catch below
       // exists only so a defect here can never become an unhandled rejection.

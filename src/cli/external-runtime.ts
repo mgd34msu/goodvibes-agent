@@ -29,7 +29,7 @@ export interface CliExternalRuntimeSnapshot {
 
 function resolveBaseUrl(configManager: Pick<ConfigManager, 'get'>): string {
   // `doctor` prints this string. It used to echo the bind host verbatim, so a
-  // daemon bound to 0.0.0.0 reported `baseUrl: http://0.0.0.0:3421` — an
+  // daemon bound to 0.0.0.0 reported `baseUrl: http://0.0.0.0:3421`, an
   // address the probe below then failed to reach.
   return connectedHostBaseUrl(
     configManager.get('controlPlane.host'),

@@ -50,7 +50,7 @@ describe('Agent memory storage path', () => {
     const { services, workingDir, homeDir } = makeRuntimeServices();
     // The agent opens the ONE canonical cross-surface store under the
     // Agent home (~/.goodvibes/shared/memory.sqlite) rather than a private per-surface
-    // agent/memory.sqlite — a fact learned here must recall in the TUI and vice-versa.
+    // agent/memory.sqlite, a fact learned here must recall in the TUI and vice-versa.
     // The invariant this test guards is unchanged: the store is Agent-home owned, never
     // workspace owned.
     const homeMemoryPath = join(homeDir, '.goodvibes', 'shared', 'memory.sqlite');

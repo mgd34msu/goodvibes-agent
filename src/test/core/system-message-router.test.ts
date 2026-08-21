@@ -27,7 +27,7 @@ function makeTargetResolver(
 }
 
 // ---------------------------------------------------------------------------
-// classifyPriority — tested indirectly through routeAuto
+// classifyPriority, tested indirectly through routeAuto
 // ---------------------------------------------------------------------------
 
 describe('classifyPriority (via routeAuto)', () => {
@@ -185,7 +185,7 @@ describe('routeSystemMessage', () => {
 });
 
 // ---------------------------------------------------------------------------
-// routeAuto — classification
+// routeAuto, classification
 // ---------------------------------------------------------------------------
 
 describe('routeAuto classification', () => {
@@ -276,7 +276,7 @@ describe('SystemMessagesPanel integration', () => {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Noise gate — router integration
+// Noise gate, router integration
 // ---------------------------------------------------------------------------
 
 describe('noise gate', () => {

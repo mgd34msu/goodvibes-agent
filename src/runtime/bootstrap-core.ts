@@ -148,8 +148,8 @@ export async function initializeBootstrapCore(
   // handed a live session-id resolver at construction time. Its value starts as
   // the bootstrap user session id and is advanced to the real runtime session id
   // below (see runtimeSessionIdRef.value = runtime.sessionId). Because the
-  // resolver is consulted at the moment each automatic snapshot fires — not at
-  // subscription time — reading .value through this closure keeps same-launch
+  // resolver is consulted at the moment each automatic snapshot fires, not at
+  // subscription time, reading .value through this closure keeps same-launch
   // checkpoints stamped with whatever session id is current when the turn ends,
   // which is exactly the id the restore/rewind lookup filters on.
   const runtimeSessionIdRef = { value: userSessionId };
@@ -170,7 +170,7 @@ export async function initializeBootstrapCore(
     workingDir,
     homeDirectory,
     // The embedded interactive runtime IS the long-lived composition that owns
-    // the sleep edge — it holds a LOCAL OS inhibitor for keep-awake /
+    // the sleep edge, it holds a LOCAL OS inhibitor for keep-awake /
     // idle-inhibit while the process lives. Opt into the real host power seam
     // here (createRuntimeServices otherwise defaults to the non-spawning
     // unavailable seam). Pinned by power-keep-awake-composition.test.ts.
@@ -179,7 +179,7 @@ export async function initializeBootstrapCore(
   // Daemon-owned settings and credentials leave this process from here on. The
   // routing is installed at the INTERACTIVE boot rather than inside
   // createRuntimeServices, because that factory also runs for CLI subcommands,
-  // readiness probes and unit tests — none of which should change how an
+  // readiness probes and unit tests, none of which should change how an
   // unrelated later write behaves. Cleared by services.dispose().
   installAgentDaemonCredentialsClient(services.daemonCredentialsClient);
   installAgentDaemonConfigClient(services.daemonConfigClient);
@@ -220,9 +220,9 @@ export async function initializeBootstrapCore(
     hookWorkbench,
     memoryStore,
     routeBindings,
-    // The register automation runs on. It is NOT the dispatch path any more —
+    // The register automation runs on. It is NOT the dispatch path any more,
     // inbound continuations reach the loop over services.sessionBroker, the wire
-    // dispatch — but this process still creates its own session record in it so
+    // dispatch, but this process still creates its own session record in it so
     // an automation job targeting "the live session" finds one.
     automationSessionRegister: sharedSessionBroker,
     surfaceRegistry,
@@ -279,7 +279,7 @@ export async function initializeBootstrapCore(
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     // ONE file cache and ONE project index for the process. registerAllTools
     // built its own pair when none was passed, so the tools read one index while
-    // `services.rerootStores` re-rooted a different one on a workspace swap —
+    // `services.rerootStores` re-rooted a different one on a workspace swap,
     // the swap took effect nowhere the file tools could see. Passing the graph's
     // pair makes the instance the tools read the instance the graph owns.
     fileCache: services.fileCache,
@@ -315,7 +315,7 @@ export async function initializeBootstrapCore(
     serviceRegistry: services.serviceRegistry,
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
-    // Same holder instance `services.contextAccountingHolder` exposes — the
+    // Same holder instance `services.contextAccountingHolder` exposes, the
     // context_accounting tool registered here and the bind call bootstrap.ts
     // makes after constructing the Orchestrator (see
     // context-accounting-source.ts) must share ONE holder, otherwise the tool
@@ -323,7 +323,7 @@ export async function initializeBootstrapCore(
     // different instance nothing reads.
     contextAccountingHolder: services.contextAccountingHolder,
     // A local turn reaches the owner's tmux through the same exec tool a hosted
-    // turn does, so the rule is stated here too — see agent-exec-posture.ts.
+    // turn does, so the rule is stated here too, see agent-exec-posture.ts.
     ownerTerminalGuard: AGENT_OWNER_TERMINAL_GUARD,
   });
   registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
@@ -336,7 +336,7 @@ export async function initializeBootstrapCore(
   // resolvePath throws on a section that is not there.
   ensureGoogleConfigDefaults(configManager);
   ensureCalendarConfigDefaults(configManager);
-  // The native Gmail/Calendar route, wired in bootstrap-google-tool.ts — its
+  // The native Gmail/Calendar route, wired in bootstrap-google-tool.ts, its
   // write ports carry an argument long enough to deserve its own file.
   wireAgentGoogleTool(toolRegistry, {
     configManager: configManager as GoogleToolWiringDeps['configManager'],
@@ -403,7 +403,7 @@ export async function initializeBootstrapCore(
   // The conversational-session boundary: platform source is not touched as a
   // means of self-repair in a turn that asked for something else. Installed
   // AFTER the policy guard so it wraps the policy-wrapped execute rather than
-  // the other way round — the boundary question ("did he ask for this at all")
+  // the other way round, the boundary question ("did he ask for this at all")
   // is answered before the read policy is asked what shape the read may take.
   // Reads his own words this turn through the same conversation accessor, which
   // is the only thing that distinguishes self-directed repair from a read he
@@ -413,12 +413,12 @@ export async function initializeBootstrapCore(
   compactRegisteredToolDefinitions(toolRegistry);
   // Captured so the permissionManager-bearing follow-up call below (issued once
   // permissionManager exists, further down this function) can replay every
-  // field — AgentOrchestrator.setDependencies() fully replaces its stored
+  // field, AgentOrchestrator.setDependencies() fully replaces its stored
   // toolDeps rather than merging, so a partial second call would silently drop
   // everything set here.
   const agentOrchestratorToolDeps = {
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
-    // Same instances services.ts wired at construction — setDependencies()
+    // Same instances services.ts wired at construction, setDependencies()
     // fully replaces, so the localhost fetch ask and the announce-once
     // containment receipt must be replayed here or they silently vanish.
     localhostFetchApproval: services.localhostFetchApproval,
@@ -463,7 +463,7 @@ export async function initializeBootstrapCore(
 
   // Fold the agent's legacy per-surface memory into the canonical
   // cross-surface store (id-keyed, idempotent, never deletes the legacy file) and
-  // SURFACE the fold report — migration honesty requires that what moved is visible,
+  // SURFACE the fold report, migration honesty requires that what moved is visible,
   // not silently swallowed. Non-fatal: a fold failure must never block startup.
   try {
     const foldReport = await foldAgentLegacyMemory(
@@ -490,7 +490,7 @@ export async function initializeBootstrapCore(
   }
 
   const renderRequestRef = { value: (): void => {} };
-  // R1: Coalescing render scheduler — collapses N same-microtask requestRender() calls into 1.
+  // R1: Coalescing render scheduler, collapses N same-microtask requestRender() calls into 1.
   // Also enforces a 16ms minimum interval to cap at ~60fps during streaming.
   let renderScheduled = false;
   let lastRenderTime = 0;
@@ -507,7 +507,7 @@ export async function initializeBootstrapCore(
       const elapsed = now - lastRenderTime;
       try {
         if (elapsed < RENDER_INTERVAL_MS) {
-          // Too soon — debounce to the tail of the current 16ms window
+          // Too soon, debounce to the tail of the current 16ms window
           const delay = RENDER_INTERVAL_MS - elapsed;
           setTimeout(() => {
             try {
@@ -532,7 +532,7 @@ export async function initializeBootstrapCore(
   // The graph owns the prompt holder now: the ask seam reads through it, and
   // the seam is part of the composition. The renderer still patches
   // `requestPermission` onto this same object, so nothing about how a prompt is
-  // installed changed — only where the object is declared.
+  // installed changed, only where the object is declared.
   const permissionPromptRef = services.permissionPromptRef as { requestPermission: PermissionRequestHandler };
   void approvalBroker.start();
   void sharedSessionBroker.start();
@@ -558,7 +558,7 @@ export async function initializeBootstrapCore(
   // which (a) adds the user message to the conversation view and (b) fires a real LLM
   // turn whose STREAM_DELTA / TURN_COMPLETED events flow to both TUI and companion SSE.
   //
-  // The fallback (ref not yet set) adds the message to the conversation view only —
+  // The fallback (ref not yet set) adds the message to the conversation view only,
   // this path is unreachable in practice because the event bus is not connected to
   // any live HTTP traffic until after the orchestrator is wired in bootstrap.ts.
   const orchestratorHandleUserInputRef: {
@@ -641,7 +641,7 @@ export async function initializeBootstrapCore(
   // spawned/background agent tool calls (services.agentOrchestrator, set up
   // above with agentOrchestratorToolDeps before permissionManager existed).
   // Without this, the SDK's gateBackgroundToolCall() sees no permissionManager
-  // on context and leaves every background tool call ungated — spawned agents
+  // on context and leaves every background tool call ungated, spawned agents
   // would run with no permission check at all, regardless of permissions.mode
   // or permissions.backgroundAgents. Replays the full toolDeps object because
   // setDependencies() replaces rather than merges.
@@ -669,7 +669,7 @@ export async function initializeBootstrapCore(
   services.hostedSessions.adopt(runtime.sessionId);
   // Offer this session's conversation to the daemon, and answer the questions it
   // asks about it. Without this a rewind touching a session hosted here got the
-  // daemon's own empty registry answering "0 messages to drop" — a confident
+  // daemon's own empty registry answering "0 messages to drop", a confident
   // answer to a question it could not reach. Released at shutdown; a lapsed
   // lease reaches the same end state if this process dies first.
   services.conversationRewindHost.start(runtime.sessionId);
@@ -679,8 +679,8 @@ export async function initializeBootstrapCore(
     //
     // This call named neither `kind` nor `project`, so the broker fell back to
     // its documented defaults for an ungrounded create: `classifySessionOriginKind`
-    // (session-broker-sessions.ts) maps a non-channel surface — this one is
-    // 'service' — to 'tui', and project defaults to 'unknown'. The local mirror
+    // (session-broker-sessions.ts) maps a non-channel surface, this one is
+    // 'service', to 'tui', and project defaults to 'unknown'. The local mirror
     // at ~/.goodvibes/agent/control-plane/sessions.json therefore filed every
     // agent session as kind:"tui" project:"unknown", while the spine
     // registration twenty lines below correctly filed the SAME session as
@@ -689,14 +689,14 @@ export async function initializeBootstrapCore(
     // missed this process's own sessions, and one filtered on kind:"tui" claimed
     // terminal sessions that were never opened.
     //
-    // The default was never wrong for what it knew — it is a fallback for a
+    // The default was never wrong for what it knew, it is a fallback for a
     // caller that says nothing. Saying it is this call site's job.
     kind: 'agent',
     project: workingDir,
     title: 'GoodVibes Agent session',
     // Declares the session permission mode at creation time in the shared
     // metadata bag (SDK 1.6.1 permissions.mode: prompt/allow-all/custom/
-    // plan/accept-edits). Read-only declaration — the permission layer
+    // plan/accept-edits). Read-only declaration, the permission layer
     // itself always reads permissions.mode live off configManager, so this
     // does not change enforcement; it lets cross-session tooling see which
     // mode a session started under without re-deriving it.
@@ -717,7 +717,7 @@ export async function initializeBootstrapCore(
     project: workingDir,
     title: 'GoodVibes Agent session',
   });
-  // Debounced heartbeat off turn activity — coalesced to one wire call per window,
+  // Debounced heartbeat off turn activity, coalesced to one wire call per window,
   // no title, reopen:false. Uses the ref so a resumed session id is followed.
   runtimeUnsubs.push(
     uiServices.events.turns.on('TURN_SUBMITTED', () => services.sessionSpineClient.heartbeat(runtimeSessionIdRef.value)),
@@ -726,7 +726,7 @@ export async function initializeBootstrapCore(
 
   // Producer half of the live mode-metadata refresh. permissions.mode can change
   // mid-session (the Permission mode setting cycles it via configManager), and
-  // the SDK models that as a PERMISSION_MODE_CHANGED wire event — but nothing
+  // the SDK models that as a PERMISSION_MODE_CHANGED wire event, but nothing
   // emitted it, so the runtime store's permission domain (and any surface built
   // off it) stayed frozen at the boot-time value until restart. Bridging the
   // config-key subscription onto the runtime bus makes every mode mutation, from

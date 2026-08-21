@@ -9,7 +9,7 @@ import { activeUiTones, registerThemeRefresh } from './theme.ts';
 // fullscreen workspace surfaces). This is an OPAQUE dark panel: fg/bg roles stay
 // dark in the SDK light tones (only state.* flips), so dark is byte-identical.
 // title / categoryBg / contextBg / controlsBg are agent-local fullscreen values
-// with no shared tone equivalent — kept as-is (opaque dark panel surfaces).
+// with no shared tone equivalent, kept as-is (opaque dark panel surfaces).
 function buildFullscreenPalette(): Record<string, string> {
   const t = activeUiTones();
   return {

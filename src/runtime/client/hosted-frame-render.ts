@@ -1,12 +1,12 @@
 /**
- * hosted-frame-render.ts — turning a daemon-hosted turn's event frames back
+ * hosted-frame-render.ts, turning a daemon-hosted turn's event frames back
  * into the conversation this surface renders.
  *
  * When a turn runs in the daemon, this process never sees a provider response.
  * What it sees is the hosted session's event stream: text deltas, the tool
  * calls the model made, their results, the token usage, and the turn's end.
  * This file is the one place that decides what each of those means to the
- * conversation model — kept apart from the transport so the mapping can be
+ * conversation model, kept apart from the transport so the mapping can be
  * tested by handing it frames rather than by standing up a daemon.
  *
  * ── The frames, and where they come from ──────────────────────────────────
@@ -23,7 +23,7 @@
  * The conversation model holds an assistant message that CARRIES its tool
  * calls, and tool results as separate entries after it. A turn that calls tools
  * therefore has to close the assistant message at the moment the tool batch
- * arrives — otherwise the calls would attach to text that had not been written
+ * arrives, otherwise the calls would attach to text that had not been written
  * when they were made, and the transcript would read out of order.
  *
  * So: deltas accumulate into the streaming block; the first tool call of a
@@ -36,7 +36,7 @@
  * Nothing here invents a value. A frame that arrives without usage produces an
  * assistant message with no usage rather than zeros, and a tool result whose
  * preview the daemon summarized is rendered as that summary rather than as a
- * fabricated full output — the daemon deliberately sends a summary, and
+ * fabricated full output, the daemon deliberately sends a summary, and
  * pretending otherwise would put text in the transcript that no tool returned.
  */
 
@@ -76,7 +76,7 @@ export interface HostedSessionFrame {
 /**
  * How a hosted turn ended, for a caller that has to WAIT for it.
  *
- * An interactive surface never needs this — it renders frames as they arrive
+ * An interactive surface never needs this, it renders frames as they arrive
  * and the person watches. A headless run does: `goodvibes-agent run "..."`
  * has to print one final answer and exit with a code that means something, and
  * a hosted turn emits no local `TURN_COMPLETED` for it to hang that off.
@@ -89,7 +89,7 @@ export interface HostedTurnCompletion {
    */
   readonly status: 'completed' | 'error' | 'cancelled' | 'abandoned';
   /**
-   * The assistant's final text — partial text when the turn did not complete,
+   * The assistant's final text, partial text when the turn did not complete,
    * because what the daemon already produced is still what it produced.
    */
   readonly response: string;
@@ -106,7 +106,7 @@ export interface HostedFrameRenderer {
   /** True once this turn has reached an end frame (completed, error, cancel). */
   isTurnFinished(): boolean;
   /**
-   * Close out a turn whose stream ended without an end frame — a dropped
+   * Close out a turn whose stream ended without an end frame, a dropped
    * connection, a daemon that went away mid-turn. Flushes any streamed text so
    * partial output is kept rather than discarded, and states what happened.
    */
@@ -133,8 +133,8 @@ function readNumber(source: Record<string, unknown> | undefined, key: string): n
 /**
  * Render the daemon's summary of a tool result as the result text.
  *
- * `TOOL_SUCCEEDED` / `TOOL_FAILED` carry a `ToolResultSummary` — kind, byte
- * size, and a short preview — not the tool's full output. That is the daemon's
+ * `TOOL_SUCCEEDED` / `TOOL_FAILED` carry a `ToolResultSummary`, kind, byte
+ * size, and a short preview, not the tool's full output. That is the daemon's
  * deliberate choice, so this states what it has and how much it is a summary
  * of, rather than presenting a 100-character preview as the whole result.
  */
@@ -149,8 +149,8 @@ function describeToolResultSummary(summary: Record<string, unknown> | undefined)
 /**
  * Build a renderer for ONE hosted turn.
  *
- * A renderer is per-turn because its state — the accumulated text, the tool
- * calls seen, the usage — is per-turn. The router makes a new one per submit
+ * A renderer is per-turn because its state, the accumulated text, the tool
+ * calls seen, the usage, is per-turn. The router makes a new one per submit
  * rather than resetting a long-lived one, so a frame arriving late from a turn
  * that already ended cannot mutate the next turn's message.
  */
@@ -172,8 +172,8 @@ export function createHostedFrameRenderer(
   /**
    * The whole turn's assistant text, across every flush.
    *
-   * `accumulated` is reset at each flush — a tool batch closes one message and
-   * starts another — so it is the wrong thing to report as the turn's answer
+   * `accumulated` is reset at each flush, a tool batch closes one message and
+   * starts another, so it is the wrong thing to report as the turn's answer
    * when a turn called tools. This keeps the text a caller would have read.
    */
   let turnText = '';

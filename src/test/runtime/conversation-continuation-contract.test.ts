@@ -4,7 +4,7 @@
  * The shared-session continuation runner (src/runtime/services.ts) used to
  * spawn every follow-up with the write-review-fix-confirm controller
  * attached, so an ordinary message in a session escalated into a review chain
- * — engineer, reviewer, quality gates, and a second agent — when an answer was
+ *, engineer, reviewer, quality gates, and a second agent, when an answer was
  * what was wanted. That decision now comes straight from the SDK's public
  * `continuationChainOptions` (platform/agents/conversation-continuation.ts,
  * public since the 1.21.0 re-pin) rather than a local mirror.

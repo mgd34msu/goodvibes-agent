@@ -12,6 +12,7 @@ import {
   buildAutonomySchedulePrompt,
 } from './autonomy-schedule.ts';
 import {
+  classifyConnectedHostScheduleError,
   resolveAgentConnectedHostConnection,
   ROUTINE_SCHEDULE_LIST_METHOD,
   ROUTINE_SCHEDULE_ROUTE,
@@ -20,6 +21,7 @@ import {
   type RoutineScheduleKind,
   type RoutineScheduleSpec,
 } from './routine-schedule-promotion.ts';
+import { readOptionValue as optionValue } from './schedule-delivery-targets.ts';
 
 type SchedulePatchInput = OperatorMethodInput<'automation.jobs.update'>;
 type SchedulePatchOutput = OperatorMethodOutput<'automation.jobs.update'>;
@@ -97,16 +99,6 @@ export interface ScheduleEditFailure {
 }
 
 export type ScheduleEditResult = ScheduleEditSuccess | ScheduleEditFailure;
-
-function optionValue(args: readonly string[], index: number, inlineValue: string | undefined): {
-  readonly value: string | undefined;
-  readonly nextIndex: number;
-} {
-  if (inlineValue !== undefined) return { value: inlineValue, nextIndex: index };
-  const next = args[index + 1];
-  if (next === undefined || next.startsWith('--')) return { value: undefined, nextIndex: index };
-  return { value: next, nextIndex: index + 1 };
-}
 
 function parseOptionalNumber(raw: string, flag: string): number | string {
   const value = Number(raw);
@@ -405,55 +397,8 @@ export async function enrichScheduleEditPreviewFromConnectedHost(
   }
 }
 
-async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection): Promise<{
-  readonly ok: boolean;
-  readonly status: number;
-  readonly body: unknown;
-}> {
-  try {
-    const response = await fetch(`${connection.baseUrl}/status`, {
-      headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
-    });
-    const text = await response.text();
-    let body: unknown = text;
-    try {
-      body = text.trim() ? JSON.parse(text) as unknown : {};
-    } catch {
-      body = text;
-    }
-    return { ok: response.ok, status: response.status, body };
-  } catch (error) {
-    return { ok: false, status: 0, body: summarizeError(error) };
-  }
-}
-
-async function classifyScheduleEditError(
-  error: unknown,
-  connection: AgentConnectedHostConnection,
-): Promise<ScheduleEditFailure> {
-  const message = summarizeError(error);
-  const lower = message.toLowerCase();
-  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('auth')) {
-    return { ok: false, kind: 'auth_required', error: message, route: SCHEDULE_EDIT_ROUTE, baseUrl: connection.baseUrl };
-  }
-  if (lower.includes('404') || lower.includes('not found')) {
-    const connectedHost = await fetchConnectedHostStatus(connection);
-    if (connectedHost.ok) {
-      return {
-        ok: false,
-        kind: 'connected_host_incompatible',
-        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule edit requirements; automation.jobs.update is unavailable.',
-        route: SCHEDULE_EDIT_ROUTE,
-        baseUrl: connection.baseUrl,
-      };
-    }
-    return { ok: false, kind: 'connected_host_route_unavailable', error: message, route: SCHEDULE_EDIT_ROUTE, baseUrl: connection.baseUrl };
-  }
-  if (lower.includes('fetch') || lower.includes('connect') || lower.includes('econnrefused')) {
-    return { ok: false, kind: 'connected_host_unavailable', error: message, route: SCHEDULE_EDIT_ROUTE, baseUrl: connection.baseUrl };
-  }
-  return { ok: false, kind: 'connected_host_error', error: message, route: SCHEDULE_EDIT_ROUTE, baseUrl: connection.baseUrl };
-}
+const INCOMPATIBLE_MESSAGE =
+  'Connected GoodVibes host compatibility does not satisfy Agent schedule edit requirements; automation.jobs.update is unavailable.';
 
 export async function editConnectedSchedule(
   connection: AgentConnectedHostConnection,
@@ -480,7 +425,10 @@ export async function editConnectedSchedule(
       request: preview.payload,
     };
   } catch (error) {
-    return classifyScheduleEditError(error, connection);
+    return classifyConnectedHostScheduleError(error, connection, {
+      route: SCHEDULE_EDIT_ROUTE,
+      incompatibleMessage: INCOMPATIBLE_MESSAGE,
+    });
   }
 }
 

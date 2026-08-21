@@ -2,7 +2,7 @@
  * Why a list came back empty.
  *
  * The agent asked for channels and got `{"channels": [], "returned": 0,
- * "total": 14, "enabled": 2, "ready": 2}` — zero rows, alongside a count saying
+ * "total": 14, "enabled": 2, "ready": 2}`, zero rows, alongside a count saying
  * fourteen exist and two are ready. Nothing in that response mentioned that a
  * search term had been applied, or how to see the rest, so the agent read it as
  * "there is nothing here" and told its owner it could not send a message.
@@ -45,7 +45,7 @@ function meaningfulFilters(filters: Readonly<Record<string, unknown>>): Readonly
 /**
  * The disclosure for a list result, or null when the result speaks for itself.
  *
- * Produced whenever rows were withheld — always for the zero-returned case that
+ * Produced whenever rows were withheld, always for the zero-returned case that
  * caused the incident, and also for a truncated list, because "here are 20 of
  * 300" read as a complete answer is the same failure in slower motion.
  */
@@ -66,7 +66,7 @@ export function inventoryDisclosure(input: InventoryDisclosureInput): InventoryD
   const extra = input.context && input.context.length > 0 ? ` ${input.context.join(' ')}` : '';
 
   return {
-    note: `${opening} ${cause}${extra} An empty or short result here does not mean the capability is absent — call ${input.listAllRoute} to see everything.`,
+    note: `${opening} ${cause}${extra} An empty or short result here does not mean the capability is absent, call ${input.listAllRoute} to see everything.`,
     appliedFilters: applied,
     listAllRoute: input.listAllRoute,
   };

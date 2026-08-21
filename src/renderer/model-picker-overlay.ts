@@ -151,7 +151,7 @@ export function renderModelPickerOverlay(
     let filterTag = '';
     let filterTagW = 0;
     if (picker.mode === 'model') {
-      // Category filter indicator — model mode only
+      // Category filter indicator, model mode only
       const filterLabels: Record<string, string> = { all: 'All', free: 'Free', paid: 'Paid', subscription: 'Sub' };
       const filterLabel = filterLabels[picker.categoryFilter] ?? 'All';
       filterTag = `[${filterLabel}]`;
@@ -215,7 +215,7 @@ export function renderModelPickerOverlay(
         const model = visibleModels[i];
         const absIdx = scrollOffset + i; // index into filtered[] for selectedIndex comparison
 
-        // Group header — show when group key changes within the visible window
+        // Group header, show when group key changes within the visible window
         // For the first visible item, always check if header is needed
         const groupKey = picker.getModelGroupKey(model);
         if (groupKey !== lastGroupKey) {
@@ -321,7 +321,7 @@ export function renderModelPickerOverlay(
       const providerScrollOffset = Math.max(0, Math.min(picker.scrollOffset, Math.max(0, selectableCount - maxVisible)));
       const providerVisibleEnd = Math.min(selectableCount, providerScrollOffset + maxVisible);
 
-      // Scroll indicator — items above
+      // Scroll indicator, items above
       if (providerScrollOffset > 0) {
         const upHint = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
         putRowText(upHint, layout.margin + 2, contentW, fitDisplay(`${OVERLAY_GLYPHS.moreAbove} ${providerScrollOffset} more above`, contentW), mutedFg, '', false, true);
@@ -374,7 +374,7 @@ export function renderModelPickerOverlay(
         lines.push(row);
       }
 
-      // Scroll indicator — items below
+      // Scroll indicator, items below
       if (providerVisibleEnd < selectableCount) {
         const remaining2 = selectableCount - providerVisibleEnd;
         const downHint = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);

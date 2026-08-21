@@ -70,7 +70,7 @@ describe('buildSetupIncompleteHint — in-progress, ready to chat', () => {
   test('line 1 does not include progress label (dropped to avoid misleading counts)', () => {
     const state = makeState({ readyToChat: true, progressLabel: '2 of 5 ready' });
     const result = buildSetupIncompleteHint(state);
-    // progressLabel is intentionally suppressed — the startup minimal plan's
+    // progressLabel is intentionally suppressed, the startup minimal plan's
     // "N of 2" count understates real progress and misleads the user.
     expect(result!.lines[0]).not.toContain('2 of 5 ready');
     expect(result!.lines[0]).not.toContain('of 5 ready');

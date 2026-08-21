@@ -46,7 +46,7 @@ describe('relay CLI command', () => {
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(output) as { liveVerified: boolean; config: { enabled: boolean }; flag: { id: string } };
     // Config state is honestly reported, but never presented as live relay
-    // registration — that belongs to the daemon holding the relay identity.
+    // registration, that belongs to the daemon holding the relay identity.
     expect(parsed.liveVerified).toBe(false);
     expect(parsed.config.enabled).toBe(true);
     expect(parsed.flag.id).toBe('relay-connect');
@@ -73,7 +73,7 @@ describe('relay CLI command', () => {
   test('the relay-connect feature is present in the SDK feature settings surface', () => {
     // Pin for "relay-connect flows through this fork's features surface": the
     // dissolved feature model derives every gate from FEATURE_SETTINGS, so any
-    // SDK-described feature — including relay-connect — is automatically part
+    // SDK-described feature, including relay-connect, is automatically part
     // of this fork's features surface with no per-feature repo change needed.
     // This test pins that the feature genuinely exists in the linked SDK so a
     // future SDK downgrade or rename would fail loudly here instead of

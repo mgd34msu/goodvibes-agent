@@ -1,5 +1,5 @@
 /**
- * SessionPickerModal — state management for the /sessions picker modal.
+ * SessionPickerModal, state management for the /sessions picker modal.
  *
  * Lists sessions from SessionManager.list(), tracks selected index,
  * and handles load actions.

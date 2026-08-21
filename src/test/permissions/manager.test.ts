@@ -166,7 +166,7 @@ describe('PermissionManager', () => {
   describe('check - permission prompt for non-read tools (autoApprove=false)', () => {
     test('emits permission:request event for write category when autoApprove=false', async () => {
       if (configManager.get('behavior.autoApprove')) {
-        // Skip assertion path — flag is set, no event fires
+        // Skip assertion path, flag is set, no event fires
         const result = await manager.check('write', { path: 'file.txt' });
         expect(result).toBe(true);
         return;

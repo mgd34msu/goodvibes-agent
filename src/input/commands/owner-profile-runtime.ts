@@ -1,11 +1,11 @@
 /**
- * `/owner-profile` — read, trace, correct and delete what the platform knows
+ * `/owner-profile`, read, trace, correct and delete what the platform knows
  * about him, from inside a session.
  *
  * A thin wrapper over the same `handleOwnerProfileCommand` the top-level CLI
  * runs, in the shape `compat-runtime.ts` already uses: parse, build a
  * `CliCommandRuntime`, print the result. One implementation, so the shell and
- * the shell-less binary can never answer differently — which matters more here
+ * the shell-less binary can never answer differently, which matters more here
  * than usual, because "what do you know about me" and "where did you get that"
  * have to mean the same thing wherever he asks them.
  *
@@ -49,7 +49,7 @@ export function registerOwnerProfileRuntimeCommands(registry: CommandRegistry): 
       // Stated rather than defaulted, because it is true of THIS call site for a
       // concrete reason: ctx.print puts the output in the session transcript,
       // which a later turn can compose from. The default is the same answer, so
-      // forgetting this line would be safe — saying it makes the reason legible.
+      // forgetting this line would be safe, saying it makes the reason legible.
       const result = await handleOwnerProfileCommand(runtime, { outputEntersModelContext: true });
       ctx.print(result.output);
     },

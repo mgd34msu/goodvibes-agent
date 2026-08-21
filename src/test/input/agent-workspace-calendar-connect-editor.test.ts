@@ -6,7 +6,7 @@
  * local .ics-backed /calendar command). This editor is the honest promotion
  * of the dead "Calendar workflows" guidance card into a real dispatchable
  * action that adds a LOCAL event through the existing /calendar add command
- * — the generic command-editor dispatch pipeline (build a command string,
+ *, the generic command-editor dispatch pipeline (build a command string,
  * hand it to the shell-owned router), same shape as reminder-schedule.
  */
 import { describe, expect, test } from 'bun:test';

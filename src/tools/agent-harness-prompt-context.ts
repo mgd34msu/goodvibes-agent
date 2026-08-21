@@ -192,7 +192,7 @@ function formatMemoryLine(record: MemoryRecord): string {
 
 function promptMemoryRecords(memory: PromptMemoryApi | undefined): readonly MemoryRecord[] {
   if (!memory) return [];
-  // Bound to one arg — see prompt-context-receipts.ts for why a bare
+  // Bound to one arg, see prompt-context-receipts.ts for why a bare
   // `.filter(isPromptActiveMemory)` leaks the array index in as `now`.
   return memory.getAll().filter((record) => isPromptActiveMemory(record)).sort(memorySort).slice(0, 10);
 }
@@ -240,7 +240,7 @@ function memorySegment(memory: PromptMemoryApi | undefined, includeParameters: b
     // scoring succeeds. Stating the ordering basis here up front keeps the
     // two memory surfaces from reading as contradictory when their orders
     // differ for the same eligible records.
-    note: 'Ordered by stored confidence/recency, not by relevance to the current turn — see context action:"receipt" for per-turn relevance scoring.',
+    note: 'Ordered by stored confidence/recency, not by relevance to the current turn, see context action:"receipt" for per-turn relevance scoring.',
     route: 'memory action:"status"',
     selected: active.map((record) => ({
       id: record.id,
@@ -250,18 +250,18 @@ function memorySegment(memory: PromptMemoryApi | undefined, includeParameters: b
       inspectRoute: `agent_local_registry domain:"memory" action:"get" recordId:"${record.id}"`,
     })),
     suppressed: suppressed.slice(0, 12).map((record) => {
-      // Honest, per-record reason straight from describeMemoryPromptEligibility —
+      // Honest, per-record reason straight from describeMemoryPromptEligibility,
       // the same wording source prompt-context-receipts.ts uses, never a
       // locally invented "not reviewed"/"outside prompt limit" guess. A record here
       // either genuinely failed eligibility, or passed it but was cut by the top-10
-      // prompt slice — those read differently.
+      // prompt slice, those read differently.
       const eligibility = describeMemoryPromptEligibility(record);
       return {
         id: record.id,
         reviewState: record.reviewState,
         confidence: record.confidence,
         reason: eligibility.eligible
-          ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice — budget-limited, not a trust problem`
+          ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice, budget-limited, not a trust problem`
           : eligibility.reason,
         inspectRoute: `agent_local_registry domain:"memory" action:"get" recordId:"${record.id}"`,
       };
@@ -403,7 +403,7 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
   }
 
   const vibe = discoverVibeFiles(shellPaths);
-  // Mirror the runtime — the VIBE prompt is a PROJECTION of persona records,
+  // Mirror the runtime, the VIBE prompt is a PROJECTION of persona records,
   // not a file re-read (discoverVibeFiles stays for the file-discovery receipt below).
   const vibeMemory = promptMemoryApi(context.clients?.agentKnowledgeApi?.memory);
   const vibePrompt = (vibeMemory ? buildVibeProjectionPrompt(vibeMemory) : null) ?? '';

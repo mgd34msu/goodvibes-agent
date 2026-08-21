@@ -1,5 +1,5 @@
 /**
- * remote-conversation.ts — running this surface's own conversation turns inside
+ * remote-conversation.ts, running this surface's own conversation turns inside
  * the connected daemon.
  *
  * ── What this changes ─────────────────────────────────────────────────────
@@ -19,7 +19,7 @@
  *
  * The daemon holds the authoritative transcript: it ran the loop, and its
  * ConversationManager is the one that saw every message. What this surface
- * writes locally is a MIRROR of what the stream delivered — kept, because it is
+ * writes locally is a MIRROR of what the stream delivered, kept, because it is
  * the offline record a person still has when the daemon is not running, and
  * because the existing local persistence path is what makes a session
  * resumable here. It is deliberately not treated as the source of truth: on
@@ -29,7 +29,7 @@
  *
  * Every path that cannot route says so, in one line, in the transcript, naming
  * the reason. A turn that quietly ran somewhere other than where the settings
- * say it should is the failure this contract exists to prevent — the person
+ * say it should is the failure this contract exists to prevent, the person
  * needs to know which machine just read their files. The `promote()` seam in
  * hosted-handoff.ts already established this shape for inbound channel
  * conversations; this is the same contract for the composer.
@@ -45,13 +45,13 @@
  * This router opens a FRESH stream per turn (see `watch`), which is exactly the
  * client shape the daemon's catch-up replay hurts: a stream that claims no
  * position is handed the tail of the previous turn, that turn's
- * `TURN_COMPLETED` included, and the renderer — new, and therefore having never
- * seen that turn run — finishes on it. Every real frame of the turn actually
+ * `TURN_COMPLETED` included, and the renderer, new, and therefore having never
+ * seen that turn run, finishes on it. Every real frame of the turn actually
  * running is then dropped as post-terminal noise, on a turn that has already
  * been billed for.
  *
  * The SDK ships both halves of the answer, but they live on
- * `createEventSourceConnector` — the runtime-event connector, which addresses
+ * `createEventSourceConnector`, the runtime-event connector, which addresses
  * `/api/control-plane/events` and hands typed envelopes to a store. This router
  * addresses one session's own stream and renders it into a conversation, so it
  * opens the raw stream directly and states the same two things itself:
@@ -61,11 +61,11 @@
  *     the next turn's stream opens. The daemon then replays only what this
  *     router has not already been given.
  *  2. TURN IDENTITY. `createTurnLifecycleGate` is the second line, for the
- *     replays position cannot prevent — a daemon that predates the resume, a
+ *     replays position cannot prevent, a daemon that predates the resume, a
  *     position that has aged out of the ring, a frame that genuinely arrives
  *     twice. A terminal frame addressed to a turn this renderer is not
  *     rendering is refused instead of ending the turn that is. A daemon that
- *     sends no `turnId` yet makes the gate inert rather than wrong — no turn id
+ *     sends no `turnId` yet makes the gate inert rather than wrong, no turn id
  *     reads as "not a turn frame", which is accepted.
  */
 
@@ -99,7 +99,7 @@ export type RemoteTurnOutcome =
      *
      * `submit` deliberately resolves as soon as the daemon has the turn, so an
      * interactive composer is not blocked on a whole turn. A headless run needs
-     * the other thing — one final answer and an exit code — and this is where
+     * the other thing, one final answer and an exit code, and this is where
      * it waits, since a hosted turn emits no local turn events for it to watch.
      *
      * Ignoring it is fine and is what the composer does.
@@ -109,7 +109,7 @@ export type RemoteTurnOutcome =
   | {
     readonly routed: false;
     /**
-     * Why the turn is running here instead. Always a complete sentence — it is
+     * Why the turn is running here instead. Always a complete sentence, it is
      * shown to the person, not only logged.
      */
     readonly reason: string;
@@ -130,7 +130,7 @@ export interface RemoteConversationRouterOptions {
   readonly conversation: HostedFrameConversation;
   readonly requestRender: () => void;
   /**
-   * The workspace the hosted session's tools operate in — this surface's own
+   * The workspace the hosted session's tools operate in, this surface's own
    * working directory. Must be absolute; the daemon refuses a relative path
    * rather than resolving it against its own directory, and it is right to.
    */
@@ -142,13 +142,13 @@ export interface RemoteConversationRouterOptions {
    * Every frame this router applies, before it is rendered.
    *
    * For callers that need the raw stream as well as the rendered conversation
-   * — `run --output-format stream-json` re-emits deltas, and counts frames the
+   *, `run --output-format stream-json` re-emits deltas, and counts frames the
    * way the local path counts turn events. Rendering does not depend on it.
    */
   readonly onFrame?: ((frame: HostedSessionFrame) => void) | undefined;
   /**
    * Reconnect policy for the hosted event stream. Defaults to the SDK's, which
-   * retries with backoff — the right behaviour, because the turn is still
+   * retries with backoff, the right behaviour, because the turn is still
    * running on the daemon and a reconnect recovers the rest of it rather than
    * abandoning work that is still happening.
    *
@@ -163,7 +163,7 @@ export interface RemoteTurnContext {
   /**
    * Whether the person attached files to this message. `sessions.hosted.create`
    * carries text only, so a message with attachments runs locally and says so
-   * — dropping a file someone attached would be worse than not routing.
+   *, dropping a file someone attached would be worse than not routing.
    */
   readonly hasAttachments?: boolean | undefined;
 }
@@ -173,7 +173,7 @@ export interface RemoteConversationRouter {
    * Route one submitted message.
    *
    * Resolves when the turn has been HANDED to the daemon and its stream is
-   * open — not when the turn finishes. A routed turn then renders itself
+   * open, not when the turn finishes. A routed turn then renders itself
    * through the frame renderer as frames arrive, exactly as a local turn
    * renders itself as the provider streams.
    *
@@ -183,7 +183,7 @@ export interface RemoteConversationRouter {
   submit(text: string, context?: RemoteTurnContext): Promise<RemoteTurnOutcome>;
   /** The hosted session this conversation is bound to, if any. */
   hostedSessionId(): string | null;
-  /** Stop watching. Leaves the hosted session alone — detaching is separate. */
+  /** Stop watching. Leaves the hosted session alone, detaching is separate. */
   dispose(): void;
 }
 
@@ -194,7 +194,7 @@ interface HostedCreateReply {
 
 /**
  * A 404 or 409 from a steer means the hosted session this surface remembers is
- * gone or no longer accepts work — the daemon restarted, it was killed, its
+ * gone or no longer accepts work, the daemon restarted, it was killed, its
  * retention lapsed. That is recoverable by opening a new one. Anything else
  * (a session cap, a 5xx) is a real refusal and must not trigger a second
  * create; retrying into a cap is how one failure becomes two.
@@ -218,7 +218,7 @@ export function createRemoteConversationRouter(
    * The `id:` of the last frame this router was given, per stream URL, across
    * every stream it has opened. Held here rather than inside `watch` because
    * that is the whole point: the next turn's stream resumes where the closed
-   * one stopped. Keyed by URL — the same key the SDK's connector uses — so a
+   * one stopped. Keyed by URL, the same key the SDK's connector uses, so a
    * router rebound to a different hosted session starts that session's stream
    * from nothing rather than from another session's position.
    */
@@ -253,7 +253,7 @@ export function createRemoteConversationRouter(
       'The connection to the hosting daemon ended before this turn finished'
       + `${error ? `: ${String(error)}` : '.'} `
       + 'Anything above this line is what the daemon had already sent. The turn may still be '
-      + 'running there — reopen this conversation to see how it ended.',
+      + 'running there, reopen this conversation to see how it ended.',
     );
   };
 
@@ -272,7 +272,7 @@ export function createRemoteConversationRouter(
     // The SDK's connector keeps one gate for its whole life, which is right for
     // its consumer: a long-lived store that renders every turn in turn. This
     // router's consumer is a new renderer per turn, and a gate carried across
-    // turns would still be bound to the PREVIOUS one — so a replayed terminal
+    // turns would still be bound to the PREVIOUS one, so a replayed terminal
     // frame for that turn would match the binding and finish a renderer that
     // has not yet seen its own turn start. Starting unbound is what puts the
     // replayed tail under the gate's third rule: a terminal frame for a turn
@@ -295,8 +295,8 @@ export function createRemoteConversationRouter(
           // client half of the same guarantee, so a daemon that has not been
           // updated yet cannot bleed another session into this transcript.
           if (frame.sessionId !== undefined && frame.sessionId !== sessionId) return;
-          // The turn identity lives on the envelope's payload — the same place
-          // the SDK's own connector reads it — and a frame carrying none is
+          // The turn identity lives on the envelope's payload, the same place
+          // the SDK's own connector reads it, and a frame carrying none is
           // never withheld.
           const lifecycle = readTurnLifecycleFrame(frame.sessionId, frame.payload);
           if (lifecycle && !gate.accepts(lifecycle)) {
@@ -331,14 +331,14 @@ export function createRemoteConversationRouter(
         // BOTH endings, deliberately. `onTerminate` fires when reconnection has
         // given up; `onClose` fires when the stream closed cleanly and no
         // reconnect was attempted. Either way the turn has no more frames
-        // coming here, and a caller awaiting its completion — a headless run
-        // choosing an exit code — would otherwise wait forever.
+        // coming here, and a caller awaiting its completion, a headless run
+        // choosing an exit code, would otherwise wait forever.
         onTerminate: ({ error }: { readonly error: unknown }) => endWatch(turnRenderer, error),
         onClose: () => endWatch(turnRenderer, null),
       },
       {
         getAuthToken: () => token,
-        // Null on the first stream of a session — there is nothing to resume
+        // Null on the first stream of a session, there is nothing to resume
         // past, and the daemon's catch-up window is what a client attaching to
         // a session already in flight legitimately wants.
         lastEventId: streamPositions.get(streamUrl) ?? null,
@@ -358,7 +358,7 @@ export function createRemoteConversationRouter(
     // message in.
     //
     // `initialPrompt` starts the turn inside the create call, and the session
-    // id it returns is the only way to address the stream — so a create that
+    // id it returns is the only way to address the stream, so a create that
     // carries the prompt necessarily emits the start of the turn (and, for a
     // fast one, all of it) before anything is listening. Those frames are gone:
     // the stream is live traffic, not a replayable log. That is one round trip
@@ -372,7 +372,7 @@ export function createRemoteConversationRouter(
       });
     } catch (error) {
       return refuse(
-        `the connected host could not open a hosted conversation, so this turn ran here — ${describeConnectedHostVerbError(error)}`,
+        `the connected host could not open a hosted conversation, so this turn ran here, ${describeConnectedHostVerbError(error)}`,
       );
     }
     const id = reply.session?.id;
@@ -391,7 +391,7 @@ export function createRemoteConversationRouter(
       // and re-running locally would run the same message twice, on two
       // machines. Report honestly instead and keep the binding.
       return refuse(
-        `the hosted conversation opened on the connected host, but this surface could not watch its output — `
+        `the hosted conversation opened on the connected host, but this surface could not watch its output, `
         + `${String(error)}. The turn is running there; reopen this conversation to see it.`,
       );
     }
@@ -403,7 +403,7 @@ export function createRemoteConversationRouter(
       hostedId = null;
       return refuse(
         `the connected host opened a hosted conversation but would not take the message into it, `
-        + `so this turn ran here — ${describeConnectedHostVerbError(error)}`,
+        + `so this turn ran here, ${describeConnectedHostVerbError(error)}`,
       );
     }
     return { routed: true, hostedSessionId: id, action, completion: turnRenderer.completion() };
@@ -416,7 +416,7 @@ export function createRemoteConversationRouter(
     if (context?.hasAttachments) {
       return refuse(
         'this turn ran in this process because it carries attachments, and a daemon-hosted '
-        + 'conversation takes text only — routing it would have dropped them.',
+        + 'conversation takes text only, routing it would have dropped them.',
       );
     }
     const connection = options.resolveConnection();
@@ -453,7 +453,7 @@ export function createRemoteConversationRouter(
       if (!isStaleHostedSession(error)) {
         stopWatching();
         return refuse(
-          `the connected host would not take this message into the hosted conversation, so it ran here — ${describeConnectedHostVerbError(error)}`,
+          `the connected host would not take this message into the hosted conversation, so it ran here, ${describeConnectedHostVerbError(error)}`,
         );
       }
       // The remembered session is gone. Open a fresh one and carry the message

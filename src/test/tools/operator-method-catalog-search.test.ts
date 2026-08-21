@@ -5,7 +5,7 @@
  * `{ methods: [], returned: 0, total: 434 }` in a live session, repeatedly, and
  * the model went on to guess method ids from memory. The catalog was matching
  * the caller's whole phrase as one contiguous substring against a haystack that
- * held a collapsed label and several hundred words of harness boilerplate — but
+ * held a collapsed label and several hundred words of harness boilerplate, but
  * not the contract's own description, and not one plain word anybody would use
  * for a family of methods.
  *
@@ -95,7 +95,7 @@ describe('operator method catalog — plain-word search', () => {
 
     expect(result.returned).toBe(0);
     expect(result.methods).toEqual([]);
-    // The catalog's own size, not the match count — an empty page that also
+    // The catalog's own size, not the match count, an empty page that also
     // says total:0 is what got read as "this platform cannot do that".
     expect(result.total).toBeGreaterThan(400);
     expect(result.note).toContain('No methods matched');
@@ -107,7 +107,7 @@ describe('operator method catalog — plain-word search', () => {
   test('an empty query matches everything, and a page cut short by the default limit says so', () => {
     const result = page({});
     // The default page size is 200; the catalog is larger. The page must not
-    // read as the complete catalog — that is the failure the envelope exists
+    // read as the complete catalog, that is the failure the envelope exists
     // for, and it is why `total` is the catalog's size rather than the match
     // count.
     expect(result.returned).toBe(200);

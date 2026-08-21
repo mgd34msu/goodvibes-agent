@@ -4,7 +4,7 @@
  * The owner's ruling is that this surface should be passing its LLM turns
  * through the connected daemon. These tests cover the decision that implements
  * it: which verb a submission becomes, what happens when the daemon will not
- * take it, and — the part that must never regress — that a turn which ends up
+ * take it, and, the part that must never regress, that a turn which ends up
  * running locally SAYS so, naming the reason.
  */
 
@@ -21,7 +21,7 @@ import type { HostedFrameConversation } from '../../runtime/client/hosted-frame-
 const HOSTED_ID = 'hosted-1111';
 const LIVE_HOST: ConnectedHostResolution = { baseUrl: 'http://127.0.0.1:3421', token: 'operator-token' };
 
-/** A conversation that ignores everything — these tests are about routing. */
+/** A conversation that ignores everything, these tests are about routing. */
 function inertConversation(): HostedFrameConversation {
   return {
     addAssistantMessage: () => {},

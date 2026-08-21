@@ -72,7 +72,7 @@ describe('the capability block in context', () => {
 
   /**
    * The behavioural rule, with teeth. The agent must not answer "I can't do X"
-   * on the strength of an empty inventory — that is exactly what it did.
+   * on the strength of an empty inventory, that is exactly what it did.
    */
   test('the claim rule is always present, whatever the index says', () => {
     for (const candidate of [
@@ -113,7 +113,7 @@ describe('the capability block in context', () => {
   test('a shortened group says it was shortened', () => {
     // Compactness is bought by cutting the list, and the rule in the same block
     // tells the agent to trust this summary. A silent cut would therefore turn a
-    // present capability into an apparent absence — the one failure this whole
+    // present capability into an apparent absence, the one failure this whole
     // block exists to prevent.
     const many = Array.from({ length: 40 }, (_, index) => capability({ id: `cap.${String(index)}`, title: `Capability ${String(index)}` }));
     const prompt = buildCapabilitySummaryPrompt(report({ capabilities: many, ready: many.map((entry) => entry.id) }));

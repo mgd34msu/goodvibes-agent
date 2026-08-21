@@ -22,10 +22,10 @@ import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pell
 import { createArchivableFleetRegistry } from '@pellux/goodvibes-terminal-shell';
 import { createSessionConversationRewindPort } from './conversation-rewind-port.ts';
 // ── The client seams ───────────────────────────────────────────────────────
-// The policy for every boundary this process crosses — raising an approval,
+// The policy for every boundary this process crosses, raising an approval,
 // writing a daemon-owned setting, storing a credential, receiving inbound
 // session work, answering a conversation-rewind question, reaching a paired
-// phone — is the platform's, taken whole. Each takes one thing: the
+// phone, is the platform's, taken whole. Each takes one thing: the
 // DaemonVerbCaller this product builds in client/daemon-verbs.ts, where
 // resolving WHICH host this agent trusts stays product-side.
 import {
@@ -63,7 +63,7 @@ import { installAgentDaemonCredentialsClient } from '../config/daemon-credential
 import { installAgentDaemonConfigClient } from '../config/daemon-config-routing.ts';
 import type { LocalPermissionPrompt } from '@pellux/goodvibes-sdk/platform/runtime/client';
 // Not re-exported by @pellux/goodvibes-terminal-shell (only the gateway-verb
-// composition and the registry factory are) — reached directly per the SDK
+// composition and the registry factory are), reached directly per the SDK
 // adoption convention of going straight to the platform package for whatever
 // terminal-shell does not already wrap, rather than hand-rolling the bridge.
 import { attachFleetEmitBridge } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
@@ -86,7 +86,7 @@ import {
 // The shared free function both compositions build the local remembered-approval
 // store through (platform/runtime/permissions/permission-composition.ts, public
 // via the runtime bootstrap namespace). Same path, same background init, one
-// implementation — see the userPermissionRuleStore construction below for why a
+// implementation, see the userPermissionRuleStore construction below for why a
 // surface keeping its own remembered approvals is the client-shaped thing to do.
 import { bootstrap as runtimeComposition } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
@@ -126,7 +126,7 @@ import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore, resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
-// Daemon-side idle+schedule memory consolidation driver — the SAME class the
+// Daemon-side idle+schedule memory consolidation driver, the SAME class the
 // SDK's own RuntimeServices composition constructs (it superseded this repo's
 // retired turn-settled local wiring), consumed from the public platform/state
 // barrel (re-exported there since sdk a03bf218).
@@ -237,8 +237,8 @@ type WorktreeRegistry = RuntimeShell.WorktreeRegistry;
 type SdkRuntimeServices = RuntimeBootstrap.RuntimeServices;
 type AssertTrue<T extends true> = T;
 // Compile-pin: this graph must satisfy the CLIENT composition shape. That is the
-// contract a surface product owes now — `ClientRuntimeServices` is what a turn
-// needs in-process — and pinning it here is what stops a future edit from
+// contract a surface product owes now, `ClientRuntimeServices` is what a turn
+// needs in-process, and pinning it here is what stops a future edit from
 // quietly re-growing a member back into daemon-grade furniture. It is checked
 // against the full client shape (not `ClientRuntimeServicesFromHost`) precisely
 // because this graph, unlike a daemon's, DOES carry the client-only members:
@@ -313,7 +313,7 @@ function createDisabledAgentWrfcWorktreeOps(): AgentWrfcWorktreeOps {
  * An alias for the SDK's own service type rather than a locally-declared shape.
  * It was declared locally while the SDK's composition was internal; now that
  * createVoiceSetupService is exported, a separate declaration could only drift
- * from what is actually constructed — and the wake trio it grew (wakeStatus,
+ * from what is actually constructed, and the wake trio it grew (wakeStatus,
  * wakeProvision, wakeModelChunk) is exactly the kind of addition a hand-written
  * mirror silently misses until the gateway registration stops typechecking.
  */
@@ -333,7 +333,7 @@ export type AgentMemoryDiagnostics = Pick<MemoryGovernor, 'snapshot'>;
 export type ModelDiscoveryMode = 'refresh' | 'skip';
 
 /**
- * The default is `'refresh'` — absent means refresh, which is what every
+ * The default is `'refresh'`, absent means refresh, which is what every
  * composition did before the option existed. Exported so the decision can be
  * driven directly rather than inferred from the source text of its call site.
  */
@@ -342,7 +342,7 @@ export function shouldRefreshModels(mode: ModelDiscoveryMode | undefined): boole
 }
 
 /**
- * How the client floor builds this product's provider registry — the two
+ * How the client floor builds this product's provider registry, the two
  * things that are true of it and of no default composition, in one named
  * place rather than two side effects in a lambda.
  *
@@ -365,8 +365,8 @@ export function shouldRefreshModels(mode: ModelDiscoveryMode | undefined): boole
 function buildAgentProviderRegistry(options: ProviderRegistryConstructionOptions): ProviderRegistry {
   // The registry's own option bag narrows the credential store to the two
   // methods the registry itself calls. The OBJECT is the floor's full
-  // `SecretsManager` — `createProviderStack` passes its own field straight
-  // through — and the pair has to go on the whole thing, so the widening is
+  // `SecretsManager`, `createProviderStack` passes its own field straight
+  // through, and the pair has to go on the whole thing, so the widening is
   // stated here.
   applyRawSecretLiteralHandling(options.secretsManager as SecretsManager);
   return createLaunchTolerantProviderRegistry(options);
@@ -384,7 +384,7 @@ export interface RuntimeServicesOptions {
    * WorkspaceCheckpointManager can stamp automatic (and defaulted explicit)
    * checkpoints with it. Without this, same-launch checkpoints are written with
    * an undefined session id and the session-scoped restore/rewind lookup filters
-   * them out — so a checkpoint made this launch could not be activated until a
+   * them out, so a checkpoint made this launch could not be activated until a
    * restart. Consulted live at each event, so a resolver reading a mutable
    * session-id ref reflects the current session without re-wiring.
    */
@@ -396,7 +396,7 @@ export interface RuntimeServicesOptions {
    * SDK's non-spawning "unavailable" seam so a test-constructed runtime never
    * spawns systemd-inhibit inhibitors or a dbus-monitor sleep-edge watcher.
    * Only the real long-lived composition that owns the sleep edge (the embedded
-   * interactive runtime — see bootstrap-core.ts) passes createHostPowerSeam()
+   * interactive runtime, see bootstrap-core.ts) passes createHostPowerSeam()
    * to opt into live OS keep-awake / idle-inhibit.
    */
   readonly powerSeam?: Parameters<typeof wireRuntimePower>[0]['seam'];
@@ -432,7 +432,7 @@ export interface RuntimeServicesOptions {
  * - `sessionBroker` is the inbound-DISPATCH seam, not a persisting register.
  *   Work that arrives for a session this process hosts reaches the loop over
  *   `sessions.inputs.list` on the adopted daemon.
- * - `userPermissionRuleStore` is `UserPermissionRuleAccess` — read the rules
+ * - `userPermissionRuleStore` is `UserPermissionRuleAccess`, read the rules
  *   this surface remembered, add one. The canonical store and its
  *   `permissions.rules.*` verbs are the daemon's.
  * - `pairingTokens` is absent entirely. Minting, checking and revoking a
@@ -446,7 +446,7 @@ export interface RuntimeServicesOptions {
 export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker' | 'userPermissionRuleStore' | 'pairingTokens'> {
   readonly workingDirectory: string;
   readonly homeDirectory: string;
-  /** This product's storage root — every per-product path derives from it. */
+  /** This product's storage root, every per-product path derives from it. */
   readonly surfaceRoot: string;
   /**
    * The declare-once session-storage handle (platform/runtime/session-surface.ts),
@@ -482,14 +482,14 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * holds, and the honest reason when the daemon's record could not be read.
    *
    * The broker above is not the whole list and must not be rendered as though
-   * it were — an ask raised here is recorded on the daemon, so a panel fed from
+   * it were, an ask raised here is recorded on the daemon, so a panel fed from
    * the broker alone shows "nothing pending" while three asks wait.
    * See client/approvals-view.ts.
    */
   readonly approvalsView: ApprovalsView;
   /**
    * Localhost dev-server fetch approval (ask once, persist
-   * fetch.allowLocalhost for the project) — same instance wired into the
+   * fetch.allowLocalhost for the project), same instance wired into the
    * orchestrator's tool deps; bootstrap-core must replay it there.
    */
   readonly localhostFetchApproval: LocalhostFetchApproval;
@@ -499,13 +499,13 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    */
   readonly featureAnnouncementStore: FeatureAnnouncementStore;
   /**
-   * First-contained-exec-run announcer — same instance wired into the
+   * First-contained-exec-run announcer, same instance wired into the
    * orchestrator's tool deps; bootstrap-core must replay it there.
    */
   readonly onSandboxedRun: () => void;
   /**
    * The inbound-dispatch seam. Named `sessionBroker` because that is the name a
-   * composition already carries — the NAME is shared so the two graphs stay
+   * composition already carries, the NAME is shared so the two graphs stay
    * interchangeable; the TYPE is the client one. Bind a continuation runner
    * onto it, activate it with an adopted daemon's session inputs, and work
    * queued for a session this process hosts reaches the loop.
@@ -516,11 +516,11 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * consumer: `AutomationManager`, which takes a concrete `SharedSessionBroker`
    * and drives seven of its methods to run a job. Automation is not in this
    * round's scope, so the register it needs is not either. Nothing dispatches
-   * through it — see {@link sessionBroker} for where continuations arrive.
+   * through it, see {@link sessionBroker} for where continuations arrive.
    */
   readonly automationSessionRegister: SharedSessionBroker;
   /**
-   * Durable rules this surface remembered for its OWN asks — the client
+   * Durable rules this surface remembered for its OWN asks, the client
    * interface, not the daemon's concrete store.
    */
   readonly userPermissionRuleStore: UserPermissionRuleAccess;
@@ -529,10 +529,10 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * that still take it whole: `startHostServices` (adopt-only discovery),
    * `createRuntimeFoundationClients`, and the observability read models.
    *
-   * It supplies exactly the three members this graph narrows or withholds — the
+   * It supplies exactly the three members this graph narrows or withholds, the
    * session register for the dispatch seam, the concrete rule store for the
    * access interface, and a surface-scoped pairing-token manager for a member
-   * only a listening daemon has a use for — and nothing else. It is a named
+   * only a listening daemon has a use for, and nothing else. It is a named
    * function rather than a cast so every substitution is greppable and so a
    * FOURTH cannot be smuggled past it: adding one makes this stop compiling.
    *
@@ -575,7 +575,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   readonly daemonVerbs: DaemonVerbCaller;
   /**
    * The connected host's address and token, or the honest reason there is
-   * none — the SAME resolution {@link daemonVerbs} uses.
+   * none, the SAME resolution {@link daemonVerbs} uses.
    *
    * For the seams that need a long-lived stream rather than a call (the
    * approvals update stream, a hosted conversation's event stream). Sharing
@@ -613,7 +613,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * whatever the daemon delivered into {@link daemonReceiptFeed}. A current
    * daemon delivers its one-shot honesty receipts only to a consuming read (a
    * plain liveness /status read is receipt-neutral), so bootstrap invokes this
-   * exactly once per attach — see the memory-spine adoption reconciler's
+   * exactly once per attach, see the memory-spine adoption reconciler's
    * `onAttach`. Best-effort: it never throws and yields nothing on failure.
    */
   readonly consumeDaemonReceipts: () => Promise<void>;
@@ -623,7 +623,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * Reads `/status` for the daemon's version and judges it against this
    * product's build floor. False means the daemon is too old to serve what this
    * build depends on, and the adoption reconciler leaves the memory spine local
-   * and the inbound dispatch unbound — the same state as no daemon at all — plus
+   * and the inbound dispatch unbound, the same state as no daemon at all, plus
    * one notice naming both versions.
    *
    * True when nothing could be read. An unreachable or truncated `/status` is
@@ -634,7 +634,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   readonly mayAdoptDaemonBuild: () => Promise<boolean>;
   /**
    * Local idle-time memory-consolidation run receipts, one honest one-line
-   * summary per run with something to report — rendered through the SAME
+   * summary per run with something to report, rendered through the SAME
    * attach-time-notice idiom as {@link daemonReceiptFeed} (buffered until a
    * render sink attaches, delivered exactly once), but on its own feed so a
    * local consolidation run is never mislabeled "[Connected host]".
@@ -668,7 +668,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * express its memory op through the five wire-covered methods (add/honestSearch/
    * get/updateReview/delete) should route through THIS client, never `memoryRegistry`
    * directly, so it automatically stops touching the local store file the moment a
-   * daemon is adopted (the single-writer invariant — see memory-spine/client.ts).
+   * daemon is adopted (the single-writer invariant, see memory-spine/client.ts).
    */
   readonly memorySpineClient: MemorySpineClient;
   /** The wire transport handed to `memorySpineClient.activate()` on daemon adoption; exposed so bootstrap can activate/reuse it without rebuilding the connection resolver. */
@@ -695,7 +695,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   readonly voiceSetup: AgentVoiceSetupService;
   /**
    * SDK-owned memory governance, composed here exactly as the SDK's own
-   * daemon composition does (constructed and STARTED by default — it is a
+   * daemon composition does (constructed and STARTED by default, it is a
    * safety feature): samples RSS/heap, sheds registered caches by tier,
    * pauses deferrable background jobs, and trips on a genuine leak before
    * the OS OOM-kills the process. Serves ops.memory.get and /health memory.
@@ -759,7 +759,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * Restated from the SDK interface because ownership differs here: this fork
    * composes no DaemonServer of its own, so nothing else will ever call this.
    * Every path that builds a graph owns taking it back down. Best-effort, total
-   * and idempotent — an owner that throws is logged and the rest still come down.
+   * and idempotent, an owner that throws is logged and the rest still come down.
    */
   dispose(): void;
   readonly integrationHelpers: IntegrationHelperService;
@@ -775,7 +775,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
 
 /**
  * One honest one-line summary of a consolidation run, or null for a run that
- * genuinely did nothing (nothing merged, archived, decayed, or proposed) —
+ * genuinely did nothing (nothing merged, archived, decayed, or proposed),
  * a quiet no-op run should not interrupt the user with an empty notice.
  */
 export function describeMemoryConsolidationReceipt(receipt: MemoryConsolidationRunReceipt): string | null {
@@ -801,7 +801,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const featureFlags = options.featureFlags ?? createFeatureFlagManager();
   if (options.featureFlags === undefined) {
     // Gate states derive from domain settings keys; the bridge keeps live
-    // config.set changes flowing. Wired only for a manager this call owns —
+    // config.set changes flowing. Wired only for a manager this call owns,
     // an injected manager (bootstrap-core's) is the caller's to seed/bridge.
     featureFlags.loadFromConfig({ flags: deriveFeatureStates(configManager) });
     bindFeatureSettingsBridge(configManager, featureFlags);
@@ -813,7 +813,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // which is the one thing that ever writes to it. Two model tools read it:
   // `createOccasionsGatewayInvoke` and `createProfileGatewayInvoke` probe
   // `catalog.hasHandler(methodId)` and, finding nothing, dispatch to the daemon
-  // instead — so `occasions.*` and `profile.*` are answered by the process that
+  // instead, so `occasions.*` and `profile.*` are answered by the process that
   // owns the owner-profile document, and a plugin that registers a verb of its
   // own is still picked up by the same probe.
   //
@@ -856,11 +856,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     sessionId: () => options.resolveSessionId?.({}),
   });
   // Inbound continuation dispatch, over the wire instead of over a register this
-  // process holds. Inert until `activate` — an agent with no adopted daemon holds
+  // process holds. Inert until `activate`, an agent with no adopted daemon holds
   // its bound runner and dispatches nothing, which is the honest offline posture.
   // The agent register this dispatch reads finished runs from. It is built by
   // the client floor below, after this line, so the seam is late-bound rather
-  // than reordered — the floor takes `sessionDispatch` as an option, so the two
+  // than reordered, the floor takes `sessionDispatch` as an option, so the two
   // cannot both be constructed first.
   let dispatchAgentStatus: ((agentId: string) => AgentCompletionRecordView | null) | null = null;
   const sessionDispatch: WireSessionDispatch = createWireSessionDispatch({
@@ -880,7 +880,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     verbs: daemonVerbs,
     isEnabled: () => configManager.get('hostedSessions.promoteInboundConversations') === true,
     // The workspace a promoted conversation's tools operate in is the one this
-    // process is working in — the same root its local spawn would have used.
+    // process is working in, the same root its local spawn would have used.
     workspaceRoot: () => workingDirectory,
     // Stable for the life of the process and legible in `attachedClients`, so
     // an owner listing hosted sessions can see which surface handed each one over.
@@ -894,25 +894,25 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // rather than a second time here: the credential/config/service stores, the
   // model stack, the agent graph, hooks, plugins, MCP, permissions as a client,
   // the file-tool caches, and the session/orchestration stores. What follows
-  // this call is what the AGENT genuinely has on top of a surface — automation,
+  // this call is what the AGENT genuinely has on top of a surface, automation,
   // channels and delivery, watchers and triggers, the two knowledge stores and
   // the home graph, voice and media, checkpoints, the orchestration engine, the
-  // fleet registry, the memory governor — all of it built over these instances.
+  // fleet registry, the memory governor, all of it built over these instances.
   //
   // The three named options are the floor's own seams for the three places this
   // product's posture differs from the default, each spelled out rather than
   // re-derived by rebuilding the piece:
   //
-  //  • providerRegistryFactory — launch tolerance. This product must reach a
+  //  • providerRegistryFactory, launch tolerance. This product must reach a
   //    first frame with broken or absent provider credentials; the default
   //    `new ProviderRegistry` throws on one. (The callback also gives this
-  //    product's raw-literal handling to the credential store the floor built —
+  //    product's raw-literal handling to the credential store the floor built,
   //    see buildAgentProviderRegistry.)
-  //  • modelDiscovery — the unawaited discovery write outlives a short-lived
+  //  • modelDiscovery, the unawaited discovery write outlives a short-lived
   //    composition (a suite against a temp workspace, a one-shot subcommand),
   //    so callers that will not outlive it say `skip`. Same rule
   //    `shouldRefreshModels` has always applied, now spoken to the floor.
-  //  • hookAgentManager: 'withhold' — a `type: 'agent'` hook here answers
+  //  • hookAgentManager: 'withhold', a `type: 'agent'` hook here answers
   //    "agent hook runner is not configured in this runtime" and spawns
   //    nothing. The omission is the feature (pinned by
   //    src/test/runtime/bootstrap-services.test.ts); naming it as an option is
@@ -924,7 +924,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // their own names below); `surface` (a declared `SessionSurface`, which the
   // floor takes as a bare surfaceRoot); and the approval-derived handlers plus
   // the feature-announcement store, which the floor builds internally and does
-  // not expose, so this composition keeps its own — they are graph members here
+  // not expose, so this composition keeps its own, they are graph members here
   // (`localhostFetchApproval`, `onSandboxedRun`, `featureAnnouncementStore`)
   // that other code reads by name.
   const clientFloor = createClientRuntimeServices({
@@ -943,7 +943,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // One live agent per home. This product is a singleton: one agent per
     // machine, holding one `.goodvibes/agent/` tree with one session store,
     // one state file and one transcript. A second copy booted onto the same
-    // home — a fork out of a turn is how it happened — gave that tree two
+    // home, a fork out of a turn is how it happened, gave that tree two
     // writers, which is what tore a temp file and left a session marked
     // "active" by a process that no longer existed. With `claim`, the second
     // boot stops at the claim and says which pid holds the home instead of
@@ -1008,7 +1008,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // NOT installed here. The two settings-routing clients are process-wide (five
   // settings writers reach them with no graph in scope), and this factory is
   // called by unit tests, one-shot CLI subcommands and readiness probes as well
-  // as by the real boot — so installing here would let any of them change how a
+  // as by the real boot, so installing here would let any of them change how a
   // later, unrelated write behaves, silently, for the rest of the process.
   // The interactive bootstrap installs them (see bootstrap-core.ts) and
   // `dispose()` below clears them.
@@ -1021,9 +1021,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configPath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'keybindings.json'),
   });
   // featureFlags is REQUIRED here in practice, even though the SDK types it
-  // optional. `isFeatureGateEnabled(null, ...)` is permissive by design — a
+  // optional. `isFeatureGateEnabled(null, ...)` is permissive by design, a
   // narrow embed with no manager wired gets the capability rather than a silent
-  // off — so omitting it did not disable route binding. It did something worse:
+  // off, so omitting it did not disable route binding. It did something worse:
   // it made `integrations.routeBinding` configure nothing at all. The setting
   // rendered, accepted a write, reported success, and the manager went on
   // resolving bindings either way, which is the exact shape of the defect the
@@ -1033,7 +1033,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   //
   // Threading it preserves current effective behaviour rather than changing it:
   // the config default is true (the SDK's schema-domain-features.ts), the flag's
-  // own defaultState is 'enabled', and the flag declares no notOperable record —
+  // own defaultState is 'enabled', and the flag declares no notOperable record,
   // so with nothing configured the gate reads exactly as it did before, and the
   // difference is only that turning it OFF now turns it off.
   const routeBindings = new RouteBindingManager({
@@ -1052,13 +1052,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const profileManager = new ProfileManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'profiles'));
   const bookmarkManager = new BookmarkManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'bookmarks'));
   // featureFlags is REQUIRED here in practice, even though the SDK types it
-  // optional. isFeatureGateEnabled(null, ...) is permissive by design — a
+  // optional. isFeatureGateEnabled(null, ...) is permissive by design, a
   // narrow embed with no manager wired gets the capability rather than a
-  // silent off — so omitting it did not disable the watcher framework when
+  // silent off, so omitting it did not disable the watcher framework when
   // watchers.enabled is turned off; it made the setting configure nothing.
   // Threading it preserves current effective behaviour rather than changing
   // it: watchers.enabled defaults true, the watcher-framework flag's own
-  // defaultState is 'enabled', and the flag declares no notOperable record —
+  // defaultState is 'enabled', and the flag declares no notOperable record,
   // so with nothing configured the gate reads exactly as before, and the
   // difference is only that turning it OFF now turns it off. The TUI has
   // always threaded it the same way.
@@ -1137,11 +1137,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // listens. This one composes no server, so a manager here would hold a
   // snapshot of the daemon's pairing file that nothing reads and nothing keeps
   // current. Phones and companion clients reach this Agent's device tools
-  // through `devicesClient` below, over the daemon's verbs — never through a
+  // through `devicesClient` below, over the daemon's verbs, never through a
   // token this process holds.
   //
   // The SDK's DAEMON-GRADE shape still names the member, because a daemon has
-  // one, so `asDaemonGradeView()` supplies it — scoped to THIS surface's own
+  // one, so `asDaemonGradeView()` supplies it, scoped to THIS surface's own
   // control-plane directory so it can never read or write the daemon's file,
   // and built lazily so nothing exists unless one of those three SDK entry
   // points someday asks. None of them dereferences it today.
@@ -1154,9 +1154,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // AGENT-LOCAL DUTY: the register this product's automation runs its jobs on.
   //
   // `AutomationManager` takes a concrete `SharedSessionBroker` and drives seven
-  // of its methods to run a job — ensureSession, findPreferredSession,
+  // of its methods to run a job, ensureSession, findPreferredSession,
   // submitMessage, bindAgent, completeAgent, appendSystemMessage, start
-  // (platform/automation/manager-runtime-execution.ts) — and bootstrap-core
+  // (platform/automation/manager-runtime-execution.ts), and bootstrap-core
   // registers this process's own live session in it. It is named for that
   // rather than for the wider word "sessions".
   //
@@ -1178,11 +1178,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     conversationGateConfig: configManager,
   });
   // The SDK's extracted session-spine core, consumed via this surface's
-  // own REST transport adapter (session-spine-rest-transport.ts) — version-
+  // own REST transport adapter (session-spine-rest-transport.ts), version-
   // tolerant, since the agent may compile against a pinned SDK predating the
   // typed sessions.register client. Live-immediately mode: passing `transport`
   // at construction starts the keepalive now, for the whole process lifetime
-  // (no separate activate() step — the agent has none). Client-only; never
+  // (no separate activate() step, the agent has none). Client-only; never
   // starts the daemon. All calls are fire-and-forget; a down daemon degrades to
   // an honest offline queue while the local broker keeps rendering.
   const spineResolveConnection = createSpineConnectionResolver(configManager, homeDirectory);
@@ -1195,7 +1195,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // The reverse of the client floor below: this process judging the daemon it
   // attached to. A daemon too old to serve a verb this build depends on shows
   // up as one call returning 400 or 404, which reads as a broken feature rather
-  // than as an old daemon — so the build is checked once per attach and the
+  // than as an old daemon, so the build is checked once per attach and the
   // owner is told in the same feed the forward guard uses. The floor this
   // product declares is '1.28.0', the daemon/TUI product-split breaking
   // change; see runtime/daemon-build-compatibility.ts for why that is a
@@ -1218,7 +1218,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const mayAdoptDaemonBuild = async (): Promise<boolean> => {
     const connection = spineResolveConnection();
     const status = await readDaemonStatusPayload(connection);
-    // Nothing read, nothing known — adopt, and leave a daemon that is not
+    // Nothing read, nothing known, adopt, and leave a daemon that is not
     // answering to the reachability handling that owns that question.
     if (status === null) return true;
     return daemonBuildGuard.judgeForAdoption(status, connection.baseUrl).status !== 'daemon-update-required';
@@ -1256,7 +1256,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // Explicit, despite AGENT_SPINE_PARTICIPANT's own doc comment suggesting
     // recordKind can be left unset: verified against the live daemon-sdk route
     // (runtime-session-register.js) that no server-side stamping of kind:'agent'
-    // for a surfaceKind:'service' participant actually exists — an absent kind
+    // for a surfaceKind:'service' participant actually exists, an absent kind
     // falls through SharedSessionBroker's own default (`input.kind ?? 'tui'`),
     // which would silently record every agent session as a TUI session. Setting
     // recordKind here is supplying the class's own public option.
@@ -1314,8 +1314,8 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       // Conversation first: a follow-up message in a session gets an answer,
       // not a write-review-fix-confirm chain with a reviewer, quality gates,
       // and a second agent. A chain opens only for an explicit authorization
-      // marker — set by the channel confirmation the owner gave, or by the
-      // schedule/trigger that was confirmed when it was created — or for a
+      // marker, set by the channel confirmation the owner gave, or by the
+      // schedule/trigger that was confirmed when it was created, or for a
       // follow-up typed on a local surface. Both `conversationGate.mode` and
       // the `gatedSurfaces` list now read the live config: the 1.21.0 re-pin
       // carries the `conversationGate` schema domain, so `getCategory` reads
@@ -1329,7 +1329,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       }),
       // Spawn routing resolves through the SDK's shared model-reference
       // resolver contract (unique-across-registry auto-qualifies; ambiguous
-      // and unknown ids throw errors naming real candidates) — the live
+      // and unknown ids throw errors naming real candidates), the live
       // registry's models are the candidate list.
       ...buildSharedSessionAgentSpawnRoutingInput(input.routing, { restrictTools: true, modelCandidates: providerRegistry.listModels() }),
       context: `shared-session:${input.sessionId}`,
@@ -1340,19 +1340,19 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // The ONE canonical cross-surface store, not a private per-surface
   // memory.sqlite, so a fact learned here recalls in the TUI and vice-versa. An
   // agent-global path from an earlier layout is folded in at boot with no loss
-  // (see foldAgentLegacyMemory), then left in place — migration never deletes.
+  // (see foldAgentLegacyMemory), then left in place, migration never deletes.
   const memoryDbPath = resolveCanonicalMemoryDbPath(shellPaths.homeDirectory);
   const memoryStore = new MemoryStore(memoryDbPath, {
     embeddingRegistry: memoryEmbeddingRegistry,
   });
   const memoryRegistry = new MemoryRegistry(memoryStore);
   // Consumer half of the memory spine (SDK 1.1.0). Always constructed in LOCAL mode
-  // (embedded/offline is a hard requirement — the agent must work with no daemon
+  // (embedded/offline is a hard requirement, the agent must work with no daemon
   // running). `spineResolveConnection` above is the SAME connected-host connection
   // (host/port/token) already built for the session spine; one daemon, one resolver.
   // Activation to CLIENT mode (routing every op over the wire, for the whole process
   // lifetime, never touching this local store again) happens in a deferred boot task
-  // — see bootstrap.ts's 'memory-spine' schedule — once that task confirms a daemon
+  //, see bootstrap.ts's 'memory-spine' schedule, once that task confirms a daemon
   // is actually adopted, reusing sessionSpineClient.probeReachability() as the
   // existing daemon-adoption signal rather than inventing a second one.
   const memorySpineClient = new MemorySpineClient({
@@ -1363,17 +1363,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // featureFlags is REQUIRED here in practice, even though the SDK types it
   // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
   // omitting it did not disable delivery tracking when
-  // integrations.deliveryTracking is turned off — deliverText/deliverJobRun
+  // integrations.deliveryTracking is turned off, deliverText/deliverJobRun
   // kept running either way. Threading it preserves current effective
   // behaviour rather than changing it: the config default is true, the
   // delivery-engine flag's own defaultState is 'enabled', and the flag
-  // declares no notOperable record — so with nothing configured the gate
+  // declares no notOperable record, so with nothing configured the gate
   // reads exactly as before. Same fix as goodvibes-tui's services.ts.
   const deliveryManager = new AutomationDeliveryManager({
     configManager,
     // Required: the router this builds resolves goodvibes://secrets/...
     // surface credentials through it. Omitting it produced a delivery path
-    // that accepted replies and dropped them at send time — see the same fix
+    // that accepted replies and dropped them at send time, see the same fix
     // in goodvibes-tui and the SDK's now-mandatory parameter.
     secretsManager,
     serviceRegistry,
@@ -1385,14 +1385,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   // Same shape as deliveryManager above: automation.enabled defaults true, the
   // automation-domain flag's own defaultState is 'enabled', so threading
-  // featureFlags here does not change what a default install does — it only
+  // featureFlags here does not change what a default install does, it only
   // makes turning automation.enabled off actually turn AutomationManager's own
   // create/update/run/list surface off. This composes with bootstrap.ts's own
   // `if (configManager.get('automation.enabled'))` gate around scheduling
   // automationManager.start(): that check reads the same key, and
   // AutomationManager.start() re-checks the same gate internally (it no-ops
   // and stops rather than starting when disabled), so the two can never
-  // disagree — this fix only reaches the manager's OTHER entry points
+  // disagree, this fix only reaches the manager's OTHER entry points
   // (createJob/updateJob/runNow/etc.) that the bootstrap.ts gate does not
   // cover.
   const automationManager = new AutomationManager({
@@ -1446,7 +1446,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // Same job ids as the SDK composition. This fork runs the first two for
   // real; 'code-index-reindex' is registered for contract parity even though
   // this fork's reindex scheduler is permanently disabled (isEnabled: () =>
-  // false below) — a registered-but-never-scheduled job pauses as a no-op.
+  // false below), a registered-but-never-scheduled job pauses as a no-op.
   const MEMORY_BACKGROUND_JOB_IDS = ['knowledge-self-improvement', 'memory-consolidation', 'code-index-reindex'];
   const admitExpensiveWorkRef: { current: ((label: string) => { allowed: boolean; reason?: string | undefined }) | null } = { current: null };
   const admitExpensiveWork = (label: string): { allowed: boolean; reason?: string | undefined } =>
@@ -1545,10 +1545,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // security.tokenAudit.enabled is turned off. Threading it preserves current
   // effective behaviour rather than changing it: managed is hardcoded false
   // here (advisory reporting only; excess-scope/overdue tokens are reported,
-  // never blocked, regardless of this flag — see isBlocked()'s
+  // never blocked, regardless of this flag, see isBlocked()'s
   // `this._config.managed && this._managedBlockingEnabled()` guard), the
   // config default for security.tokenAudit.enabled is true, and the
-  // token-scope-rotation-audit flag's own defaultState is 'enabled' — so with
+  // token-scope-rotation-audit flag's own defaultState is 'enabled', so with
   // nothing configured the gate reads exactly as before either way.
   const tokenAuditor = new ApiTokenAuditor({ managed: false, featureFlags });
   const componentHealthMonitor = new ComponentHealthMonitor();
@@ -1595,8 +1595,8 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // product declares its own `.goodvibes/<surface>/` root and writes everything
   // through it, and the SDK's two construction scopes are a mutually exclusive
   // union precisely so the choice is deliberate: constructed with the legacy
-  // fields, this service's continuity reads — the recovery-file check among them
-  // — resolve to the UNSCOPED directories, i.e. to paths nothing in this product
+  // fields, this service's continuity reads, the recovery-file check among them
+  //, resolve to the UNSCOPED directories, i.e. to paths nothing in this product
   // has ever written to. It answers, and it answers about the wrong place. The
   // TUI carries the same note on its own construction.
   const integrationHelpers = new IntegrationHelperService({
@@ -1676,20 +1676,20 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // ── One-Platform: RuntimeServices members required by SDK 0.38 ──────
   // The Agent is delegation-only: it does not own local build/worktree work.
   // These are constructed as real-but-inert SDK services purely to satisfy the
-  // RuntimeServices contract — none auto-start:
-  //   • orchestrationEngine  — never .start()ed here (delegation goes through
+  // RuntimeServices contract, none auto-start:
+  //   • orchestrationEngine , never .start()ed here (delegation goes through
   //                            /delegate to the TUI); worktree isolation is
   //                            omitted so any accidental run degrades to shared.
-  //   • codeIndexStore       — constructed but neither schema-initialized nor
+  //   • codeIndexStore      , constructed but neither schema-initialized nor
   //                            auto-built; the Agent runs no repo source-tree
   //                            code index (inert unless explicitly invoked).
-  //   • codeIndexReindexScheduler — real-but-inert twin of the above: isEnabled
+  //   • codeIndexReindexScheduler, real-but-inert twin of the above: isEnabled
   //                            is a permanent `() => false`, so tool-driven
   //                            reindex scheduling (Stage B, TUI-only feature)
   //                            never fires for the Agent.
-  //   • processRegistry      — fleet observability over the managers the Agent
+  //   • processRegistry     , fleet observability over the managers the Agent
   //                            already owns (agents, wrfc, processes, watchers).
-  //   • workspaceCheckpointManager — a runtimeBus (hence automatic turn/agent-
+  //   • workspaceCheckpointManager, a runtimeBus (hence automatic turn/agent-
   //                            lifecycle snapshots) is only passed when
   //                            `workingDirectory` is a registered workspace (or
   //                            the unregistered-workspaces override is
@@ -1701,7 +1701,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // (manual -> registration -> provider-served -> catalog -> unknown; any
   // resolvable model). Unknown/subscription yields null (costState
   // 'unpriced'), never $0. SHARED by fleet + orchestration so totals never
-  // double-count — mirrors the SDK composition root.
+  // double-count, mirrors the SDK composition root.
   const priceUsage = (model: string | undefined, usage: { inputTokens: number; outputTokens: number }): number | null => (model ? computeUsageCostUsd(providerRegistry.resolveModelPricing(model), usage) : null);
 
   const orchestrationEngine = createOrchestrationEngine({
@@ -1718,13 +1718,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     memoryEmbeddingRegistry,
   );
   // Data safety with no discipline: a daily snapshot of every SQLite store
-  // this runtime writes, bounded retention, unref'd timers — the SDK's own
+  // this runtime writes, bounded retention, unref'd timers, the SDK's own
   // StoreSnapshotScheduler (public since this SDK round; the former agent-local
   // mirror and its local pruning engine existed only because the class and
   // RetentionPolicy/SnapshotPruner had no public export path). The canonical
   // memory db is shared with the daemon/TUI; the shared snapshot layout means
   // whichever process sweeps first writes that day's copy. The agent's code
-  // index is deliberately inert (see the block comment above) — its entry is a
+  // index is deliberately inert (see the block comment above), its entry is a
   // no-op until a file actually exists.
   const storeSnapshotScheduler = new StoreSnapshotScheduler({
     stores: [
@@ -1737,16 +1737,16 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // Start-time janitor: one retention pass over every registered append-only
   // store (best-effort, mirrors the SDK's own composition root at
   // platform/runtime/services.ts). Every root this composition knows is
-  // passed — logDir/telemetryDir resolve to THIS repo's actual on-disk
+  // passed, logDir/telemetryDir resolve to THIS repo's actual on-disk
   // locations (join(workingDirectory, '.goodvibes', 'logs'|'telemetry'), the
   // same root entrypoint.ts's configureActivityLogger already writes
-  // activity.md into — NOT the home-scoped shellPaths.resolveUserPath('logs')
+  // activity.md into, NOT the home-scoped shellPaths.resolveUserPath('logs')
   // the SDK's own default composition uses, which would silently sweep a
   // directory nothing here ever writes to). Omitting logDir/telemetryDir
   // would leave the registered activity-log and telemetry-ledger entries
   // skipped on every sweep, same defect class the SDK round fixed at its own
   // call site.
-  // MCP servers start when a tool needs one — never at boot. See
+  // MCP servers start when a tool needs one, never at boot. See
   // runtime/mcp-lazy-start.ts: launching the agent used to spawn every server
   // in mcp.json, which on a real machine meant two browser-automation servers
   // (one aimed at a cloud console) starting because someone opened a terminal.
@@ -1772,7 +1772,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   appendOnlyRetentionScheduler.start();
   // External config edits apply LIVE through the same subscribe() pipeline an
-  // in-process set() uses — a hand-edited settings.json needs no restart to
+  // in-process set() uses, a hand-edited settings.json needs no restart to
   // take effect. The underlying file watchers are unref'd, so this can never
   // pin the process open.
   //
@@ -1792,7 +1792,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // Archive-aware: finished agent/swarm subtrees can be moved out of the
   // live fleet view into a session-scoped archive (SDK fleet/archive.ts).
   // createArchivableFleetRegistry is the shared terminal-shell wrapper over the
-  // SDK's withFleetArchive(createProcessRegistry(...)) — one named seam both
+  // SDK's withFleetArchive(createProcessRegistry(...)), one named seam both
   // daemon front-ends build the registry through so it cannot drift.
   // Trigger family. Mirrors the SDK factory's own composition: config is a
   // CLOSURE over configManager (so the flag toggles at runtime rather than only
@@ -1849,7 +1849,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   // The fleet a surface can SEE is wider than the fleet it started. The
   // registry above answers for work this process spawned; the daemon runs its
-  // own — scheduled jobs, channel-driven runs, work other surfaces submitted —
+  // own, scheduled jobs, channel-driven runs, work other surfaces submitted,
   // and the union is what the activity sidebar reads (client/fleet-union.ts,
   // over the SDK's poll + local-wins merge policy).
   const fleetUnion = createAgentFleetUnion({
@@ -1864,7 +1864,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // even a registered root can still be refused as too broad or too large.
   //
   // Registered-workspaces-only (owner ruling, 2026-07-10; live-gating extended
-  // 2026-07-11 so registering mid-launch takes effect without a restart — the
+  // 2026-07-11 so registering mid-launch takes effect without a restart, the
   // same stale-until-restart defect class fixed for permission-mode metadata).
   // The SDK's WorkspaceCheckpointManager only takes automatic turn/agent-
   // lifecycle snapshots when constructed WITH a runtimeBus (see the SDK's own
@@ -1872,7 +1872,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // root ALWAYS passes runtimeBus now (so the automatic-snapshot subscription
   // is live from process start regardless of boot-time registration state),
   // and instead gates each individual automatic snapshot attempt through a
-  // LIVE re-check via `checkpointsCurrentlyAllowed` below — patched onto this
+  // LIVE re-check via `checkpointsCurrentlyAllowed` below, patched onto this
   // one manager instance's own `create` method, since the SDK has no built-in
   // predicate hook for this. `checkpointsCurrentlyAllowed` is cheap to call on
   // every event: `createWorkspaceRegistrationLiveChecker` probes the git
@@ -1880,7 +1880,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // only re-reads the shared registration JSON file. "Allowed" means
   // `workingDirectory` resolves as COVERED by the shared registration store
   // (SDK 1.6.1 platform/workspace/registration, via
-  // config/workspace-registration.ts — the successor to this fork's local
+  // config/workspace-registration.ts, the successor to this fork's local
   // per-user registry, migrated in once below), or the owner has explicitly
   // opted an unregistered workspace back in via
   // `checkpoints.unregisteredWorkspaces: "guarded"` (config/checkpoint-settings.ts;
@@ -1889,7 +1889,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // worktree of a registered repo checkpoints automatically without being
   // registered itself. A workspace SWAP at runtime is still not tracked here
   // (WorkspaceSwapManager's rerootStores does not re-root this manager; a swap
-  // needs a restart to pick up a new root's registration) — only the
+  // needs a restart to pick up a new root's registration), only the
   // registration STATE of this fixed workingDirectory is now live.
   const registrationMigration = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
   if (registrationMigration) {
@@ -1900,7 +1900,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // eligibility boundary below does not retroactively drop workspaces the owner
   // had already opted into checkpoints. Runs once (receipt-gated); derives the
   // explicit set from the still-present legacy registry file. Records lacking the
-  // flag (a TUI first-open self-record) stay ineligible — the boundary the owner
+  // flag (a TUI first-open self-record) stay ineligible, the boundary the owner
   // ruled stays explicit.
   const eligibilityBackfill = backfillCheckpointEligibilityIfNeeded(shellPaths);
   if (eligibilityBackfill && eligibilityBackfill.recordsStamped > 0) {
@@ -1914,7 +1914,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     ...readCheckpointGuardSettings(configManager),
     // Resolves the checkpoint git store to surface.checkpointsDir
     // (<workingDirectory>/.goodvibes/agent/checkpoints) instead of the legacy,
-    // surface-unaware <workspaceRoot>/.goodvibes/checkpoints — which the TUI
+    // surface-unaware <workspaceRoot>/.goodvibes/checkpoints, which the TUI
     // and Agent would otherwise SHARE when run against the same working
     // directory. Fixed to the surface's own workingDirectory regardless of
     // preferGitRoot; readCheckpointGuardSettings may still override via an
@@ -1924,7 +1924,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     surface,
     runtimeBus: options.runtimeBus,
     // Stamp automatic snapshots with the live session id so a checkpoint created
-    // during this launch is found by the session-scoped restore/rewind lookup —
+    // during this launch is found by the session-scoped restore/rewind lookup,
     // the fix that makes same-launch activation work without a restart. The
     // resolver is consulted at each lifecycle event, so it tracks the current
     // session even though the id is finalized after this manager is built.
@@ -1932,17 +1932,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   // Gate AUTOMATIC snapshots (kind 'turn' | 'agent-run', fired internally by
   // the manager's own bus subscription via `this.create(...)`) on the live
-  // registration check, by overriding this instance's own `create` method —
+  // registration check, by overriding this instance's own `create` method,
   // the manager has no predicate-hook option, and this is the one seam that
   // every automatic-snapshot call and every explicit caller both go through.
   // 'manual' (explicit, gateway-invoked) creates are NOT re-gated here: they
   // already go through checkpointsGatewayManager.create's own live check
   // below, which throws an actionable message BEFORE ever reaching this
-  // method — this override would just be a silent, redundant pass for that
+  // method, this override would just be a silent, redundant pass for that
   // path. For an automatic snapshot there is no caller to throw to (the
   // manager's own subscription callbacks only `.catch()`-log a rejection), so
   // an automatic attempt against an unregistered/un-guarded workspace resolves
-  // to `null` quietly — the same "cheap no-op" contract `create()` already
+  // to `null` quietly, the same "cheap no-op" contract `create()` already
   // documents for an unchanged tree, not a new error path.
   const originalCreateCheckpoint = workspaceCheckpointManager.create.bind(workspaceCheckpointManager);
   workspaceCheckpointManager.create = ((opts) => {
@@ -1951,7 +1951,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   }) as typeof workspaceCheckpointManager.create;
   // Eagerly initialize so the automatic snapshot subscription is wired up
   // immediately (mirrors the SDK's own default runtime services) rather than
-  // only on first explicit checkpoints.* call — otherwise the very first
+  // only on first explicit checkpoints.* call, otherwise the very first
   // TURN_COMPLETED could arrive before anything has touched the manager. Now
   // unconditional (previously skipped for an unregistered-at-boot workspace):
   // the subscription itself is inert-by-gate rather than inert-by-absence, so
@@ -1963,8 +1963,8 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // Explicit user-invoked checkpoint creation (the ws-only `checkpoints.create`
   // gateway verb) is gated the SAME way: refuse with an actionable hint rather
   // than silently registering the workspace on the caller's behalf. This is
-  // the chosen policy for the pending owner ruling (the alternative —
-  // register-and-proceed — was NOT chosen, to keep "create a checkpoint" from
+  // the chosen policy for the pending owner ruling (the alternative,
+  // register-and-proceed, was NOT chosen, to keep "create a checkpoint" from
   // having a side effect the caller did not ask for). list/diff/restore/
   // sessionChanges are read/restore operations over checkpoints that may
   // already exist (e.g. from a since-unregistered workspace) and are left
@@ -1985,7 +1985,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       // Re-reads the registry and setting live via the same cheap checker the
       // automatic-snapshot gate above uses, so registering the workspace via
       // `goodvibes-agent workspaces register` takes effect for the NEXT
-      // explicit create call (same as it always has) — and, as of the live
+      // explicit create call (same as it always has), and, as of the live
       // gate above, for automatic snapshots too, without a restart either way.
       if (!checkpointsCurrentlyAllowed()) {
         throw new Error(
@@ -1998,7 +1998,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       // (the resolveSessionId hook only auto-stamps AUTOMATIC snapshots, not
       // explicit create calls). Without this, an explicit checkpoint made this
       // launch would be written unstamped and excluded by the session-scoped
-      // restore lookup — the same same-launch activation gap the resolver closes
+      // restore lookup, the same same-launch activation gap the resolver closes
       // for automatic snapshots. An explicitly supplied sessionId always wins.
       const sessionId = opts.sessionId ?? options.resolveSessionId?.({});
       return workspaceCheckpointManager.create(sessionId ? { ...opts, sessionId } : opts);
@@ -2011,14 +2011,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // configSource: configManager, isIdle: ... })`), replacing this repo's
   // retired local scheduler/wiring/receipt-store trio. Every run's receipt
   // renders through the SAME attach-time-notice idiom the connected-host
-  // receipts use (daemonReceiptFeed below) — a dedicated feed instance so a
+  // receipts use (daemonReceiptFeed below), a dedicated feed instance so a
   // local consolidation run is never mislabeled "[Connected host]".
   const memoryConsolidationReceiptFeed = new AgentDaemonReceiptFeed();
   const memoryConsolidationScheduler = new MemoryConsolidationScheduler({
     memoryRegistry,
     configSource: configManager,
     // Idle AND not paused by the governor AND admitted at the current memory
-    // tier — memory pressure defers consolidation (mirrors the SDK's own
+    // tier, memory pressure defers consolidation (mirrors the SDK's own
     // daemon composition of this same scheduler).
     isIdle: () => hostedSessions.countBusySessions() === 0
       && !pauseController.isPaused('memory-consolidation')
@@ -2042,8 +2042,8 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // wireRuntimePower would otherwise pick for an undefined seam. This keeps
     // every test-constructed runtime (and one-shot CLI subcommands) from
     // spawning systemd-inhibit inhibitors or a dbus-monitor sleep-edge watcher.
-    // Only the real long-lived composition that owns the sleep edge — the
-    // embedded interactive runtime in bootstrap-core.ts — passes
+    // Only the real long-lived composition that owns the sleep edge, the
+    // embedded interactive runtime in bootstrap-core.ts, passes
     // powerSeam: createHostPowerSeam() to hold a LOCAL OS inhibitor for
     // keep-awake / idle-inhibit while the process lives. Pinned by
     // power-keep-awake-composition.test.ts.
@@ -2051,11 +2051,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     readConfig: (key) => configManager.get(key as never),
     writeConfig: (key, value) => configManager.setDynamic(key as never, value),
     // Live-apply straight from the SDK's own PowerManager (SDK round: the
-    // config live-apply is SDK-side now — see manager.ts's
+    // config live-apply is SDK-side now, see manager.ts's
     // unsubscribeKeepAwakeConfig). A power.keepAwake change from ANY origin
     // (settings modal, CLI flag, or an external settings.json edit reaching
     // configManager via watchConfigFiles()) flips this process's real
-    // inhibitor with no bespoke onSettingApplied special case needed —
+    // inhibitor with no bespoke onSettingApplied special case needed,
     // ui-openers.ts's former manual `powerManager.setKeepAwake(...)` call is
     // retired in favor of this.
     subscribeConfig: (key, cb) => configManager.subscribe(key as never, (newValue) => cb(newValue)),
@@ -2067,14 +2067,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     ],
   });
   // DAEMON-held reach: this process's own PowerManager above holds a LOCAL
-  // inhibitor that releases the moment this agent exits — the opposite of
+  // inhibitor that releases the moment this agent exits, the opposite of
   // "survives surfaces closing". power.keepAwake is a surface-local config
-  // key (see shared-config-tier.ts — only tts.* rides the shared tier), so a
+  // key (see shared-config-tier.ts, only tts.* rides the shared tier), so a
   // local config write never reaches an externally-adopted daemon's own
   // config file; the only way to reach a durable, out-of-process hold is to
   // forward the toggle explicitly over the wire whenever a daemon is
   // reachable right now (the same adoption signal the memory/session spine
-  // already use). Best-effort and silent on failure beyond a warn log — a
+  // already use). Best-effort and silent on failure beyond a warn log, a
   // down or incompatible daemon must never break the local settings-modal
   // apply this rides alongside.
   configManager.subscribe('power.keepAwake', (newValue, oldValue) => {
@@ -2091,7 +2091,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     });
   });
 
-  // Memory governance: construct + START the MemoryGovernor (default ON — it
+  // Memory governance: construct + START the MemoryGovernor (default ON, it
   // is a safety feature) with REAL cache adapters, exactly as the SDK's own
   // daemon composition does (platform/runtime/services.ts, via the same
   // public wireDaemonMemoryGovernance). Registered caches: this fork's two
@@ -2120,7 +2120,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     knowledgeStores: [agentKnowledgeStore, homeGraphKnowledgeStore],
     // The register kept for automation is a real retained cache with a real
     // trim, so it stays registered with the governor. It is the same instance
-    // automation runs on — one broker, one cache adapter, not a second copy
+    // automation runs on, one broker, one cache adapter, not a second copy
     // registered for the look of it.
     sessionBroker: automationSessionRegister,
     // Graceful tripwire shutdown flushes in-flight state via ASYNC store
@@ -2139,7 +2139,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // `rewind.plan`/`apply` with scope 'conversation' or 'both' can only be
   // answered by the process running the loop, and that is this one. It used to
   // be wired as a HANDLER on a catalog nothing could call, which meant the
-  // daemon — asked to plan a rewind for a session hosted here — answered
+  // daemon, asked to plan a rewind for a session hosted here, answered
   // "0 messages to drop" from its own empty registry: a confident answer to a
   // question it could not reach.
   //
@@ -2158,12 +2158,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   // Turn the fleet registry's coalesced snapshot tick into poll-free
   // spawn/progress/attention/completion events on the runtime event bus's
-  // 'fleet' domain (SDK 1.6.1, runtime/fleet/emit-bridge.ts) — the SDK's own
+  // 'fleet' domain (SDK 1.6.1, runtime/fleet/emit-bridge.ts), the SDK's own
   // doc note on this bridge: "The control-plane gateway already fans every
   // runtime-bus domain out to subscribed SSE/WebSocket clients, so no
   // gateway/channel change is needed once the fleet domain exists." Without
   // this call the fleet.* gateway verbs above still answer pull queries
-  // (fleet.snapshot/fleet.list), but nothing pushes live deltas — a webui
+  // (fleet.snapshot/fleet.list), but nothing pushes live deltas, a webui
   // FleetView watching this agent's orchestrator-spawned sub-agents would see
   // them only on manual refresh, never their attention state flipping to
   // needs-input in real time. No unsubscribe is kept: the bridge is meant to
@@ -2178,8 +2178,8 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const stepUpService = new StepUpService({ secrets: secretsManager });
 
   // Teardown for every poller started above. This fork composes no DaemonServer
-  // — it hands its graph to one, and the SDK's ownership rule leaves a
-  // caller-supplied graph alone — so dispose() below is the ONLY thing that
+  //, it hands its graph to one, and the SDK's ownership rule leaves a
+  // caller-supplied graph alone, so dispose() below is the ONLY thing that
   // stops these, and the shutdown paths (runtime/bootstrap-shutdown.ts,
   // cli/management.ts, cli/bundle-command.ts) are the ones that must call it.
   const disposeSessionWriteLedgerOnce = (): void => { detachSessionWriteLedger(); clearAgentSessionWrites(); };
@@ -2189,7 +2189,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // This fork has no separate regular knowledge store: the `knowledgeService`
     // compatibility alias points at isolated Agent Knowledge (pinned by
     // scripts/check-architecture.ts), so both slots are the same instance.
-    // KnowledgeService.dispose() clears its schedule-timer map — disposing it
+    // KnowledgeService.dispose() clears its schedule-timer map, disposing it
     // twice is a no-op, not a double-free.
     knowledgeService: agentKnowledgeService, agentKnowledgeService,
     wrfcController, orchestrationEngine, processRegistry, memoryGovernor, triggerManager,
@@ -2200,13 +2200,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     homeGraphService, agentOrchestrator,
     // By dispose() time the registries and bus these runs report through are
     // already down, so a run still described as "running" is orphaned rather
-    // than preserved — and this is the only shutdown-reachable way to abort its
+    // than preserved, and this is the only shutdown-reachable way to abort its
     // in-flight provider call instead of letting it sleep out a retry backoff.
     cancelHostedAgentRuns: () => cancelAllAgentRuns(agentManager),
   });
   // Owners this product has that the SDK's composition does not. The
   // session-spine client's keepalive is graph-owned even though the interactive
-  // shutdown path also closes it by session id first — dispose() is idempotent,
+  // shutdown path also closes it by session id first, dispose() is idempotent,
   // and registering here is what covers the CLI paths that have no such path.
   disposalScope.registry.add('session spine client', () => sessionSpineClient.dispose());
   disposalScope.registry.add('session write ledger', disposeSessionWriteLedgerOnce);
@@ -2234,7 +2234,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       // narrow `UserPermissionRuleAccess` (read the rules, add one) because that
       // is all a surface owes. The daemon-grade view asks for the concrete
       // class, so the widening is stated here rather than by keeping a second
-      // store over the same file — a second writer of one file is how two
+      // store over the same file, a second writer of one file is how two
       // answers to the same question start.
       userPermissionRuleStore: userPermissionRuleStore as ReturnType<typeof runtimeComposition.createUserPermissionRuleStore>,
       get pairingTokens(): PairingTokenManager { return pairingTokensForDaemonGradeView(); },
@@ -2242,7 +2242,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // The REAL SDK memory-governance instances composed above (governor
     // constructed + started by wireDaemonMemoryGovernance). The SDK's
     // DaemonServer facade (facade-composition.ts) genuinely consumes these
-    // when this repo hands its RuntimeServices to it — e.g. it registers the
+    // when this repo hands its RuntimeServices to it, e.g. it registers the
     // control-plane event-replay ring onto cacheRegistry.
     memoryGovernor,
     cacheRegistry,
@@ -2400,7 +2400,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
 /**
  * Fold the agent's legacy per-surface memory store into the canonical
  * cross-surface store. Called once at boot AFTER `memoryStore.init()` so any records
- * written before unification survive. Id-keyed and idempotent — a re-run imports
+ * written before unification survive. Id-keyed and idempotent, a re-run imports
  * nothing new and never deletes the legacy file. Returns the report so boot can log
  * exactly what moved (nothing is silently dropped).
  */

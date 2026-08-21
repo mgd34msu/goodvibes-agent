@@ -1,5 +1,5 @@
 /**
- * test-temp-path-gate — no test source may hardcode a product-namespaced path
+ * test-temp-path-gate, no test source may hardcode a product-namespaced path
  * under the real `/tmp`.
  *
  * The suite redirects the OS temp directory into a per-process sandbox that is
@@ -12,7 +12,7 @@
  *
  * The rule covers inert-looking literals too. Whether a path string is only
  * compared or actually written is a property of the code under test, not of the
- * test — so a literal that is inert today starts leaking the day the callee
+ * test, so a literal that is inert today starts leaking the day the callee
  * begins persisting, and nothing reports it.
  */
 import { describe, expect, test } from 'bun:test';

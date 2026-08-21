@@ -1,5 +1,5 @@
 /**
- * voice-capture-wiring.ts — composes this surface's microphone path.
+ * voice-capture-wiring.ts, composes this surface's microphone path.
  *
  * One capture opener (capture.ts), one transcription route resolved
  * connected-host-first (core/voice-stt-gateway.ts), one set of `voice.wake.*`
@@ -30,11 +30,11 @@ import type { DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/cl
 
 export interface VoiceCaptureWiringDeps {
   readonly configManager: ConfigManager;
-  /** This process's own voice service — the one the `voice.*` verbs are served from. */
+  /** This process's own voice service, the one the `voice.*` verbs are served from. */
   readonly voiceService: VoiceService;
   /** Read only to answer "is an STT provider registered" before audio is captured. */
   readonly voiceProviders: Pick<VoiceProviderRegistry, 'findProvider'>;
-  /** `<root>/voice` — the managed root the wake tree hangs off (the same root /voice setup uses). */
+  /** `<root>/voice`, the managed root the wake tree hangs off (the same root /voice setup uses). */
   readonly managedVoiceRoot: string;
   /** A directory this surface owns for the extracted onnxruntime assets. */
   readonly assetDirectory: string;
@@ -66,7 +66,7 @@ export interface VoiceCaptureWiringDeps {
 export interface VoiceCaptureWiring {
   /** The live footer row, or null when no microphone is open. */
   readonly status: () => VoiceCaptureIndicatorState | null;
-  /** Teardown, for the shell's `unsubs` registry — releases any open device. */
+  /** Teardown, for the shell's `unsubs` registry, releases any open device. */
   readonly unsubs: readonly (() => void)[];
 }
 

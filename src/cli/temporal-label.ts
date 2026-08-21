@@ -4,7 +4,7 @@
  * CLI output that lists sessions, routines, principals, and other timestamped
  * records used to show a raw value (an ISO string or nothing) with no sense of
  * how recent it is. These helpers add a plain "how long ago" (or "in ...")
- * label ALONGSIDE the precise value — the precise value is never replaced,
+ * label ALONGSIDE the precise value, the precise value is never replaced,
  * because the exact timestamp still matters for records, correlation, and
  * scripting. `appendTemporalLabel` is the intended entry point: it keeps the
  * precise string the caller already renders and appends `(2 hours ago)`.
@@ -13,7 +13,7 @@
  * accepted, since session summaries carry an epoch number while the local
  * record registries (routines, personas, skills, principals, ...) carry ISO
  * strings. Unparseable or absent input yields no label rather than a fabricated
- * one — honesty over a plausible-looking guess.
+ * one, honesty over a plausible-looking guess.
  */
 
 /** Parse an epoch-ms number or a date string into epoch ms, or null when it is not a real instant. */
@@ -42,7 +42,7 @@ function unit(count: number, singular: string): string {
  * "just now". Returns null when the input is not a real instant.
  *
  * Elapsed magnitudes are floored (not rounded) so a label never describes a
- * moment as further in the past than it truly is — the same anti-overstatement
+ * moment as further in the past than it truly is, the same anti-overstatement
  * rule the resume-relaunch age formatter follows. Future instants read "in N"
  * with the same tiers.
  */

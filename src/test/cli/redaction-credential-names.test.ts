@@ -1,5 +1,5 @@
 /**
- * redaction-credential-names.test.ts — a support bundle is a file the owner
+ * redaction-credential-names.test.ts, a support bundle is a file the owner
  * emails to someone. Every credential-bearing config path has to be masked in
  * it by NAME, whatever the value happens to be.
  *
@@ -12,7 +12,7 @@
  *
  * The other half of the test is what must NOT be redacted. Widening the word
  * list until it caught the misses would swallow `display.showTokenSpeed`,
- * `planner.tokenCeiling` and `security.tokenAudit.enabled` — settings a support
+ * `planner.tokenCeiling` and `security.tokenAudit.enabled`, settings a support
  * bundle exists to show, replaced by `<redacted>`.
  */
 
@@ -25,7 +25,7 @@ const CREDENTIAL_PATHS: readonly string[] = [
   'email.passwordRef',
   'email.smtpPasswordRef',
   'surfaces.email.imapPassword',
-  // Calendar — including the private feed address, which grants calendar read
+  // Calendar, including the private feed address, which grants calendar read
   // access to anyone holding it.
   'calendar.google.clientSecretRef',
   'calendar.microsoft.clientSecretRef',

@@ -4,24 +4,24 @@
  * Two distinct sweeps live here, because they cover two distinct locations
  * with two distinct safety models:
  *
- * 1. `sweepProjectTestTmpRoot` — the in-repo `.test-tmp/` root that
+ * 1. `sweepProjectTestTmpRoot`, the in-repo `.test-tmp/` root that
  *    `src/test/helpers/project-temp.ts`'s `makeProjectTempDir` writes under.
  *    This directory is exclusively owned by this project's own test runs
  *    (nothing else writes here), so a full unconditional wipe before and
  *    after each suite run is safe: there is nothing else in there to lose.
  *
- * 2. `sweepStaleRealTmpDirs` — the real system temp directory
+ * 2. `sweepStaleRealTmpDirs`, the real system temp directory
  *    (`os.tmpdir()`, typically `/tmp`), which every process on the machine
  *    shares, including other repos' own test runs (each with their own,
  *    differently-prefixed scratch directories under
  *    `~/Projects/.gv-worktrees/*`). A handful of this project's own tests
  *    still create scratch entries (mostly directories, one single JSON
- *    file — src/test/core/replay-engine.test.ts's "active temp root" case)
- *    directly under `os.tmpdir()` — see `KNOWN_TMPDIR_PREFIXES` below for
+ *    file, src/test/core/replay-engine.test.ts's "active temp root" case)
+ *    directly under `os.tmpdir()`, see `KNOWN_TMPDIR_PREFIXES` below for
  *    exactly which, and why they cannot use `makeProjectTempDir` instead.
  *    When a test process is killed by a signal (rather than exiting
  *    normally), its `finally`/`afterEach` cleanup never runs, so these
- *    entries accumulate in real `/tmp` forever — this is what exhausted a
+ *    entries accumulate in real `/tmp` forever, this is what exhausted a
  *    tmpfs `/tmp`'s inode table. This sweep only ever removes an entry
  *    (directory OR file) that BOTH (a) matches one of this project's own
  *    known prefixes exactly, by `startsWith`, and (b) has an mtime older
@@ -47,16 +47,16 @@ const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
  *     directory that is guaranteed NOT inside any git repository, AND
  *     guaranteed to bypass the TMPDIR/TMP/TEMP redirection
  *     `scripts/run-tests.ts` sets for the child test process (which points
- *     inside this repo) — an `os.tmpdir()`-based directory would silently
+ *     inside this repo), an `os.tmpdir()`-based directory would silently
  *     resolve back inside this git tree during a normal suite run,
  *     defeating the "non-repo root" premise the test checks. See the
  *     comment at that call site. (`src/test/git/service.test.ts`'s
  *     `makeExternalDir` needs the same "not inside any repo" guarantee, but
  *     for exactly the same TMPDIR-redirection reason it deliberately does
- *     NOT use `os.tmpdir()` either — it targets the parent of this repo's
+ *     NOT use `os.tmpdir()` either, it targets the parent of this repo's
  *     own directory instead, so it never creates anything here. Its OTHER
  *     helper, `makeTempPath` for git-created bare/clone/worktree targets,
- *     doesn't need to sit outside the repo at all — git accepts an
+ *     doesn't need to sit outside the repo at all, git accepts an
  *     already-existing empty directory anywhere as those targets, so it
  *     routes through `makeProjectTempDir` like an ordinary scratch
  *     directory and never creates anything under real `os.tmpdir()`
@@ -70,8 +70,8 @@ const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
  *     the backstop for a killed run.
  *   - `gv-agent-test-run-` (src/test/helpers/preload.ts): the per-process
  *     sandbox the whole suite's `tmpdir()` is redirected into. It is created
- *     under the INHERITED temp directory by definition — that is what makes it
- *     a redirect — and removed in the preload's top-level `afterAll`. This
+ *     under the INHERITED temp directory by definition, that is what makes it
+ *     a redirect, and removed in the preload's top-level `afterAll`. This
  *     prefix is the backstop for a killed run, which never reaches that hook.
  *     It was missing from this list while the preload's own comment claimed
  *     the age-gated sweep reclaimed it, so nothing did.
@@ -83,17 +83,17 @@ const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
  * missed), so these prefixes are never created again from this point
  * forward. They stay on this list purely so this sweep also reclaims
  * directories earlier (pre-migration) suite runs already left behind in
- * real `/tmp` — a killed test process never ran its own cleanup. Once a
+ * real `/tmp`, a killed test process never ran its own cleanup. Once a
  * repo-wide check confirms none of these remain on a given machine, this
  * legacy block can be pruned; leaving it is harmless (it only ever matches
  * directories that also pass the age gate).
  */
 export const KNOWN_TMPDIR_PREFIXES: readonly string[] = [
-  // Ongoing — still created today; see the comment above.
+  // Ongoing, still created today; see the comment above.
   'gv-agent-identifier-gate-norepo-',
   'gv-agent-replay-',
   'gv-agent-test-run-',
-  // Historical / legacy — see the comment above.
+  // Historical / legacy, see the comment above.
   'accounts-tool-',
   'agent-sdk-dev-',
   'agent-shutdown-home-',
@@ -469,15 +469,15 @@ export const KNOWN_TMPDIR_PREFIXES: readonly string[] = [
  * creates a directory under real `os.tmpdir()` (see `KNOWN_TMPDIR_PREFIXES`
  * above) completes in well under a second. A directory's mtime advances
  * every time a direct child entry is created or removed inside it, so an
- * actively-used scratch directory — including one belonging to a suite run
- * currently in progress on this same machine — always has a recent mtime
+ * actively-used scratch directory, including one belonging to a suite run
+ * currently in progress on this same machine, always has a recent mtime
  * and is never touched. One hour is roughly 20-30x the full suite's
  * measured runtime, which comfortably covers a slow CI runner, a debugger
  * attached mid-test, or two overlapping manual runs, while still reclaiming
  * space within the same working session rather than letting debris survive
  * indefinitely (which is the exact failure mode that exhausted `/tmp`'s
  * inode table). It does not need to match the in-repo `.test-tmp/` sweep's
- * behavior, because that sweep has no age gate at all — `.test-tmp/` is
+ * behavior, because that sweep has no age gate at all, `.test-tmp/` is
  * exclusively owned by this project's own runs, so wiping it unconditionally
  * before and after every run is safe in a way that wiping shared real
  * `/tmp` unconditionally would not be.
@@ -503,11 +503,11 @@ export type StaleTmpSweepResult = {
 };
 
 /**
- * Removes this project's own stale scratch entries — directories AND
- * individual files (see `gv-agent-replay-` above) — from the real system
+ * Removes this project's own stale scratch entries, directories AND
+ * individual files (see `gv-agent-replay-` above), from the real system
  * temp directory. Only ever removes an entry that matches one of
  * `KNOWN_TMPDIR_PREFIXES` by `startsWith` AND has an mtime older than
- * `ageMs`. Never performs a blanket sweep of `os.tmpdir()` — every other
+ * `ageMs`. Never performs a blanket sweep of `os.tmpdir()`, every other
  * repo's own worktrees (and every other process on the machine) keep their
  * unrelated temp entries untouched.
  */

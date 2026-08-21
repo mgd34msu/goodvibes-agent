@@ -13,7 +13,7 @@ import { renderVibeProjection, vibeBodyToConstraintOptions } from '@pellux/goodv
 import type { MemoryRecord, MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
 // Writes go through the memory-spine's MemoryAccess surface (add), not the raw
 // MemoryRegistry, so this import folds correctly whether the agent is local or has
-// adopted a daemon — see services.ts's memorySpineClient.
+// adopted a daemon, see services.ts's memorySpineClient.
 import type { MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 
 export type AgentVibeScope = 'project' | 'global';
@@ -220,8 +220,8 @@ export function buildVibePrompt(shellPaths: AgentVibePaths): string | null {
  * The VIBE.md prompt block as a PROJECTION of persona/constraint records.
  *
  * This is the store-sourced replacement for buildVibePrompt (which reads the file
- * directly). It renders the same '## GoodVibes Agent VIBE.md' block — including the
- * precedence caveat — from the cls:'constraint' persona records in the canonical
+ * directly). It renders the same '## GoodVibes Agent VIBE.md' block, including the
+ * precedence caveat, from the cls:'constraint' persona records in the canonical
  * store, so persona instructions have a single source of truth alongside every other
  * durable fact. Returns null when there are no persona records to project.
  */
@@ -231,7 +231,7 @@ export function buildVibeProjectionPrompt(memoryRecords: { getAll(): readonly Me
 
 /**
  * Fold discovered VIBE.md files into the store as persona/constraint
- * records — the file demoted to an IMPORT FORMAT. Each bullet becomes one record so a
+ * records, the file demoted to an IMPORT FORMAT. Each bullet becomes one record so a
  * later single-record edit changes exactly one projected line. Secret-like content is
  * already rejected by discoverVibeFiles (readVibeCandidate → assertNoSecretLikeText),
  * so only clean bodies reach here. Idempotent enough for boot: importing the same body
@@ -265,7 +265,7 @@ export async function importVibeFilesIntoMemory(
  * ONE-TIME migration. Keyed by absolute file path → content hash, so importing the same
  * VIBE.md twice is a no-op (re-import would create near-duplicate persona records), while
  * a NEW project's VIBE.md still migrates exactly once. Mirrors the sessions.spine-folded
- * marker precedent (bootstrap.ts) — a small JSON sidecar, read before and written after.
+ * marker precedent (bootstrap.ts), a small JSON sidecar, read before and written after.
  */
 interface VibeImportMarker {
   readonly migrated: Record<string, string>;

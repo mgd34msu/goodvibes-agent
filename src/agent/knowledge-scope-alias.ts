@@ -7,7 +7,7 @@ type JsonRecord = Record<string, unknown>;
 
 // Resolved on first use, not at module load: the SDK helper reads its own
 // module's constants, and the single-file compiler's nondeterministic module
-// order could run this line before they exist — silently yielding an
+// order could run this line before they exist, silently yielding an
 // "undefined"-prefixed space id (the build-order lottery class, 2.0.13).
 let agentKnowledgePublicSpaceIdCache: string | null = null;
 function agentKnowledgePublicSpaceId(): string {

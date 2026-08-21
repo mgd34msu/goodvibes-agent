@@ -1,5 +1,5 @@
 /**
- * settings-modal-mcp-entries.ts — the MCP trust rows the settings modal renders.
+ * settings-modal-mcp-entries.ts, the MCP trust rows the settings modal renders.
  *
  * A pure projection of `McpRegistry.listServerSecurity()`, copied out rather than
  * held by reference so an edit in the modal cannot reach back into the registry's
@@ -10,7 +10,7 @@
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { McpEntry } from './settings-modal-types.ts';
 
-/** Empty with no registry wired — an honest "nothing to show", not a failure. */
+/** Empty with no registry wired, an honest "nothing to show", not a failure. */
 export function buildMcpEntries(mcpRegistry: McpRegistry | null): McpEntry[] {
   if (!mcpRegistry) return [];
   return mcpRegistry.listServerSecurity().map((entry) => ({

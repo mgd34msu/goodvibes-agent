@@ -1,5 +1,5 @@
 /**
- * IdempotencyStore — comprehensive unit tests.
+ * IdempotencyStore, comprehensive unit tests.
  *
  * Covers:
  * - State transitions: new / in-flight / duplicate / completed / failed
@@ -202,7 +202,7 @@ describe('TTL sweep', () => {
     const k8 = store.generateKey({ sessionId: 'sess', turnId: 't7', callId: 'c' });
     store.checkAndRecord(k8);
 
-    // Only k8 (in-flight) should remain — the 7 expired ones were swept.
+    // Only k8 (in-flight) should remain, the 7 expired ones were swept.
     expect(store.size).toBe(1);
   });
 });

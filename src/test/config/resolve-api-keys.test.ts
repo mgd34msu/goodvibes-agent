@@ -1,5 +1,5 @@
 /**
- * G4 — resolveApiKeys integration test
+ * G4, resolveApiKeys integration test
  *
  * Verifies the three-tier resolution: env var → SecretsManager encrypted store → omit.
  * Also verifies the /secrets command wiring via SecretsManager.
@@ -21,7 +21,7 @@ function makeTmpDir(): string {
   return dir;
 }
 
-/** Known provider env var names for cleanup — must match all envVars in resolveApiKeys(). */
+/** Known provider env var names for cleanup, must match all envVars in resolveApiKeys(). */
 const PROVIDER_ENV_VARS = [
   'OPENAI_API_KEY', 'OPENAI_KEY',
   'ANTHROPIC_API_KEY', 'CLAUDE_API_KEY',
@@ -98,7 +98,7 @@ function createSecretsManager(root: string, secureProjectFilePath: string): Secr
 describe('resolveApiKeys', () => {
 
   // -------------------------------------------------------------------------
-  // Tier 1 — environment variables win
+  // Tier 1, environment variables win
   // -------------------------------------------------------------------------
 
   describe('Tier 1 — env var resolution', () => {
@@ -172,7 +172,7 @@ describe('resolveApiKeys', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Tier 2 — SecretsManager fallback when env var is absent
+  // Tier 2, SecretsManager fallback when env var is absent
   // -------------------------------------------------------------------------
 
   describe('Tier 2 — SecretsManager fallback', () => {
@@ -197,7 +197,6 @@ describe('resolveApiKeys', () => {
         const mgr = createSecretsManager(tmpDir, encPath);
         await mgr.set('OPENAI_API_KEY', 'stored-value');
 
-        // Now env var is set
         process.env['OPENAI_API_KEY'] = 'env-wins';
         const keys = await resolveApiKeys(mgr);
         expect(keys['openai']).toBe('env-wins');
@@ -224,7 +223,7 @@ describe('resolveApiKeys', () => {
   });
 
   // -------------------------------------------------------------------------
-  // SecretsManager API — verify the store used by /secrets command
+  // SecretsManager API, verify the store used by /secrets command
   // -------------------------------------------------------------------------
 
   describe('SecretsManager API used by /secrets command', () => {

@@ -3,7 +3,7 @@
  *
  * `daemon.enabled` used to gate every call through the verb caller. On the
  * owner's machine it is false, and the effect was that the session-inputs poll
- * (refused every two seconds — thousands of log lines an hour), the
+ * (refused every two seconds, thousands of log lines an hour), the
  * conversation-rewind host registration, the approvals update stream and the
  * hosted-conversation handoff all refused, while the session spine, the memory
  * spine and the operator tools dialed the SAME live host without trouble.
@@ -56,7 +56,7 @@ describe('the connected-host dial gate', () => {
         homeDirectory: home,
       });
       // It must RESOLVE. Before the split this returned "the connected host is
-      // disabled (daemon.enabled=false) — nothing to reach", and every seam
+      // disabled (daemon.enabled=false), nothing to reach", and every seam
       // built on this caller went dark on a machine whose host was answering.
       if ('reason' in resolved) {
         throw new Error(`expected a resolved connected host, got a refusal: ${resolved.reason}`);

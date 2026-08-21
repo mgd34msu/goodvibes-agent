@@ -1,5 +1,5 @@
 /**
- * workspace-registration-receipts.test.ts — the one-time migration receipts are
+ * workspace-registration-receipts.test.ts, the one-time migration receipts are
  * validated by CONTENT, not by existence.
  *
  * The defect this covers: both `migrateLegacyWorkspaceRegistryIfNeeded` and
@@ -13,7 +13,7 @@
  *   - the BACKFILL re-runs, because stamping `checkpointEligible: true` on
  *     records from the owner's own explicit list is idempotent;
  *   - the MIGRATION does not, because repeating it would re-add legacy roots
- *     the owner may have since unregistered — but it says so loudly instead of
+ *     the owner may have since unregistered, but it says so loudly instead of
  *     deciding it in silence.
  */
 import { describe, expect, test } from 'bun:test';
@@ -28,6 +28,7 @@ import {
   normalizeWorkspaceRoot,
 } from '../../config/workspace-registration.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { leftoverStoreTempFiles } from '../helpers/store-temp-files.ts';
 
 function makeShellPaths() {
   const home = makeProjectTempDir('goodvibes-agent-receipts');
@@ -126,7 +127,7 @@ describe('the receipts assert their own completion', () => {
     const { shellPaths, work, home } = makeShellPaths();
     seedLegacyRegistry(home, work);
     migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
-    expect(existsSync(`${migrationReceiptPath(home)}.${process.pid}.tmp`)).toBe(false);
+    expect(leftoverStoreTempFiles(migrationReceiptPath(home))).toEqual([]);
   });
 });
 
@@ -202,7 +203,7 @@ describe('a damaged migration receipt does NOT re-run (repeating it would resurr
     expect(result).toBeNull();
     expect(warns.some((m) => m.includes('migration receipt is not usable'))).toBe(true);
 
-    // The unregistered root did NOT come back — this is the whole reason the
+    // The unregistered root did NOT come back, this is the whole reason the
     // damaged branch is conservative here and permissive for the backfill.
     expect((await createWorkspaceRegistrationStore(shellPaths).snapshot()).workspaces).toHaveLength(0);
   });

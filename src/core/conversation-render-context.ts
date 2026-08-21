@@ -1,5 +1,5 @@
 /**
- * conversation-render-context.ts — the inputs a transcript row render reads,
+ * conversation-render-context.ts, the inputs a transcript row render reads,
  * and the small pure derivations over them.
  *
  * Kept apart from conversation-rendering.ts (which draws) so that both the
@@ -21,8 +21,8 @@ type Message = ConversationMessageSnapshot;
  *
  * The transcript stores a failure as content leading with `Error: ` (see the
  * SDK's ConversationManager.addToolResults), and a per-call user cancellation
- * as the more specific `Error: cancelled by user`. Reading the outcome —
- * rather than only "did a result arrive" — is what lets the CALL row show
+ * as the more specific `Error: cancelled by user`. Reading the outcome,
+ * rather than only "did a result arrive", is what lets the CALL row show
  * ✓ / ✕ / ⊘ honestly instead of a ✓ that means nothing more than "it finished".
  */
 export type ToolCallOutcome = 'ok' | 'error' | 'cancelled';
@@ -34,7 +34,7 @@ function outcomeOfToolContent(content: string): ToolCallOutcome {
 }
 
 /**
- * Collect, per tool-call id, how that call settled — for the calls that have a
+ * Collect, per tool-call id, how that call settled, for the calls that have a
  * matching tool-result message in this slice. A call absent from the map has
  * not run yet and renders in flight.
  */
@@ -49,7 +49,7 @@ export function collectToolCallOutcomes(messages: readonly Message[]): Map<strin
 }
 
 /**
- * Ids of tool calls that have a matching tool-result message in this slice —
+ * Ids of tool calls that have a matching tool-result message in this slice,
  * the calls that actually ran. Everything else is still in flight. Derived
  * from collectToolCallOutcomes so the two can never disagree about "ran".
  */
@@ -73,7 +73,7 @@ export interface ConversationRenderContext {
    * actually ran). A call whose id is NOT in this set has not settled yet and
    * renders with the pending glyph instead of the completed ✓, so a turn in
    * progress looks in progress. Undefined (single-message callers with no
-   * sibling context) renders every call as done — the prior behaviour.
+   * sibling context) renders every call as done, the prior behaviour.
    */
   readonly completedToolCallIds?: ReadonlySet<string>;
   /**

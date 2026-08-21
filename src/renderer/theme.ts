@@ -1,5 +1,5 @@
 /**
- * theme.ts — Semantic colour token layer (port of the TUI theme system).
+ * theme.ts, Semantic colour token layer (port of the TUI theme system).
  *
  * Two token layers, resolved per background mode:
  *
@@ -10,14 +10,14 @@
  *     so a dark→light repaint re-resolves with no module reload.
  *
  *   - UiToneTokens (chrome): the panel/modal/overlay/header/footer/thinking tone
- *     table. This IS the SDK presentation contract — resolveUiTones() / and
+ *     table. This IS the SDK presentation contract, resolveUiTones() / and
  *     activeUiTones() compose the ThemeMode dimension over the SDK's
  *     resolveTones(), so the agent never mints its own light chrome variant.
  *
  * Dark mode values are the historically used colours. Light mode values exist
  * for correctness parity and are consumed once the terminal-bg-probe
  * (terminal-escapes / OSC 11) resolves the mode and setActiveThemeMode
- * is called. Callers that do not yet have mode detection get 'dark' — the safe
+ * is called. Callers that do not yet have mode detection get 'dark', the safe
  * default (activeMode starts dark).
  *
  * IMPORTANT: inline code has NO background token. The bg:#1a1a1a hardcode that
@@ -28,7 +28,7 @@
 import { UI_TONES } from './ui-primitives.ts';
 import { resolveTones, type ThemeMode, type ToneTokens } from '@pellux/goodvibes-sdk/platform/presentation';
 
-/** Background mode — dark is the safe default until the bg-probe resolves. */
+/** Background mode, dark is the safe default until the bg-probe resolves. */
 export type { ThemeMode };
 
 /** Resolved semantic colour tokens (concrete hex strings or ANSI-256 indices). */
@@ -37,7 +37,7 @@ export interface ThemeTokens {
   heading1: string;
   /** H2 heading foreground */
   heading2: string;
-  /** H3 heading foreground (ANSI-256 — falls back to nearest on ansi256 terminals) */
+  /** H3 heading foreground (ANSI-256, falls back to nearest on ansi256 terminals) */
   heading3: string;
   /** Inline code foreground (bold is applied separately by caller) */
   inlineCodeFg: string;
@@ -71,7 +71,7 @@ export interface ThemeTokens {
   modelNameDim: string;
   /** Tool name foreground in tool-result event line */
   toolNameFg: string;
-  /** Diff block accent — marker, label, and collapsed-prefix foreground */
+  /** Diff block accent, marker, label, and collapsed-prefix foreground */
   diffAccent: string;
 }
 
@@ -102,23 +102,23 @@ const DARK: ThemeTokens = {
 };
 
 // ---------------------------------------------------------------------------
-// Light palette — dark-on-light legibility (contrast ratios against #ffffff):
-//   heading1/2:      Deep teal (#0077aa) — readable on white/cream terminals
-//   heading3:        ANSI-256 24 (dark cyan) — the light equivalent of 111
-//   inlineCodeFg:    Dark orange (#b45309) — distinguishable without a box bg
-//   link:            Standard blue (#0055cc) — browser-link convention
-//   searchMatchBg:   Muted yellow (#ffe066) on black fg — visible on light bg
-//   searchCurrentBg: Strong amber (#f59e0b) — current match is more vivid
+// Light palette, dark-on-light legibility (contrast ratios against #ffffff):
+//   heading1/2:      Deep teal (#0077aa), readable on white/cream terminals
+//   heading3:        ANSI-256 24 (dark cyan), the light equivalent of 111
+//   inlineCodeFg:    Dark orange (#b45309), distinguishable without a box bg
+//   link:            Standard blue (#0055cc), browser-link convention
+//   searchMatchBg:   Muted yellow (#ffe066) on black fg, visible on light bg
+//   searchCurrentBg: Strong amber (#f59e0b), current match is more vivid
 //   blockquote:      Dim blue-gray (ANSI-256 67)
 //   assistantHeader: Dark cyan (#0e7490)
 //   reasoningAccent: Dark purple (#7c3aed)
 //   toolAccent:      Dark sky (#0369a1)
 //   collapsedBodyBg: Very light gray (#f3f4f6)
-//   checkboxChecked: Forest green (#15803d) — ~5.2:1 on #fff
-//   errorBarBg:      Soft rose (#fee2e2) — legible text on top
-//   modelNameDim:    Slate-500 (#64748b) — ~4.6:1 on #fff
-//   toolNameFg:      Slate-800 (#334155) — strong enough for tool names
-//   diffAccent:      Amber-700 (#b45309) — ~4.7:1 on #fff
+//   checkboxChecked: Forest green (#15803d), ~5.2:1 on #fff
+//   errorBarBg:      Soft rose (#fee2e2), legible text on top
+//   modelNameDim:    Slate-500 (#64748b), ~4.6:1 on #fff
+//   toolNameFg:      Slate-800 (#334155), strong enough for tool names
+//   diffAccent:      Amber-700 (#b45309), ~4.7:1 on #fff
 // ---------------------------------------------------------------------------
 const LIGHT: ThemeTokens = {
   heading1:        '#0077aa',
@@ -147,7 +147,7 @@ Object.freeze(DARK);
 Object.freeze(LIGHT);
 
 /**
- * resolveTheme — Return the transcript token set for the given background mode.
+ * resolveTheme, Return the transcript token set for the given background mode.
  * The returned object is frozen; callers should not mutate it.
  */
 export function resolveTheme(mode: ThemeMode): Readonly<ThemeTokens> {
@@ -158,18 +158,18 @@ export function resolveTheme(mode: ThemeMode): Readonly<ThemeTokens> {
 export const DARK_THEME: Readonly<ThemeTokens> = DARK;
 
 // ---------------------------------------------------------------------------
-// Chrome tokens (UiToneTokens) — the SDK presentation contract, mode-resolved.
+// Chrome tokens (UiToneTokens), the SDK presentation contract, mode-resolved.
 //
 // The dark table is the SDK's TONE_TOKENS (re-exported here as UI_TONES); the
 // light variant is the SDK's resolveTones('light'). The agent does NOT mint its
-// own light chrome variant — that duplication is exactly what the SDK extraction ended.
+// own light chrome variant, that duplication is exactly what the SDK extraction ended.
 // ---------------------------------------------------------------------------
 
 /** The chrome tone-token shape (the SDK ToneTokens contract). */
 export type UiToneTokens = ToneTokens;
 
 /**
- * resolveUiTones — chrome token set for the given mode. Single read path;
+ * resolveUiTones, chrome token set for the given mode. Single read path;
  * 'dark' is byte-identical to the UI_TONES constant (same SDK object).
  * Prefer activeUiTones() at call sites.
  */
@@ -180,16 +180,16 @@ export function resolveUiTones(mode: ThemeMode): Readonly<UiToneTokens> {
 // ===========================================================================
 // Active-mode runtime.
 //
-// The mode is decided ONCE at startup — from appearance config
+// The mode is decided ONCE at startup, from appearance config
 // (display.themeMode forced dark/light) or the terminal-background probe
-// (auto) — and is then stable for the session. Transcript tokens (activeTheme)
+// (auto), and is then stable for the session. Transcript tokens (activeTheme)
 // and chrome tokens (activeUiTones) are both read live per render, so a
 // dark→light repaint (auto mode, light wins within the probe window)
 // re-resolves without any module reload.
 //
 // registerThemeRefresh exists for owners that BAKE tone values into
 // module-level constants (which cannot be re-resolved per call). Nothing
-// registers currently — the agent's opaque panel palettes (polish.ts
+// registers currently, the agent's opaque panel palettes (polish.ts
 // DEFAULT_PANEL_PALETTE and the modal/overlay/fullscreen surfaces built from
 // it) paint OPAQUE dark boxes whose fg/state tokens stay dark in both modes, so
 // they need no rebuild for dark parity (the opaque-surface trio deferral). The
@@ -230,12 +230,12 @@ export function setActiveThemeMode(mode: ThemeMode): void {
   for (const rebuild of themeRefreshers) rebuild();
 }
 
-/** Transcript tokens for the active mode — read live, per render. */
+/** Transcript tokens for the active mode, read live, per render. */
 export function activeTheme(): Readonly<ThemeTokens> {
   return resolveTheme(activeMode);
 }
 
-/** Chrome tokens for the active mode — read live, per render. */
+/** Chrome tokens for the active mode, read live, per render. */
 export function activeUiTones(): Readonly<UiToneTokens> {
   return resolveUiTones(activeMode);
 }

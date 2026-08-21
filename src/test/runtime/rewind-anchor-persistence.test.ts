@@ -56,7 +56,7 @@ describe('rewind anchors survive a resume', () => {
     });
     persistTurnAnchors(sessionId, surface);
 
-    // A resume starts from an empty in-memory registry — the anchor is only
+    // A resume starts from an empty in-memory registry, the anchor is only
     // reachable if the sidecar was written AND is read back.
     clearTurnAnchors(sessionId);
     expect(resolveTurnAnchor(sessionId, 'turn-7')).toBeNull();

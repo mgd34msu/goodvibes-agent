@@ -68,7 +68,7 @@ function localModelSmokeLookup(args: AgentHarnessModelRoutingArgs): string {
 /** The endpoints this run will probe, alongside how many were available. */
 interface LocalModelSmokeSelection {
   readonly targets: readonly LocalModelSmokeTarget[];
-  /** Candidates before `limit` narrowed the run — reported so a partial sweep is not read as a clean bill of health for every endpoint. */
+  /** Candidates before `limit` narrowed the run, reported so a partial sweep is not read as a clean bill of health for every endpoint. */
   readonly candidateTotal: number;
 }
 
@@ -89,7 +89,7 @@ function localModelSmokeTargets(
   if (lookup) {
     const normalized = lookup.toLowerCase();
     // An ambiguity report names at most 8 candidates. When more matched, the
-    // count says so — a caller shown 8 of 14 would otherwise pick from a list
+    // count says so, a caller shown 8 of 14 would otherwise pick from a list
     // it believed was the whole set of matches.
     const ambiguous = (matches: readonly LocalModelSmokeTarget[]): LocalModelSmokeUnresolved => ({
       unresolved: {
@@ -150,7 +150,7 @@ function localSmokeNetworkScope(modelsUrl: string): { readonly allowed: boolean;
 /**
  * @returns `total`, every distinct model id the endpoint advertised, and `ids`,
  *   the first 12 of them. Both, because the capped list used to be the only
- *   thing returned and `modelCount` was taken from it — a server offering 40
+ *   thing returned and `modelCount` was taken from it, a server offering 40
  *   models reported 40 as 12.
  */
 function extractModelIdsFromPayload(payload: unknown): { readonly ids: readonly string[]; readonly total: number } {

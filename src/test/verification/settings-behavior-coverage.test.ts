@@ -14,7 +14,7 @@ const projectRoot = resolve(join(import.meta.dir, '..', '..', '..'));
  * These tests are what make the settings coverage numerator auditable rather
  * than assertable. The numerator can only be raised by adding an evidence row,
  * and a row only survives if the key is real and the test it names genuinely
- * mentions that key. Padding the number is therefore not a one-line edit — it
+ * mentions that key. Padding the number is therefore not a one-line edit, it
  * requires forging a test file, which is a thing a reviewer can see.
  */
 describe('settings behaviour coverage evidence', () => {

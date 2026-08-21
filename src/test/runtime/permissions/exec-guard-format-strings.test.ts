@@ -9,7 +9,7 @@
  * pin the narrowed detector: real percent-encoded URIs and encoded path
  * separators stay denied, plain format strings run.
  *
- * This narrows a false positive. It does not add any new denial class — the
+ * This narrows a false positive. It does not add any new denial class, the
  * exec-guard catastrophic list stays frozen.
  */
 

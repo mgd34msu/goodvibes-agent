@@ -94,7 +94,7 @@ describe('provider account snapshot', () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-    // No API key present — only subscription, so activeRoute === preferredRoute === 'subscription'.
+    // No API key present, only subscription, so activeRoute === preferredRoute === 'subscription'.
     const serviceRegistry = new ServiceRegistry(join(root, '.goodvibes', 'tui', 'services.json'), {
       secretsManager: new SecretsManager({ projectRoot: root, globalHome: root }),
       subscriptionManager: testManagers.subscriptionManager,
@@ -114,7 +114,7 @@ describe('provider account snapshot', () => {
     expect(openai!.activeRoute).toBe('subscription');
     // No fallbackRoute when routes are equal.
     expect(openai!.fallbackRoute).toBeUndefined();
-    // No fallbackRisk when there is no fallback — operator should not see a spurious risk advisory.
+    // No fallbackRisk when there is no fallback, operator should not see a spurious risk advisory.
     expect(openai!.fallbackRisk).toBeUndefined();
   });
 

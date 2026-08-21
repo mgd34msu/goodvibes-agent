@@ -1,5 +1,5 @@
 /**
- * voice-stt-gateway.ts — speech-to-text for captured audio.
+ * voice-stt-gateway.ts, speech-to-text for captured audio.
  *
  * A confirmed wake hands over the utterance that followed it, and this is where
  * that audio becomes words.
@@ -17,8 +17,8 @@
  * not exist on a machine where it demonstrably did.
  *
  * Nobody using this cares which process owns whisper. So the route is resolved
- * rather than assumed — the SDK owns the policy (platform/voice/stt-routing.ts)
- * so every surface gets the same behaviour — and this file supplies the two
+ * rather than assumed, the SDK owns the policy (platform/voice/stt-routing.ts)
+ * so every surface gets the same behaviour, and this file supplies the two
  * candidate routes: the connected host's `voice.stt` verb, and this process's
  * own voice service. A fallback states what it fell back from, and every
  * attempt is written to the voice diagnostics file rather than only to a
@@ -77,7 +77,7 @@ export interface VoiceSttGatewayDeps {
    * connection, which is the honest reason to transcribe locally.
    */
   readonly daemonVerbs?: Pick<DaemonVerbCaller, 'probe' | 'invoke'> | null | undefined;
-  /** Where voice diagnostics are written — the managed voice root. */
+  /** Where voice diagnostics are written, the managed voice root. */
   readonly managedVoiceRoot?: string | undefined;
 }
 
@@ -169,7 +169,7 @@ export function describeTranscriptionFailure(error: unknown): string {
     return error.message;
   }
   if (error instanceof GoodVibesSdkError && error.code === 'PROVIDER_NOT_CONFIGURED') {
-    return `${error.message} — the managed voice runtime provisions a local one, or a configured voice provider supplies it.`;
+    return `${error.message}, the managed voice runtime provisions a local one, or a configured voice provider supplies it.`;
   }
   return error instanceof Error ? error.message : String(error);
 }

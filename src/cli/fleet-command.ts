@@ -14,14 +14,14 @@ import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 
 /**
- * `goodvibes-agent fleet` — the best-of-N attempts admin surface (SDK 1.6.1
+ * `goodvibes-agent fleet`, the best-of-N attempts admin surface (SDK 1.6.1
  * orchestration engine held-merge groups). Unlike ci/principals/channel-
  * profiles (which reach a REMOTE connected host over HTTP), fleet.attempts.*
- * is ws-only on the wire (no HTTP binding — see method-catalog-fleet.ts) and
+ * is ws-only on the wire (no HTTP binding, see method-catalog-fleet.ts) and
  * reads THIS agent's own orchestration engine, which persists workstream
  * state to disk (.goodvibes/orchestration/<workstreamId>.json). So this
  * command goes through withRuntimeServices (the same in-process
- * RuntimeServices construction `tasks`/`sessions` already use — see
+ * RuntimeServices construction `tasks`/`sessions` already use, see
  * management.ts), not the operator-gateway-call HTTP path ci-command.ts
  * uses: calling sdk.operator.invoke on a method with no `http` binding always
  * throws (methodHttpRoute in @pellux/goodvibes-operator-sdk), so the HTTP
@@ -55,12 +55,12 @@ function errorFailure(runtime: CliCommandRuntime, error: unknown): CliCommandOut
   };
 }
 
-/** The model proposal is clearly labeled at every point it renders — never presented as a decision. */
+/** The model proposal is clearly labeled at every point it renders, never presented as a decision. */
 function renderJudgment(judgment: AttemptJudgment | null): readonly string[] {
   if (!judgment) return ['    judge proposal: none yet'];
   const winner = judgment.proposedWinnerItemId ?? '(judge declined to choose)';
   const lines = [
-    `    MODEL PROPOSAL (scored by ${judgment.model ?? 'unknown model'}, not a decision — confirm with fleet attempts pick)`,
+    `    MODEL PROPOSAL (scored by ${judgment.model ?? 'unknown model'}, not a decision, confirm with fleet attempts pick)`,
     `      proposed winner ${winner}`,
   ];
   for (const reason of judgment.reasons) lines.push(`      reason: ${reason}`);
@@ -75,7 +75,7 @@ function renderCandidate(candidate: AttemptCandidate): readonly string[] {
     lines.push(`      failure: ${candidate.failureReason}`);
   }
   if (candidate.diff) {
-    lines.push(`      diff: ${candidate.diff.files.length} file(s) — ${candidate.diff.stat}`);
+    lines.push(`      diff: ${candidate.diff.files.length} file(s), ${candidate.diff.stat}`);
   }
   const usage = candidate.usage;
   const cost = usage.costState === 'priced' && usage.costUsd !== null ? `$${usage.costUsd.toFixed(4)}` : usage.costState;

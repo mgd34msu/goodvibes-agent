@@ -38,7 +38,7 @@ export interface CompositeRequest {
 
 /**
  * Compositor - Authoritative TUI layout engine with Selection Overlay.
- * Decoupled from global state — all needed data is passed as parameters.
+ * Decoupled from global state, all needed data is passed as parameters.
  */
 export class Compositor {
   /** Double-buffer reuse: back is written, front is the last-rendered reference. */
@@ -51,19 +51,19 @@ export class Compositor {
     // Probe terminal color capabilities once at construction time so the
     // DiffEngine downsamples every emitted SGR to the terminal's real level.
     // The hardcoded truecolor search-highlight hex below (and any future theme
-    // colors) is therefore cap-gated — no raw #rrggbb leaks on a non-truecolor
+    // colors) is therefore cap-gated, no raw #rrggbb leaks on a non-truecolor
     // terminal. (R4 later replaces the hardcoded hex with live activeTheme()
     // reads in its tone-read region; this R2 region owns only the caps wiring.)
     this.caps = probeTermCaps(stdout);
     this.diffEngine = new DiffEngine(this.caps);
   }
 
-  /** Exposed for unit tests — returns the detected color capability. */
+  /** Exposed for unit tests, returns the detected color capability. */
   public get termCapsForTest(): TermColorCaps {
     return this.caps;
   }
 
-  /** Exposed for unit tests — returns the last composited buffer. */
+  /** Exposed for unit tests, returns the last composited buffer. */
   public get lastBufferForTest(): TerminalBuffer | null {
     return this.frontBuffer;
   }
@@ -91,7 +91,7 @@ export class Compositor {
     const leftWidth = hasSidebar ? Math.max(1, width - sidebarWidth - 1) : width;
     const sepX = hasSidebar ? leftWidth : -1;
 
-    // 1. Draw Header — always full width
+    // 1. Draw Header, always full width
     header.forEach((line, i) => newBuffer.blitLine(i, line));
 
     // 2. Draw Viewport directly after the supplied header.
@@ -203,7 +203,7 @@ export class Compositor {
       }
     }
 
-    // 3. Draw Footer (Pinned to Bottom) — always full width
+    // 3. Draw Footer (Pinned to Bottom), always full width
     const footerStart = height - footer.length;
     footer.forEach((line, i) => {
       const screenY = footerStart + i;
@@ -212,7 +212,7 @@ export class Compositor {
     });
 
     // 4. Diff and Render
-    // R3: Diff against front-buffer (last-rendered), then swap front/back — no clone() needed
+    // R3: Diff against front-buffer (last-rendered), then swap front/back, no clone() needed
     const diff = this.diffEngine.diff(previousFrontBuffer, newBuffer);
     if (diff) {
       allowTerminalWrite(() => this.stdout.write(diff));

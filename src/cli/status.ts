@@ -128,7 +128,7 @@ function yesNo(value: unknown): string {
 
 /**
  * The connected-host runtime-metrics lines. Each non-ok state is rendered as a
- * plain sentence naming exactly why there are no numbers to show — most
+ * plain sentence naming exactly why there are no numbers to show, most
  * importantly, a token without the read:telemetry scope reads as "not
  * permitted", never as a wall of zeros that would misrepresent an unauthorized
  * token as a healthy idle host.
@@ -161,7 +161,7 @@ function connectedHostMetricsLines(snapshot: CliConnectedHostMetricsSnapshot | n
   }
 }
 
-/** permissions.tools.* keys — mirrors PermissionsToolConfig in the SDK config schema. */
+/** permissions.tools.* keys, mirrors PermissionsToolConfig in the SDK config schema. */
 const PERMISSION_TOOL_KEYS = [
   'read', 'write', 'edit', 'exec', 'find', 'fetch', 'analyze',
   'inspect', 'agent', 'state', 'workflow', 'registry', 'delegate', 'mcp',
@@ -171,7 +171,7 @@ const PERMISSION_TOOL_KEYS = [
  * Reads the effective approval posture the SAME way the permission gate
  * decides it (behavior.autoApprove first, then permissions.mode), so the
  * displayed label can never disagree with what actually happens when a tool
- * runs. Do not compute a posture label from permissions.mode alone here —
+ * runs. Do not compute a posture label from permissions.mode alone here,
  * that was the original bug (this surface ignored behavior.autoApprove).
  */
 function readApprovalPosture(config: Pick<ConfigManager, 'get'>): ApprovalPosture {
@@ -250,7 +250,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
 
   if (options.service) {
     // Advisories describe the arrangement the operator chose, so they are
-    // reported at risk severity — printed, never silent, and never a release
+    // reported at risk severity, printed, never silent, and never a release
     // defect. See doctorRiskAdvisoryOnlyCount in verification/live-verifier.ts.
     for (const advisory of options.service.advisories) {
       if (findings.some((finding) => finding.summary === advisory)) continue;
@@ -297,7 +297,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
       severity: 'risk',
       summary: 'Auto-approve is on: tool calls never prompt.',
       cause: 'behavior.autoApprove is true.',
-      impact: 'Every tool call — including powerful write, edit, network, and execution actions — runs without a Human-in-the-Loop (HITL) approval prompt, regardless of permissions.mode or any custom per-tool rule.',
+      impact: 'Every tool call, including powerful write, edit, network, and execution actions, runs without a Human-in-the-Loop (HITL) approval prompt, regardless of permissions.mode or any custom per-tool rule.',
       action: 'Disable behavior.autoApprove unless this is an intentionally trusted environment.',
     });
   }
@@ -439,7 +439,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
     'Connected host metrics (runtime.metrics.get; read:telemetry):',
     ...connectedHostMetricsLines(snapshot.connectedHostMetrics),
     '',
-    'Relay (connected host\'s imported config; not live-verified — see goodvibes-agent relay status):',
+    'Relay (connected host\'s imported config; not live-verified, see goodvibes-agent relay status):',
     `  relay.enabled: ${yesNo(snapshot.relay.enabled)}`,
     `  relay.url: ${snapshot.relay.url || '(empty)'}`,
     `  relay.requireStepUpForMutations: ${yesNo(snapshot.relay.requireStepUpForMutations)}`,

@@ -4,7 +4,7 @@
  * The away-digest (src/core/away-digest.ts via src/shell/autonomy-surfacing.ts)
  * and the /schedule list surface (src/input/commands/schedule-runtime.ts) both
  * need "what actually happened with scheduled automation since I was last
- * here" — and that truth lives on the connected GoodVibes host, not in this
+ * here", and that truth lives on the connected GoodVibes host, not in this
  * Agent process. Local automation execution is disabled by design (see
  * src/runtime/bootstrap.ts), so the agent's local AutomationManager never
  * produces real run outcomes; reading it for these surfaces reports nothing
@@ -14,7 +14,7 @@
  * This module is the single place that calls the host's automation.runs.list
  * operator method (?since=<epoch-ms>) and normalizes its output into the
  * plain shapes the digest and the schedule surface both need. It never
- * throws — every failure mode (no token, host unreachable, incompatible
+ * throws, every failure mode (no token, host unreachable, incompatible
  * host) resolves to an empty result so the caller can stay best-effort and
  * offline-tolerant, matching the away-digest's existing silent-failure
  * contract. It never falls back to the local automation manager.
@@ -34,7 +34,7 @@ export const AUTOMATION_RUNS_LIST_METHOD = 'automation.runs.list';
  * client type (OperatorMethodOutput<'automation.runs.list'>) has NOT been
  * regenerated to include 'missed' in its status union as of SDK commit
  * 3bddf143 even though the raw contract JSON and the runtime both carry it
- * (packages/sdk/src/platform/automation/manager-runtime-missed.js) — so this
+ * (packages/sdk/src/platform/automation/manager-runtime-missed.js), so this
  * module parses the wire response as `unknown` and narrows locally rather
  * than trusting that generated type.
  */
@@ -113,7 +113,7 @@ function readDeliveries(run: Record<string, unknown>): readonly AutomationRunDel
  * Fetch every automation run active on or after `since` (epoch ms) from the
  * connected host, normalized into outcomes + sent deliveries. Returns an
  * empty result (never throws) when there is no token, the host is
- * unreachable, or the response cannot be parsed — callers must not fall back
+ * unreachable, or the response cannot be parsed, callers must not fall back
  * to a local read on failure; "nothing to report" is the honest answer when
  * the connected host cannot be reached.
  */
@@ -155,11 +155,11 @@ export function buildListAutomationRunsSince(
 
 /**
  * Reduce a run list to the single most-recent run per jobId (by endedAt,
- * falling back to queuedAt for runs that never ended — e.g. a still-running
+ * falling back to queuedAt for runs that never ended, e.g. a still-running
  * or missed run). Used by the /schedule list surface to annotate each
  * schedule with its latest known outcome instead of staying silent about
  * drift (a missed or failed run) that the schedule record itself doesn't
- * carry (automation.schedules.list has no missed-run signal of its own —
+ * carry (automation.schedules.list has no missed-run signal of its own,
  * only automation.runs.list does).
  */
 export function latestRunPerJob(runs: readonly AutomationRunOutcome[]): ReadonlyMap<string, AutomationRunOutcome> {

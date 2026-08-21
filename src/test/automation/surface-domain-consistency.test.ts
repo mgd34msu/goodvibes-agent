@@ -81,8 +81,8 @@ describe('surface domain consistency', () => {
       store: new AutomationRouteStore(join(root, 'delivery-routes.json')),
     });
     // One secrets manager for both: the registry resolves service credentials
-    // with it, and the delivery manager needs its own — not only the
-    // registry's — to build a router that can resolve a goodvibes://secrets/...
+    // with it, and the delivery manager needs its own, not only the
+    // registry's, to build a router that can resolve a goodvibes://secrets/...
     // reply credential. Without it a surface accepts replies and silently never
     // sends them, which is why the SDK refuses to construct the manager at all.
     const secretsManager = new SecretsManager({ projectRoot: root, globalHome: root });
@@ -169,7 +169,7 @@ describe('surface domain consistency', () => {
   // AutomationDeliveryManager without a featureFlags manager, and
   // isFeatureGateEnabled is permissive when no manager is wired, so a
   // composition root that omitted featureFlags did not disable delivery when
-  // integrations.deliveryTracking was turned off — deliverText kept running
+  // integrations.deliveryTracking was turned off, deliverText kept running
   // either way, and this key has no other reader anywhere that could catch
   // the gap. services.ts now threads featureFlags, the same shape as the
   // route-binding fix.
@@ -259,7 +259,7 @@ describe('surface domain consistency', () => {
         { kind: 'surface', surfaceKind: 'service', address: 'daemon-1' },
       ]);
       // The gate refuses before it ever resolves a target or reaches the
-      // router, so nothing is attempted at all — not even a failed attempt.
+      // router, so nothing is attempted at all, not even a failed attempt.
       expect(attempts).toEqual([]);
     });
 

@@ -1,7 +1,7 @@
 /**
  * Connected-host receipt delivery: a current daemon delivers its undelivered
  * honesty receipts ("updated from X to Y", "restarted after a crash") once, and
- * ONLY to a /status read that opts in with ?receipts=consume — a plain /status
+ * ONLY to a /status read that opts in with ?receipts=consume, a plain /status
  * read is receipt-neutral. The agent's consuming reader is a single
  * ?receipts=consume read issued once per attach; the liveness probe stays plain.
  * Every consumed receipt must render exactly once.

@@ -98,7 +98,7 @@ export function renderQrMatrix(
         cellBg = bg;
       }
 
-      // Some terminals may not render block chars at full width — guard
+      // Some terminals may not render block chars at full width, guard
       const charWidth = getDisplayWidth(char);
       if (charWidth <= 0) {
         line[termCol] = createStyledCell(' ', { fg: cellFg, bg: cellBg });

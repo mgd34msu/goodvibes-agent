@@ -14,7 +14,7 @@ import { resetToolCapabilityDeclarationsForTests } from '../../tools/agent-tool-
  *
  * The failure it exists to prevent is a real one. This posture used to report
  * status "ready" whenever a browser-shaped MCP server was connected, and told
- * the model to "invoke the narrowest live-control tool" — while no tool mode
+ * the model to "invoke the narrowest live-control tool", while no tool mode
  * could invoke anything on an MCP server at all. The model spent a session
  * hunting for a route that did not exist.
  */

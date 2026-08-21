@@ -21,7 +21,7 @@ describe('ui primitives', () => {
   });
 
   // The status glyphs converge on the TUI reference via the SDK
-  // presentation contract. idle ○ -> ◌, info • -> ○, and a new warn ⚠ key —
+  // presentation contract. idle ○ -> ◌, info • -> ○, and a new warn ⚠ key,
   // a deliberate, visible convergence (per S1's divergence ruling), asserted
   // here so a future drift is caught.
   test('status glyphs adopt the reconciled TUI-reference definitions', () => {

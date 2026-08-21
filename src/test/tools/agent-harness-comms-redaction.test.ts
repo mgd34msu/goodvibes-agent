@@ -7,7 +7,7 @@ import type { CommandContext } from '../../input/command-registry.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // A webhook URL can embed an authentication token in its path, so it must never
-// be returned raw in any structured tool payload — only the formatted string is
+// be returned raw in any structured tool payload, only the formatted string is
 // allowed to omit it and the structured `draft`/`drafts` must show [redacted].
 const WEBHOOK = 'https://hooks.example.com/services/T000/B000/xoxb-super-secret-token';
 

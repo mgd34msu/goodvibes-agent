@@ -107,7 +107,7 @@ describe('SessionSpineClient fire-and-forget (SDK core via the agent REST transp
 describe('SessionSpineClient offline queue', () => {
   test('offline register enqueues; a later successful probe flushes idempotently', async () => {
     installFetch(() => { throw new Error('ECONNREFUSED'); });
-    // Production shape: the real self-probe (GET /status), not a bare override —
+    // Production shape: the real self-probe (GET /status), not a bare override,
     // proves the adapter's probe wiring, not just the core's queue mechanics.
     const client = makeClient({ probe: createSpineRestProbe({ resolveConnection: () => CONNECTION }) });
     client.register({ sessionId: 'user-1', project: '/p', title: 'T' });
@@ -281,7 +281,7 @@ describe('foldLegacySpineStore', () => {
     // A marker's mere existence is no longer trusted: an interrupted write used
     // to strand the legacy store forever. Only a marker that asserts its own
     // completion short-circuits, so the pre-completion-flag shape below folds
-    // again — a one-time, idempotent re-register (the legacy file never changes
+    // again, a one-time, idempotent re-register (the legacy file never changes
     // again, and register is an upsert) that then writes a marker which does
     // assert completion.
     const storePath = join(root, 'sessions.json');
@@ -313,7 +313,7 @@ describe('foldLegacySpineStore', () => {
   });
 });
 
-/** The keepalive window these tests configure — also the fake clock's step size. */
+/** The keepalive window these tests configure, also the fake clock's step size. */
 const KEEPALIVE_INTERVAL_MS = 15;
 
 interface KeepaliveHarness {
@@ -333,7 +333,7 @@ interface KeepaliveHarness {
  *
  * The keepalive used to be driven by a real `setInterval` and observed with
  * wall-clock sleeps, so under full-suite load a beat that had already fired
- * could still be mid-flight when `dispose()` ran — the "no further wire calls
+ * could still be mid-flight when `dispose()` ran, the "no further wire calls
  * after teardown" assertion then saw that straggler and failed (passing solo,
  * failing in a loaded full run). Here the client's interval is CAPTURED instead
  * of armed on the event loop and its clock is injected, so a beat happens
@@ -419,7 +419,7 @@ describe('SessionSpineClient timer-driven keepalive (an idle-open session must n
     try {
       harness.client.register({ sessionId: 'keepalive-2', project: '/p', title: 'T' });
       await settle();
-      // The keepalive is demonstrably live first — otherwise "no calls after
+      // The keepalive is demonstrably live first, otherwise "no calls after
       // dispose" would also pass on a client that never beat at all.
       await harness.beat();
       const whileLive = registerCalls().length;
@@ -467,7 +467,7 @@ describe('SessionSpineClient timer-driven keepalive (an idle-open session must n
       await settle();
       expect(harness.client.status()).toBe('offline');
 
-      // One more keepalive tick while still offline — it must ride the existing
+      // One more keepalive tick while still offline, it must ride the existing
       // bounded queue (drop-oldest), never throw, never spin up a separate
       // faster retry loop.
       await harness.beat();
@@ -523,7 +523,7 @@ describe('SessionSpineClient live-immediately construction (no activate() call)'
   test('a transport supplied at construction registers immediately, with no separate activation step', async () => {
     installFetch(() => new Response(JSON.stringify({ session: { id: 'live-1', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
     const client = makeClient();
-    // No client.activate(...) call anywhere in this test — live-immediately mode
+    // No client.activate(...) call anywhere in this test, live-immediately mode
     // means the transport passed to the constructor is already active.
     expect(client.active).toBe(true);
     client.register({ sessionId: 'live-1', project: '/p' });
@@ -589,7 +589,7 @@ describe('Token-reading stays agent-local (the SDK module never reads token file
   test('the SDK session-spine dist has no filesystem token access', () => {
     // The SDK core's client.ts imports node:fs ONLY for foldLegacySpineStore's
     // legacy-store marker read/write (documented, storePath/markerPath are
-    // caller-supplied paths, not a token file) — it must never read the
+    // caller-supplied paths, not a token file), it must never read the
     // agent's connected-host operator-tokens.json or otherwise resolve a
     // token itself. That responsibility belongs entirely to this adapter
     // (createSpineConnectionResolver -> readConnectedHostOperatorToken).

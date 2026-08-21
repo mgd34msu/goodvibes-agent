@@ -1,12 +1,12 @@
 /**
- * `/google` — the entry point for connecting Gmail and Google Calendar.
+ * `/google`, the entry point for connecting Gmail and Google Calendar.
  *
  * Why this command exists at all: every module of the Google connector was
  * written, unit-tested and shipped with no importer outside its own tests. The
  * flow executor, the console walkthrough, the three credential intake routes,
  * the app-password fast lane and the credential adoption were all reachable
  * only from a test file, so the shipped agent honestly reported that email and
- * calendar were not wired up — they were not. Tests passing said nothing about
+ * calendar were not wired up, they were not. Tests passing said nothing about
  * whether a person could get to the feature.
  *
  * So the surface is deliberately one command rather than subcommands under
@@ -130,8 +130,8 @@ async function setAccount(args: readonly string[], ctx: CommandContext): Promise
 }
 
 /**
- * The private iCal address is a credential in URL form — anyone holding it can
- * read the calendar — so it goes to the encrypted store, not to config.
+ * The private iCal address is a credential in URL form, anyone holding it can
+ * read the calendar, so it goes to the encrypted store, not to config.
  */
 async function setCalendarAddress(args: readonly string[], ctx: CommandContext): Promise<void> {
   const url = (args[0] ?? '').trim();
@@ -148,7 +148,7 @@ async function setCalendarAddress(args: readonly string[], ctx: CommandContext):
 }
 
 /**
- * `/google approve` — the gesture that clears an outward-effect refusal.
+ * `/google approve`, the gesture that clears an outward-effect refusal.
  *
  * Refuses when the MODEL got here. `agent_harness mode:"run_command"` can run
  * any registered command, so without this check the remedy would be reachable

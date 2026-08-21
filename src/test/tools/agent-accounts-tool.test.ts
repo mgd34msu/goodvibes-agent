@@ -13,7 +13,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 /**
  * Creating accounts autonomously is authorized; doing it invisibly is not.
  * These cover both halves: the record actually lands and is enumerable and
- * revocable, and the one boundary that does not move — content the agent read
+ * revocable, and the one boundary that does not move, content the agent read
  * this turn cannot be what causes a signup to be registered.
  */
 

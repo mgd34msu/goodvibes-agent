@@ -1,95 +1,15 @@
-import type {
-  ParsedRoutineSchedulePromotionArgs,
-  RoutineScheduleDeliverySurfaceKind,
-  RoutineScheduleDeliveryTargetSpec,
-} from './routine-schedule-promotion.ts';
+import type { ParsedRoutineSchedulePromotionArgs } from './routine-schedule-promotion.ts';
+import {
+  parseChannelDeliveryTarget,
+  parseLinkDeliveryTarget,
+  parseRouteDeliveryTarget,
+  parseWebhookDeliveryTarget,
+  readOptionValue as optionValue,
+  validateDeliveryTargets,
+  type RoutineScheduleDeliveryTargetSpec,
+} from './schedule-delivery-targets.ts';
 
-const DELIVERY_SURFACE_KINDS: readonly RoutineScheduleDeliverySurfaceKind[] = [
-  'tui',
-  'web',
-  'slack',
-  'discord',
-  'ntfy',
-  'webhook',
-  'telegram',
-  'google-chat',
-  'signal',
-  'whatsapp',
-  'telephony',
-  'imessage',
-  'msteams',
-  'bluebubbles',
-  'mattermost',
-  'matrix',
-  'service',
-];
-
-function optionValue(args: readonly string[], index: number, inlineValue: string | undefined): {
-  readonly value: string | undefined;
-  readonly nextIndex: number;
-} {
-  if (inlineValue !== undefined) return { value: inlineValue, nextIndex: index };
-  const next = args[index + 1];
-  if (next === undefined || next.startsWith('--')) return { value: undefined, nextIndex: index };
-  return { value: next, nextIndex: index + 1 };
-}
-
-export function isRoutineScheduleDeliverySurfaceKind(value: string): value is RoutineScheduleDeliverySurfaceKind {
-  return DELIVERY_SURFACE_KINDS.includes(value as RoutineScheduleDeliverySurfaceKind);
-}
-
-function parseChannelDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const [surfaceKind = '', routeId, label] = raw.split(':');
-  if (!isRoutineScheduleDeliverySurfaceKind(surfaceKind)) {
-    return `Unsupported delivery channel "${surfaceKind}".`;
-  }
-  return {
-    kind: 'surface',
-    surfaceKind,
-    routeId: routeId?.trim() || undefined,
-    label: label?.trim() || undefined,
-  };
-}
-
-function parseRouteDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const [routeId = '', label] = raw.split(':');
-  const normalizedRouteId = routeId.trim();
-  if (!normalizedRouteId) return '--delivery-route requires a route id.';
-  return {
-    kind: 'surface',
-    routeId: normalizedRouteId,
-    label: label?.trim() || undefined,
-  };
-}
-
-function parseWebhookDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const normalized = raw.trim();
-  if (!normalized) return '--delivery-webhook requires a URL.';
-  try {
-    const url = new URL(normalized);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '--delivery-webhook must be an http(s) URL.';
-  } catch {
-    return '--delivery-webhook must be a valid URL.';
-  }
-  return {
-    kind: 'webhook',
-    address: normalized,
-  };
-}
-
-function parseLinkDeliveryTarget(raw: string): RoutineScheduleDeliveryTargetSpec | string {
-  const normalized = raw.trim();
-  if (!normalized) return '--delivery-link requires a URL or label.';
-  return {
-    kind: 'link',
-    address: normalized,
-  };
-}
-
-function validateDeliveryTargets(targets: readonly RoutineScheduleDeliveryTargetSpec[]): string | null {
-  const kinds = new Set(targets.map((target) => target.kind));
-  return kinds.size > 1 ? 'Use one delivery target kind per routine promotion command.' : null;
-}
+export { isRoutineScheduleDeliverySurfaceKind } from './schedule-delivery-targets.ts';
 
 export function parseRoutineSchedulePromotionArgs(args: readonly string[]): ParsedRoutineSchedulePromotionArgs {
   let routineId: string | null = null;
@@ -217,7 +137,7 @@ export function parseRoutineSchedulePromotionArgs(args: readonly string[]): Pars
 
   if (!routineId) errors.push('Routine id or name is required.');
   if (!schedule) errors.push('Schedule is required: use --cron <expr>, --every <interval>, or --at <iso-time>.');
-  const deliveryError = validateDeliveryTargets(deliveryTargets);
+  const deliveryError = validateDeliveryTargets(deliveryTargets, 'routine promotion command');
   if (deliveryError) errors.push(deliveryError);
   return { routineId, schedule, deliveryTargets, name, timezone, provider, model, enabled, yes, errors };
 }

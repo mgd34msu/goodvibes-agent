@@ -1,5 +1,5 @@
 /**
- * settings-modal-flag-entries.ts — the feature rows the settings modal renders.
+ * settings-modal-flag-entries.ts, the feature rows the settings modal renders.
  *
  * Two sources, in a deliberate order. A flag the live FeatureFlagManager knows
  * about reports the manager's state, because that is what the runtime is
@@ -20,7 +20,7 @@ import { FEATURE_SETTINGS } from '@/runtime/index.ts';
 import { isFeatureEnabledInConfig } from '../runtime/feature-enablement.ts';
 import type { FlagEntry } from './settings-modal-types.ts';
 
-/** Empty with no config manager wired — nothing can be derived without one. */
+/** Empty with no config manager wired, nothing can be derived without one. */
 export function buildFlagEntries(
   configManager: ConfigManager | null,
   featureFlagManager: FeatureFlagManager | null,

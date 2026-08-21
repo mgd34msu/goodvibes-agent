@@ -48,8 +48,8 @@ describe('all workflows: baseline hygiene', () => {
   const files = readdirSync(WF_DIR).filter((f) => f.endsWith('.yml'));
 
   test('composite action metadata never references the vars context', () => {
-    // GitHub template-evaluates the ENTIRE action manifest — including input
-    // descriptions — and the vars context does not exist in composite actions.
+    // GitHub template-evaluates the ENTIRE action manifest, including input
+    // descriptions, and the vars context does not exist in composite actions.
     // A literal vars expression anywhere in the file fails every consuming job
     // at load time (this took down the TUI's v1.19.2 CI run).
     const raw = readFileSync(resolve(WF_DIR, '../actions/setup/action.yml'), 'utf8');
@@ -118,7 +118,7 @@ describe('ci.yml: zero-touch auto-release', () => {
     // The agent's CI is a single `test` gate; auto-release must need it so it is
     // scheduled last and only on a fully green run.
     expect(needs).toContain('test');
-    // And its needs set is exactly the other jobs — no gate omitted, no self-need.
+    // And its needs set is exactly the other jobs, no gate omitted, no self-need.
     const otherJobs = jobs(ci).map(([n]) => n).filter((n) => n !== 'auto-release');
     expect([...needs].sort()).toEqual([...otherJobs].sort());
   });
@@ -170,7 +170,7 @@ describe('release.yml: by-reference release on the shared reusables', () => {
     expect(needsOf(rv)).toContain('verify-tag-version');
     const withBlock = (rv as Job & { with?: Record<string, unknown> }).with ?? {};
     expect(withBlock['workflow']).toBe('ci.yml');
-    // The Agent is a consumer of the SDK's toolchain — it bunx-es the published
+    // The Agent is a consumer of the SDK's toolchain, it bunx-es the published
     // package (registry), never the workspace self-host mode.
     expect(withBlock['toolchain-source']).toBe('registry');
   });
@@ -355,7 +355,7 @@ describe('release.yml: zero-touch release mode + runtime-bundled tarball publish
     const packText = stepText(rel.jobs!['pack']!);
     expect(packText).toContain('tar -tzf');
     expect(packText).toContain('package/dist/package/main.js');
-    // registry-install-smoke — the gate that caught the defect — is untouched.
+    // registry-install-smoke, the gate that caught the defect, is untouched.
     expect(needsOf(rel.jobs!['registry-install-smoke']!)).toContain('publish-npm');
   });
 

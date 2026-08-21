@@ -52,7 +52,7 @@ describe('prompt context receipts', () => {
       ].join('\n'));
       writeFileSync(join(shellPaths.workingDirectory, 'AGENTS.md'), 'Prefer visible autonomous work and reviewable local records.');
 
-      // VIBE.md is now a PROJECTION of persona records — migrate the file into
+      // VIBE.md is now a PROJECTION of persona records, migrate the file into
       // the store (as boot does) so the projected '## GoodVibes Agent VIBE.md' block renders.
       // importVibeFilesIntoMemoryOnce writes through the memory-spine's MemoryAccess
       // surface in production (services.memorySpineClient); wrap the local registry
@@ -171,7 +171,7 @@ describe('prompt context receipts', () => {
       const offTopicPercent = Number(String(offTopicSelected?.relevance).match(/(\d+)%/)?.[1] ?? '0');
       expect(onTopicPercent).toBeGreaterThan(offTopicPercent);
 
-      // The actual injected prompt (not just the receipt) is ranked the same way — the
+      // The actual injected prompt (not just the receipt) is ranked the same way, the
       // real seam this closes is the injected content, not only what gets reported.
       expect(composed.prompt.indexOf('deploy pipeline')).toBeLessThan(composed.prompt.indexOf('herbal tea'));
     });
@@ -214,7 +214,7 @@ describe('prompt context receipts', () => {
   // the exact wire-sourced shape services.memorySpineClient.recallSnapshot()
   // hands to composeRuntimePromptWithReceipt in production (bootstrap.ts). The
   // agent refreshes with `{ recall: false }` (an unfiltered browse set,
-  // matching the old getAll() semantics — see the SYNC-RECALL SEAM comment on
+  // matching the old getAll() semantics, see the SYNC-RECALL SEAM comment on
   // RuntimePromptCompositionInput.memoryRecallSnapshot) precisely so the
   // receipt's own eligibility/ranking pipeline keeps deciding what's active vs
   // suppressed and WHY, rather than pre-filtering at the recall floor and
@@ -239,11 +239,11 @@ describe('prompt context receipts', () => {
         memoryRegistry.review(lowConfidence.id, { state: 'reviewed', confidence: 20, reviewedBy: 'test' });
 
         // Mirrors bootstrap.ts exactly: refresh with { recall: false } over
-        // honestSearch, then hand the snapshot in as mode 'client' — the
+        // honestSearch, then hand the snapshot in as mode 'client', the
         // agent stamps 'client' whenever a daemon is adopted; this fixture
         // has no daemon, so the mode is set explicitly to exercise that path
         // (recallSnapshotNote only surfaces the SDK note for 'client' or
-        // stale snapshots — see memoryRecallSnapshotNote in
+        // stale snapshots, see memoryRecallSnapshotNote in
         // prompt-context-receipts.ts).
         const browseSet = memoryRegistry.honestSearch({}, { recall: false });
         expect(browseSet.recallFiltered).toBe(false);
@@ -267,7 +267,7 @@ describe('prompt context receipts', () => {
         expect(memorySegment).toBeDefined();
 
         // The note must be present (mode 'client') and must honestly say this
-        // was an UNFILTERED browse set, not a recall-eligible count — the
+        // was an UNFILTERED browse set, not a recall-eligible count, the
         // exact reword this test locks in.
         expect(memorySegment?.note).toContain('over the wire from the adopted daemon');
         expect(memorySegment?.note).toContain('in the browse set (unfiltered — recall floor not applied)');
@@ -276,7 +276,7 @@ describe('prompt context receipts', () => {
         expect(memorySegment?.note).toMatch(/captured \d+s ago/);
 
         // Coherence: the note's own record count must equal EVERY record the
-        // memory segment accounted for (active + suppressed) — the segment's
+        // memory segment accounted for (active + suppressed), the segment's
         // own local eligibility/ranking filter re-partitions the exact same
         // browse set the note describes, it never drops or adds records.
         const noteCount = Number(memorySegment?.note?.match(/(\d+) record\(s\) in the browse set/)?.[1] ?? -1);
@@ -308,7 +308,7 @@ describe('prompt context receipts', () => {
         // recall:true already dropped flagged/sub-floor records BEFORE this
         // snapshot exists, so a record excluded by the recall floor would
         // never reach the receipt's own suppressed list with a per-record
-        // reason at all — it would simply be absent, which is exactly the
+        // reason at all, it would simply be absent, which is exactly the
         // granularity loss the SYNC-RECALL SEAM comment on
         // RuntimePromptCompositionInput.memoryRecallSnapshot rules out. This
         // assertion documents the wording difference the ruling rests on,

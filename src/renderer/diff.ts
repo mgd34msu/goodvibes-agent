@@ -116,7 +116,7 @@ export class DiffEngine {
         if (cell.strikethrough) style += '\x1b[9m';
       }
 
-      // Foreground color — capability-downsampled (no raw hex leak on a
+      // Foreground color, capability-downsampled (no raw hex leak on a
       // truecolor-incapable terminal; null → emit nothing).
       const fgOut = downsampleColor(fg, this.caps, 'fg');
       if (fgOut !== null) {
@@ -128,7 +128,7 @@ export class DiffEngine {
         }
       }
 
-      // Background color — capability-downsampled
+      // Background color, capability-downsampled
       const bgOut = downsampleColor(bg, this.caps, 'bg');
       if (bgOut !== null) {
         if (this.caps.capability === 'basic16') {

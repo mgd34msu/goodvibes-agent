@@ -171,7 +171,7 @@ describe('local rec selection does not silently switch model', () => {
   test('selecting a local rec routes to local provider, not a real cloud provider', () => {
     _setHardwareProfileForTest(STUB_PROFILE);
     const recs = buildLocalFitRecommendations(STUB_PROFILE);
-    // All recommendations are NOT installed — provider is the sentinel 'local',
+    // All recommendations are NOT installed, provider is the sentinel 'local',
     // never a real cloud provider like 'openai' or 'anthropic'.
     for (const rec of recs) {
       expect(rec.provider).toBe(LOCAL_REC_PROVIDER);
@@ -186,7 +186,7 @@ describe('local rec selection does not silently switch model', () => {
     _setHardwareProfileForTest(STUB_PROFILE);
     const recs = buildLocalFitRecommendations(STUB_PROFILE);
     const picker = makePickerWithLocalOnly();
-    // configuredProviders must be empty — the synthetic entries must not be treated
+    // configuredProviders must be empty, the synthetic entries must not be treated
     // as real configured providers, preventing any silent model switch.
     expect(picker.configuredProviders.has(LOCAL_REC_PROVIDER)).toBe(false);
     // The models are present in the list but are flagged as not-yet-installed

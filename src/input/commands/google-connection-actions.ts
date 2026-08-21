@@ -11,10 +11,10 @@
  * and the command and the workspace editors are thin renderers over them.
  *
  * The split is deliberate about what each side owns: this module decides what
- * happens and returns text; the caller decides where that text goes — the
+ * happens and returns text; the caller decides where that text goes, the
  * console for the command, an action result panel for the workspace.
  *
- * The connector itself is `@pellux/goodvibes-sdk/platform/google` — the flows,
+ * The connector itself is `@pellux/goodvibes-sdk/platform/google`, the flows,
  * the step plan, the credential handling and the browser-driven pages all live
  * there now, so the daemon can run them too. What stayed here is the wiring
  * that only this product can supply: config and secret access through the
@@ -90,8 +90,8 @@ export function googleConfigPort(ctx: CommandContext): GoogleConfigPort {
  *
  * No scope is passed, and that is the whole point. Every name in
  * `GOOGLE_SECRET_KEYS` derives from a daemon-owned config path, so the store
- * files it in the daemon tier by itself. Forcing a surface scope here — which
- * this did until now — overrode that and hid the credential from the daemon,
+ * files it in the daemon tier by itself. Forcing a surface scope here, which
+ * this did until now, overrode that and hid the credential from the daemon,
  * and from any node that later took the work over. The daemon is a consumer of
  * this connector, not a bystander to it.
  */
@@ -106,7 +106,7 @@ export function googleSecretPort(ctx: CommandContext): GoogleSecretPort {
     set: (key, value) => manager.set(key, value),
     // Carried so a confirmation-gated removal can actually remove. Nothing
     // reaches it except `forgetGoogleCredentials`, which refuses without an
-    // explicit yes — see the SDK's credential-removal.ts.
+    // explicit yes, see the SDK's credential-removal.ts.
     ...(manager.delete === undefined ? {} : { delete: (key: string) => manager.delete!(key) }),
   };
 }
@@ -120,7 +120,7 @@ export const googleFilePort = nodeGoogleFilePort;
  * The profile is named and persistent on purpose: Google blocks automated
  * browsers at its sign-in wall, so the person signs in by hand exactly once and
  * every later run reuses that session. This is also why every surface has to
- * warn that the flow will pause — an unattended run cannot get past it.
+ * warn that the flow will pause, an unattended run cannot get past it.
  */
 export function googleBrowserFactory(ctx: CommandContext): () => Promise<GoogleBrowserPort> {
   const homeDirectory = requireShellPaths(ctx).homeDirectory;
@@ -174,7 +174,7 @@ async function openConnection(ctx: CommandContext, signedInAccount: string | nul
 /**
  * Status.
  *
- * Reports what is configured and — when a credential is stored — what it can
+ * Reports what is configured and, when a credential is stored, what it can
  * actually do, by using it. "A refresh token is present" is not the question
  * anyone is asking; "does mail work, does calendar work" is.
  *
@@ -216,7 +216,7 @@ export interface GoogleAdoptionOutcome {
 /**
  * Take up credentials from files on this machine.
  *
- * Reached only because someone asked — by running the adopt command or by
+ * Reached only because someone asked, by running the adopt command or by
  * naming a path. Nothing calls this from status or discovery, and nothing
  * scans for these files on its own.
  *
@@ -290,11 +290,11 @@ export interface GoogleConnectOutcome {
 }
 
 /**
- * `/google connect` — discovery first, then the shortest route to a working
+ * `/google connect`, discovery first, then the shortest route to a working
  * connection, then proof that it works.
  *
  * The bar this is written to: from "connect google" to working mail AND
- * calendar, the person does at most one thing — open a printed link and
+ * calendar, the person does at most one thing, open a printed link and
  * approve it. Everything else belongs to the flow. When a route needs a second
  * action, the plan says so and says why, and the only reason that survives is
  * a fact about Google (creating an OAuth client has no API and no gcloud
@@ -357,14 +357,14 @@ export async function connectGoogle(
 }
 
 /**
- * `/google reauthorize` — a fresh consent covering every scope, without
+ * `/google reauthorize`, a fresh consent covering every scope, without
  * deleting anything.
  *
  * This is the command the old error text pointed at and which did not exist.
  * It runs the existing-client path, which is consent and proof only: the
  * client is already there, so nothing about the project or the console is
  * touched. The stored refresh token is replaced by Google issuing a new one on
- * a fresh consent — the person's approval IS the confirmation, which is why
+ * a fresh consent, the person's approval IS the confirmation, which is why
  * this does not additionally prompt.
  */
 export async function reauthorizeGoogle(
@@ -390,7 +390,7 @@ export async function reauthorizeGoogle(
     ...(plan.intendedAccount === null ? {} : { loginHint: plan.intendedAccount }),
     // Google returns a new refresh token on a fresh consent, and the authorize
     // step stores it. Forcing the step to run means clearing the "already
-    // authorized" short-circuit, which is what the removal below is for — and
+    // authorized" short-circuit, which is what the removal below is for, and
     // it is the one removal that does not need a separate yes, because the
     // person is about to approve a replacement on the consent screen.
     proveConnection: async () => {
@@ -421,7 +421,7 @@ export async function reauthorizeGoogle(
 }
 
 /**
- * `/google forget` — remove stored credentials, only ever with an explicit yes.
+ * `/google forget`, remove stored credentials, only ever with an explicit yes.
  *
  * Called without confirmation this changes nothing and returns the question.
  * The agent deleted a refresh token mid-flow with nothing asked and nothing

@@ -3,7 +3,7 @@
 //
 // A FOLDED block is ONE row. The owner rejected the previous shape four times:
 // a collapsed tool result spent four to six rows saying "there is something
-// here" — a ▄ top rule, a framed preview box, a ▀ bottom rule, a second copy of
+// here", a ▄ top rule, a framed preview box, a ▀ bottom rule, a second copy of
 // the count as `[▸ N hidden]`, and a blank separator between every pair, so a
 // handful of folds filled the screen.
 //
@@ -63,7 +63,7 @@ function renderRows(
   return lines.map((line) => line.map((cell) => cell.char).join('').replace(/\s+$/, ''));
 }
 
-/** A long body — comfortably past the "show it whole" threshold. */
+/** A long body, comfortably past the "show it whole" threshold. */
 function longBody(): string {
   const padded: Record<string, string> = {};
   for (let i = 0; i < 30; i++) padded[`k${i}`] = `value-${i}`;
@@ -168,7 +168,7 @@ describe('renderConversationFoldedRow owns the fold geometry', () => {
   test('a multi-line body flattens into ONE visual run, still one row', () => {
     // The policy flattens newlines to single spaces rather than stopping at the
     // first line, so a short first line does not waste the row's remaining
-    // columns. It is still exactly one row — truncated, never wrapped.
+    // columns. It is still exactly one row, truncated, never wrapped.
     const text = rowText('first line\nsecond line\nthird');
     expect(text).toContain('first line second line third');
     expect(text).not.toContain('\n');
@@ -181,7 +181,7 @@ describe('renderConversationFoldedRow owns the fold geometry', () => {
   test('an over-long line is truncated with an ellipsis, never wrapped', () => {
     const text = rowText('x'.repeat(400));
     expect(text.endsWith('…')).toBe(true);
-    // The row still fits its width — truncation, not overflow.
+    // The row still fits its width, truncation, not overflow.
     expect(text.length).toBeLessThanOrEqual(WIDTH);
   });
 

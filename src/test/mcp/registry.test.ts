@@ -41,7 +41,7 @@ rl.on('line', (line) => {
 
 // Long-lived: created once here at module top level and reused by every test in
 // this file (the separate SandboxSessionRegistry instances below, and
-// createRegistry()), not per-test — so it must not go through
+// createRegistry()), not per-test, so it must not go through
 // makeProjectTempDir's per-test sweep, which would delete it after the file's
 // first test finishes. Its removal is registered with the shared temp registry,
 // which the preload sweeps from a top-level afterAll; that replaces both a
@@ -58,7 +58,7 @@ function createRegistry(): McpRegistry {
 }
 
 // ---------------------------------------------------------------------------
-// Registry — no servers
+// Registry, no servers
 // ---------------------------------------------------------------------------
 describe('McpRegistry — empty state', () => {
   test('serverNames is empty by default', () => {
@@ -101,7 +101,7 @@ describe('McpRegistry — empty state', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Registry — qualified name parsing
+// Registry, qualified name parsing
 // ---------------------------------------------------------------------------
 describe('McpRegistry — qualified name parsing', () => {
   test('getClient() returns undefined for unknown server', () => {
@@ -111,7 +111,7 @@ describe('McpRegistry — qualified name parsing', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Registry — with a live stub server
+// Registry, with a live stub server
 // ---------------------------------------------------------------------------
 describe('McpRegistry — with stub server', () => {
   let registry: McpRegistry;
@@ -276,7 +276,7 @@ describe('McpRegistry — with stub server', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Registry — connectAll from config file
+// Registry, connectAll from config file
 // ---------------------------------------------------------------------------
 describe('McpRegistry — connectAll from file', () => {
   let tmpDir: string;

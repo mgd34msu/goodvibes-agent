@@ -18,7 +18,7 @@ const SURFACE_ROOT = 'agent';
 
 /**
  * A recording fake for the {low, high} system-message sink. Never a real
- * router — just captures what was sent so tests can assert on exact wording
+ * router, just captures what was sent so tests can assert on exact wording
  * and on the absence of raw host:port text.
  */
 function makeRouterSpy() {
@@ -47,7 +47,7 @@ function makeGateOptions(root: string, overrides: Partial<LanScanGateOptions> = 
   };
 }
 
-/** A fake discovery pass — this is the ONLY thing allowed to stand in for the
+/** A fake discovery pass, this is the ONLY thing allowed to stand in for the
  * SDK's real subnet scan in tests. It never touches the network. */
 function fakeDiscovery(
   emit: (opts: BackgroundProviderDiscoveryOptions) => void,
@@ -171,7 +171,7 @@ describe('runGatedLanScan: consent gate (test doubles only — never a real netw
     });
     const { router, low } = makeRouterSpy();
 
-    // Two "relaunches" in a row — both should scan (via the fake), neither shows a consent prompt.
+    // Two "relaunches" in a row, both should scan (via the fake), neither shows a consent prompt.
     runGatedLanScan(makeGateOptions(root, { systemMessageRouter: router, startDiscovery: discovery.fn }));
     runGatedLanScan(makeGateOptions(root, { systemMessageRouter: router, startDiscovery: discovery.fn }));
 
@@ -217,7 +217,7 @@ describe('runGatedLanScan: consent gate (test doubles only — never a real netw
 
     runGatedLanScan(makeGateOptions(root, { systemMessageRouter: router, startDiscovery: discovery.fn }));
 
-    expect(low).toEqual(['[Scan] 1 previously found server no longer reachable — removed.']);
+    expect(low).toEqual(['[Scan] 1 previously found server no longer reachable, removed.']);
     expect(high).toHaveLength(1);
     expect(high[0]).toBe('[Scan] Active model was on Ollama — switched to openrouter:openrouter/free');
     expect(high[0]).not.toContain('192.168.1.7');

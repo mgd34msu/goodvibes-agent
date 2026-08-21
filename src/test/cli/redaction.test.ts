@@ -111,8 +111,8 @@ describe('a support bundle never carries card material', () => {
    * The same assertion as the TUI's, deliberately duplicated rather than
    * shared: the two products keep separate redactor lists, and a test that
    * lived in only one of them would let the other drift back. The defect being
-   * pinned is that the rule keyed on a naming habit — a trailing
-   * `password`/`token`/`secret` — and `cardNumber`, `cardExpiry` and
+   * pinned is that the rule keyed on a naming habit, a trailing
+   * `password`/`token`/`secret`, and `cardNumber`, `cardExpiry` and
    * `cardholderName` end in none of them.
    */
   const CARD_CONFIG = {

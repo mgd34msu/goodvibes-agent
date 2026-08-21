@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-2.0.15-blue.svg)](https://github.com/mgd34msu/goodvibes-agent)
 
-GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness — route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes — instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
+GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness: route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes, instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
 
-<img src="docs/assets/operator-workspace.png" alt="The fullscreen GoodVibes Agent operator workspace. A left column lists operator areas under an Onboarding heading, with Start and Models flagged for attention. The right pane is headed Start, 16 actions, and summarises setup state: 3 of 13 done, 4 need attention, the current chat route, a count of local personas, skills, routines, and memories, and a next step reading Connected-host auth, blocked. Below, a Setting / Default / Current table lists the available actions — use a local model with no sign-in, sign in to a provider, choose main model, import GoodVibes settings, reasoning effort medium, save history true, and a Finish setup row. A footer shows the workspace key hints." width="900">
+<img src="docs/assets/operator-workspace.png" alt="The fullscreen GoodVibes Agent operator workspace. A left column lists operator areas under an Onboarding heading, with Start and Models flagged for attention. The right pane is headed Start, 16 actions, and summarises setup state: 3 of 13 done, 4 need attention, the current chat route, a count of local personas, skills, routines, and memories, and a next step reading Connected-host auth, blocked. Below, a Setting / Default / Current table lists the available actions: use a local model with no sign-in, sign in to a provider, choose main model, import GoodVibes settings, reasoning effort medium, save history true, and a Finish setup row. A footer shows the workspace key hints." width="900">
 
 ---
 
@@ -19,7 +19,7 @@ goodvibes-agent --help
 goodvibes-agent
 ```
 
-The Agent talks to a GoodVibes daemon, so this package depends on `goodvibes-daemon` and one install brings both commands. Bun blocks lifecycle scripts for untrusted global packages, and the daemon's own postinstall is what places the daemon binary — hence the trust line. Nothing else here needs trusting; this package has no postinstall of its own. Check both landed with `goodvibes-agent --version` and `goodvibes-daemon --version`; they report different numbers because they are separate products on separate version lines.
+The Agent talks to a GoodVibes daemon, so this package depends on `goodvibes-daemon` and one install brings both commands. Bun blocks lifecycle scripts for untrusted global packages, and the daemon's own postinstall is what places the daemon binary, hence the trust line. Nothing else here needs trusting; this package has no postinstall of its own. Check both landed with `goodvibes-agent --version` and `goodvibes-daemon --version`; they report different numbers because they are separate products on separate version lines.
 
 If `goodvibes-agent` is not on `PATH` after a global install:
 
@@ -29,11 +29,11 @@ export PATH="$(bun pm bin -g):$PATH"
 
 On a fresh Agent home, `goodvibes-agent` opens setup first; once setup is applied it opens directly into the Agent workspace.
 
-Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) and a `SHA256SUMS.txt` manifest, for environments that download a binary directly rather than through Bun. A directly-downloaded binary self-updates at launch — a bounded check against the latest GitHub release, then a checksum-verified download-and-swap when one is newer, with the replaced file always kept beside it as `<file>.previous` so `/update rollback` can undo it. Package-managed installs never self-swap; they defer to `bun add -g` instead. `update.autoUpdateAtLaunch: false` in `settings.json` turns the launch check off. A long-running agent also keeps looking after launch: the same checksum-verified path runs on a periodic check (first one ~30s after start, hourly after that) and installs only at an idle moment — no active turn, no in-flight channel delivery, no confirmation waiting on you — then restarts in place with the same arguments. `update.auto: false` turns that off.
+Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) and a `SHA256SUMS.txt` manifest, for environments that download a binary directly rather than through Bun. A directly-downloaded binary self-updates at launch: a bounded check against the latest GitHub release, then a checksum-verified download-and-swap when one is newer, with the replaced file always kept beside it as `<file>.previous` so `/update rollback` can undo it. Package-managed installs never self-swap; they defer to `bun add -g` instead. `update.autoUpdateAtLaunch: false` in `settings.json` turns the launch check off. A long-running agent also keeps looking after launch: the same checksum-verified path runs on a periodic check (first one ~30s after start, hourly after that) and installs only at an idle moment: no active turn, no in-flight channel delivery, no confirmation waiting on you. It then restarts in place with the same arguments. `update.auto: false` turns that off.
 
 The semantic (embedding-backed) memory index depends on a native `sqlite-vec` addon that Bun cannot embed in a compiled binary, so each release ships it separately as `sqlite-vec-<os>-<arch>.tar.gz`. A binary with no co-located addon still runs; memory search falls back to literal matching until the matching archive is extracted next to it. This addon stays unavailable on macOS regardless of co-location, because the system SQLite that macOS links refuses to load extensions.
 
-Connect Agent to a GoodVibes daemon before using daemon-backed features — the default target is `http://127.0.0.1:3421`. `goodvibes-agent status --json`, `goodvibes-agent doctor`, and `goodvibes-agent compat` are scriptable checks for that connection and for the install itself. Deeper install notes, the full workspace tour, and CLI diagnostics are in [docs/getting-started.md](docs/getting-started.md) and [docs/connected-host.md](docs/connected-host.md).
+Connect Agent to a GoodVibes daemon before using daemon-backed features. The default target is `http://127.0.0.1:3421`. `goodvibes-agent status --json`, `goodvibes-agent doctor`, and `goodvibes-agent compat` are scriptable checks for that connection and for the install itself. Deeper install notes, the full workspace tour, and CLI diagnostics are in [docs/getting-started.md](docs/getting-started.md) and [docs/connected-host.md](docs/connected-host.md).
 
 ---
 
@@ -43,17 +43,17 @@ Connect Agent to a GoodVibes daemon before using daemon-backed features — the 
 
 **One assistant, several jobs.** Beyond normal chat, the workspace gives you read-only web research with explicit hand-off into Agent Knowledge, versioned document drafting with blind model comparison, a Personal Ops area for inbox/agenda/task/reminder/note requests, and an Operator Runtime view of the connected host's own methods and service posture.
 
-<img src="docs/assets/chat.png" alt="A chat turn in the Agent workspace. The header carries the user's question, what can you help me do on this machine. The answer renders as markdown with numbered sections — File and Work Management, Research and Discovery, Agent Configuration, and Personal Operations — each with a short bulleted list, followed by three clarifying questions and a closing suggestion to inspect current status before making changes. A Recent panel on the right lists three timestamped activity entries. The footer shows the active route openrouter:openrouter/free, context at 17 percent, and the turn's up and down token counts." width="900">
+<img src="docs/assets/chat.png" alt="A chat turn in the Agent workspace. The header carries the user's question, what can you help me do on this machine. The answer renders as markdown with numbered sections: File and Work Management, Research and Discovery, Agent Configuration, and Personal Operations, each with a short bulleted list, followed by three clarifying questions and a closing suggestion to inspect current status before making changes. A Recent panel on the right lists three timestamped activity entries. The footer shows the active route openrouter:openrouter/free, context at 17 percent, and the turn's up and down token counts." width="900">
 
 **Local behavior is yours to shape.** A friendly `VIBE.md` personality file, separate from project instruction files (`AGENTS.md`, `CLAUDE.md`, and similar), plus local memory, notes, personas, and skills all live under the Agent home and are scanned for secret-looking content before they ever reach a prompt. Personas capture a reusable voice or role; skills capture a reusable capability; routines capture a reusable sequence you can start in chat and, as a separate explicit and confirmation-gated step, promote to a connected schedule.
 
 **Automation stays visible and confirmed.** Reminders, schedules, channel sends, media generation, and visible background agents all show up in one autonomy queue, and every one of them requires an explicit user request plus confirmation before anything actually sends, spends, or runs unattended.
 
-**The model can plan its own route.** Ask a plain question like "email the team a summary" or "what's blocked in setup" and the underlying model can call a route planner that maps the request to the right tool and confirmation boundary before doing anything — it does not have to guess at internal tool names, and ambiguous requests come back as candidates instead of a wrong guess.
+**The model can plan its own route.** Ask a plain question like "email the team a summary" or "what's blocked in setup" and the underlying model can call a route planner that maps the request to the right tool and confirmation boundary before doing anything. It does not have to guess at internal tool names, and ambiguous requests come back as candidates instead of a wrong guess.
 
 <img src="docs/assets/model-picker.png" alt="The Model Workspace, headed Providers And Models. A left column lists the routing targets: Main Chat set, Helper Model off, Tool LLM off, and TTS LLM inherit. The right pane shows the selected target with its current route, the highlighted model and its context window and capabilities, and a filter row for search, price, capability, grouping, and availability. Below, a table of 1906 catalogued models lists model key, display name, provider, context window, tier, and capability flags, with a row indicating 1883 more models below and a footer of list shortcuts including search, price, capabilities, availability, benchmark, and grouping." width="900">
 
-**Isolated by design.** Agent Knowledge is its own segment — Agent only talks to `/api/goodvibes-agent/knowledge/*` and never falls back to another product's knowledge store. Named Agent profiles (`goodvibes-agent profiles create ...`) give you separate, isolated config, sessions, memory, and personas per household, project, or role.
+**Isolated by design.** Agent Knowledge is its own segment. Agent only talks to `/api/goodvibes-agent/knowledge/*` and never falls back to another product's knowledge store. Named Agent profiles (`goodvibes-agent profiles create ...`) give you separate, isolated config, sessions, memory, and personas per household, project, or role.
 
 ---
 
@@ -80,8 +80,8 @@ Full index: [docs/README.md](docs/README.md).
 
 Settings live in a layered `settings.json`, editable through the `/settings` workspace or by hand:
 
-- global — `~/.goodvibes/agent/settings.json`
-- project — `.goodvibes/agent/settings.json`
+- global: `~/.goodvibes/agent/settings.json`
+- project: `.goodvibes/agent/settings.json`
 
 A few keys worth knowing up front:
 
@@ -98,10 +98,10 @@ A few keys worth knowing up front:
 
 Other useful overrides:
 
-- `GOODVIBES_AGENT_HOME=/path/to/agent-home` — run with an isolated Agent home instead of the default one.
-- `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` (or the `--runtime-url` flag) — point at a GoodVibes host on a different address; `GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias.
-- `~/.goodvibes/agent/providers/*.json` — local, hot-reloaded custom provider definitions.
-- `/settings action:"import"` (or `import_goodvibes_settings`) — preview, then apply, provider/UI/permission/subscription/surface/tool/daemon-endpoint settings already configured for goodvibes-tui or another published GoodVibes platform store, without mutating the source.
+- `GOODVIBES_AGENT_HOME=/path/to/agent-home`: run with an isolated Agent home instead of the default one.
+- `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` (or the `--runtime-url` flag): point at a GoodVibes host on a different address; `GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias.
+- `~/.goodvibes/agent/providers/*.json`: local, hot-reloaded custom provider definitions.
+- `/settings action:"import"` (or `import_goodvibes_settings`): preview, then apply, provider/UI/permission/subscription/surface/tool/daemon-endpoint settings already configured for goodvibes-tui or another published GoodVibes platform store, without mutating the source.
 
 The full settings catalog, the checkpoint-guard keys, and the shared-settings-import contract are in [docs/tools-and-commands.md](docs/tools-and-commands.md) and [docs/getting-started.md](docs/getting-started.md).
 

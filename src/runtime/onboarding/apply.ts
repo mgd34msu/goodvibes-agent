@@ -329,7 +329,7 @@ async function buildRollbackAction(
     const operationKey = operation.key;
     if (isLegacyFeatureConfigKey(operationKey)) {
       // Snapshot the domain settings keys the translated writes will touch and
-      // restore those exact values — no featureFlags category exists to merge.
+      // restore those exact values, no featureFlags category exists to merge.
       const writes = expandLegacyFeatureConfigValue(operationKey, operation.value);
       const previousValues = writes.map((write) => ({ key: write.key, previous: deps.config.get(write.key) }));
       return () => {

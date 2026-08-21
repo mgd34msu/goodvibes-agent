@@ -157,7 +157,7 @@ export type KeyRouteState = {
   expandPrompt: (text: string) => string | ContentPart[];
   /**
    * Deliver a concealed submission. When it returns true, concealed mode was
-   * active and consumed the value — the plaintext went straight to the
+   * active and consumed the value, the plaintext went straight to the
    * requester, bypassing input history and the transcript. Optional so bare
    * test callers can omit it.
    */
@@ -226,8 +226,8 @@ export function handlePromptKeyToken(state: KeyRouteState, token: InputToken): {
     // concealed consumer, never to input history or the transcript, then clear.
     //
     // This sits ABOVE everything else in the enter branch on purpose. Below it
-    // the line would be trimmed, tested against :q/:wq, and — the one that
-    // actually matters — handed to inputHistory.add(), which persists to
+    // the line would be trimmed, tested against :q/:wq, and, the one that
+    // actually matters, handed to inputHistory.add(), which persists to
     // ~/.goodvibes/agent/input-history.json. A card number recalled with
     // arrow-up, or sitting in that file on disk, is the same leak as one
     // printed into the transcript.

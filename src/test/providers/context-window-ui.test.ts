@@ -122,7 +122,7 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// enrichModelEntries — contextWindow and contextWindowSource fields
+// enrichModelEntries, contextWindow and contextWindowSource fields
 // ---------------------------------------------------------------------------
 
 describe('enrichModelEntries — contextWindow fields', () => {

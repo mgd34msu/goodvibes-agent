@@ -75,12 +75,12 @@ describe('workspace adapter', () => {
     const panelResult = await tool.execute({ action: 'panel' }) as { success: boolean };
     const openPanelResult = await tool.execute({ action: 'open_panel' }) as { success: boolean };
 
-    // All three fall through gracefully — no thrown exception
+    // All three fall through gracefully, no thrown exception
     expect(panelsResult.success).toBe(true);
     expect(panelResult.success).toBe(true);
     expect(openPanelResult.success).toBe(true);
 
-    // The enum no longer carries the removed actions — model cannot discover or invoke them
+    // The enum no longer carries the removed actions, model cannot discover or invoke them
     const toolDef = tool.definition;
     const actionEnum = (toolDef.parameters as { properties: { action: { enum: string[] } } }).properties.action.enum;
     expect(actionEnum).not.toContain('panels');

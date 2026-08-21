@@ -1,7 +1,7 @@
 /**
  * Containment tests for the payment card material entered at the agent's
  * terminal: a value stored through the daemon secret path must never appear in
- * plaintext anywhere else — not on screen while it is being typed, not in the
+ * plaintext anywhere else, not on screen while it is being typed, not in the
  * transcript, not in input history, not in a log line, not in the support
  * bundle this app can export.
  *
@@ -9,15 +9,15 @@
  * rather than merely look safe:
  *
  *   - every card secret this surface writes lands at DAEMON scope, and the
- *     config reference lands in the DAEMON-owned config tier — a real file on
+ *     config reference lands in the DAEMON-owned config tier, a real file on
  *     disk that the daemon reads with this program not running; and
  *   - card material is refused on the way OUT to a remote messaging channel,
  *     with the refusal never quoting what it refused.
  *
- * Every test drives REAL production code — the actual composer key-route
+ * Every test drives REAL production code, the actual composer key-route
  * handler, the actual InputHandler, the actual settings-modal render function,
  * the actual `/payments` command handler, the actual outbound delivery funnel,
- * the actual redaction functions the bundle export runs through — not a mock
+ * the actual redaction functions the bundle export runs through, not a mock
  * standing in for them.
  *
  * The fake values below are not real card numbers or codes.
@@ -144,7 +144,7 @@ describe('payments card containment (agent terminal)', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 1. Storage — a reference in config, the value at daemon scope, and the
+  // 1. Storage, a reference in config, the value at daemon scope, and the
   //    reference itself in the daemon-owned tier the daemon actually reads.
   // -------------------------------------------------------------------------
 
@@ -280,7 +280,7 @@ describe('payments card containment (agent terminal)', () => {
     input.prompt = 'hello world';
     expect(input.getWrappedPromptInfo(60).visibleLines.join('\n')).toContain('hello world');
 
-    // An address field is entered in the clear — see plain-line-input.ts.
+    // An address field is entered in the clear, see plain-line-input.ts.
     input.beginPlainInput({ label: 'City', onSubmit: () => {} });
     input.prompt = 'Springfield';
     expect(input.getWrappedPromptInfo(60).visibleLines.join('\n')).toContain('Springfield');
@@ -647,7 +647,7 @@ describe('payments card containment (agent terminal)', () => {
   // Two distinct value sets, driven through the real guided flow, with the
   // observable outcome checked PER KEY in both config and the rendered status.
   // The keys are written out rather than assembled so a reader (and the
-  // settings-coverage gate) can see exactly which ones are asserted — see
+  // settings-coverage gate) can see exactly which ones are asserted, see
   // verification/settings-behavior-coverage.ts.
   const ADDRESS_CASES = {
     billing: [
@@ -727,7 +727,7 @@ describe('payments card containment (agent terminal)', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 6. The entry-surface gate — refused when the SDK says the surface may not
+  // 6. The entry-surface gate, refused when the SDK says the surface may not
   //    take card details, and the prompt is never even offered.
   // -------------------------------------------------------------------------
 
@@ -902,7 +902,7 @@ describe('payments card containment (agent terminal)', () => {
 
     // The CVV is three digits, which collides with substrings of the bundle's
     // own numeric fields (capturedAt is a millisecond timestamp). Grepping the
-    // raw text for it would report a leak that is not one — and, worse, would
+    // raw text for it would report a leak that is not one, and, worse, would
     // train whoever hits that to weaken the assertion. Every place a CVV could
     // actually live in this payload is a STRING leaf (a config value, a secret
     // name, a diagnostics field), so the check walks string leaves only. That

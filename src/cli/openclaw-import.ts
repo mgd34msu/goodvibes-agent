@@ -3,7 +3,7 @@ import { basename, join } from 'node:path';
 import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from '../agent/markdown-frontmatter.ts';
 
 /**
- * OpenClaw workspace importer — pure scanner.
+ * OpenClaw workspace importer, pure scanner.
  *
  * Targets OpenClaw workspace layout v1 (the documented/observable on-disk
  * layout; this importer never installs or runs OpenClaw itself). A workspace
@@ -25,7 +25,7 @@ import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from '../agent/mar
  * This module only READS. It produces an OpenClawImportPlan; writing through
  * the Agent's registries happens in import-command.ts. Anything that is not a
  * recognized instruction/memory/skill/allowlist file is reported as skipped
- * with a plain reason — never guessed.
+ * with a plain reason, never guessed.
  */
 
 export const OPENCLAW_LAYOUT_VERSION = 'v1';

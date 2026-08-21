@@ -81,12 +81,12 @@ export interface CommandUiActions {
    *
    * Optional because a command context can be built without a live composer
    * (CLI paths, tests). A caller that needs concealment MUST refuse to fall
-   * back to plaintext entry when this is absent rather than degrade — see
+   * back to plaintext entry when this is absent rather than degrade, see
    * commands/payment-card-intake.ts.
    */
   beginConcealedInput?: (request: import('./concealed-input.ts').ConcealedInputRequest) => void;
   /**
-   * Ask the composer for one line of ORDINARY, echoed entry — the unmasked
+   * Ask the composer for one line of ORDINARY, echoed entry, the unmasked
    * sibling of beginConcealedInput, used by `/payments address` for the seven
    * billing / shipping fields. Deliberately a separate call rather than a flag
    * on the concealed request; see input/plain-line-input.ts.
@@ -101,7 +101,7 @@ export interface CommandUiActions {
     /** Which config target to write the selected model to. Defaults to 'main'. */
     target?: import('./model-picker.ts').ModelPickerTarget;
     /**
-     * True only when `effort` came from the picker's effort STEP — an explicit
+     * True only when `effort` came from the picker's effort STEP, an explicit
      * user choice, which is the only thing allowed to update the stored
      * preference `provider.reasoningEffort`. The model-only and context-cap
      * commit routes pass a level merely carried over from the previous model;
@@ -238,7 +238,7 @@ export interface CommandOpsServices
    * unioned with the asks this process still holds, plus the honest reason
    * when the daemon's record could not be read. Optional because a narrow
    * command context (a one-shot subcommand, a test double) may carry no
-   * runtime graph — `/health approvals` says so rather than rendering zero.
+   * runtime graph, `/health approvals` says so rather than rendering zero.
    */
   readonly approvalsView?: ApprovalsView;
 }
@@ -285,7 +285,7 @@ export interface CommandContext
     readonly transport?: DirectTransport;
     /**
      * Read-only access to pending memory-consolidation judgment proposals
-     * (contradictions, cross-scope duplicates, stale-delete candidates) —
+     * (contradictions, cross-scope duplicates, stale-delete candidates),
      * adopts the SDK's memory.consolidation.receipts verb shape locally
      * (see agent/memory-consolidation-proposals.ts), since this runtime owns
      * the consolidation scheduler directly rather than reaching it over the
@@ -298,7 +298,7 @@ export interface CommandContext
    *
    * The `agent_harness mode:"run_command"` tool can run any registered command,
    * so "it came in as a slash command" is not by itself evidence that a human
-   * performed a gesture — a model reading injected text can produce a tool call
+   * performed a gesture, a model reading injected text can produce a tool call
    * as easily as any other. Most commands do not care. A command that grants
    * authority does: see input/commands/google-runtime.ts, where the approval
    * path refuses unless this is absent.
@@ -425,7 +425,7 @@ export class CommandRegistry {
       }
 
       // Hidden commands stay out of suggestions until the user types the
-      // exact name or alias — they still execute normally.
+      // exact name or alias, they still execute normally.
       if (cmd.hidden && !names.map((n) => n.toLowerCase()).includes(q)) continue;
 
       if (bestScore > 0 || q === '') {

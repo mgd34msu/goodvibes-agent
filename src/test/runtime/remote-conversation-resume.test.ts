@@ -1,10 +1,10 @@
 /**
- * remote-conversation-resume.test.ts — a new turn is not finished by the
+ * remote-conversation-resume.test.ts, a new turn is not finished by the
  * previous turn's ending.
  *
  * This router opens a FRESH stream per turn. A stream that claims no position
  * is handed the daemon's catch-up replay, which is the tail of the previous
- * turn — that turn's `TURN_COMPLETED` included. The renderer for the turn now
+ * turn, that turn's `TURN_COMPLETED` included. The renderer for the turn now
  * running has never seen that frame, so it finishes on it, and every real frame
  * of the turn actually running is then dropped as post-terminal noise. The
  * person watches a turn produce nothing, and the turn was billed for.

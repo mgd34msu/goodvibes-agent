@@ -1,5 +1,5 @@
 /**
- * renderProfilePickerModal — renders the Agent profile picker modal as Line[]
+ * renderProfilePickerModal, renders the Agent profile picker modal as Line[]
  * using ModalFactory.
  *
  * Shows a list of saved profiles with:

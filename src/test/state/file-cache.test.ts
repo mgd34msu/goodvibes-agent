@@ -53,7 +53,6 @@ describe('FileStateCache', () => {
       const filePath = join(tmpDir, 'gone.ts');
       writeFileSync(filePath, 'x', 'utf-8');
       cache.update(filePath, 'x');
-      // Delete the file
       rmSync(filePath);
       const result = cache.lookup(filePath);
       expect(result.status).toBe('miss');

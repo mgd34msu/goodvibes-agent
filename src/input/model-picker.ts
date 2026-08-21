@@ -67,11 +67,11 @@ export class ModelPickerModal {
   public availableOnly = true;
   /** Set of provider names that have a configured key (used for availableOnly filter). */
   public configuredProviders: Set<string> = new Set();
-  /** How each provider is configured — drives badge display in provider mode. */
+  /** How each provider is configured, drives badge display in provider mode. */
   public configuredViaMap: Map<string, 'env' | 'secrets' | 'subscription' | 'anonymous'> = new Map();
-  /** IDs of pinned/favorite models — shown at top of list. */
+  /** IDs of pinned/favorite models, shown at top of list. */
   public pinnedIds: Set<string> = new Set();
-  /** IDs of recently used models — shown after pinned, before the rest. */
+  /** IDs of recently used models, shown after pinned, before the rest. */
   public recentIds: string[] = [];
   /** Benchmark score sort order. */
   public benchmarkSort: BenchmarkSort = 'none';
@@ -197,7 +197,7 @@ export class ModelPickerModal {
     }
   }
 
-  /** Open showing all models — entry point for /model */
+  /** Open showing all models, entry point for /model */
   openAllModels(models: ModelDefinition[], currentModelId: string): void {
     this.models = models;
     this.mode = 'model';
@@ -214,7 +214,7 @@ export class ModelPickerModal {
     this.scrollOffset = 0;
   }
 
-  /** Open showing providers first — entry point for /provider */
+  /** Open showing providers first, entry point for /provider */
   openProviders(providers: string[], currentProvider: string): void {
     this.previousMode = null;
     this.providers = providers;
@@ -241,7 +241,7 @@ export class ModelPickerModal {
     this.query = '';
     this.categoryFilter = 'all';
     this.capabilityFilter = 'none';
-    // User explicitly chose this provider — disable availability filter so synthetic
+    // User explicitly chose this provider, disable availability filter so synthetic
     // models (which have no real API key) are not filtered out.
     this.availableOnly = false;
     this.selectedIndex = 0;
@@ -419,7 +419,7 @@ export class ModelPickerModal {
       result = result.filter(m => m.capabilities?.multimodal === true);
     }
 
-    // Query filter — fuzzy: every space-separated word must appear somewhere
+    // Query filter, fuzzy: every space-separated word must appear somewhere
     if (this.query.trim().length > 0) {
       const words = this.query.toLowerCase().split(/\s+/).filter(Boolean);
       result = result.filter(m => {
@@ -450,7 +450,7 @@ export class ModelPickerModal {
             scoreB = bB ? compositeScore(bB.benchmarks) : null;
           }
         } else {
-          // swe/gpqa sort — individual benchmark scores not available for synthetic models — only composite is cached
+          // swe/gpqa sort, individual benchmark scores not available for synthetic models, only composite is cached
           const bA = a.provider === 'synthetic' ? null : (this.benchmarkStore.getBenchmarks(a.id) ?? this.benchmarkStore.getBenchmarks(a.displayName));
           const bB = b.provider === 'synthetic' ? null : (this.benchmarkStore.getBenchmarks(b.id) ?? this.benchmarkStore.getBenchmarks(b.displayName));
           if (this.benchmarkSort === 'swe') {
@@ -480,7 +480,6 @@ export class ModelPickerModal {
         const topModels = synthetic.filter(m => this._getSyntheticSubgroup(m) === 'top');
         const allModels = synthetic.filter(m => this._getSyntheticSubgroup(m) === 'all');
 
-        // Sort top models by composite score descending
         topModels.sort((a, b) => {
           const sA = this.providerRegistry.getSyntheticModelInfoFromCatalog(a.id)?.bestCompositeScore ?? null;
           const sB = this.providerRegistry.getSyntheticModelInfoFromCatalog(b.id)?.bestCompositeScore ?? null;
@@ -490,7 +489,6 @@ export class ModelPickerModal {
           return sB - sA;
         });
 
-        // Sort remaining alphabetically by id
         allModels.sort((a, b) => a.id.localeCompare(b.id));
 
         result = [...nonSynthetic, ...topModels, ...allModels];
@@ -540,8 +538,8 @@ export class ModelPickerModal {
    * Used for inserting group headers in getItems().
    *
    * For synthetic provider models with groupBy 'provider', returns sub-group keys:
-   * - 'Top Models'   — benchmark composite score ≥ 0.65 (A-tier or S-tier)
-   * - 'All Synthetic' — remaining synthetic models
+   * - 'Top Models'  , benchmark composite score ≥ 0.65 (A-tier or S-tier)
+   * - 'All Synthetic', remaining synthetic models
    */
   getModelGroupKey(model: ModelDefinition): string {
     switch (this.groupBy) {
@@ -699,7 +697,7 @@ export class ModelPickerModal {
   }
 
   /**
-   * Move selection up (stops at 0 — no wrap to avoid going off-screen).
+   * Move selection up (stops at 0, no wrap to avoid going off-screen).
    * Updates scrollOffset to keep selection visible.
    */
   moveUp(maxVisible = 20): void {
@@ -709,7 +707,7 @@ export class ModelPickerModal {
       this.selectedIndex--;
       this._scrollToSelection(maxVisible);
     }
-    // At index 0 — stop. Do NOT wrap to count-1 (that puts selection off-screen).
+    // At index 0, stop. Do NOT wrap to count-1 (that puts selection off-screen).
   }
 
   /**
@@ -754,10 +752,10 @@ export class ModelPickerModal {
    */
   _scrollToSelection(maxVisible: number): void {
     if (this.selectedIndex < this.scrollOffset) {
-      // Selection moved above viewport — scroll up
+      // Selection moved above viewport, scroll up
       this.scrollOffset = this.selectedIndex;
     } else if (this.selectedIndex >= this.scrollOffset + maxVisible) {
-      // Selection moved below viewport — scroll down
+      // Selection moved below viewport, scroll down
       this.scrollOffset = this.selectedIndex - maxVisible + 1;
     }
   }

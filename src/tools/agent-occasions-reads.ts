@@ -1,17 +1,17 @@
 /**
- * agent-occasions-reads.ts — the `occasions` tool's five reads, and the one
+ * agent-occasions-reads.ts, the `occasions` tool's five reads, and the one
  * renderer the interview shares with them.
  *
  * Split from agent-occasions-tool.ts at this repo's 800-line file cap. The cut is
  * along the grain: everything here only LOOKS, so nothing here takes an authority
  * and nothing here can refuse a write. The interview renderer sits with them
- * because `pending` is one of its two callers — an interview left mid-thread is
- * part of what is outstanding — and a second copy beside the answer handlers
+ * because `pending` is one of its two callers, an interview left mid-thread is
+ * part of what is outstanding, and a second copy beside the answer handlers
  * would be a second wording for the same question.
  *
  * Two of these reads are the only place in this surface a DATE appears at all:
- * `list` and `plans`. That is docs/occasions.md §4.3's explicit exception — him
- * asking his own system over an authenticated verb — and `list`'s output says in
+ * `list` and `plans`. That is docs/occasions.md §4.3's explicit exception, him
+ * asking his own system over an authenticated verb, and `list`'s output says in
  * so many words that those dates do not go into anything outbound. `pending`, the
  * read a nudge actually comes from, carries no date to print.
  */
@@ -55,7 +55,7 @@ export function renderInterviewLines(
     ];
   }
   const lines = [
-    `Interview ${interviewId} — ask him this, as written: ${nextStep.prompt}`,
+    `Interview ${interviewId}, ask him this, as written: ${nextStep.prompt}`,
     `  Record his answer with action:"interview_answer", stepId:"${nextStep.id}".`,
   ];
   if (nextStep.opensFrom) {
@@ -129,7 +129,7 @@ export async function handlePending(deps: AgentOccasionsToolDeps): Promise<ToolO
     lines.push(`Outstanding, say it as written: ${nudge.message}`);
     if (nudge.answerable) {
       lines.push(`  He can answer ${OCCASIONS_ANSWER_WORDS.join(' / ')}. Relay it with action:"answer".`);
-      lines.push('  "later" is not a no — it comes back on its own, roughly halfway to the date.');
+      lines.push('  "later" is not a no, it comes back on its own, roughly halfway to the date.');
     } else {
       lines.push('  This one is a statement, not a question. Do not offer him a yes/no.');
     }
@@ -194,7 +194,7 @@ export async function handleState(deps: AgentOccasionsToolDeps): Promise<ToolOut
       + ` ${swept.staleMirrors} stale mirrors.`,
     );
   }
-  // Counts and reasons only, by design — this verb discloses what the machine
+  // Counts and reasons only, by design, this verb discloses what the machine
   // holds, not what it holds ABOUT anyone.
   return ok(lines);
 }

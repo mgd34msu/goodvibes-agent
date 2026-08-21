@@ -214,11 +214,11 @@ describe('parseIcs', () => {
   test('is tolerant of malformed or partial input', () => {
     expect(() => parseIcs('')).not.toThrow();
     expect(parseIcs('')).toHaveLength(0);
-    // Missing END:VEVENT — incomplete block is silently dropped
+    // Missing END:VEVENT, incomplete block is silently dropped
     const partial = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nSUMMARY:Incomplete\r\n';
     expect(() => parseIcs(partial)).not.toThrow();
     expect(parseIcs(partial)).toHaveLength(0);
-    // No DTSTART or SUMMARY — silently dropped
+    // No DTSTART or SUMMARY, silently dropped
     const noStart = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:x@y\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
     expect(parseIcs(noStart)).toHaveLength(0);
   });
@@ -325,7 +325,7 @@ describe('expandRecurringEvent', () => {
   });
 
   test('returns only the single base occurrence for FREQ=WEEKLY;BYDAY=MO,WE', () => {
-    // BYDAY is unsupported — expanding plain-weekly would produce wrong dates.
+    // BYDAY is unsupported, expanding plain-weekly would produce wrong dates.
     // The contract: return exactly the base event (length 1, dtstart unchanged).
     const dtstart = '2024-01-01T09:00:00Z';
     const event = { uid: 'byday', summary: 'Mon+Wed', dtstart, allDay: false, rrule: 'FREQ=WEEKLY;BYDAY=MO,WE' };
@@ -388,7 +388,7 @@ describe('expandRecurringEvent', () => {
   });
 
   test('caps at 90-day horizon', () => {
-    // No COUNT or UNTIL — should be capped by horizon
+    // No COUNT or UNTIL, should be capped by horizon
     const event = { uid: 'horizon', summary: 'Daily', dtstart: '2024-01-01T09:00:00Z', allDay: false, rrule: 'FREQ=DAILY' };
     const occ = expandRecurringEvent(event, ref, 90);
     expect(occ.length).toBeLessThanOrEqual(90);
@@ -575,7 +575,7 @@ describe('timezone handling (TZID)', () => {
   test('TZID DAILY recurrence with DTEND: each occurrence advances start AND end correctly', () => {
     // Regression: when expandRecurringEvent computed durationMs it constructed
     // an endEvent with dtstart=event.dtend but no dtstartUtcMs, so eventStartMs
-    // fell through to the floating branch and read NY wall-clock as UTC —
+    // fell through to the floating branch and read NY wall-clock as UTC,
     // durationMs was negative, the guard failed, and dtend was frozen to the
     // original base event value on every occurrence after the first.
     //
@@ -604,7 +604,7 @@ describe('timezone handling (TZID)', () => {
     expect(occ[0]!.dtend).toBe('2026-01-15T10:00:00');   // wall-clock preserved
     expect(new Date(occ[0]!.dtstartUtcMs!).toISOString()).toBe('2026-01-15T14:00:00.000Z');
 
-    // Occurrence 1: Jan 16 — start AND end must advance (not frozen on Jan 15)
+    // Occurrence 1: Jan 16, start AND end must advance (not frozen on Jan 15)
     expect(occ[1]!.dtstart).toBe('2026-01-16T09:00:00'); // advanced
     expect(occ[1]!.dtend).toBe('2026-01-16T10:00:00');   // advanced, NOT '2026-01-15T10:00:00'
     expect(new Date(occ[1]!.dtstartUtcMs!).toISOString()).toBe('2026-01-16T14:00:00.000Z');
@@ -642,7 +642,7 @@ describe('timezone handling (TZID)', () => {
     expect(occ[0]!.dtstart).toMatch(/T06:00:00$/);
     expect(new Date(occ[0]!.dtstartUtcMs!).toISOString()).toBe('2026-03-07T11:00:00.000Z');
 
-    // Mar 8 (spring-forward day): 06:00 EDT = 10:00Z — in the 03:00-08:59 band
+    // Mar 8 (spring-forward day): 06:00 EDT = 10:00Z, in the 03:00-08:59 band
     expect(occ[1]!.dtstart).toMatch(/T06:00:00$/);
     expect(new Date(occ[1]!.dtstartUtcMs!).toISOString()).toBe('2026-03-08T10:00:00.000Z');
   });
@@ -650,7 +650,7 @@ describe('timezone handling (TZID)', () => {
   test('TZID DAILY recurrence crossing spring-forward keeps 1h duration with correct UTC instants', () => {
     // Mar 8 2026 spring-forward: before=EST(UTC-5), after=EDT(UTC-4)
     // DTSTART 2026-03-07 09:00 EST (14:00Z), DTEND 2026-03-07 10:00 EST (15:00Z)
-    // Occurrence 1 (Mar 8): 09:00 EDT = 13:00Z, 10:00 EDT = 14:00Z — duration still 1h
+    // Occurrence 1 (Mar 8): 09:00 EDT = 13:00Z, 10:00 EDT = 14:00Z, duration still 1h
     const ics = [
       'BEGIN:VCALENDAR',
       'BEGIN:VEVENT',
@@ -672,11 +672,11 @@ describe('timezone handling (TZID)', () => {
     expect(occ[0]!.dtstart).toMatch(/T09:00:00$/);
     expect(new Date(occ[0]!.dtstartUtcMs!).toISOString()).toBe('2026-03-07T14:00:00.000Z');
 
-    // Occurrence 1: Mar 8 — wall-clock stays 09:00, UTC shifts to 13:00Z (EDT)
+    // Occurrence 1: Mar 8, wall-clock stays 09:00, UTC shifts to 13:00Z (EDT)
     expect(occ[1]!.dtstart).toMatch(/T09:00:00$/);
     expect(new Date(occ[1]!.dtstartUtcMs!).toISOString()).toBe('2026-03-08T13:00:00.000Z');
 
-    // dtend on Mar 8 must be 10:00 NY (wall-clock), i.e. 14:00Z (EDT) — 1h after start
+    // dtend on Mar 8 must be 10:00 NY (wall-clock), i.e. 14:00Z (EDT), 1h after start
     expect(occ[1]!.dtend).toMatch(/T10:00:00$/);
     // The UTC instant of the end should be 14:00Z = 13:00Z + 1h
     // (dtend is stored as wall-clock; reconstruct UTC via dtstartUtcMs + durationMs)

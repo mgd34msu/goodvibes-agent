@@ -5,7 +5,7 @@
  * 1.6.1 platform/workspace/registration), and explicit checkpoint creation
  * through the ws-only `checkpoints.create` gateway verb is refused with an
  * honest hint for an unregistered workspace. This exercises the real wiring
- * in ../../runtime/services.ts end to end — a fresh RuntimeServices instance
+ * in ../../runtime/services.ts end to end, a fresh RuntimeServices instance
  * per case, not the shared test-helper singleton, so each case controls its
  * own workspace root and registration state independently.
  */
@@ -44,14 +44,14 @@ async function buildServices(opts: { registered: boolean; workingDir?: string; h
   // this repo's own `.test-tmp/`, which is itself INSIDE the real
   // goodvibes-agent git tree. With the SDK's `preferGitRoot` default (true),
   // the checkpoint manager would walk up and resolve the REAL repo root as
-  // the snapshot root — cross-test pollution at best, real commits into this
+  // the snapshot root, cross-test pollution at best, real commits into this
   // repo's own `.goodvibes/checkpoints` at worst. `preferGitRoot: false` here
   // keeps every case strictly scoped to its own isolated `workingDir`.
   writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ checkpoints: { preferGitRoot: false } }));
 
   if (opts.registered) {
     const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
-    // Explicit checkpoint registration (registers AND stamps eligibility) — a
+    // Explicit checkpoint registration (registers AND stamps eligibility), a
     // plain store.add is a TUI-shaped self-record and is NOT checkpoint-eligible.
     await registerWorkspaceForCheckpoints(shellPaths, workingDir);
   }
@@ -95,7 +95,7 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     emitTurnCompleted(runtimeBus, 'turn-1');
 
     // Give any (unexpected) async subscription a real chance to fire before
-    // asserting the negative — a bounded wait, not a race.
+    // asserting the negative, a bounded wait, not a race.
     await new Promise((resolve) => setTimeout(resolve, 500));
     const checkpoints = await services.workspaceCheckpointManager.list();
     expect(checkpoints).toHaveLength(0);
@@ -106,7 +106,7 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     // A real file to snapshot: an empty workspace's tree matches the implicit
     // empty-tree parent, so `create()` would otherwise return its honest
     // no-op (null) even on the very first checkpoint (manager.ts's "current
-    // tree is identical to the parent checkpoint's tree" case) — not a
+    // tree is identical to the parent checkpoint's tree" case), not a
     // registration-gate bug, just nothing to snapshot.
     writeFileSync(join(workingDir, 'note.txt'), 'hello');
     await services.workspaceCheckpointManager.init();
@@ -122,8 +122,8 @@ describe('registered-workspaces-only automatic checkpoints', () => {
   test('explicit checkpoints.create is refused with a registration hint for an unregistered workspace', async () => {
     const { services } = await buildServices({ registered: false });
 
-    // The gate moved with the verb. `checkpoints.create` is the daemon's now —
-    // this process registers no handler for it — but the registered-workspace
+    // The gate moved with the verb. `checkpoints.create` is the daemon's now,
+    // this process registers no handler for it, but the registered-workspace
     // rule still applies to every explicit create made IN this process, and
     // `guardedCheckpoints` is the manager those callers go through.
     // Thrown SYNCHRONOUSLY: the gate runs before the manager is reached, so
@@ -146,7 +146,7 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     // Build services UNREGISTERED (mirrors a launch in a workspace nobody has
     // registered yet), confirm no automatic checkpoint fires, THEN register
     // the workspace through the same shared store `goodvibes-agent workspaces
-    // register` writes to — all against the SAME long-running services
+    // register` writes to, all against the SAME long-running services
     // instance, no new createRuntimeServices call (no restart). A second
     // TURN_COMPLETED on that unchanged instance must now produce a checkpoint.
     const { services, runtimeBus, workingDir } = await buildServices({ registered: false });
@@ -173,8 +173,8 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     const homeDir = services.shellPaths.homeDirectory;
     writeFileSync(join(workingDir, 'note.txt'), 'hello');
 
-    // The gate moved with the verb. `checkpoints.create` is the daemon's now —
-    // this process registers no handler for it — but the registered-workspace
+    // The gate moved with the verb. `checkpoints.create` is the daemon's now,
+    // this process registers no handler for it, but the registered-workspace
     // rule still applies to every explicit create made IN this process, and
     // `guardedCheckpoints` is the manager those callers go through.
     // Thrown SYNCHRONOUSLY: the gate runs before the manager is reached, so
@@ -199,7 +199,7 @@ describe('registered-workspaces-only automatic checkpoints', () => {
 
     // Layer 1: the shared registration store's own root-guard refuses to
     // register a root this broad in the first place (new in the shared
-    // store — the local registry it replaced had no write-time guard).
+    // store, the local registry it replaced had no write-time guard).
     await expect(createWorkspaceRegistrationStore(shellPaths).add(workingDir)).rejects.toThrow(/broad|home|refus/i);
 
     // Layer 2: construct the SDK manager directly (not through
@@ -222,7 +222,7 @@ describe('registered-workspaces-only automatic checkpoints', () => {
 /**
  * Worktree-link inheritance (SDK 1.6.1 shared registration store): a linked
  * git worktree of a registered repo is COVERED without being registered
- * itself — the resolver follows `git rev-parse --git-common-dir`, not path
+ * itself, the resolver follows `git rev-parse --git-common-dir`, not path
  * ancestry, so an orchestration-spawned sibling worktree outside the
  * registered root's subtree still checkpoints automatically. This exercises
  * the real end-to-end wiring (createRuntimeServices -> resolveWorkspaceRegistrationSync
@@ -253,7 +253,7 @@ describe('registered-workspaces-only automatic checkpoints: worktree-link inheri
     await registerWorkspaceForCheckpoints(shellPaths, mainRepo);
 
     // The worktree lives OUTSIDE mainRepo's subtree entirely, so only the
-    // git worktree-link inheritance — not path ancestry — makes it covered.
+    // git worktree-link inheritance, not path ancestry, makes it covered.
     const { services, runtimeBus } = await buildServices({ registered: false, workingDir: worktreeDir, homeDir });
     writeFileSync(join(worktreeDir, 'note.txt'), 'hello');
     await services.workspaceCheckpointManager.init();

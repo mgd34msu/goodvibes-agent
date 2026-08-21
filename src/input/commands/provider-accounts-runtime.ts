@@ -113,7 +113,7 @@ export function registerProviderAccountsRuntimeCommands(registry: CommandRegistr
           ...(record.expiresAt ? [`  expires at ${new Date(record.expiresAt).toISOString()}`] : []),
           ...record.routeRecords.map((route) => `  route ${formatRouteRecord(route)}`),
           ...record.routeRecords.flatMap((route) => route.issues.map((issue) => `    issue ${issue}`)),
-          ...record.usageWindows.map((entry) => `  window ${entry.label} — ${entry.detail}`),
+          ...record.usageWindows.map((entry) => `  window ${entry.label}, ${entry.detail}`),
           ...record.issues.map((issue) => `  issue ${issue}`),
           ...record.notes.map((note) => `  note ${note}`),
           ...record.recommendedActions.map((action) => `  next ${action}`),

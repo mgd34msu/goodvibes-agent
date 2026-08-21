@@ -8,8 +8,8 @@
  *
  * `namedBy` on the person card is checked here but NOT sent: the verb takes a
  * name and nothing else, and inventing a parameter the daemon does not have
- * would be a fake gate. It is a real gate at this layer — the card will not
- * dispatch without it — and it stays local rather than pretending to be
+ * would be a fake gate. It is a real gate at this layer, the card will not
+ * dispatch without it, and it stays local rather than pretending to be
  * enforced downstream (docs/owner-profile.md §10).
  */
 
@@ -75,7 +75,7 @@ const OWNER_PROFILE_SUBMISSION_HANDLERS: Readonly<
     if (readField('namedBy').trim().length === 0) {
       return editorMessageSubmission(
         editor,
-        'Say what pointed at this person before looking them up — the words you used, e.g. "email my sister the tickets".',
+        'Say what pointed at this person before looking them up, the words you used, e.g. "email my sister the tickets".',
         'Person lookup needs the words that named them.',
       );
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * check-workflows.ts — structural validation gate for the GitHub Actions
+ * check-workflows.ts, structural validation gate for the GitHub Actions
  * workflow YAML under .github/workflows/.
  *
  * The repo has no actionlint/yaml-lint gate, so a broken workflow edit would
@@ -9,12 +9,12 @@
  *   - every workflow file parses as YAML;
  *   - every workflow declares `name`, `on`, and a non-empty `jobs` map;
  *   - every job declares `runs-on` and either `steps` or `uses` (reusable call);
- *   - no job carries `continue-on-error: true` (banned across the ecosystem —
+ *   - no job carries `continue-on-error: true` (banned across the ecosystem,
  *     a run that reports success over a failing job is a false green);
  *   - the release workflow is wired onto the shared reusable workflows: by-
  *     reference validation (reusable-release-verify), the binary build matrix
  *     (reusable-binary-matrix), the GitHub Release (reusable-gh-release), and
- *     the npm publish (reusable-npm-publish) — no hand-rolled CI poll, no
+ *     the npm publish (reusable-npm-publish), no hand-rolled CI poll, no
  *     throwaway validate build;
  *   - the release lane still carries every required job: tag/version check,
  *     by-reference verify, npm pack, the binary matrix, the asset assembly, the
@@ -105,7 +105,7 @@ const BROWSER_DRIVER_ARCHIVE = 'browser-driver.tar.gz';
 
 function stepsContinueOnError(job: Json): boolean {
   // A step-level continue-on-error is an informational annotation and never
-  // reds a check-run — only a JOB-level true is banned. This helper flags the
+  // reds a check-run, only a JOB-level true is banned. This helper flags the
   // job-level form.
   return job['continue-on-error'] === true;
 }
@@ -153,7 +153,7 @@ for (const file of files) {
       }
     }
     if (stepsContinueOnError(job)) {
-      fail(file, `job "${jobName}" declares job-level continue-on-error: true (banned — it hides a failing job behind a green run)`);
+      fail(file, `job "${jobName}" declares job-level continue-on-error: true (banned: it hides a failing job behind a green run)`);
     }
   }
 
@@ -185,7 +185,7 @@ for (const file of files) {
       }
     }
     // Every per-platform sqlite-vec addon archive must appear in both the
-    // assembled assets and the GitHub Release glob — a directly-downloaded binary
+    // assembled assets and the GitHub Release glob, a directly-downloaded binary
     // depends on the matching addon to restore the semantic vector index, so a
     // dropped archive is missing-entry-fatal, exactly like a dropped binary.
     for (const archive of PLATFORM_ADDON_ARCHIVES) {
@@ -222,4 +222,4 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log(`check-workflows: OK — ${files.length} workflow file(s) validated, 0 problems.`);
+console.log(`check-workflows: OK, ${files.length} workflow file(s) validated, 0 problems.`);

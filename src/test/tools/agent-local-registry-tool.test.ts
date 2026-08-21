@@ -124,7 +124,7 @@ describe('agent_local_registry tool', () => {
     expect(semantic.output).toContain('operator briefings');
     expect(semantic.output).toContain('semantic');
 
-    // Prove the literal path really would have missed it — this is the bug being fixed,
+    // Prove the literal path really would have missed it, this is the bug being fixed,
     // not an assumption about it.
     const literal = await tool.execute({ domain: 'memory', action: 'search', query: naturalLanguageQuery, semantic: false });
     expect(literal.success).toBe(true);

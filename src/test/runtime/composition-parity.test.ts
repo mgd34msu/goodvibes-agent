@@ -7,7 +7,7 @@
  *
  *  1. operations.runStartupAppendOnlySweep runs at composition time with the
  *     FULL roots object (workingDirectory, surfaceRoot, homeDirectory,
- *     logDir, telemetryDir) — not just workingDirectory + surfaceRoot, which
+ *     logDir, telemetryDir), not just workingDirectory + surfaceRoot, which
  *     would silently skip the registered activity-log and telemetry-ledger
  *     stores on every sweep (the exact defect the SDK's own round fixed at
  *     its call site). Proven behaviorally: seed a real, over-cap activity.md
@@ -81,7 +81,7 @@ describe('composition parity: append-only sweep + live config watch', () => {
 
     const services = makeServices(configManager, workingDir, homeDir);
     try {
-      // The sweep is synchronous inside createRuntimeServices — no wait needed.
+      // The sweep is synchronous inside createRuntimeServices, no wait needed.
       expect(existsSync(activityLogPath)).toBe(false);
     } finally {
       services.providerRegistry.stopWatching();
@@ -139,7 +139,7 @@ describe('composition parity: append-only sweep + live config watch', () => {
 
 describe('composition parity: host power seam is opt-in (non-spawning default)', () => {
   // SDK 1.9.0's wireRuntimePower defaults an ABSENT seam to the real host seam
-  // (createHostPowerSeam — which spawns systemd-inhibit inhibitors and a
+  // (createHostPowerSeam, which spawns systemd-inhibit inhibitors and a
   // dbus-monitor sleep-edge watcher). That host-level spawn must never fire on
   // a test-constructed runtime, so createRuntimeServices mirrors the SDK's own
   // composition root: default to the NON-spawning unavailable seam, and only
@@ -170,7 +170,7 @@ describe('composition parity: host power seam is opt-in (non-spawning default)',
   test('one-shot CLI subcommands do NOT opt into the host seam (no spawn for a short-lived command)', () => {
     // management.ts (withRuntimeServices) and bundle-command.ts
     // (buildProviderReadiness) build a runtime for a single query and dispose
-    // it — neither owns the sleep edge, so neither passes a powerSeam.
+    // it, neither owns the sleep edge, so neither passes a powerSeam.
     for (const rel of ['src/cli/management.ts', 'src/cli/bundle-command.ts']) {
       expect(readSource(rel)).not.toContain('powerSeam:');
     }
@@ -182,7 +182,7 @@ describe('composition parity: live model discovery refreshes by default, and cal
   // awaits it, and on completion it writes
   // <persistenceRoot>/provider-models/<provider>.json. Measured here, that
   // write landed AFTER a test run had finished and RE-CREATED a temp workspace
-  // whose cleanup had already removed it — the last surviving directory leak in
+  // whose cleanup had already removed it, the last surviving directory leak in
   // the suite. So the sweep is opt-in, and only the long-lived interactive
   // composition (still running when it resolves) opts in.
   const repoRoot = resolve(import.meta.dir, '../../..');
@@ -303,7 +303,7 @@ describe('composition parity: the trigger family is composed, not just importabl
   // start()/shutdown()s services.triggerManager. When this repo did not produce
   // the field, every daemon shutdown threw
   //   TypeError: undefined is not an object (evaluating 'this.triggerManager.shutdown')
-  // The SDK side is now optional-chained so absence degrades cleanly — but the
+  // The SDK side is now optional-chained so absence degrades cleanly, but the
   // point of this test is stronger: the agent must actually GET the feature,
   // not merely stop crashing.
   test('createRuntimeServices returns a real TriggerManager', () => {

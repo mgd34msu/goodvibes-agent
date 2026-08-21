@@ -8,7 +8,7 @@
  * Underneath it were two more: a pinned input device that named a Bluetooth
  * headset which was away (believed, never checked, so capture produced nothing
  * silently), and `auto` choosing pw-record because it is first in the probe
- * order and installed — measured on that host, `pw-record --target <a name
+ * order and installed, measured on that host, `pw-record --target <a name
  * pactl prints>` answers "no target node available" and exits 1, and with no
  * target it yields zero bytes, while `parecord --device=<the same name>`
  * captures happily.

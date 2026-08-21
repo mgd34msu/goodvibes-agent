@@ -1,5 +1,5 @@
 /**
- * G5 — Permission Audit
+ * G5, Permission Audit
  *
  * Verifies the permission gate behavior for all 12 tools + delegate, recursive
  * orchestration checks, path traversal protection on file-mutating tools, and
@@ -43,7 +43,7 @@ function makeManager(
 const PROJECT_ROOT = process.cwd();
 
 // ---------------------------------------------------------------------------
-// Setup / teardown — force autoApprove=false and prompt mode for all tests
+// Setup / teardown, force autoApprove=false and prompt mode for all tests
 // ---------------------------------------------------------------------------
 
 let configManager: ConfigManager;
@@ -194,7 +194,7 @@ describe('Recursive orchestration policy — SpawnTokenManager.canSpawn', () => 
     }, 2); // already at limit
     expect(result.allowed).toBe(false);
     // The refusal message names the real settings key, fleet.maxSize
-    // (renamed from orchestration.maxActiveAgents) — the OrchestrationPolicyConfig
+    // (renamed from orchestration.maxActiveAgents), the OrchestrationPolicyConfig
     // field passed above is an unrelated, unchanged internal field name.
     expect(result.reason).toContain('fleet.maxSize');
   });
@@ -256,7 +256,7 @@ describe('Path traversal protection via resolveAndValidatePath', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. PermissionPromptUI — renders correct category label per category
+// 5. PermissionPromptUI, renders correct category label per category
 // ---------------------------------------------------------------------------
 
 describe('PermissionPromptUI — renders correctly per category', () => {
@@ -309,7 +309,7 @@ describe('PermissionPromptUI — renders correctly per category', () => {
       resolve: (_approved: boolean) => {},
     };
     const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    // Line is Cell[] — join chars to get the text content of each line
+    // Line is Cell[], join chars to get the text content of each line
     expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain('[EXECUTE]');
   });
 

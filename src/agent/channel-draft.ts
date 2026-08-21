@@ -4,17 +4,17 @@
  * Outbox + draft model for channel messages.
  *
  * Provides:
- *   - `ChannelDraft` — a composed-but-not-yet-sent message
- *   - `saveDraft`    — persist a draft, offering it to the daemon first
- *   - `listDrafts`   — read the local mirror
- *   - `fetchDaemonDrafts` / `mergeDraftViews` — the cross-surface view
- *   - `getDraft`     — read one draft by id
- *   - `deleteDraft`  — remove a draft, here and on the daemon
- *   - `queueDraftToSend` — promote a draft to a confirmed send input, consuming it
+ *   - `ChannelDraft`, a composed-but-not-yet-sent message
+ *   - `saveDraft`   , persist a draft, offering it to the daemon first
+ *   - `listDrafts`  , read the local mirror
+ *   - `fetchDaemonDrafts` / `mergeDraftViews`, the cross-surface view
+ *   - `getDraft`    , read one draft by id
+ *   - `deleteDraft` , remove a draft, here and on the daemon
+ *   - `queueDraftToSend`, promote a draft to a confirmed send input, consuming it
  *
  * A draft is composed on one surface and very often finished on another: the
  * phone writes it, the terminal sends it. So the store of record is the
- * daemon's — `channels.drafts.*` — and this file is a mirror, for the same
+ * daemon's, `channels.drafts.*`, and this file is a mirror, for the same
  * reason the routing table has one: a draft composed while the daemon was
  * unreachable is work the operator did, and losing it because a peer was busy
  * would be worse than holding it. A held draft says `pending` and carries the
@@ -29,9 +29,9 @@
  */
 
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { AgentChannelDeliveryInput } from './channel-delivery.ts';
 import type { DaemonInvokeFailureKind, DaemonOperatorInvoke } from './daemon-operator-client.ts';
@@ -68,7 +68,7 @@ export interface ChannelDraft {
   readonly channel?: string;
   /** Named route id. */
   readonly route?: string;
-  /** Webhook URL (stored redacted-safe — callers must redact before persisting). */
+  /** Webhook URL (stored redacted-safe, callers must redact before persisting). */
   readonly webhook?: string;
   /** Link address. */
   readonly link?: string;
@@ -189,8 +189,8 @@ function parseDraft(value: unknown): ChannelDraft | null {
     ...(parseTags(value.tags) ? { tags: parseTags(value.tags) } : {}),
     ...( readOptString(value.sentResponseId) ? { sentResponseId: readOptString(value.sentResponseId) } : {}),
     ...( readOptString(value.sendError) ? { sendError: readOptString(value.sendError) } : {}),
-    // Anything other than an explicit 'synced' — including a record written
-    // before the daemon held this store — is a draft the daemon has not been
+    // Anything other than an explicit 'synced', including a record written
+    // before the daemon held this store, is a draft the daemon has not been
     // told about, which is what pending means.
     daemonSyncState: value.daemonSyncState === 'synced' ? 'synced' : 'pending',
     ...( readOptString(value.syncError) ? { syncError: readOptString(value.syncError) } : {}),
@@ -236,10 +236,7 @@ function writeDrafts(path: string, drafts: readonly ChannelDraft[]): void {
     version: DRAFT_FILE_VERSION,
     drafts: drafts.slice(0, DRAFT_LIMIT).map(persistableDraft),
   };
-  mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.tmp`;
-  writeFileSync(tempPath, `${JSON.stringify(file, null, 2)}\n`, 'utf-8');
-  renameSync(tempPath, path);
+  writeStoreJson(path, file);
 }
 
 function generateDraftId(): string {
@@ -298,7 +295,7 @@ function withDraftSyncOutcome(draft: ChannelDraft, outcome: ChannelDraftSyncOutc
  *
  * The daemon is offered the draft first, because a draft only reaches the
  * surface that finishes it if the daemon holds it. The local write happens
- * either way — the composition is the operator's work, and a daemon that could
+ * either way, the composition is the operator's work, and a daemon that could
  * not be reached is a reason to hold it, not to lose it.
  */
 export async function saveDraft(
@@ -323,7 +320,6 @@ export async function saveDraft(
   const path = channelDraftFilePath(shellPaths);
   const now = new Date().toISOString();
 
-  // Try to find existing draft to update
   const existingIndex = input.id ? snapshot.drafts.findIndex((d) => d.id === input.id) : -1;
   const existing = existingIndex >= 0 ? snapshot.drafts[existingIndex] : null;
 
@@ -386,7 +382,7 @@ export async function fetchDaemonDrafts(
 /**
  * One list from two stores.
  *
- * The daemon's copy wins for an id both hold — it is the store of record, and
+ * The daemon's copy wins for an id both hold, it is the store of record, and
  * it is what the other surfaces are looking at. A draft only the local mirror
  * has is kept and shown as pending, because that is exactly the draft an
  * operator would otherwise think they had lost.
@@ -468,7 +464,7 @@ export interface ChannelDraftSyncReport {
  * Offer every draft the daemon does not hold.
  *
  * The retry for drafts composed while the daemon was unreachable, and the
- * migration for drafts written before the daemon held this store — the same
+ * migration for drafts written before the daemon held this store, the same
  * operation either way: a draft the daemon does not have, offered to it.
  */
 export async function syncChannelDrafts(
@@ -503,7 +499,7 @@ export async function syncChannelDrafts(
  * calling `deliverAgentChannelMessage` and then `markDraftSent` or
  * `markDraftFailed` to record the outcome.
  *
- * This routes through the EXISTING confirmed send path — no new SDK contract.
+ * This routes through the EXISTING confirmed send path, no new SDK contract.
  */
 export async function queueDraftToSend(
   shellPaths: ShellPaths,

@@ -1,5 +1,5 @@
 /**
- * hosted-handoff.ts — handing an inbound channel conversation to the daemon to
+ * hosted-handoff.ts, handing an inbound channel conversation to the daemon to
  * host, instead of answering it inside this process.
  *
  * ── What this changes ──────────────────────────────────────────────────────
@@ -10,7 +10,7 @@
  * continuation runner). The runner's answer has always been the same: spawn an
  * agent HERE. That answer ends when this process ends.
  *
- * The daemon can now host a full conversation loop — the same orchestrator,
+ * The daemon can now host a full conversation loop, the same orchestrator,
  * tool registry and permission gate this process runs, composed on the other
  * side of the wire. So the runner gains a second answer: hand the conversation
  * over. The first message of a conversation creates the hosted session with the
@@ -23,7 +23,7 @@
  * `hostedSessions.promoteInboundConversations` is read on EVERY continuation,
  * never captured at construction: turning it on or off takes effect on the next
  * inbound message rather than the next restart. Off is the shipped default and
- * the behavior everyone already has — the message is answered by the process
+ * the behavior everyone already has, the message is answered by the process
  * that received it.
  *
  * ── What promotion does NOT change ────────────────────────────────────────
@@ -32,7 +32,7 @@
  * write-review-fix-confirm chain for an inbound message. A promoted
  * conversation opens no chain to gate: it is the ordinary conversation loop,
  * answering the owner. What its tools may do is decided by the daemon's own
- * permission manager, which raises asks the same way — onto the shared record
+ * permission manager, which raises asks the same way, onto the shared record
  * every surface reads, including this one's approvals panel.
  *
  * So promotion moves where the conversation is answered. It does not move a
@@ -42,9 +42,9 @@
  * ── A refusal is a value, and the fallback is always the local answer ──────
  *
  * Nothing here throws into the dispatch poller. Every reason a conversation
- * could not be handed over — the setting is off, no daemon is resolvable, the
+ * could not be handed over, the setting is off, no daemon is resolvable, the
  * workspace root is not absolute, the daemon refused with its cap reached, the
- * hosted session had been killed — comes back as a stated reason, and the
+ * hosted session had been killed, comes back as a stated reason, and the
  * caller answers the message locally exactly as it did before. A promotion that
  * cannot happen must never cost the owner their message.
  *
@@ -78,7 +78,7 @@ export type HostedHandoffOutcome =
   }
   | {
     readonly promoted: false;
-    /** Why, in the words of whatever refused — never a sentence invented here. */
+    /** Why, in the words of whatever refused, never a sentence invented here. */
     readonly reason: string;
     /** True only for the shipped-off setting, so a caller can stay quiet about it. */
     readonly disabled: boolean;
@@ -113,7 +113,7 @@ export interface HostedConversationHandoff {
 export interface HostedConversationHandoffOptions {
   readonly verbs: DaemonVerbCaller;
   /**
-   * Read fresh per continuation — `hostedSessions.promoteInboundConversations`.
+   * Read fresh per continuation, `hostedSessions.promoteInboundConversations`.
    * A capture would make the setting a restart-only key, which it is not.
    */
   readonly isEnabled: () => boolean;
@@ -148,7 +148,7 @@ export function hostedSessionTitle(request: HostedHandoffRequest): string {
  * rather than "the daemon could not do this right now".
  *
  * 404 is the engine's own not-found; 409 is its "the session exists and here is
- * why it cannot serve you" — which for a terminated session is permanent. Both
+ * why it cannot serve you", which for a terminated session is permanent. Both
  * are answered by starting the conversation again; a 429 (the cap) or a 5xx is
  * not, and must not silently mint a second session.
  */
@@ -174,7 +174,7 @@ export function createHostedConversationHandoff(
       workspaceRoot,
       title: hostedSessionTitle(request),
       // The owner's words open the conversation, not the broker's enriched
-      // continuation framing — a hosted session that opens with the framing
+      // continuation framing, a hosted session that opens with the framing
       // reads as a work order for a message that was a sentence.
       initialPrompt: request.body.trim().length > 0 ? request.body : request.task,
       clientId: options.clientId,

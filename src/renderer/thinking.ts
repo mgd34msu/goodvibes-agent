@@ -8,7 +8,7 @@ export function renderThinkingBlock(text: string, width: number): Line[] {
   // terminal background (renderConversationNotice passes no bodyBg), so both
   // colours resolve per-render through activeUiTones() to stay legible on a
   // light terminal. In dark mode the accent adopts the shared reasoning purple
-  // (state.reasoning) and the body adopts chrome.faint (== fg.dim) — a small,
+  // (state.reasoning) and the body adopts chrome.faint (== fg.dim), a small,
   // deliberate convergence to the reference tokens from the agent's prior local
   // BORDERS.THINKING.color / COLORS.DIM_TEXT (see the visible-changes note).
   const t = activeUiTones();

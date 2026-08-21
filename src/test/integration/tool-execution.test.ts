@@ -79,7 +79,7 @@ describe('Tool execution pipeline — ToolRegistry', () => {
       execute: async () => { throw new Error('kaboom'); },
     });
 
-    // ToolRegistry.execute() rethrows tool errors — callers are responsible for handling them
+    // ToolRegistry.execute() rethrows tool errors, callers are responsible for handling them
     await expect(registry.execute('call-3', 'exploder', {})).rejects.toThrow('kaboom');
   });
 
@@ -195,7 +195,7 @@ describe('Tool execution pipeline — permission + registry', () => {
     configManager.set('behavior.autoApprove', false);
     configManager.set('permissions.mode', 'prompt');
     const { pm } = buildStack(configManager);
-    // 'read' is a read-category tool — auto-approved in prompt mode
+    // 'read' is a read-category tool, auto-approved in prompt mode
     const approved = await pm.check('read', {});
     expect(approved).toBe(true);
   });

@@ -29,7 +29,7 @@ describe('config diff logic', () => {
   });
 
   it('shows empty diff when all settings are at defaults', () => {
-    // Reset all settings to defaults first — global ~/.goodvibes/tui/settings.json
+    // Reset all settings to defaults first, global ~/.goodvibes/tui/settings.json
     // may override some values on the dev machine, so we reset explicitly.
     cm.reset();
     const schema = cm.getSchema();

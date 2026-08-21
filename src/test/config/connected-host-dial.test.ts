@@ -2,12 +2,12 @@
 // connected-host-dial.test.ts
 //
 // `controlPlane.host` holds a BIND address. `0.0.0.0` and `::` mean "listen on
-// every interface" — they are normal things to bind to and they are not
+// every interface", they are normal things to bind to and they are not
 // addresses anything can connect TO. Copying one into a dial URL is what
 // produced `http://0.0.0.0:3421` and the refused profile calls.
 //
 // These pin the mapping itself, the fact that `doctor` prints the dialable
-// form, and — just as important — that the ADVERTISED pairing URLs did NOT get
+// form, and, just as important, that the ADVERTISED pairing URLs did NOT get
 // swept into the same rule, because loopback on a phone is the phone.
 // ---------------------------------------------------------------------------
 
@@ -97,7 +97,7 @@ describe('advertised addresses are deliberately NOT mapped to loopback', () => {
   test('urlHostForBindHost resolves a wildcard away from loopback', async () => {
     // A pairing QR code and the phone-facing web link are read by ANOTHER
     // device, where 127.0.0.1 is that device. This helper must therefore keep
-    // resolving through the LAN address — it is not the dial helper, and the
+    // resolving through the LAN address, it is not the dial helper, and the
     // sweep must never have merged the two.
     const { urlHostForBindHost } = await import('../../cli/management.ts');
     expect(urlHostForBindHost('0.0.0.0')).not.toBe('0.0.0.0');

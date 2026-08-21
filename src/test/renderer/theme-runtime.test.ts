@@ -1,5 +1,5 @@
 /**
- * theme-runtime.test.ts — the active-mode runtime.
+ * theme-runtime.test.ts, the active-mode runtime.
  *
  * Covers the active-mode accessors, the flip + reversibility of the live token
  * layers, and the display.themeMode config coercion.
@@ -9,7 +9,7 @@
  * registerThemeRefresh, so setActiveThemeMode rebuilds them without replacing
  * the object reference (read by reference across many call sites). These paint
  * OPAQUE dark surfaces, so in the SDK light tones only state.* roles flip
- * (fg/bg stay dark) — dark is byte-identical and reversible.
+ * (fg/bg stay dark), dark is byte-identical and reversible.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';

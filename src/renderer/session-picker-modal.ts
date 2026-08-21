@@ -1,5 +1,5 @@
 /**
- * renderSessionPickerModal — renders the /sessions picker modal as Line[]
+ * renderSessionPickerModal, renders the /sessions picker modal as Line[]
  * using ModalFactory.
  *
  * Shows a list of saved sessions with:

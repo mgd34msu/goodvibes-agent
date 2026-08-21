@@ -1,16 +1,16 @@
 /**
  * terminal-paint-window.test.ts
  *
- * The agent booted into a garbled surface — no header, no header rule, no
+ * The agent booted into a garbled surface, no header, no header rule, no
  * sidebar divider, no '◆ Recent' heading, characters missing from the middle of
- * words — and after /quit the shell got its screen back with a full copy of the
+ * words, and after /quit the shell got its screen back with a full copy of the
  * agent's UI painted on it and its own scrollback gone. Captured at 192x52 in
  * tmux against the compiled 2.0.9 binary; both symptoms came from ONE frame
  * painted a few milliseconds too early.
  *
  * main.ts wires installVoiceCapture() several statements before it writes the
  * enter sequence, and that call reaches the wake listener's first phase change
- * — and so render() — synchronously, while the app is still on the screen the
+ *, and so render(), synchronously, while the app is still on the screen the
  * SHELL owns. Those bytes landed on the primary screen (revealed again at exit),
  * and they left the compositor holding a front buffer describing a screen the
  * app was about to leave, so every later frame was diffed against a screen that
@@ -111,7 +111,7 @@ describe('why an early frame showed up as garble', () => {
   test('a frame composited before the screen switch makes the next frame omit everything unchanged', () => {
     const { compositor, writes } = makeRecordingCompositor();
 
-    // The early frame — the one the wake listener triggered. It lands on the
+    // The early frame, the one the wake listener triggered. It lands on the
     // screen the shell owns.
     compositor.composite(makeFrame());
     expect(writes.join('')).toContain('H');

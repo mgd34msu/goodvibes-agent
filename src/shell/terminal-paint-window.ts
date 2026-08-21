@@ -1,12 +1,12 @@
 /**
- * terminal-paint-window.ts — the window in which the shell owns the screen.
+ * terminal-paint-window.ts, the window in which the shell owns the screen.
  *
  * A full-screen app may paint only between two moments: the write that switches
  * the terminal onto this app's screen, and the write that hands the terminal
  * back. main.ts already refused to paint after the second one. It did not
  * refuse before the first, and boot wiring reaches render() there:
  * installVoiceCapture() applies the wake configuration inline, and the
- * listener's first phase change repaints — all synchronously, several
+ * listener's first phase change repaints, all synchronously, several
  * statements before the enter sequence is written.
  *
  * That one early frame did two visible things.
@@ -19,11 +19,11 @@
  * And it left the compositor holding a front buffer that described a screen the
  * app was about to leave. The enter sequence switches to a BLANK alternate
  * screen, so every cell the compositor believed was already painted was in fact
- * absent — and being believed present, it was diffed away and never sent. The
+ * absent, and being believed present, it was diffed away and never sent. The
  * surface came up without its header, its header rule, its sidebar divider or
  * its section headings, with characters missing from the middle of words where
- * the two screens happened to agree. Anything that reset the diff — a resize,
- * Ctrl+L, the theme probe's repaint — healed it, which is why it looked like a
+ * the two screens happened to agree. Anything that reset the diff, a resize,
+ * Ctrl+L, the theme probe's repaint, healed it, which is why it looked like a
  * boot-only glitch that fixed itself.
  *
  * So this module owns both halves as one fact: the window opens by writing the

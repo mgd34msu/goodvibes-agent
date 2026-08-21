@@ -24,7 +24,7 @@ import type { AgentHarnessToolArgs } from './agent-harness-tool-types.ts';
  *
  * `total` is the size of the catalog the filters name, NOT the number that
  * matched the query. It used to be the latter, which is how a search for
- * "spending limit" answered `{"settings": [], "returned": 0, "total": 0}` — a
+ * "spending limit" answered `{"settings": [], "returned": 0, "total": 0}`, a
  * page that says zero settings exist, from a schema holding 572 of them, 32 of
  * them about payments. `returned` says how many matched; `total` says how many
  * there are; the envelope's own sentence says which filter emptied the page.
@@ -65,7 +65,7 @@ export async function harnessSettingsCatalog(
  * Some of what a domain needs cannot be a setting: the card number behind
  * `payments.*` is typed at a local terminal through a masked prompt and stored
  * write-only. A page of payment settings that never mentions `/payments card`
- * leaves a reader concluding the platform cannot take a card at all — which is
+ * leaves a reader concluding the platform cannot take a card at all, which is
  * how the live failure ended.
  */
 function relatedSettingCommands(

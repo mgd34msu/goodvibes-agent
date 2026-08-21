@@ -144,7 +144,7 @@ describe('negotiateProtocolVersion', () => {
       const result = negotiateProtocolVersion(V1_1, V1_2);
       expect(result.proceed).toBe(true);
       if (result.proceed) {
-        // min(1, 2) = 1 — local is the constraint
+        // min(1, 2) = 1, local is the constraint
         expect(result.protocol.version.minor).toBe(1);
         // Not considered a downgrade from local perspective
         expect(result.protocol.downgraded).toBe(false);

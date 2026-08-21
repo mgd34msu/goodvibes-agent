@@ -41,12 +41,12 @@ function formatAgentTask(task: string): string {
   return task.length > 50 ? `${task.slice(0, 50)}...` : task;
 }
 
-/** Renders a COMPACTION_RECEIPT payload as a one-line honest summary: strategy, trigger, and outcome — with the fallback reason (`detail`) named when the compaction did not apply. */
+/** Renders a COMPACTION_RECEIPT payload as a one-line honest summary: strategy, trigger, and outcome, with the fallback reason (`detail`) named when the compaction did not apply. */
 function formatCompactionReceipt(payload: Extract<CompactionEvent, { type: 'COMPACTION_RECEIPT' }>): string {
   const { strategy, trigger, outcome, tokensBefore, tokensAfter, detail } = payload;
   if (outcome === 'applied') {
     const saved = Math.max(0, tokensBefore - tokensAfter);
-    return `${strategy} (${trigger}) applied — ${saved.toLocaleString()} tokens reclaimed`;
+    return `${strategy} (${trigger}) applied, ${saved.toLocaleString()} tokens reclaimed`;
   }
   const reason = detail ? `: ${detail}` : '';
   return `${strategy} (${trigger}) ${outcome}${reason}`;
@@ -63,7 +63,7 @@ interface ChildFailureEnvelopeLike {
  * attaches to its `status` action result (SDK 1.6.1, child-failure
  * envelopes on the agent tool's status/get/wait results) and renders it as a
  * compact suffix: `reason: <code>, phase: <phase>[, N turns completed][, note]`.
- * Goes through `toolRegistry.execute` — the SAME tool the model calls —
+ * Goes through `toolRegistry.execute`, the SAME tool the model calls,
  * rather than re-deriving the classification locally: `classifyChildFailureReason`
  * and `describeChildPhase` are internal to the SDK's tool module, not part of
  * its public API, so calling the tool is the only faithful way to surface
@@ -121,11 +121,11 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
     domainDispatch.dispatchCompactionEvent(env.payload);
   }));
   // The mandatory post-compaction receipt (SDK 1.6.1, emitted after every
-  // automatic and manual compaction path — see the SDK's own doc comment on
+  // automatic and manual compaction path, see the SDK's own doc comment on
   // emitCompactionReceipt) is the one compaction signal a user should never
   // miss: system-message-router.ts's own tiering doc already names
   // "compaction events" as 'high' priority (conversation + activity feed),
-  // but nothing routed COMPACTION_RECEIPT there before this — the domain
+  // but nothing routed COMPACTION_RECEIPT there before this, the domain
   // subscription above only ever updated runtime-store session state, not a
   // user-visible message. Surfaces strategy + outcome; when the compaction
   // did not apply (kept-original/failed), `detail` carries the fallback
@@ -196,10 +196,10 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
 
       // The typed turn-budget-exhaustion outcome (SDK 1.8.0, agents/turn-budget.ts):
       // record.failureReason === 'max_turns' plus record.turnBudget (the applied
-      // limit and which input set it — default / spawn-override / policy-bound)
+      // limit and which input set it, default / spawn-override / policy-bound)
       // are stamped on the record at the source, never derived from regex-matching
       // payload.error. Rendered as an honest budget line, distinct from the
-      // generic infrastructure-failure path below — a spent turn budget is an
+      // generic infrastructure-failure path below, a spent turn budget is an
       // expected, nameable outcome, not an error to root-cause.
       if (record.failureReason === 'max_turns' && record.turnBudget) {
         const { limit, source } = record.turnBudget;
@@ -209,7 +209,7 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
             ? 'a per-spawn override'
             : 'the agents.maxTurnsCap policy ceiling';
         withRouter(getSystemMessageRouter, (router) => {
-          router.low(`[Delegated task] ${record.template} ${payload.agentId.slice(-8)} spent its turn budget in ${durationSeconds}s — ${limit} turns (${sourceLabel}) while working on "${taskSnippet}"`);
+          router.low(`[Delegated task] ${record.template} ${payload.agentId.slice(-8)} spent its turn budget in ${durationSeconds}s, ${limit} turns (${sourceLabel}) while working on "${taskSnippet}"`);
         });
         queueConversationFollowUp?.({
           key: `agent:${payload.agentId}:failed`,
@@ -219,7 +219,7 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
         return;
       }
 
-      // Compact child-failure envelope enrichment (SDK 1.6.1) — fetched via
+      // Compact child-failure envelope enrichment (SDK 1.6.1), fetched via
       // the SAME 'agent' tool the model calls, then appended to the base
       // message. Deferred (async) rather than blocking this handler; no test
       // or downstream consumer depends on this message landing synchronously

@@ -44,7 +44,7 @@ const HARNESS_MODE_CATALOG_SOURCE_MARKERS = [
   'export const HARNESS_MODE_DESCRIPTORS',
   'export function listHarnessModes',
   'export function describeHarnessMode',
-  // Was `function harnessModeMatchesSearch` — the mode catalog's own copy of
+  // Was `function harnessModeMatchesSearch`, the mode catalog's own copy of
   // the match rule. Every catalog kept one, they disagreed, and a plain-English
   // query came back empty from all of them; the rule now lives once in
   // agent-harness-catalog-search.ts and this is the mode catalog's entry into

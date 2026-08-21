@@ -76,7 +76,7 @@ export type SettingsCategory =
   | 'cluster'
   | 'memory'
   | 'payments'
-  // email.* / calendar.* / google.* — the connector keys the daemon really
+  // email.* / calendar.* / google.*, the connector keys the daemon really
   // reads for its mail and calendar services (platform runtime 2.0.8 registered
   // all 22 of them as described schema rows; before that they were cast onto
   // the live config at runtime, so this surface answered "Unknown setting" for
@@ -86,7 +86,7 @@ export type SettingsCategory =
   // Both this entry AND the SETTINGS_CATEGORY_GROUPS membership below are
   // mandatory: a setting's category is its key's first segment and every push
   // is guarded by `if (groups.has(cat))`, so a root with an entry here but no
-  // group membership — or the reverse — is dropped from the workspace entirely
+  // group membership, or the reverse, is dropped from the workspace entirely
   // and reachable only by hand-editing a settings file. That is exactly what
   // happened to push.* and cluster.*, which is why they are cross-listed in
   // CROSS_LISTED_SETTING_ROOTS above rather than left silently unreachable.
@@ -102,16 +102,16 @@ export type SettingsFocusPane = 'categories' | 'settings';
  *
  * A setting's category is normally its key's first segment, so a root with no
  * matching category matches nothing and its keys are dropped from the
- * workspace entirely — present in the schema, read by the daemon, and reachable
+ * workspace entirely, present in the schema, read by the daemon, and reachable
  * only by hand-editing the config file. Anything listed here is deliberately
  * shown somewhere it makes sense to a reader instead.
  *
- * `push` — the VAPID contact address and the subscription housekeeping bounds
+ * `push`, the VAPID contact address and the subscription housekeeping bounds
  * describe how a notification is DELIVERED, so they sit with the
  * `notifications.*` keys that decide which events are pushed in the first
  * place.
  *
- * `cluster` — heartbeat timing, the multicast group, the shared secret and the
+ * `cluster`, heartbeat timing, the multicast group, the shared secret and the
  * key-rotation windows all describe how this node finds and trusts its peers.
  * That is the same subject `fleet.*` already covers, so they are listed
  * together rather than under a category of their own.
@@ -144,7 +144,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   // `occasions` sits beside `profile` for the same reason and a stronger one:
   // the occasions and plans it governs ARE prose lines in the profile file
   // (docs/occasions.md §3), so filing them apart would put one document's
-  // settings in two places. What they decide is also the same kind of thing —
+  // settings in two places. What they decide is also the same kind of thing,
   // how far ahead the Agent raises a birthday, whether it writes his dates out
   // to a calendar, how many questions the gift interview asks. Daemon-owned like
   // `profile` and `payments`, which is a routing fact about where the write
@@ -154,18 +154,18 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
   // `email`, `calendar` and `google` sit beside `surfaces` for the reason
   // `surfaces` is here at all: they configure where the daemon's services reach
-  // the world — the mailbox it composes and sends through, the calendars it
-  // reads and writes, and the Google OAuth record the two share — rather than
+  // the world, the mailbox it composes and sends through, the calendars it
+  // reads and writes, and the Google OAuth record the two share, rather than
   // anything about how this terminal presents them. Daemon-owned, like several
   // other categories in this group.
   { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'hostedSessions', 'device', 'email', 'calendar', 'google', 'mcp', 'automation', 'checkin', 'integrations'] },
   // `danger` sits with the other listener/binding categories because that is
   // what it is: danger.httpListener opens an inbound webhook listener. It is
-  // rendered like any other setting rather than hidden — the write is gated by
+  // rendered like any other setting rather than hidden, the write is gated by
   // the narrow confirmation list in src/tools/agent-settings-write-policy.ts,
   // which can name the key and state the hazard. A hidden key cannot.
   // `cluster` belongs here rather than being hidden. The Agent composes no
-  // inbound channel consumer of its own — a guard test holds that — so it is
+  // inbound channel consumer of its own, a guard test holds that, so it is
   // never a candidate in an election. But every cluster.* key is DAEMON-owned
   // (the SDK's config-ownership.ts), so a write from this surface routes to the
   // daemon that acts on it, exactly like every other key in this group. Hiding

@@ -76,7 +76,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       boundary: root === 'workspaces'
         ? 'The registered-workspace list that gates automatic checkpoints (owner ruling, 2026-07-10) is Agent-local, user-scoped state. There is no dedicated model tool yet; registration/unregistration is a mutating action and requires explicit user intent (the CLI itself requires --yes).'
         : root === 'fleet'
-          ? 'Best-of-N held-merge attempt groups (SDK 1.6.1) are this Agent\'s own orchestration engine state, not a connected-host call — fleet.attempts.* is ws-only with no HTTP binding, so agent_operator_method cannot reach it either. There is no dedicated model tool yet; picking a winner is a mutating, worktree-cleaning action and requires explicit user intent (the CLI itself requires --yes).'
+          ? 'Best-of-N held-merge attempt groups (SDK 1.6.1) are this Agent\'s own orchestration engine state, not a connected-host call, fleet.attempts.* is ws-only with no HTTP binding, so agent_operator_method cannot reach it either. There is no dedicated model tool yet; picking a winner is a mutating, worktree-cleaning action and requires explicit user intent (the CLI itself requires --yes).'
           : 'Local library/profile/session/bundle/import CLI commands operate on Agent-local data. Mutations require explicit user intent and should use first-class Agent-local tools where available.',
     };
   }
@@ -89,7 +89,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       // command cannot: the authority naming where a fact came from, his
       // verbatim words, and the one-line disclosure that goes back in the reply.
       preferredModelTool: 'profile',
-      boundary: 'The owner profile is one Markdown file at daemon scope that only the daemon writes. Reads run without confirmation; every write carries an authority naming where the fact came from and is refused unless it came from him directly, and mutating CLI subcommands require --yes. The CLI is his own maintenance path for the file — during a conversation the model records facts through the `profile` tool rather than shelling out.',
+      boundary: 'The owner profile is one Markdown file at daemon scope that only the daemon writes. Reads run without confirmation; every write carries an authority naming where the fact came from and is refused unless it came from him directly, and mutating CLI subcommands require --yes. The CLI is his own maintenance path for the file, during a conversation the model records facts through the `profile` tool rather than shelling out.',
     };
   }
   if (root === 'ci' || root === 'principals' || root === 'channel-profiles') {
@@ -98,7 +98,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       confirmation,
       // agent_operator_method, NOT agent_operator_action: the action tool's
       // allowlist covers only approvals.* and automation.* and cannot invoke
-      // ci.*/principals.*/channels.profiles.* — pointing the model there would
+      // ci.*/principals.*/channels.profiles.*, pointing the model there would
       // dead-end in "unknown action". The generic operator-method tool routes
       // these directly (read-only methods run without confirmation; writes
       // require confirm + explicitUserRequest).
@@ -129,7 +129,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       effect: 'external-network',
       confirmation,
       preferredModelTool: 'browser',
-      boundary: 'The CLI is a scriptable mirror of the browser tool, for diagnosing an install from a shell — in a conversation the model calls the browser tool directly rather than shelling out. It builds the same tool the model calls, so the two can never disagree. Sessions it opens are closed when the command exits, and only browsers this agent launched are ever closed.',
+      boundary: 'The CLI is a scriptable mirror of the browser tool, for diagnosing an install from a shell, in a conversation the model calls the browser tool directly rather than shelling out. It builds the same tool the model calls, so the two can never disagree. Sessions it opens are closed when the command exits, and only browsers this agent launched are ever closed.',
     };
   }
   if (root === 'relay') {
@@ -137,7 +137,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       effect: 'read-only',
       confirmation,
       preferredModelTool: `${settingsActions('list', 'get')} (category "relay") or ${agentHarnessModes('tools')}`,
-      boundary: 'relay status reports the connected host\'s imported relay.* configuration and the relay-connect feature flag only — it is not a live check (Agent hosts no daemon and the SDK has no remote relay-status route). relay pair always honestly refuses: minting a pairing payload needs the relay identity private key, which only the daemon actually holding the relay identity has.',
+      boundary: 'relay status reports the connected host\'s imported relay.* configuration and the relay-connect feature flag only, it is not a live check (Agent hosts no daemon and the SDK has no remote relay-status route). relay pair always honestly refuses: minting a pairing payload needs the relay identity private key, which only the daemon actually holding the relay identity has.',
     };
   }
   if (root === 'subscription' || root === 'secrets' || root === 'pair') {

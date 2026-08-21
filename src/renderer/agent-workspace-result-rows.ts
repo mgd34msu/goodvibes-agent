@@ -2,13 +2,13 @@
  * The action-result block, sized to fit and scrollable when it cannot.
  *
  * This exists because of a ruling with no exceptions in it: no surface ships too
- * small for its complete text — size to content, or scroll, never clip. The
+ * small for its complete text, size to content, or scroll, never clip. The
  * pane used to give the action list `height - 2` and append the result
  * afterwards, so a multi-line result was cut wherever the terminal happened to
  * end. A person reading a setup report saw its first two lines and had no way
  * to reach the rest, and nothing said the rest existed.
  *
- * Sizing to content is not available here — the pane is bounded by the
+ * Sizing to content is not available here, the pane is bounded by the
  * terminal. So the result gets a reserved share of the pane before the action
  * list is windowed, and when the result is longer than even that share it
  * scrolls with PageUp/PageDown, announcing how many lines lie above and below.
@@ -34,7 +34,7 @@ export interface ResultRowPalette {
 
 /**
  * The action list never shrinks below this. A result long enough to fill the
- * pane must not push the actions out of view — the person still has to be able
+ * pane must not push the actions out of view, the person still has to be able
  * to pick the next card.
  */
 export const MIN_ACTION_ROWS = 6;
@@ -57,7 +57,7 @@ export function buildActionResultRows(
     { text: `${options.onboarding ? 'Result' : 'Action Result'}: ${result.title}`, fg: options.titleColor, bold: true },
   ];
 
-  // For recap results, skip the detail body — the checkmarked lines below carry
+  // For recap results, skip the detail body, the checkmarked lines below carry
   // the full content. Rendering detail AND lines would duplicate every line.
   if (result.kind !== 'recap') {
     for (const line of wrapText(result.detail, Math.max(1, options.width - 2))) {
@@ -79,8 +79,8 @@ export function buildActionResultRows(
 /**
  * Split the pane between the action list and the result.
  *
- * The actions pane is a good deal shorter than the terminal — the context lines
- * above it take most of the column — so a fixed floor for the action list can
+ * The actions pane is a good deal shorter than the terminal, the context lines
+ * above it take most of the column, so a fixed floor for the action list can
  * leave a result with nothing at all, which is worse than the clipping this
  * replaced. The floor therefore yields: it is `MIN_ACTION_ROWS` when there is
  * room and shrinks toward one row when there is not, and the result is always
@@ -100,7 +100,7 @@ export function reserveForResult(totalRows: number, usableRows: number): number 
  *
  * The `+ 1` pays for the "more above" marker, which is present at any non-zero
  * offset and costs a row that would otherwise hold content. Without it the last
- * line or two can never be reached, which is the same failure as clipping —
+ * line or two can never be reached, which is the same failure as clipping,
  * just harder to notice.
  */
 export function maxResultScroll(totalRows: number, reserved: number): number {
@@ -172,7 +172,7 @@ export function windowResultRows(
   const windowed: ResultRow[] = [];
   if (above === 1) {
     windowed.push({
-      text: `${options.moreAbove} ${clamped} more line(s) above — PageUp`,
+      text: `${options.moreAbove} ${clamped} more line(s) above, PageUp`,
       kind: 'more',
       fg: options.palette.dim,
       dim: true,
@@ -181,7 +181,7 @@ export function windowResultRows(
   windowed.push(...rows.slice(clamped, end));
   if (hidden > 0) {
     windowed.push({
-      text: `${options.moreBelow} ${hidden} more line(s) below — PageDown`,
+      text: `${options.moreBelow} ${hidden} more line(s) below, PageDown`,
       kind: 'more',
       fg: options.palette.dim,
       dim: true,

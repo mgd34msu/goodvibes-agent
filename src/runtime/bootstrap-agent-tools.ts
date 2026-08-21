@@ -1,5 +1,5 @@
 /**
- * bootstrap-agent-tools.ts — every model-facing tool this build registers, in
+ * bootstrap-agent-tools.ts, every model-facing tool this build registers, in
  * one place.
  *
  * Split out of bootstrap.ts when that module passed the 800-line ceiling. The
@@ -60,7 +60,7 @@ export interface AgentToolRegistrationDeps {
    * another field.
    */
   readonly services: RuntimeServices;
-  /** Read at call time, not at registration time — the id changes per session. */
+  /** Read at call time, not at registration time, the id changes per session. */
   readonly getSessionId: () => string;
 }
 
@@ -88,15 +88,15 @@ export function registerAgentTools(deps: AgentToolRegistrationDeps): void {
   registerAgentDelegationTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDeviceTool(toolRegistry, commandRegistry, commandContext);
   // Paired-phone capabilities. The TOOL is registered here because the loop that
-  // calls it runs here; the RUNTIME behind it — the grants ledger, the capture
+  // calls it runs here; the RUNTIME behind it, the grants ledger, the capture
   // store, the housekeeping sweeps, the confirmation prompt, every `device.*`
-  // gate — is the daemon's, reached over the `devices.*` verbs.
+  // gate, is the daemon's, reached over the `devices.*` verbs.
   //
   // It has to be the daemon's: a phone pairs with the daemon, a grant must
   // outlive the terminal window that approved it, and the sweep that reaps a
   // grant whose phone is gone has to run with nobody watching. This process
   // composes no second device-posture runtime writing the same grants ledger
-  // — that would be a second-writer hazard — and registers no `devices.*`
+  //, that would be a second-writer hazard, and registers no `devices.*`
   // handlers on a catalog nothing outside this process can call, so the web
   // app's grants surface is served from the daemon, not from here.
   registerClientPhoneTool(toolRegistry, services.devicesClient);
@@ -105,7 +105,7 @@ export function registerAgentTools(deps: AgentToolRegistrationDeps): void {
   registerAgentMemoryTool(toolRegistry, commandRegistry, commandContext);
   registerAgentModelsTool(toolRegistry, commandRegistry, commandContext);
   // Occasions live as lines in the same profile file, and the daemon owns both
-  // that file and the machine-written acknowledgement store beside it — so this
+  // that file and the machine-written acknowledgement store beside it, so this
   // tool holds no state either. It calls the sixteen `occasions.*` verbs, over
   // the same in-process-then-connected-host invoker the profile tool uses, and
   // it decides nothing: no lead window, no cadence, no quiet hours, no kind.
@@ -120,7 +120,7 @@ export function registerAgentTools(deps: AgentToolRegistrationDeps): void {
   });
   registerAgentPersonalOpsTool(toolRegistry, commandRegistry, commandContext);
   // The owner profile lives in one file at daemon scope and the daemon is its
-  // only writer, so this tool holds no state of its own — it calls the nine
+  // only writer, so this tool holds no state of its own, it calls the nine
   // `profile.*` verbs. The invoker prefers this process's own gateway catalog
   // when it carries the handlers and falls back to the connected host
   // otherwise, so the same tool works whether or not this build embeds them.
@@ -145,7 +145,7 @@ export function registerAgentTools(deps: AgentToolRegistrationDeps): void {
   // The capture floor, checked once every tool this build registers is in.
   // The operator policy tells every turn that recording what it learns is part
   // of answering; if the tools that do the recording were not registered, that
-  // instruction is a promise the run cannot keep — which is exactly how an
+  // instruction is a promise the run cannot keep, which is exactly how an
   // itinerary got found, answered, and stored nowhere. Reported rather than
   // thrown: a missing capture tool is a degraded Agent, not a reason to refuse
   // to boot one.

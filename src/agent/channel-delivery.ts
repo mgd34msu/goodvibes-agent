@@ -9,6 +9,7 @@ import {
   resolveDeliverySurfaceName,
   screenOutboundForCardMaterial,
 } from './payments-channel-guard.ts';
+import { isRoutineScheduleDeliverySurfaceKind } from './schedule-delivery-targets.ts';
 
 type AgentChannelDeliveryRouter = Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>;
 type AgentChannelDeliverySurfaceKind = ChannelDeliverySurfaceKind | 'telephony';
@@ -43,34 +44,15 @@ export interface AgentChannelDeliveryResult {
   readonly strategyCount: number;
 }
 
-const DELIVERY_SURFACE_KINDS: readonly AgentChannelDeliverySurfaceKind[] = [
-  'tui',
-  'web',
-  'slack',
-  'discord',
-  'ntfy',
-  'webhook',
-  'telegram',
-  'google-chat',
-  'signal',
-  'whatsapp',
-  'telephony',
-  'imessage',
-  'msteams',
-  'bluebubbles',
-  'mattermost',
-  'matrix',
-  'service',
-];
-
 function readText(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
 
-function isDeliverySurfaceKind(value: string): value is AgentChannelDeliverySurfaceKind {
-  return DELIVERY_SURFACE_KINDS.includes(value as AgentChannelDeliverySurfaceKind);
-}
+// The channel surfaces a schedule may deliver to are the same set an immediate
+// send accepts, so both read the one list in schedule-delivery-targets.ts.
+const isDeliverySurfaceKind: (value: string) => value is AgentChannelDeliverySurfaceKind =
+  isRoutineScheduleDeliverySurfaceKind;
 
 function parseChannelTarget(raw: string): AgentChannelDeliveryTarget {
   const [surfaceKind = '', routeId, label] = raw.split(':');
@@ -187,7 +169,7 @@ export async function deliverAgentChannelMessage(
   // It refuses BEFORE router.deliver, so nothing reaches a provider, and it
   // throws rather than returning a result, so no caller can treat a refusal as
   // a successful send. The thrown message is the SDK's refusal wording and
-  // contains no part of what was refused — see agent/payments-channel-guard.ts.
+  // contains no part of what was refused, see agent/payments-channel-guard.ts.
   const refusal = screenOutboundForCardMaterial({
     surface: resolveDeliverySurfaceName(preview.target),
     message: preview.message,

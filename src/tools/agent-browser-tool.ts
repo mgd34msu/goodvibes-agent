@@ -9,7 +9,7 @@ import { declareToolCapability } from './agent-tool-capability-declarations.ts';
  * The `browser` tool: real browser control, in this process, through Playwright.
  *
  * It is deliberately NOT an MCP passthrough. Nothing has to be installed,
- * configured, or authorized by hand first — the first call provisions a browser
+ * configured, or authorized by hand first, the first call provisions a browser
  * if one is missing and then does the work. Two properties are structural
  * rather than advisory:
  *
@@ -138,7 +138,7 @@ export interface AgentBrowserToolOptions {
 
 /**
  * Engines created by a registered browser tool, so app shutdown can close the
- * browsers this agent started. Attached browsers are untouched by this — the
+ * browsers this agent started. Attached browsers are untouched by this, the
  * session manager's shutdown only ends what it launched.
  */
 const liveEngines = new Set<BrowserEngine>();
@@ -265,11 +265,11 @@ export function createAgentBrowserTool(options: AgentBrowserToolOptions = {}): T
               // Naming a missing parameter is honest only if the caller can
               // actually supply it. The owner's regular, already-running
               // browser exposes no remote-debugging port by default, so there
-              // is no cdpEndpoint to hand over for it — attach only works for
+              // is no cdpEndpoint to hand over for it, attach only works for
               // a browser the owner deliberately started with one.
               throw new BrowserSessionError(
-                'browser action:"attach" needs cdpEndpoint, and there is no way to get one for the owner\'s regular already-running browser — it exposes no remote-debugging port unless started with one.',
-                'Only use attach for a browser the owner deliberately started with --remote-debugging-port=<port> --user-data-dir=<a profile that is not already open>. For anything else, use action:"launch" instead — it opens the agent\'s own managed, isolated profile.',
+                'browser action:"attach" needs cdpEndpoint, and there is no way to get one for the owner\'s regular already-running browser, it exposes no remote-debugging port unless started with one.',
+                'Only use attach for a browser the owner deliberately started with --remote-debugging-port=<port> --user-data-dir=<a profile that is not already open>. For anything else, use action:"launch" instead, it opens the agent\'s own managed, isolated profile.',
               );
             }
             return output(await browser.attach({ cdpEndpoint }));

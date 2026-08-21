@@ -8,7 +8,7 @@
  * shared broker (the mirror at ~/.goodvibes/agent/control-plane/sessions.json)
  * and once in the daemon spine. The spine call named `kind: 'agent'` and the
  * real project. The broker call named neither, so the broker fell back to its
- * documented defaults for a create that says nothing —
+ * documented defaults for a create that says nothing,
  * `classifySessionOriginKind` maps a non-channel surface (this one registers as
  * 'service') to 'tui', and project defaults to 'unknown'.
  *
@@ -48,7 +48,7 @@ describe('agent session mirror files its own sessions as its own', () => {
         lastSeenAt: Date.now(),
       },
     });
-    // Not a bug in the broker — a fallback for a caller that says nothing.
+    // Not a bug in the broker, a fallback for a caller that says nothing.
     // Saying it is the call site's job, which is what the next test pins.
     expect(record.kind).toBe('tui');
     expect(record.project).toBe('unknown');

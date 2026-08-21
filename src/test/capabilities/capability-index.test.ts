@@ -14,8 +14,8 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 /**
  * The incident this file exists for: the agent was asked to send an email and
  * said it could not, while working Google credentials sat in ~/.gmail-mcp. The
- * regression below is that exact shape — credentials on disk, a capability
- * registered against them — and it must resolve to ready.
+ * regression below is that exact shape, credentials on disk, a capability
+ * registered against them, and it must resolve to ready.
  */
 
 let home = '';

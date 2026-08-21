@@ -152,7 +152,7 @@ export function searchHarnessModelTools(
 
 /**
  * Shape of the qualified names `mcp mode:"tools"` reports for MCP servers'
- * own tools — `mcp:<server>:<tool>`. Those names are real and describable
+ * own tools, `mcp:<server>:<tool>`. Those names are real and describable
  * (see the `mcp` tool's own `mode:"tool"` lookup), but they are NOT
  * themselves top-level model tools: nothing in this registry resolves a
  * literal call to one, because they can only be invoked through
@@ -180,7 +180,7 @@ export function describeUnknownModelTool(toolRegistry: ToolRegistry, query: stri
   const label = query || '<missing>';
   if (query && MCP_QUALIFIED_NAME_PATTERN.test(query)) {
     const hint = names.includes('mcp')
-      ? `"${query}" is an MCP-qualified name, not a directly callable tool. Call it with mcp mode:"call" qualifiedName:"${query}" input:{...} — confirm it is actually connected first with mcp mode:"servers" or mode:"tools".`
+      ? `"${query}" is an MCP-qualified name, not a directly callable tool. Call it with mcp mode:"call" qualifiedName:"${query}" input:{...}, confirm it is actually connected first with mcp mode:"servers" or mode:"tools".`
       : `"${query}" names an MCP tool, but no "mcp" tool is registered here to call it through.`;
     return `Unknown model tool ${label}. ${hint} ${known}`;
   }

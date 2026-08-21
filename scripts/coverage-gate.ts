@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * coverage-gate.ts — aggregate coverage enforcement (ratchet).
+ * coverage-gate.ts, aggregate coverage enforcement (ratchet).
  *
  * The coverage-table parsing and floor decision now live in the shared
  * @pellux/goodvibes-toolchain `coverage-gate` (one implementation across
@@ -13,7 +13,7 @@
  * set just below the measured baseline, raised as coverage improves, never
  * lowered without an explicit decision. They catch regressions, not a percentage.
  *
- * NOTE (bun 1.3.x): bunfig.toml must not set `coverage = false` — that key
+ * NOTE (bun 1.3.x): bunfig.toml must not set `coverage = false`, that key
  * overrides the CLI --coverage flag, the run emits no coverage table, and the
  * gate fails unconditionally. The Agent's bunfig sets no coverage key.
  */
@@ -59,18 +59,18 @@ export function evaluateGate(output: string): GateResult {
   if (!result.summary) {
     return {
       pass: false,
-      lines: ['coverage-gate: FAIL — no coverage table found in output (did the run crash before reporting?)'],
+      lines: ['coverage-gate: FAIL: no coverage table found in output (did the run crash before reporting?)'],
     };
   }
   const funcsOk = result.summary.funcsPct >= FUNCS_FLOOR;
   const linesOk = result.summary.linesPct >= LINES_FLOOR;
   const lines: string[] = [
-    'coverage-gate: functions ' + result.summary.funcsPct.toFixed(2) + '% (floor ' + FUNCS_FLOOR + '%) — ' + (funcsOk ? 'OK' : 'BELOW FLOOR'),
-    'coverage-gate: lines     ' + result.summary.linesPct.toFixed(2) + '% (floor ' + LINES_FLOOR + '%) — ' + (linesOk ? 'OK' : 'BELOW FLOOR'),
+    'coverage-gate: functions ' + result.summary.funcsPct.toFixed(2) + '% (floor ' + FUNCS_FLOOR + '%): ' + (funcsOk ? 'OK' : 'BELOW FLOOR'),
+    'coverage-gate: lines     ' + result.summary.linesPct.toFixed(2) + '% (floor ' + LINES_FLOOR + '%): ' + (linesOk ? 'OK' : 'BELOW FLOOR'),
   ];
   if (result.failCount > 0) {
     lines.push(
-      'coverage-gate: note — ' + result.failCount + ' test(s) failed in whole-suite (single-process) coverage mode.',
+      'coverage-gate: note, ' + result.failCount + ' test(s) failed in whole-suite (single-process) coverage mode.',
       'coverage-gate: correctness is gated by bun run test; single-process failures here indicate',
       'coverage-gate: cross-file interference debt, tracked separately.',
     );
@@ -97,7 +97,7 @@ export async function runCoverageGate(options: RunGateOptions = {}): Promise<Gat
   // real-os.tmpdir() entries before and after every run. This gate spawns a
   // second, separate whole-suite `bun test --coverage` process directly and
   // is invoked on its own (`bun run coverage:gate`, and from ci:gate), so a
-  // stale-entry sweep here is not optional — it's the only sweep this entry
+  // stale-entry sweep here is not optional, it's the only sweep this entry
   // point gets. See scripts/stale-tmp-sweep.ts for the prefix list and the
   // one-hour age gate that makes this safe to run unconditionally, even
   // alongside another repo's own test run sharing the same real /tmp.
@@ -112,7 +112,7 @@ export async function runCoverageGate(options: RunGateOptions = {}): Promise<Gat
   ]);
   const exitCode = await proc.exited;
   // Sweep again after this run too (mirrors run-tests.ts's before-and-after
-  // pattern) — this coverage pass doesn't redirect TMPDIR the way
+  // pattern), this coverage pass doesn't redirect TMPDIR the way
   // run-tests.ts does, so the two tests that legitimately still write under
   // real os.tmpdir() (see KNOWN_TMPDIR_PREFIXES) create their entries there
   // during THIS run; no need to wait for the next invocation to reclaim them.

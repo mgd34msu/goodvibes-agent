@@ -32,7 +32,7 @@ function formatVoiceInstallProgressLine(component: VoiceInstallProgressComponent
       ? ` (${mb(component.bytesDone)} of ${mb(component.bytesTotal)} MB)`
       : ` (${mb(component.bytesTotal)} MB)`)
     : '';
-  return `  ${component.component}: ${formatVoiceComponentState(component.phase)}${bytes}${component.message ? ` — ${component.message}` : ''}`;
+  return `  ${component.component}: ${formatVoiceComponentState(component.phase)}${bytes}${component.message ? `, ${component.message}` : ''}`;
 }
 
 interface VoiceBundle {
@@ -113,7 +113,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
       if (sub === 'wake') {
         // Wake artifacts live under the same managed voice root as the local
         // runtime, in its `wake` subdirectory, and are served by the same
-        // voiceSetup service — so this reads and provisions through the platform's
+        // voiceSetup service, so this reads and provisions through the platform's
         // own wake service rather than a second provisioning path. Nothing
         // downloads unless the user typed `setup --yes`.
         const voiceSetup = requireVoiceSetup(ctx);
@@ -139,7 +139,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           }
           ctx.print(WAKE_SETUP_ANNOUNCEMENT);
           void voiceSetup.wakeProvision()
-            .then((result) => { ctx.print(['Wake-Word Setup — receipt', ...wakeProvisionReceiptLines(result)].join('\n')); })
+            .then((result) => { ctx.print(['Wake-Word Setup, receipt', ...wakeProvisionReceiptLines(result)].join('\n')); })
             .catch((error: unknown) => { ctx.print(`Wake-Word Setup\n  provisioning failed: ${error instanceof Error ? error.message : String(error)}`); });
           return;
         }
@@ -151,7 +151,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         // Live install progress: voice.local.status carries an
         // installInProgress section only while an install run is active
         // (sdk 5357f09e); absent means no run (or an older host build) and
-        // nothing renders — never a fabricated progress view.
+        // nothing renders, never a fabricated progress view.
         const installInProgress: VoiceInstallProgressLike | undefined = status.installInProgress;
         ctx.print([
           'Managed Local-Voice Status',
@@ -180,7 +180,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         // render live per-component progress from its installInProgress
         // section (sdk 5357f09e). Honest fallback: a host build whose status
         // never carries the section (an older daemon) just keeps the busy
-        // line above until the final receipt — no fabricated progress.
+        // line above until the final receipt, no fabricated progress.
         let installSettled = false;
         const renderedProgress = new Map<string, string>();
         const pollInstallProgress = async (): Promise<void> => {

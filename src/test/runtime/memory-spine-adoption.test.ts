@@ -2,7 +2,7 @@
  * The memory-spine adoption policy (reconcileMemorySpineAdoption): the single
  * decision of whether the agent's memory spine routes over the wire (an adopted
  * daemon owns the store) or stays local. Tested here in isolation against a spy
- * MemorySpineClient double and a scripted probe — no real daemon, no network — so
+ * MemorySpineClient double and a scripted probe, no real daemon, no network, so
  * every branch (adopt / deactivate-on-loss / no-op / re-adopt) is exercised fast
  * and deterministically. The real-daemon proof lives in
  * memory-spine-rest-transport.test.ts and memory-spine-agent-wiring.test.ts.
@@ -153,7 +153,7 @@ describe('reconcileMemorySpineAdoption', () => {
       transport: FAKE_TRANSPORT,
       probeReachability: async () => { throw new Error('probe exploded'); },
     })).rejects.toThrow('probe exploded');
-    // Neither activate nor deactivate ran — the caller (bootstrap.ts's onError /
+    // Neither activate nor deactivate ran, the caller (bootstrap.ts's onError /
     // interval catch) is solely responsible for deciding what a failed check means.
     expect(client.activateCalls).toEqual([]);
     expect(client.deactivateCalls).toEqual([]);
@@ -165,8 +165,8 @@ describe('reconcileMemorySpineAdoption', () => {
  *
  * The floor is not a warning: a daemon below it is REFUSED, and refusing means
  * this reconciler does not adopt. What the operator gets is the state they would
- * have with no daemon configured — local memory store, no wire, no inbound
- * dispatch — plus one notice. These tests drive that through the same seam
+ * have with no daemon configured, local memory store, no wire, no inbound
+ * dispatch, plus one notice. These tests drive that through the same seam
  * production uses (`mayAdopt`), so "refused" is proven as "not adopted" rather
  * than as a verdict object nobody acts on.
  */
@@ -261,7 +261,7 @@ describe('reconcileMemorySpineAdoption: the daemon build floor refuses adoption'
     expect(client.active).toBe(false);
 
     // The operator updates the daemon. The gate is re-asked rather than cached,
-    // so the very next tick adopts — no restart of this process required.
+    // so the very next tick adopts, no restart of this process required.
     daemonVersionMeetsFloor = true;
     await reconcile();
     expect(client.active).toBe(true);

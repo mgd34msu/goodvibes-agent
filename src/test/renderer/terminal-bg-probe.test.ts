@@ -1,5 +1,5 @@
 /**
- * terminal-bg-probe.test.ts — fake-terminal harness for the OSC 11 background probe.
+ * terminal-bg-probe.test.ts, fake-terminal harness for the OSC 11 background probe.
  *
  * Drives the pure parser/classifier and the TerminalBackgroundProbe stream filter
  * against scripted byte streams: BEL vs ST terminators, rgb: 4-digit / 2-digit /
@@ -10,7 +10,7 @@
  *
  * Note: the install tests assert the INJECTED applyThemeMode callback
  * (R2 owns the probe; R4 owns theme.ts and wires applyThemeMode:setActiveThemeMode)
- * rather than a global active-theme singleton — the behaviour under test is
+ * rather than a global active-theme singleton, the behaviour under test is
  * identical (which mode is applied, and when).
  */
 
@@ -38,7 +38,7 @@ function makeProbe(out: ProbeResolution[], timeoutMs = 1_000): TerminalBackgroun
 }
 
 // ---------------------------------------------------------------------------
-// parseColorSpec — colour-spec variants
+// parseColorSpec, colour-spec variants
 // ---------------------------------------------------------------------------
 
 describe('parseColorSpec', () => {
@@ -77,7 +77,7 @@ describe('parseColorSpec', () => {
 });
 
 // ---------------------------------------------------------------------------
-// classifyBackgroundLuminance — threshold + endpoints
+// classifyBackgroundLuminance, threshold + endpoints
 // ---------------------------------------------------------------------------
 
 describe('classifyBackgroundLuminance', () => {
@@ -98,7 +98,7 @@ describe('classifyBackgroundLuminance', () => {
 });
 
 // ---------------------------------------------------------------------------
-// TerminalBackgroundProbe.feed — the stream filter
+// TerminalBackgroundProbe.feed, the stream filter
 // ---------------------------------------------------------------------------
 
 describe('TerminalBackgroundProbe.feed', () => {
@@ -218,7 +218,7 @@ describe('tmux passthrough + query', () => {
 });
 
 // ---------------------------------------------------------------------------
-// installBackgroundThemeProbe — config forcing + auto/TTY gating
+// installBackgroundThemeProbe, config forcing + auto/TTY gating
 // (asserts the injected applyThemeMode; R4 wires the real theme setter)
 // ---------------------------------------------------------------------------
 

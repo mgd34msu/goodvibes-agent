@@ -92,7 +92,7 @@ describe('approvals view: the daemon record is the panel', () => {
 
   test('an ask both sides know about is counted once', async () => {
     const shared = approval({ id: 'host-1', sessionId: 'session-a', callId: 'call-shared' });
-    // Same session and tool call, different record id — the daemon's own
+    // Same session and tool call, different record id, the daemon's own
     // coalescing identity, which is how one ask ends up on both sides.
     const deduped = createApprovalsView({
       verbs: verbs({

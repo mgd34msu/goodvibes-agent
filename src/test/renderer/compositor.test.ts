@@ -8,7 +8,7 @@ import type { CompositeRequest, SidebarCompositeData, SelectionInfo } from '../.
 // Test helpers
 // ---------------------------------------------------------------------------
 
-/** Minimal mock WriteStream — records all writes. */
+/** Minimal mock WriteStream, records all writes. */
 function makeMockStream() {
   const writes: string[] = [];
   const stream = {
@@ -78,7 +78,7 @@ describe('Compositor — no sidebar', () => {
     // Stamp a recognisable character at col 30 on viewport row 0 (screen row 2)
     stampChar(viewport[0], 30, 'X');
     compositor.composite(makeBaseRequest({ viewport }));
-    // Without a panel, the full line is blitted — col 30 on screen row 2 should be 'X'
+    // Without a panel, the full line is blitted, col 30 on screen row 2 should be 'X'
     expect(cellAt(compositor, 30, 2)?.char).toBe('X');
   });
 

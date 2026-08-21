@@ -5,9 +5,9 @@
  * That puts both halves of a prompt-injection chain inside one process: it
  * reads text written by whoever controls a page or a mailbox, and it holds the
  * ability to send, submit, buy, and change settings. The boundary that answers
- * it — content labelled where it enters, instructions inside it never followed,
+ * it, content labelled where it enters, instructions inside it never followed,
  * those surfaces carrying no command authority, and outward effects
- * unavailable rather than discouraged once untrusted content is in the turn —
+ * unavailable rather than discouraged once untrusted content is in the turn,
  * used to be defined here.
  *
  * It is defined in the SDK now (`platform/security/untrusted-content.ts`), and
@@ -27,7 +27,7 @@
  * Every name below keeps its meaning and its signature, so no caller changed.
  * The one thing worth knowing: `getSessionUntrustedContentLedger` now returns
  * the SDK's PROCESS ledger. For this binary that is the same instance it always
- * was — one per agent process, shared by the browser tool and the mail surface.
+ * was, one per agent process, shared by the browser tool and the mail surface.
  * For a build that embeds a daemon in this process, it is also the daemon's,
  * which is the correct answer rather than a coincidence: two ledgers in one
  * process would each see one half of a composition.

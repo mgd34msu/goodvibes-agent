@@ -1,11 +1,11 @@
 /**
- * wake-enablement-companion.ts — the second row that has to move when wake
+ * wake-enablement-companion.ts, the second row that has to move when wake
  * detection is turned on.
  *
  * `voice.wake.enabled` and `voice.wake.surfaces.<surface>` BOTH gate one
  * feature, and only one of them is the switch anybody looks for. Turning the
  * feature on while this surface's row is off stores the value correctly,
- * reports success, and opens no microphone — a setting that configures
+ * reports success, and opens no microphone, a setting that configures
  * nothing. That cost the owner an entire session: he enabled wake detection,
  * was told it was enabled, and nothing ever listened.
  *

@@ -95,7 +95,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     expect(SETTINGS_CATEGORIES).toContain('runtime');
     // `danger` is a registered category now. It was deliberately absent, which
     // meant danger.httpListener was dropped on the floor by open() even once the
-    // hidden-prefix was lifted — the modal buckets by the key's first segment.
+    // hidden-prefix was lifted, the modal buckets by the key's first segment.
     expect(SETTINGS_CATEGORIES).toContain('danger');
     expect(SETTINGS_CATEGORIES).toContain('wrfc');
     expect(SETTINGS_CATEGORIES).toContain('orchestration');
@@ -104,7 +104,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
   test('only the internal WRFC message setting is policy-hidden', () => {
     // Hiding is reserved for keys with nothing for the owner to decide. Anything
     // hazardous is shown and gated instead, so the refusal can name the key and
-    // say why — `danger.httpListener` moved from this list to that treatment.
+    // say why, `danger.httpListener` moved from this list to that treatment.
     for (const key of [
       'ui.wrfcMessages',
     ]) {
@@ -154,7 +154,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     expect(modal.getSelected()?.setting.key).toBe('controlPlane.port');
 
     // Reachable by navigation, because it is a real setting the owner may need
-    // to inspect or change — the confirmation gate is what protects the write.
+    // to inspect or change, the confirmation gate is what protects the write.
     modal.selectTarget('danger.httpListener');
     expect(modal.getSelected()?.setting.key).toBe('danger.httpListener');
 
@@ -166,7 +166,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
   test('the danger toggle renders once navigated to, rather than being suppressed', () => {
     // This used to assert the workspace never mentions danger settings. It only
     // ever passed because the default view opens on another category, so it
-    // proved nothing about suppression — and it now states the wrong intent.
+    // proved nothing about suppression, and it now states the wrong intent.
     // What matters is that selecting the key actually renders it.
     openSettings();
     modal.selectTarget('danger.httpListener');
@@ -175,7 +175,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
   });
 
   // The deprecated danger.daemon alias (and the settings-modal override-note
-  // machinery it drove — SettingEntry.overrideNote, buildSettingOverrideNote)
+  // machinery it drove, SettingEntry.overrideNote, buildSettingOverrideNote)
   // was removed from the schema; see
   // docs/decisions/2026-07-05-daemon-by-default.md in the SDK. daemon.enabled
   // is now the single source of truth for this setting, so there is no longer

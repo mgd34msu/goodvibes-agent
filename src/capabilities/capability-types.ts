@@ -32,7 +32,7 @@ export type CapabilityState =
  *
  * Prerequisites are DESCRIPTIONS, not functions. A registrant cannot hand the
  * index arbitrary code to run, so a capability check cannot send a message,
- * open a browser, or spend money by construction — the runner in
+ * open a browser, or spend money by construction, the runner in
  * capability-probe-runner.ts is the only thing that executes, and it only
  * reads. Adding a new kind of check means editing that runner on purpose.
  */
@@ -64,13 +64,13 @@ export type CapabilityProbe =
    * `searchDirectories` exists because a `bun build --compile` executable has no
    * node_modules: module resolution alone can never succeed inside one, so a
    * probe that only tried resolution reported every compiled build as missing
-   * the package — including builds carrying it right beside the executable.
+   * the package, including builds carrying it right beside the executable.
    * Each listed directory is checked for the package's own manifest and entry
    * file, which is exactly how the runtime finds it.
    *
    * `requiredFiles` is what keeps that promise literally true. A directory can
-   * hold a manifest and an entry file and still be unusable — a half-finished
-   * extraction, or an older release's incomplete copy — and the runtime resolver
+   * hold a manifest and an entry file and still be unusable, a half-finished
+   * extraction, or an older release's incomplete copy, and the runtime resolver
    * skips exactly those. A probe with a weaker completeness rule than the
    * resolver reports the package "present at X" for a directory the tool will
    * refuse a moment later, which is the disagreement this whole probe exists to
@@ -88,7 +88,7 @@ export type CapabilityProbe =
   | { readonly kind: 'config-value-present'; readonly key: string; readonly label: string }
   /**
    * Any one of several probes passes. Used where a capability has genuine
-   * alternatives — a credential in the agent's own store OR the same account
+   * alternatives, a credential in the agent's own store OR the same account
    * already connected through another tool on this machine. Marking each
    * alternative `optional` instead would mean none of them could block, so a
    * capability with no credentials at all would report ready.
@@ -117,7 +117,7 @@ export interface CapabilityInvocation {
   /** The exact call, ready to use. */
   readonly modelRoute: string;
   /**
-   * What must be true for this route to exist at all — checked the same way as
+   * What must be true for this route to exist at all, checked the same way as
    * prerequisites, so a route can never be advertised without being there.
    */
   readonly availability: CapabilityProbe;

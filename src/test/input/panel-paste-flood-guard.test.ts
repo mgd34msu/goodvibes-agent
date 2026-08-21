@@ -1,10 +1,10 @@
 /**
- * panel-paste-flood-guard.ts unit tests — ported from goodvibes-tui (commit
+ * panel-paste-flood-guard.ts unit tests, ported from goodvibes-tui (commit
  * 90eb3a26). The module itself is UI-framework-agnostic (a pure
  * sliding-window rate guard); these tests exercise trackPanelPasteFloodGuard
  * directly, independent of either product's dispatch wiring (the TUI wires it
  * through handlePanelFocusToken; this agent wires it through feedInputTokens
- * — see handler-feed-paste-flood.test.ts for that integration-level coverage).
+ *, see handler-feed-paste-flood.test.ts for that integration-level coverage).
  */
 import { describe, expect, test } from 'bun:test';
 import {
@@ -56,7 +56,7 @@ describe('trackPanelPasteFloodGuard', () => {
     for (let i = 0; i < 12; i++) trackPanelPasteFloodGuard(guard, t0 + i);
     expect(guard.suspended).toBe(true);
 
-    // Still within the window (5ms after the last token) — stays suspended, no new hint.
+    // Still within the window (5ms after the last token), stays suspended, no new hint.
     const lastBurstAt = t0 + 11;
     const stillFlooding = trackPanelPasteFloodGuard(guard, lastBurstAt + 5);
     expect(stillFlooding.dispatch).toBe(false);

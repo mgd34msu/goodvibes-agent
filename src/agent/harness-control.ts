@@ -95,7 +95,7 @@ export interface HarnessSettingDescriptor {
   /**
    * True when the daemon owns this key and could not be reached, so its current
    * value is genuinely unknown. `value` is undefined and must NOT be presented
-   * as the setting's value — the default would read as the current setting.
+   * as the setting's value, the default would read as the current setting.
    */
   readonly valueUnavailable?: boolean;
 }
@@ -136,7 +136,7 @@ export interface HarnessSettingMutationResult {
    * agent's own settings file configures nothing.
    */
   readonly persistedTo?: string | undefined;
-  /** A second row that had to move with this one — see config/wake-enablement-companion.ts. */
+  /** A second row that had to move with this one, see config/wake-enablement-companion.ts. */
   readonly alsoSet?: WakeCompanionWrite | undefined;
 }
 
@@ -191,7 +191,7 @@ function previewText(value: string, maxLength = 56): string {
 
 /**
  * The settings catalog is a fixed, enumerable set the caller is entitled to see
- * all of — not a feed. A fixed 500 silently truncated the default listing the
+ * all of, not a feed. A fixed 500 silently truncated the default listing the
  * moment the schema passed 500 keys (the `profile.*` domain took it past): the
  * payload's `returned` came back short of its own `total` with nothing saying
  * the list had been cut. The ceiling is now MAX_SETTING_LIMIT, and every
@@ -244,7 +244,7 @@ function matchedTokenCount(tokens: readonly string[], text: string): number {
 
 /**
  * How well a setting answers the query. A hit on the key outranks a hit on the
- * description, which outranks a hit on a domain alias — an alias is what got
+ * description, which outranks a hit on a domain alias, an alias is what got
  * the row into the page at all, so it should not also push it to the top over a
  * key that literally says the word.
  */
@@ -268,7 +268,7 @@ function settingCandidate(setting: ConfigSetting): HarnessSettingCandidate {
     category: setting.key.split('.')[0] ?? '',
     type: setting.type,
     // Every setting is writable through this surface now that the blanket
-    // host-owned lock is gone. Hazardous keys are not read-only — they are
+    // host-owned lock is gone. Hazardous keys are not read-only, they are
     // gated at write time by agent-settings-write-policy.ts, which can name the
     // key and state why, and a routed write reports the store it landed in.
     writable: true,
@@ -312,7 +312,7 @@ function settingModelRoute(setting: ConfigSetting): string {
  * it falls back to the agent's own resolution (the pre-routing behavior, kept
  * so every existing call site still works). When the daemon owns the key and
  * could not be reached, `unavailable` is true and there is deliberately NO
- * value — reporting a default here is what told the owner his bot username was
+ * value, reporting a default here is what told the owner his bot username was
  * not set when it was.
  */
 function resolveSettingValue(
@@ -379,7 +379,7 @@ export function describeHarnessSettingSummary(
 }
 
 /**
- * The structural filters — key, category, prefix, hidden — with no search
+ * The structural filters, key, category, prefix, hidden, with no search
  * applied. This is the catalog a caller asked to see, and the number every
  * page must report as its `total`.
  */
@@ -441,7 +441,7 @@ function filterHarnessSettingSchema(
  * said the platform has no settings at all. Every other harness catalog already
  * reports its size here (`toolRegistry.getToolDefinitions().length`,
  * `allWorkspaceActions().length`), which is what makes the envelope's empty-page
- * sentence — "no settings matched X; N exist" — possible to write.
+ * sentence, "no settings matched X; N exist", possible to write.
  */
 export function countHarnessSettingCatalog(
   configManager: Pick<ConfigManager, 'getSchema'>,
@@ -515,7 +515,7 @@ export function getHarnessSetting(
 }
 
 /**
- * Read one setting from whichever runtime OWNS it — the daemon for a
+ * Read one setting from whichever runtime OWNS it, the daemon for a
  * daemon-owned key, the agent's own store otherwise. The descriptor carries
  * `valueStore` (where the answer came from) and `valueUnavailable` (the daemon
  * owns it and could not be reached, so its value is unknown rather than
@@ -648,7 +648,7 @@ export async function setHarnessSetting(
     if (secretValue.trim() && !isSecretReferenceValue(secretValue) && !secretsManager?.set) {
       throw new Error(`Cannot store raw secret value for ${setting.key}: secrets manager is unavailable.`);
     }
-    // No scope argument, deliberately — the same routing-by-ownership rule the
+    // No scope argument, deliberately, the same routing-by-ownership rule the
     // non-secret branch below applies. Every key that reaches here is in
     // SECRET_CONFIG_KEYS, and most of them (`surfaces.*` chat tokens,
     // `email.passwordRef`, the calendar client secrets) name a credential the
@@ -670,7 +670,7 @@ export async function setHarnessSetting(
   }
 
   // Route by OWNERSHIP, not by who asked. A daemon-owned key goes to the
-  // daemon — that is where the runtime which acts on it reads from. An
+  // daemon, that is where the runtime which acts on it reads from. An
   // agent-owned key goes to the agent's own store. The only failure case is the
   // daemon genuinely being unreachable, and routeConfigWrite throws rather than
   // writing locally and reporting a success that changed nothing.
@@ -708,7 +708,7 @@ export async function resetHarnessSetting(
     // The scope the value was WRITTEN at, or the reset clears nothing: a
     // daemon-owned key's secret lives in the daemon tier, and deleting the
     // user-tier copy would report the setting reset while the live credential
-    // stayed exactly where it was — a credential the operator believes is gone.
+    // stayed exactly where it was, a credential the operator believes is gone.
     await secretsManager?.delete?.(buildGoodVibesSecretKey(setting.key), { scope: defaultSecretBackedScope(setting.key as ConfigKey) });
   }
   configManager.reset(setting.key as ConfigKey);
@@ -727,7 +727,7 @@ export async function resetHarnessSetting(
  * The header used to read `Settings (500)` whether 500 was the whole answer or
  * the point at which the page stopped. A person reading that has no way to tell
  * a complete list from a cut-off one, so a missing key reads as a key that does
- * not exist. Pass `total` — what {@link countHarnessSettings} says matched — and
+ * not exist. Pass `total`, what {@link countHarnessSettings} says matched, and
  * a short page names both numbers and how to widen it.
  */
 export function formatHarnessSettingList(
@@ -739,7 +739,7 @@ export function formatHarnessSettingList(
   return [
     shortOf === null
       ? `Settings (${settings.length})`
-      : `Settings (${settings.length} of ${shortOf} — this page is short; re-run with --limit ${Math.min(shortOf, MAX_SETTING_LIMIT)} or narrow it with --category/--prefix)`,
+      : `Settings (${settings.length} of ${shortOf}, this page is short; re-run with --limit ${Math.min(shortOf, MAX_SETTING_LIMIT)} or narrow it with --category/--prefix)`,
     ...settings.map((setting) => {
       const status = setting.writable ? 'writable' : 'read-only';
       const visible = setting.visibleInWorkspace ? 'workspace' : 'scriptable';
@@ -757,7 +757,7 @@ export function formatHarnessSetting(setting: HarnessSettingDescriptor | null): 
     // An unknown value is printed as unknown. Printing the default here is what
     // reported a configured Telegram bot username as "not set".
     setting.valueUnavailable
-      ? `  current UNKNOWN — ${setting.valueStore ?? 'the owning runtime'} could not be reached`
+      ? `  current UNKNOWN, ${setting.valueStore ?? 'the owning runtime'} could not be reached`
       : `  current ${String(setting.value)}`,
     `  default ${String(setting.default)}`,
     `  configured ${setting.valueUnavailable ? 'unknown' : (setting.configured ? 'yes' : 'no')}`,

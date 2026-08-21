@@ -145,8 +145,8 @@ function buildVoiceInteractionWorkflows(
   const spokenResponseRecords = certifiedDeviceLiveRecords(liveDevice, 'spoken-responses', ['tts', 'spoken response', 'speaker']);
   const wakeRecords = certifiedDeviceLiveRecords(liveDevice, 'wake-and-speak', ['wake word', 'always listening']);
   // The one reader for every `voice.wake.*` row (SDK settings.ts), so this posture
-  // reports the same resolution the capture host itself consults — including which
-  // rows refuse to start it — instead of re-deriving it from raw config reads.
+  // reports the same resolution the capture host itself consults, including which
+  // rows refuse to start it, instead of re-deriving it from raw config reads.
   //
   // The speech gate's disk state comes from the same voiceSetup service /voice wake
   // status reads. A context without that service (a fixture) resolves as gate-absent,
@@ -285,10 +285,10 @@ function buildVoiceInteractionWorkflows(
       // next step phrased as a command for the user to type is the defect: the
       // platform does the thing and reports what it did.
       nextStep: wake.blockers.length > 0
-        ? `Clear the refusing row yourself: ${wake.blockers[0]?.key ?? 'the blocking row'} — its written reason is in this posture record.`
+        ? `Clear the refusing row yourself: ${wake.blockers[0]?.key ?? 'the blocking row'}, its written reason is in this posture record.`
         : wake.active
           ? 'Wake capture is live; confirm the pinned models verify on disk and report the result rather than asking anyone to check.'
-          : 'Set voice.wake.enabled for the user — the surface row moves with it, and missing models are fetched and verified as part of turning it on.',
+          : 'Set voice.wake.enabled for the user, the surface row moves with it, and missing models are fetched and verified as part of turning it on.',
       capabilities: ['wake word', 'always listening', 'permission repair'],
       modelRoute: wakeRecords[0]?.modelRoute ?? 'agent_harness mode:"media_posture" query:"wake word" includeParameters:true',
       setupRoutes: [

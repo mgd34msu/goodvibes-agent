@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * hosted-handoff-proof.ts — this agent's client seams, against the real
+ * hosted-handoff-proof.ts, this agent's client seams, against the real
  * compiled daemon binary.
  *
  * The suite drives these seams with stubs, which proves the rules. This proves
  * the WIRE: that the verbs this agent calls exist on the daemon that ships, in
  * the shape this agent calls them, and that the two things Stage B3 added
- * actually work end to end —
+ * actually work end to end,
  *
  *   1. an inbound channel conversation is promoted to a daemon-hosted session
  *      and later messages steer into that same session, with the daemon's own
@@ -60,7 +60,7 @@ writeFileSync(join(workspace, 'note.txt'), 'a note a promoted conversation could
 const results: { step: string; ok: boolean; detail: string }[] = [];
 function check(step: string, ok: boolean, detail = ''): void {
   results.push({ step, ok, detail });
-  console.log(`${ok ? 'OK  ' : 'FAIL'} ${step}${detail ? ` — ${detail}` : ''}`);
+  console.log(`${ok ? 'OK  ' : 'FAIL'} ${step}${detail ? `: ${detail}` : ''}`);
 }
 
 // --- the model a promoted conversation will actually call ---------------------
@@ -158,7 +158,7 @@ try {
   check('the compiled daemon binary boots on an isolated home and answers /status', up, `port ${DAEMON_PORT}`);
   if (!up) throw new Error('daemon never answered');
 
-  // A promoted conversation follows the DAEMON's model selection — the handoff
+  // A promoted conversation follows the DAEMON's model selection, the handoff
   // never names a model, because the daemon is the one running the loop. So the
   // daemon's selection is pointed at the stub before anything is promoted.
   await verbs.invoke('config.set', { key: 'provider.model', value: 'proof-stub:proof-model' });
@@ -198,7 +198,7 @@ try {
   const row = listed.sessions.find((session) => session.id === first.hostedSessionId);
   check('the daemon lists it, titled from the owner\'s own words',
     row !== undefined && row.title.includes('say hello'),
-    `${listed.sessions.length} hosted — title ${JSON.stringify(row?.title ?? null)}`);
+    `${listed.sessions.length} hosted: title ${JSON.stringify(row?.title ?? null)}`);
 
   // The opening prompt is a real turn against a real model.
   for (let attempt = 0; attempt < 40 && stubCalls === 0; attempt += 1) await Bun.sleep(500);
@@ -216,7 +216,7 @@ try {
 
   // The steer is queued on the shared spine and collected by the hosted
   // session's intake on its own tick, so the transcript is polled rather than
-  // read once — the message is on its way, not necessarily arrived.
+  // read once, the message is on its way, not necessarily arrived.
   let history: { role: string; content: string }[] = [];
   let heardBoth = false;
   for (let attempt = 0; attempt < 40 && !heardBoth; attempt += 1) {
@@ -293,7 +293,7 @@ try {
   check('a decision made elsewhere clears the row just as fast', cleared, `pending ${approvals.snapshot().approvals.length}`);
   approvals.stop();
 } catch (error) {
-  // A proof that stopped early is a failed proof, not a short one — record it
+  // A proof that stopped early is a failed proof, not a short one, record it
   // so the tally and the kept-home decision below both tell the truth.
   check('the proof ran to the end', false, error instanceof Error ? error.message : String(error));
 } finally {

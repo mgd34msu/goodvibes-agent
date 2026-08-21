@@ -4,11 +4,11 @@
  * Shared "honest inbound attribution" helper. Anywhere the Agent displays who a
  * session or message came from, it should show the RESOLVED principal when the
  * sender's channel identity maps to one, and plainly say "unknown principal"
- * when it does not — never a blank field, never a guess.
+ * when it does not, never a blank field, never a guess.
  *
  * Resolution goes through the connected host's `principals.resolve` operator
  * method: POST /api/principals/resolve with `{ channel, value }`, returning
- * `{ principal, known }`. An unmapped identity resolves to `known: false` —
+ * `{ principal, known }`. An unmapped identity resolves to `known: false`,
  * the registry never guesses, and neither does this helper.
  *
  * Every failure mode (empty channel identity, no connected-host token, a
@@ -39,7 +39,7 @@ export interface ResolvedPrincipalAttribution {
   readonly known: boolean;
   readonly label: string;
   readonly principal: ResolvedPrincipalSummary | null;
-  /** Diagnostic detail only — never surfaced in `label` itself. */
+  /** Diagnostic detail only, never surfaced in `label` itself. */
   readonly error?: string;
 }
 
@@ -78,13 +78,13 @@ export async function resolveChannelPrincipalAttribution(
     const sdk = createBrowserGoodVibesSdk({
       baseUrl: connection.baseUrl,
       authToken: connection.token,
-      // A single attempt is enough for a display-only lookup — this must not
+      // A single attempt is enough for a display-only lookup, this must not
       // stall triage/inbox rendering behind retry backoff.
       retry: { maxAttempts: 1, baseDelayMs: 0, maxDelayMs: 0 },
     });
     const payload: PrincipalsResolveInput = { channel, value };
     // No `as OperatorMethodOutput<'principals.resolve'>` here: the SDK's typed
-    // overload already returns it, so the assertion would be redundant — and a
+    // overload already returns it, so the assertion would be redundant, and a
     // redundant assertion is not free, because it keeps compiling if the
     // contract's output changes underneath it. That is how `as never` hid two
     // breaking input changes for two rounds.

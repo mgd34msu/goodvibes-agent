@@ -3,14 +3,14 @@
  *
  * Implements the Project Memory Substrate commands:
  *
- *   /memory add <class> <summary>           — Add a new memory record
+ *   /memory add <class> <summary>          , Add a new memory record
  *   /memory add <class> <summary> --detail <text> --tags <tag,tag>
- *   /memory search [query]                  — Search memory records
- *   /memory search --cls <class>            — Filter by class
- *   /memory link <fromId> <toId> <relation> --yes — Link two records
- *   /memory get <id>                        — Show a single record with provenance
- *   /memory list [class]                    — List all records (optionally by class)
- *   /memory remove <id> --yes               — Delete a record
+ *   /memory search [query]                 , Search memory records
+ *   /memory search --cls <class>           , Filter by class
+ *   /memory link <fromId> <toId> <relation> --yes, Link two records
+ *   /memory get <id>                       , Show a single record with provenance
+ *   /memory list [class]                   , List all records (optionally by class)
+ *   /memory remove <id> --yes              , Delete a record
  */
 
 import type { SlashCommand, CommandContext } from '../command-registry.ts';
@@ -121,27 +121,27 @@ export const recallCommand: SlashCommand = {
           'Usage: /memory <subcommand>',
           '  add <class> <summary> [--scope <session|project|team>] [--detail <text>] [--tags <t,t>] [--session <id>] [--task <id>] [--file <path>]',
           `       classes: ${VALID_CLASSES.join(', ')}`,
-          '  capture incident <id|latest>                    — Capture a forensics incident as durable memory',
-          '  capture policy                                  — Capture the latest policy preflight review as durable memory',
-          '  capture mcp <server>                            — Capture MCP trust/quarantine posture as durable memory',
-          '  capture plugin <name>                           — Capture plugin trust/quarantine posture as durable memory',
-          '  search [query] [--semantic] [--cls <class>] [--scope <scope>] [--limit <n>]  — Full-text or sqlite-vec semantic search',
-          '  vector [status|doctor|rebuild]                  — Inspect or rebuild the sqlite-vec memory index',
-          '  get <id>                                       — Show record with provenance + links',
-          '  link <fromId> <toId> <relation> --yes         — Create a directed relation between records',
-          '  queue [limit]                                  — Show the operator review queue',
+          '  capture incident <id|latest>                   , Capture a forensics incident as durable memory',
+          '  capture policy                                 , Capture the latest policy preflight review as durable memory',
+          '  capture mcp <server>                           , Capture MCP trust/quarantine posture as durable memory',
+          '  capture plugin <name>                          , Capture plugin trust/quarantine posture as durable memory',
+          '  search [query] [--semantic] [--cls <class>] [--scope <scope>] [--limit <n>] , Full-text or sqlite-vec semantic search',
+          '  vector [status|doctor|rebuild]                 , Inspect or rebuild the sqlite-vec memory index',
+          '  get <id>                                      , Show record with provenance + links',
+          '  link <fromId> <toId> <relation> --yes        , Create a directed relation between records',
+          '  queue [limit]                                 , Show the operator review queue',
           '  review <id> <state> [--confidence <n>] [--by <name>] [--reason <text>]',
-          '  stale <id> [reason...]                          — Mark a record stale with an operator reason',
-          '  contradict <id> [reason...]                     — Mark a record contradicted with an operator reason',
-          '  explain <task...> [--scope <path> ...]         — Show the knowledge records that would be injected for a task',
-          '  promote <id> <scope> --yes                     — Promote a memory record into session|project|team scope',
-          '  export <path> [--scope <scope>] [--cls <class>] --yes — Export a durable knowledge bundle',
-          '  import <path> --yes                             — Import a durable knowledge bundle',
-          '  handoff-export <path> [--scope <scope>] --yes   — Export a reviewable handoff bundle for team/shared use',
-          '  handoff-inspect <path>                         — Inspect a handoff bundle before import',
-          '  handoff-import <path> --yes                     — Import a handoff bundle into durable memory',
-          '  list [class] [--scope <scope>]                 — List all records grouped by class',
-          '  remove <id> --yes                              — Delete a record',
+          '  stale <id> [reason...]                         , Mark a record stale with an operator reason',
+          '  contradict <id> [reason...]                    , Mark a record contradicted with an operator reason',
+          '  explain <task...> [--scope <path> ...]        , Show the knowledge records that would be injected for a task',
+          '  promote <id> <scope> --yes                    , Promote a memory record into session|project|team scope',
+          '  export <path> [--scope <scope>] [--cls <class>] --yes, Export a durable knowledge bundle',
+          '  import <path> --yes                            , Import a durable knowledge bundle',
+          '  handoff-export <path> [--scope <scope>] --yes  , Export a reviewable handoff bundle for team/shared use',
+          '  handoff-inspect <path>                        , Inspect a handoff bundle before import',
+          '  handoff-import <path> --yes                    , Import a handoff bundle into durable memory',
+          '  list [class] [--scope <scope>]                , List all records grouped by class',
+          '  remove <id> --yes                             , Delete a record',
         ].join('\n');
         context.print(usage);
         break;

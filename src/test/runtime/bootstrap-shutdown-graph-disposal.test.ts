@@ -3,7 +3,7 @@
  *
  * runtime-shutdown-timer-teardown.test.ts proves `RuntimeServices.dispose()`
  * actually stops the graph's pollers. It calls dispose() directly, so it says
- * nothing about whether the session shutdown path ever calls it — and a
+ * nothing about whether the session shutdown path ever calls it, and a
  * disposal seam nobody invokes leaks exactly as much as no seam at all.
  *
  * This file pins the call site: the session teardown must dispose the graph,
@@ -82,7 +82,7 @@ test('the graph is disposed last — after the shutdown that still needs its sch
 
 test('the graph is disposed even when an earlier teardown step throws', async () => {
   const order: string[] = [];
-  // A step that fails must not strand the ones after it — and a process whose
+  // A step that fails must not strand the ones after it, and a process whose
   // external services will not stop is precisely the one that must still let go
   // of its timers. The failure is raised well before the graph teardown, which
   // is exactly why it is worth pinning.

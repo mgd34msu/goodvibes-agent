@@ -12,7 +12,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Everything the assistant can do, one lane per kind of work.',
     detail: 'Pick the lane that matches what you want, or just close this and type. Every page here is also reachable later.',
     actions: [
-      { id: 'chat', label: 'Just start typing', detail: 'Close this workspace and ask for anything — research, reminders, email, documents, or scheduling.', kind: 'guidance', safety: 'safe' },
+      { id: 'chat', label: 'Just start typing', detail: 'Close this workspace and ask for anything, research, reminders, email, documents, or scheduling.', kind: 'guidance', safety: 'safe' },
       { id: 'assistant-setup-lane', label: 'Finish setting up', detail: 'Sign in, pick a model, and connect the basics.', targetCategoryId: 'setup', kind: 'workspace', safety: 'safe' },
       { id: 'assistant-personal-ops-lane', label: 'Inbox, calendar & reminders', detail: 'Daily personal operations in one place.', targetCategoryId: 'personal-ops', kind: 'workspace', safety: 'safe' },
       { id: 'assistant-research-docs-lane', label: 'Research something', detail: 'Web research with visible runs, sources, and saved reports.', targetCategoryId: 'research', kind: 'workspace', safety: 'safe' },
@@ -28,10 +28,10 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     id: 'setup',
     group: 'ONBOARDING',
     label: 'Start',
-    summary: 'Pick a model to start — use a local one or sign in to a provider.',
+    summary: 'Pick a model to start, use a local one or sign in to a provider.',
     detail: 'Start here on a fresh install. Every row either saves state, opens the shared model picker, or opens a confirmed in-modal form.',
     actions: [
-      // Working-path choices first — local (no sign-in needed) then provider sign-in.
+      // Working-path choices first, local (no sign-in needed) then provider sign-in.
       { id: 'use-local-model', label: 'Use a local model (no sign-in)', detail: 'Opens the model picker, which recommends models that fit this computer. No account or subscription needed.', kind: 'model-picker', modelPickerFlow: 'model', modelPickerTarget: 'main', safety: 'safe' },
       { id: 'subscription-login-start', label: 'Sign in to a provider', detail: 'Start one provider sign-in flow, save pending state, and return here.', editorKind: 'subscription-login-start', kind: 'editor', safety: 'safe' },
       { id: 'subscription-login-finish', label: 'Finish provider sign-in', detail: 'Exchange a code or redirect URL and save the provider subscription session.', editorKind: 'subscription-login-finish', kind: 'editor', safety: 'safe' },
@@ -58,14 +58,14 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Pick the chat model. Helper, tool, and spoken-turn routes are optional.',
     detail: 'Use this after sign-in. Most users only need the top row; the rest are advanced.',
     actions: [
-      // Essentials — chat route + reasoning
+      // Essentials, chat route + reasoning
       { id: 'provider-use', label: 'Choose provider and model', detail: 'Open the shared provider/model picker for the main chat route.', kind: 'model-picker', modelPickerFlow: 'providerModel', modelPickerTarget: 'main', safety: 'safe' },
       settingAction({ id: 'account-reasoning', label: 'Reasoning effort', detail: 'Cycle the reasoning effort used when supported.', key: 'provider.reasoningEffort' }),
-      // Advanced routes — most people can skip these
-      { id: 'account-advanced-separator', label: 'Advanced routes (optional) — most people can skip these', detail: 'Helper, tool, TTS, embedding, system-prompt, and cache routing are here when you need them. Chat works without any of these.', kind: 'guidance', safety: 'read-only' },
+      // Advanced routes, most people can skip these
+      { id: 'account-advanced-separator', label: 'Advanced routes (optional), most people can skip these', detail: 'Helper, tool, TTS, embedding, system-prompt, and cache routing are here when you need them. Chat works without any of these.', kind: 'guidance', safety: 'read-only' },
       settingAction({ id: 'account-embedding', label: 'Embedding provider', detail: 'Set the embedding provider for memory and retrieval.', key: 'provider.embeddingProvider' }),
       settingAction({ id: 'account-provider-fallback-hint', label: 'Provider failure hints', detail: 'Toggle alternative model suggestions when the current provider fails non-transiently.', key: 'behavior.suggestAlternativeOnProviderFail' }),
-      // Helper / tool / spoken-turn routes (advanced — only matters when you want dedicated routing)
+      // Helper / tool / spoken-turn routes (advanced, only matters when you want dedicated routing)
       settingAction({ id: 'account-helper-enabled', label: 'Use a dedicated helper model', detail: 'Toggle a separate route for background utility work like summaries and titling.', key: 'helper.enabled' }),
       { id: 'account-helper-provider', label: 'Choose helper model', detail: 'Pick the provider and model for helper routing.', kind: 'model-picker', modelPickerFlow: 'providerModel', modelPickerTarget: 'helper', visibleWhenSettingKey: 'helper.enabled', visibleWhenSettingValue: true, safety: 'safe' },
       settingAction({ id: 'account-tool-llm-enabled', label: 'Use a dedicated tool model', detail: 'Toggle a separate route for internal tool calls.', key: 'tools.llmEnabled' }),
@@ -75,7 +75,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       settingAction({ id: 'account-system-prompt', label: 'Custom system prompt file', detail: 'Optional local file used as the system prompt for every assistant turn.', key: 'provider.systemPromptFile' }),
       { id: 'provider-remove', label: 'Remove a custom provider', detail: 'Remove one custom provider config after confirmation.', editorKind: 'provider-remove', kind: 'editor', safety: 'safe' },
       { id: 'account-run-local-model-benchmark', label: 'Run a local model benchmark', detail: 'Run the confirmed local-route benchmark through blind comparison, save latency/task-fit evidence, and keep model changes separate.', editorKind: 'local-model-benchmark', kind: 'editor', safety: 'safe' },
-      // Prompt cache controls (advanced — most users leave defaults)
+      // Prompt cache controls (advanced, most users leave defaults)
       settingAction({ id: 'account-cache-enabled', label: 'Prompt cache', detail: 'Toggle prompt caching for eligible providers.', key: 'cache.enabled' }),
       settingAction({ id: 'account-cache-ttl', label: 'Cache TTL', detail: 'Cycle ephemeral or persistent cache TTL for stable content.', key: 'cache.stableTtl', visibleWhenKey: 'cache.enabled', visibleWhenValue: true }),
       settingAction({ id: 'account-cache-monitor', label: 'Cache hit-rate monitor', detail: 'Toggle cache hit-rate monitoring.', key: 'cache.monitorHitRate', visibleWhenKey: 'cache.enabled', visibleWhenValue: true }),
@@ -119,7 +119,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'onboarding-mcp-server', label: 'Add an MCP server', detail: 'Add or update one MCP server with command, args, role, trust, env refs, paths, and hosts.', editorKind: 'mcp-server', kind: 'editor', safety: 'safe' },
       { id: 'onboarding-secret-link', label: 'Link a secret reference', detail: 'Link one config key to a goodvibes secret reference.', editorKind: 'secret-link', kind: 'editor', safety: 'safe' },
       { id: 'onboarding-secret-test', label: 'Test a secret reference', detail: 'Check one stored secret reference without printing the value.', editorKind: 'secret-test', kind: 'editor', safety: 'safe' },
-      // Advanced — tool runtime limits and debugging
+      // Advanced, tool runtime limits and debugging
       settingAction({ id: 'tools-auto-heal', label: 'Tool auto-heal', detail: 'Toggle automatic syntax repair for precision write and edit operations.', key: 'tools.autoHeal' }),
       settingAction({ id: 'tools-token-budget', label: 'Tool token budget', detail: 'Set the default token budget for precision read operations.', key: 'tools.defaultTokenBudget' }),
       settingAction({ id: 'storage-artifact-limit', label: 'Artifact storage limit', detail: 'Set the maximum artifact size for file, URL, multipart, and raw upload ingest.', key: 'storage.artifacts.maxBytes' }),
@@ -159,16 +159,16 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'personal-ops-intake', label: 'Request planner', detail: 'Use personal_ops action:"intake" query:"..." to turn an inbox, agenda, task, reminder, note, routine, or delivery request into the safest visible route.', kind: 'guidance', safety: 'read-only' },
       { id: 'personal-ops-autonomy-queue', label: 'Autonomy queue', detail: 'Inspect visible ongoing work, owners, status, and cancel or recovery routes before creating more background work.', kind: 'guidance', safety: 'read-only' },
       { id: 'personal-ops-inbox', label: 'Inbox workflows', detail: 'Connect your inbox (IMAP/SMTP) to enable email triage and draft review. Opens a stepped connect wizard; credentials are stored through the Agent secret manager.', editorKind: 'email-connect-wizard', kind: 'editor', safety: 'safe' },
-      { id: 'personal-ops-google-connect', label: 'Connect Google', detail: 'The one to pick. Works out the shortest route by itself — a credential already stored, an OAuth client that only needs your consent, or the gcloud CLI for the project and APIs — and asks you for at most one thing: approving a consent link. Mail and calendar are requested together, so one approval covers both, and it finishes by reading your mailbox and calendar to prove the connection works.', editorKind: 'google-connect', kind: 'editor', safety: 'safe' },
-      { id: 'personal-ops-google-status', label: 'Google connection status', detail: 'What Gmail and Calendar have configured, and — when a credential is stored — what it can actually do, proven by reading the mailbox and the calendar. Reads only; no credential is shown.', editorKind: 'google-status', kind: 'editor', safety: 'read-only' },
-      { id: 'personal-ops-google-reauthorize', label: 'Re-authorize Google', detail: 'Ask for a fresh Google consent covering mail and calendar together. Use this when something reports a missing scope or a credential has stopped working. The existing OAuth client is reused, so there is no project or console work — one consent link to approve, and nothing is deleted.', editorKind: 'google-reauthorize', kind: 'editor', safety: 'safe' },
-      { id: 'personal-ops-google-forget', label: 'Remove stored Google credentials', detail: 'Remove the Google refresh token, OAuth client secret, Gmail app password and private calendar address from the encrypted store. Cannot be undone — the refresh token comes back only by approving a consent screen again. Requires an explicit confirmation and names exactly what was removed.', editorKind: 'google-forget', kind: 'editor', safety: 'safe' },
+      { id: 'personal-ops-google-connect', label: 'Connect Google', detail: 'The one to pick. Works out the shortest route by itself, a credential already stored, an OAuth client that only needs your consent, or the gcloud CLI for the project and APIs, and asks you for at most one thing: approving a consent link. Mail and calendar are requested together, so one approval covers both, and it finishes by reading your mailbox and calendar to prove the connection works.', editorKind: 'google-connect', kind: 'editor', safety: 'safe' },
+      { id: 'personal-ops-google-status', label: 'Google connection status', detail: 'What Gmail and Calendar have configured, and, when a credential is stored, what it can actually do, proven by reading the mailbox and the calendar. Reads only; no credential is shown.', editorKind: 'google-status', kind: 'editor', safety: 'read-only' },
+      { id: 'personal-ops-google-reauthorize', label: 'Re-authorize Google', detail: 'Ask for a fresh Google consent covering mail and calendar together. Use this when something reports a missing scope or a credential has stopped working. The existing OAuth client is reused, so there is no project or console work, one consent link to approve, and nothing is deleted.', editorKind: 'google-reauthorize', kind: 'editor', safety: 'safe' },
+      { id: 'personal-ops-google-forget', label: 'Remove stored Google credentials', detail: 'Remove the Google refresh token, OAuth client secret, Gmail app password and private calendar address from the encrypted store. Cannot be undone, the refresh token comes back only by approving a consent screen again. Requires an explicit confirmation and names exactly what was removed.', editorKind: 'google-forget', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-google-app-password', label: 'Connect Google (app password)', detail: 'The fast lane: an app password for mail over IMAP/SMTP plus the private iCal address for read-only calendar. No Cloud project and nothing that expires. Opens a browser and pauses for you to sign in, because Google refuses automated sign-in.', editorKind: 'google-setup-app-password', kind: 'editor', safety: 'safe' },
-      { id: 'personal-ops-google-oauth', label: 'Connect Google (guided OAuth)', detail: 'The full walkthrough — project, consent screen, client, authorization — driven for you in the Google console. This is the path that enables calendar writes. Opens a browser and pauses for you to sign in.', editorKind: 'google-setup-walkthrough', kind: 'editor', safety: 'safe' },
+      { id: 'personal-ops-google-oauth', label: 'Connect Google (guided OAuth)', detail: 'The full walkthrough, project, consent screen, client, authorization, driven for you in the Google console. This is the path that enables calendar writes. Opens a browser and pauses for you to sign in.', editorKind: 'google-setup-walkthrough', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-google-adopt', label: 'Adopt existing Google credentials', detail: 'Take up a Google OAuth client and refresh token another tool already left on this machine (~/.gmail-mcp) instead of setting one up again. The files are read, never modified.', editorKind: 'google-adopt', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-google-client-file', label: 'Use a downloaded client JSON', detail: 'Point at an OAuth client JSON you already downloaded from the Google console and run the OAuth flow from it.', editorKind: 'google-client-file', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-google-client-manual', label: 'Paste a Google client id and secret', detail: 'Enter an OAuth client id and secret copied from the Google console. The secret is stored through the Agent secret manager and never rendered back.', editorKind: 'google-client-manual', kind: 'editor', safety: 'safe' },
-      { id: 'personal-ops-calendar', label: 'Subscribe to a calendar', detail: 'Subscribe to an external calendar by its iCalendar (.ics) feed URL — Google "Secret address in iCal format", an Outlook published ICS link, or any .ics URL. Read-only, validated by fetching, merged into /calendar. The URL is stored through the Agent secret manager.', editorKind: 'calendar-subscribe-wizard', kind: 'editor', safety: 'safe' },
+      { id: 'personal-ops-calendar', label: 'Subscribe to a calendar', detail: 'Subscribe to an external calendar by its iCalendar (.ics) feed URL, Google "Secret address in iCal format", an Outlook published ICS link, or any .ics URL. Read-only, validated by fetching, merged into /calendar. The URL is stored through the Agent secret manager.', editorKind: 'calendar-subscribe-wizard', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-calendar-add', label: 'Add calendar event', detail: 'Add an event to the local Agent calendar with a stepped form (no external account required).', editorKind: 'calendar-connect', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-calendar-google', label: 'Connect Google Calendar (advanced)', detail: 'Full two-way sync via OAuth. Default path: just run /calendar connect google (bundled app + PKCE). This card is the advanced override to use your OWN Google OAuth client id; a client secret is stored through the Agent secret manager.', editorKind: 'calendar-oauth-google', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-calendar-outlook', label: 'Connect Microsoft Outlook (advanced)', detail: 'Full two-way sync via OAuth. Default path: just run /calendar connect outlook (bundled app + PKCE). This card is the advanced override to use your OWN Microsoft app registration; a client secret is stored through the Agent secret manager.', editorKind: 'calendar-oauth-outlook', kind: 'editor', safety: 'safe' },
@@ -351,20 +351,20 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     ],
   },
   {
-    // What the platform knows about HIM — distinct from `profiles` above, which
+    // What the platform knows about HIM, distinct from `profiles` above, which
     // is isolated Agent HOMES. One Markdown file at daemon scope that he owns
     // and can edit by hand; his edits win and are never rewritten.
     //
     // The People section is counted in the overview, never listed: this card
     // renders inside a session, so what it prints is in the transcript a later
-    // turn can compose from — the same reason the platform bars a bulk profile
+    // turn can compose from, the same reason the platform bars a bulk profile
     // read from a composition path (docs/owner-profile.md §10). Looking one
     // person up asks for the words he used that pointed at them.
     id: 'owner-profile',
     group: 'LOCAL BEHAVIOR',
     label: 'Your Profile',
     summary: 'What GoodVibes knows about you, and how to correct or forget a fact.',
-    detail: 'Your name, how to reach you, where you live, where to ship things, how you like answers written, and the people, places and notes you have mentioned. It is one Markdown file the daemon keeps — open it and edit it by hand whenever you like; your edits win and are never rewritten. Facts the assistant learns from things you say directly to it are recorded as you say them, each carrying the surface, the date and your own words, and it tells you in one line what it recorded. Anything sourced from mail, a web page, a document, or a message from someone else is refused outright.',
+    detail: 'Your name, how to reach you, where you live, where to ship things, how you like answers written, and the people, places and notes you have mentioned. It is one Markdown file the daemon keeps, open it and edit it by hand whenever you like; your edits win and are never rewritten. Facts the assistant learns from things you say directly to it are recorded as you say them, each carrying the surface, the date and your own words, and it tells you in one line what it recorded. Anything sourced from mail, a web page, a document, or a message from someone else is refused outright.',
     actions: [
       { id: 'owner-profile-read', label: 'What do you know about me', detail: 'Print the whole profile by section, with the surface, date and your own words on every learned line. People are counted rather than listed.', editorKind: 'owner-profile-read', kind: 'editor', safety: 'read-only' },
       { id: 'owner-profile-field', label: 'Show one field', detail: 'Print one field with its provenance. An unset field says so; a value that did not parse comes back as written, with the reason.', editorKind: 'owner-profile-get', kind: 'editor', safety: 'read-only' },
@@ -372,7 +372,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'owner-profile-person', label: 'Look up one person', detail: 'Show what the profile records about one person, by name. There is no call that lists everyone, and this asks for the words you used that pointed at them.', editorKind: 'owner-profile-person', kind: 'editor', safety: 'read-only' },
       { id: 'owner-profile-correct', label: 'Correct a fact', detail: 'Write or correct one field. The previous value is kept as history, so a wrong correction can be put back.', editorKind: 'owner-profile-set', kind: 'editor', safety: 'safe' },
       { id: 'owner-profile-forget', label: 'Forget a fact', detail: 'Delete one field and every kept history comment for it. No tombstone and no retention window. Forgetting something that was not there says so.', editorKind: 'owner-profile-forget', kind: 'editor', safety: 'safe' },
-      { id: 'owner-profile-forget-note', label: 'Forget a note or person', detail: 'Delete one prose line — a note, a person, a place, a work line — by giving it exactly as the profile reads it. Lines are named by content, never position, so a line you have since changed is not deleted by mistake.', editorKind: 'owner-profile-forget-note', kind: 'editor', safety: 'safe' },
+      { id: 'owner-profile-forget-note', label: 'Forget a note or person', detail: 'Delete one prose line, a note, a person, a place, a work line, by giving it exactly as the profile reads it. Lines are named by content, never position, so a line you have since changed is not deleted by mistake.', editorKind: 'owner-profile-forget-note', kind: 'editor', safety: 'safe' },
       { id: 'owner-profile-status', label: 'Profile status', detail: 'Whether it loaded, where the file is, section names and counts, and any value that did not parse. Never prints a value.', editorKind: 'owner-profile-status', kind: 'editor', safety: 'read-only' },
       { id: 'owner-profile-settings', label: 'Profile settings', detail: 'Open the Your Profile settings category: whether the profile is kept at all, whether facts are recorded as you say them, whether it tells you what it recorded, and where the file lives.', command: '/settings', kind: 'command', safety: 'safe' },
     ],

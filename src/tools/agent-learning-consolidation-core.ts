@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
+import { writeStoreJson } from '@/utils/store-file.ts';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { MemoryBundle, MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import type { ShellPathService } from '@/runtime/index.ts';
@@ -172,10 +172,7 @@ export function writeReceipt(shellPaths: ShellPathService, receipt: LearningCons
     version: 1,
     receipts: [receipt, ...current.filter((entry) => entry.id !== receipt.id)].slice(0, RECEIPT_LIMIT),
   };
-  mkdirSync(dirname(path), { recursive: true });
-  const tmpPath = `${path}.tmp`;
-  writeFileSync(tmpPath, `${JSON.stringify(next, null, 2)}\n`, 'utf-8');
-  renameSync(tmpPath, path);
+  writeStoreJson(path, next);
 }
 
 export function receiptId(candidate: LearningCandidate, phase: AgentLearningConsolidationWriteMode): string {

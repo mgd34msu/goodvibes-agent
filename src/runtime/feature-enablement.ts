@@ -1,12 +1,12 @@
 /**
- * feature-enablement.ts — explicit feature on/off requests over the dissolved
+ * feature-enablement.ts, explicit feature on/off requests over the dissolved
  * feature model.
  *
  * The SDK dissolved the feature-flag category: every capability is enabled
  * through a first-class settings key in its natural domain (FEATURE_SETTINGS
  * describes each feature's binding). This module turns an EXPLICIT
- * present-tense request — "enable feature X" from the CLI or an onboarding
- * plan — into the domain-key write that honestly fulfills it:
+ * present-tense request, "enable feature X" from the CLI or an onboarding
+ * plan, into the domain-key write that honestly fulfills it:
  * - boolean bindings write the key true/false;
  * - enum bindings write the canonical enabled value (first enabledValues
  *   entry) or a schema-honest disabled value;
@@ -16,7 +16,7 @@
  * This intentionally differs from the SDK's load-time MIGRATION of persisted
  * legacy featureFlags entries (migrateLegacyFeatureToggles preserves
  * historical AND-of-both-switches ambiguity); an explicit request has no such
- * ambiguity — the operator wants the feature on or off now.
+ * ambiguity, the operator wants the feature on or off now.
  *
  * Legacy `featureFlags` / `featureFlags.<id>` set-config keys from stored
  * onboarding plans are accepted and expanded here so old plans keep working

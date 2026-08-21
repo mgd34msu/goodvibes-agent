@@ -331,10 +331,8 @@ describe('SessionManager', () => {
   describe('delete', () => {
     test('removes the session file from disk', () => {
       sm.save('to-delete', [], META);
-      // Verify it exists before deletion
       expect(sm.getMeta('to-delete')).toEqual(expect.objectContaining({ title: META.title }));
       sm.delete('to-delete');
-      // After deletion, getMeta should return null
       expect(sm.getMeta('to-delete')).toBeNull();
     });
 
@@ -413,7 +411,7 @@ describe('SessionManager', () => {
     });
 
     test('skips meta line — only searches messages', () => {
-      // Title contains query but no messages do — should not match
+      // Title contains query but no messages do, should not match
       sm.save('title-only-match', [], { ...META, title: 'contains-the-keyword' });
       const results = sm.search('contains-the-keyword');
       expect(results).toHaveLength(0);

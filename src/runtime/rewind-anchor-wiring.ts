@@ -1,12 +1,12 @@
 /**
- * rewind-anchor-wiring.ts — the Agent's end of message-anchored rewind, and the
+ * rewind-anchor-wiring.ts, the Agent's end of message-anchored rewind, and the
  * housekeeping that keeps its on-disk half bounded.
  *
  * A rewind is anchored to a `{ sessionId, turnId }`. Files-scope resolves that
  * turnId against the workspace checkpoint the turn engine stamped with the same
  * id; conversation-scope needs to know how many conversation messages existed at
  * that boundary, which no checkpoint carries. So every completed turn records
- * the pair, and mirrors it to a sidecar beside the session's JSONL — without the
+ * the pair, and mirrors it to a sidecar beside the session's JSONL, without the
  * sidecar a rewind could only reach turns from the current run, and a resumed
  * session's earlier turns would resolve to nothing.
  *

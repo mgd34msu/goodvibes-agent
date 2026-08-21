@@ -67,7 +67,7 @@ describe('automation/control-plane foundation', () => {
     const flags = createFeatureFlagManager();
 
     // Dissolved feature model: these capabilities default ON (nothing
-    // default-on requires a setup step — automation idles with a
+    // default-on requires a setup step, automation idles with a
     // first-routine empty state, the gateway streams companion chat over SSE
     // without config, route binding activates through its domain key
     // integrations.routeBinding which also defaults true).
@@ -92,9 +92,9 @@ describe('automation/control-plane foundation', () => {
    * integrations.routeBinding, driven to BOTH values through the real consumer.
    *
    * This setting used to configure nothing in this product. The gate reads
-   * through isFeatureGateEnabled, which is permissive when no manager is wired —
+   * through isFeatureGateEnabled, which is permissive when no manager is wired,
    * a narrow embed with no flag manager gets the capability rather than a silent
-   * off — so a composition root that omitted featureFlags did not DISABLE route
+   * off, so a composition root that omitted featureFlags did not DISABLE route
    * binding. It made the switch inert: the key rendered in settings, accepted a
    * write, reported success, and the manager went on binding either way. That is
    * the same shape as a bot username that lands in the wrong config file, and it

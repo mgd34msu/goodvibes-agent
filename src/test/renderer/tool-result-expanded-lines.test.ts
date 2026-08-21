@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
-// tool-result-expanded-lines.test.ts — the expanded-render line count that
+// tool-result-expanded-lines.test.ts, the expanded-render line count that
 // both the per-result "N lines" badge and the folded-group header total are
 // derived from.
 //
 // Two properties matter:
-//   1. HONESTY — the count equals the number of lines expanding really
+//   1. HONESTY, the count equals the number of lines expanding really
 //      produces, including JSON that pretty-prints from one raw line to many.
-//   2. COST — the count is memoised. This renderer rebuilds the whole
+//   2. COST, the count is memoised. This renderer rebuilds the whole
 //      transcript on every streaming delta, so recomputing a full markdown
 //      render per collapsed tool result per delta is a real performance
 //      regression (measured 63x slower over 40 results x 60 rebuilds). The

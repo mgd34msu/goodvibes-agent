@@ -50,15 +50,15 @@ describe('competitive feature inventory', () => {
     for (const item of COMPETITIVE_FEATURE_INVENTORY) {
       if (item.goodVibesStatus === 'partial' || item.goodVibesStatus === 'gap') {
         expect(item.nextMoves.length).toBeGreaterThanOrEqual(2);
-        // nextMoves must not say "none" — every gap must have a build path.
+        // nextMoves must not say "none", every gap must have a build path.
         expect(item.nextMoves.join('\n')).not.toMatch(/\bnone\b/i);
       }
     }
 
-    // Leading items must be in the minority — if everything is leading, nothing is.
+    // Leading items must be in the minority, if everything is leading, nothing is.
     expect(counts.leading).toBeLessThan(COMPETITIVE_FEATURE_INVENTORY.length);
 
-    // At least some items must be less than leading — the inventory should be honest.
+    // At least some items must be less than leading, the inventory should be honest.
     expect(counts.partial + counts.gap).toBeGreaterThan(0);
   });
 });

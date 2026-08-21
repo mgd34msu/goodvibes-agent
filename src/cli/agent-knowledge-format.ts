@@ -166,11 +166,11 @@ export function formatEntityList(data: unknown, kind: 'sources' | 'nodes' | 'iss
     ? record.total
     : null;
   const header = reportedTotal !== null && reportedTotal > shown.length
-    ? `Agent Knowledge ${kind} (${shown.length} of ${reportedTotal}, limit ${limit} — partial; raise --limit for the rest)`
+    ? `Agent Knowledge ${kind} (${shown.length} of ${reportedTotal}, limit ${limit}, partial; raise --limit for the rest)`
     : shown.length < values.length
-      ? `Agent Knowledge ${kind} (${shown.length} of ${values.length} received, limit ${limit} — partial; raise --limit for the rest)`
+      ? `Agent Knowledge ${kind} (${shown.length} of ${values.length} received, limit ${limit}, partial; raise --limit for the rest)`
       : shown.length === limit
-        ? `Agent Knowledge ${kind} (${shown.length}, limit ${limit} — page is full, so more records may exist; raise --limit to check)`
+        ? `Agent Knowledge ${kind} (${shown.length}, limit ${limit}, page is full, so more records may exist; raise --limit to check)`
         : `Agent Knowledge ${kind} (${shown.length}, limit ${limit})`;
   return [
     header,

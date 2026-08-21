@@ -270,7 +270,7 @@ function formatSourceBundle(
   return [
     'Agent research source bundle',
     sources.length < matched
-      ? `  sources ${sources.length} of ${matched} matched — this bundle is short; raise limit to cite the rest`
+      ? `  sources ${sources.length} of ${matched} matched, this bundle is short; raise limit to cite the rest`
       : `  sources ${sources.length}`,
     `  query ${query || '(all reviewed/used)'}`,
     `  limit ${limit}`,

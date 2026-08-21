@@ -207,8 +207,8 @@ export function renderToolCallBlock(
   const contentEnd = width - rightMargin;
 
   // Status icon
-  // 'pending' means the call has NOT run yet — it is awaiting a decision (e.g.
-  // an approval prompt) — so it uses the hollow idle glyph rather than the
+  // 'pending' means the call has NOT run yet, it is awaiting a decision (e.g.
+  // an approval prompt), so it uses the hollow idle glyph rather than the
   // completed ✓. 'cancelled' means the user stopped THIS call mid-flight: the
   // blocked glyph in the warn tone, distinct from both success and a real
   // error. Without these two, a call that had not finished still rendered as
@@ -239,8 +239,8 @@ export function renderToolCallBlock(
     : contentEnd;
   let col: number = leftStart;
 
-  // In tree mode the status glyph goes in the bullet column — the same column
-  // as the `●` of the `● assistant` header this row hangs under — so a turn's
+  // In tree mode the status glyph goes in the bullet column, the same column
+  // as the `●` of the `● assistant` header this row hangs under, so a turn's
   // markers read as that bullet's column continuing down the turn. The row's
   // own text then starts at its depth's text column with no inline icon slot.
   if (inTree) {

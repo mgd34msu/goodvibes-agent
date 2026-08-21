@@ -4,9 +4,9 @@
  * A screenshot the agent saved to `~/.goodvibes-screen.png` was rejected as
  * secret-looking purely because the basename begins with a dot, and only became
  * readable after being copied to an undotted path. The hidden-name rule is now
- * waived for paths in the session write ledger; every other rule — secret-looking
+ * waived for paths in the session write ledger; every other rule, secret-looking
  * segments, private-key extensions, known_hosts, and the credential dotfiles
- * that are never waived — still applies.
+ * that are never waived, still applies.
  */
 import { describe, test, expect, beforeEach } from 'bun:test';
 import { tmpdir } from 'node:os';
@@ -85,7 +85,7 @@ describe('read guard — undotted paths are unaffected', () => {
 
 describe('session write ledger', () => {
   test('lookups are independent of how the path was spelled', () => {
-    // A purely lexical check — no file is ever created — but the path is still
+    // A purely lexical check, no file is ever created, but the path is still
     // built from tmpdir() so no test source names a location under the real
     // /tmp (see release-gates/test-temp-path-gate.test.ts).
     const dir = join(tmpdir(), 'goodvibes');

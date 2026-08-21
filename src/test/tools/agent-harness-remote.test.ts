@@ -237,7 +237,7 @@ describe('agent_harness remote surface', () => {
         expect(parsed.effect).toBe('confirmed-connected-host-state');
         expect(parsed.confirmationRequired).toBe(true);
         expect(typeof parsed.modelRoute).toBe('string');
-        // modelRoute is a preview string (max 56 chars) — verify tool prefix is present.
+        // modelRoute is a preview string (max 56 chars), verify tool prefix is present.
         // methodId identity is already asserted above via the parsed.methodId field.
         expect(String(parsed.modelRoute)).toContain('agent_operator_method');
       }

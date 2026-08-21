@@ -113,7 +113,7 @@ describe('shell surface', () => {
     expect(text).toContain('gpt-test · openai');
     // The disconnected footer 'waiting for your approval' token is retired.
     // The approval-wait truth now lives in the unified thinking indicator
-    // (createThinkingFragment's approvalPending path) and the permission prompt —
+    // (createThinkingFragment's approvalPending path) and the permission prompt,
     // the footer no longer carries an easily-desynced second copy.
     expect(text).not.toContain('waiting for your approval');
     expect(text).not.toContain('risk:');

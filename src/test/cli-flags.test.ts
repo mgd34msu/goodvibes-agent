@@ -61,7 +61,7 @@ describe('parseCliFlags', () => {
   // ---------------------------------------------------------------------------
   // Env var precedence (flags win, env is fallback)
   // ---------------------------------------------------------------------------
-  // parseCliFlags itself does not read env vars — it only returns parsed flag
+  // parseCliFlags itself does not read env vars, it only returns parsed flag
   // values. The shell entrypoint is responsible for setting env
   // vars from the returned flags. Agent exposes a working-directory override;
   // connected-host token locations stay derived from the Agent home.

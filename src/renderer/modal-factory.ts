@@ -94,7 +94,7 @@ export interface ModalConfig {
 // Built from the mode-resolved chrome tones (activeUiTones) and rebuilt IN PLACE
 // on a mode flip via the registered refresher (read by reference across modal
 // call sites). These paint the OPAQUE dark modal surface, so in the SDK light
-// tones the fg/bg roles stay dark (only state.info flips) — dark is byte-identical.
+// tones the fg/bg roles stay dark (only state.info flips), dark is byte-identical.
 function buildModalStyle(): Required<ModalStyle> {
   const t = activeUiTones();
   return {
@@ -118,7 +118,7 @@ registerThemeRefresh(() => Object.assign(DEFAULT_STYLE, buildModalStyle()));
 // ── ModalFactory ─────────────────────────────────────────────────────────────
 
 /**
- * ModalFactory — unified modal rendering for goodvibes-agent.
+ * ModalFactory, unified modal rendering for goodvibes-agent.
  *
  * Renders modals as Line[] (Cell arrays) consistent with the compositor
  * overlay pipeline. All existing modals (file-picker, model-picker,
@@ -268,7 +268,7 @@ export class ModalFactory {
 
   /**
    * Render a single selectable list item row.
-   * ┤ text ├  — bordered left/right, with optional selection highlight.
+   * ┤ text ├ , bordered left/right, with optional selection highlight.
    */
   static renderListItem(
     boxW: number,

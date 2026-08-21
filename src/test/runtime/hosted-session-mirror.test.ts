@@ -2,7 +2,7 @@
  * The gap this closes: a crashed/detached hosted session NEVER landed in
  * sessions/. The conversation existed only as a preview-grade recovery journal
  * plus the daemon-side record, and sessions/last-session.json still pointed at
- * an OLDER local session — so a resume would have opened the wrong
+ * an OLDER local session, so a resume would have opened the wrong
  * conversation.
  *
  * Cause: a local turn is persisted off TURN_COMPLETED, and a hosted turn never

@@ -29,7 +29,7 @@ describe('MIN_PROMPT_MEMORY_CONFIDENCE', () => {
   test('matches the SDK MemoryStore store-time default confidence (60), not an arbitrary higher floor', () => {
     // This is the crux of the fix: the SDK stores every new record at confidence
     // 60 by default. A floor above that (the old value was 70) makes fresh recall
-    // structurally impossible without an explicit confidence bump — starvation, not a
+    // structurally impossible without an explicit confidence bump, starvation, not a
     // trust filter.
     expect(MIN_PROMPT_MEMORY_CONFIDENCE).toBe(60);
   });

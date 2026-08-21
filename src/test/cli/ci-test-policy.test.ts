@@ -119,7 +119,7 @@ describe('every gate in ci:gate is actually run by branch CI', () => {
   });
 
   test('the detector reports a gate the workflow omits', () => {
-    // NO-proof: a workflow that skips typecheck:test — the exact hole this
+    // NO-proof: a workflow that skips typecheck:test, the exact hole this
     // repo shipped, where CI type-checked src only and never the test sources.
     const workflowMissingTestTypecheck = ciWorkflow.replace('run: bun run typecheck:test\n', '');
     expect(workflowMissingTestTypecheck).not.toBe(ciWorkflow);

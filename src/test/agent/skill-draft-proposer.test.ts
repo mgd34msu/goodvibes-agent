@@ -88,7 +88,7 @@ describe('proposeSkillDrafts — cap', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Dedup — existing names
+// Dedup, existing names
 // ---------------------------------------------------------------------------
 
 describe('proposeSkillDrafts — dedup vs existing names', () => {
@@ -120,7 +120,7 @@ describe('proposeSkillDrafts — dedup vs existing names', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Dedup — previously proposed names
+// Dedup, previously proposed names
 // ---------------------------------------------------------------------------
 
 describe('proposeSkillDrafts — dedup vs previously proposed names', () => {
@@ -164,7 +164,7 @@ describe('proposeSkillDrafts — within-pass dedup', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Secret skip — no abort
+// Secret skip, no abort
 // ---------------------------------------------------------------------------
 
 describe('proposeSkillDrafts — secret skip', () => {

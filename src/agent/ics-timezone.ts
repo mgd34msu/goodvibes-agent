@@ -1,5 +1,5 @@
 /**
- * ics-timezone.ts — Dependency-free IANA timezone conversion using Intl.
+ * ics-timezone.ts, Dependency-free IANA timezone conversion using Intl.
  *
  * Converts between wall-clock date-time strings and UTC milliseconds using
  * Intl.DateTimeFormat with the target timezone. The approach:
@@ -14,7 +14,7 @@
  *
  * Handles all three RFC 5545 DTSTART forms:
  *   - UTC ('...Z'):    caller should not call this; pass through as-is.
- *   - Floating (no TZID): kept as local/unzoned — caller treats as UTC.
+ *   - Floating (no TZID): kept as local/unzoned, caller treats as UTC.
  *   - TZID-qualified:  converted here to a correct UTC instant.
  *
  * Unknown or unsupported TZID values fall back to treating the wall-clock as
@@ -48,7 +48,7 @@ function getFormatter(tzid: string): Intl.DateTimeFormat | null {
     fmtCache.set(tzid, fmt);
     return fmt;
   } catch {
-    // Unknown TZID — Intl throws RangeError for invalid timezone names
+    // Unknown TZID, Intl throws RangeError for invalid timezone names
     fmtCache.set(tzid, null);
     return null;
   }
@@ -94,7 +94,7 @@ export function utcMsToWallClock(utcMs: number, tzid: string): string | null {
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
 
   // hour12: false gives '00'-'23' for midnight through 11pm; some runtimes
-  // return '24' for midnight — normalise to '00'.
+  // return '24' for midnight, normalise to '00'.
   let hour = get('hour');
   if (hour === '24') hour = '00';
 
@@ -122,13 +122,13 @@ export function utcMsToWallClock(utcMs: number, tzid: string): string | null {
 export function wallClockToUtcMs(wallClock: string, tzid: string): number {
   const parsed = parseWallClock(wallClock);
   if (!parsed) {
-    // Malformed wall-clock — return as UTC
+    // Malformed wall-clock, return as UTC
     return Date.parse(`${wallClock}Z`);
   }
 
   const fmt = getFormatter(tzid);
   if (!fmt) {
-    // Unknown TZID — fall back to UTC treatment (documented)
+    // Unknown TZID, fall back to UTC treatment (documented)
     return Date.parse(`${wallClock}Z`);
   }
 

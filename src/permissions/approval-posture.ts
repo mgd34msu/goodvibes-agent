@@ -2,14 +2,14 @@ import { isAutoApproveEnabled } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 
 /**
- * ApprovalPosture — the single source of truth for "what will happen when a
+ * ApprovalPosture, the single source of truth for "what will happen when a
  * tool runs right now", displayed identically everywhere the Agent surfaces
  * approval posture (cli status, cli doctor, the security policy-explain tool,
  * and the footer's danger indicator).
  *
  * Mirrors PermissionManager.checkDetailed()'s exact precedence (SDK
  * dist/platform/permissions/manager.js:103-138), which this module does not
- * modify — the gate is correct; the historical bug was surfaces disagreeing
+ * modify, the gate is correct; the historical bug was surfaces disagreeing
  * about what the gate does:
  *   1. behavior.autoApprove === true -> every tool call is approved
  *      automatically, before permissions.mode is even read.
@@ -31,13 +31,13 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
  *
  * Any surface that wants to say "will this prompt me?" must call
  * computeApprovalPosture (or the config-reading convenience below) rather
- * than re-deriving the precedence locally — that re-derivation is exactly
+ * than re-deriving the precedence locally, that re-derivation is exactly
  * how cli/status.ts drifted from the gate (it read permissions.mode alone
  * and never looked at behavior.autoApprove). It is also how 'plan' and
  * 'accept-edits' modes previously drifted: normalizeMode used to fold any
  * mode it did not recognize into 'prompt', so a surface reading the posture
  * label for those two modes silently mislabeled them as "Ask before
- * powerful actions" — wrong for plan mode (which never asks; it refuses)
+ * powerful actions", wrong for plan mode (which never asks; it refuses)
  * and wrong for accept-edits mode (which auto-approves file writes without
  * asking).
  */
@@ -66,11 +66,11 @@ export interface ApprovalPosture {
   readonly autoApprove: boolean;
   /**
    * True when NO tool call will ever hit a Human-in-the-Loop prompt under the
-   * current configuration — mirrors the gate's "auto-approve everything"
+   * current configuration, mirrors the gate's "auto-approve everything"
    * branches (autoApprove, allow-all, and custom-all-allow).
    */
   readonly bypassesPrompts: boolean;
-  /** A short, honest, human-facing label — always names auto-approve explicitly when it is what is actually gating tool calls. */
+  /** A short, honest, human-facing label, always names auto-approve explicitly when it is what is actually gating tool calls. */
   readonly label: string;
   /** A one-sentence explanation of the mechanism, suitable for a doctor/status detail line. */
   readonly detail: string;
@@ -82,7 +82,7 @@ function normalizeMode(mode: unknown): 'prompt' | 'allow-all' | 'custom' | 'plan
 }
 
 /**
- * Pure precedence computation — no config access. Every display surface
+ * Pure precedence computation, no config access. Every display surface
  * should route its "what is the approval posture" question through this
  * function so they provably agree with each other and with the gate.
  */
@@ -95,7 +95,7 @@ export function computeApprovalPosture(input: ApprovalPostureInput): ApprovalPos
       mode,
       autoApprove: true,
       bypassesPrompts: true,
-      label: 'Auto-approve ON — powerful actions run without asking',
+      label: 'Auto-approve ON, powerful actions run without asking',
       detail: 'behavior.autoApprove is enabled: every tool call is approved automatically, regardless of permissions.mode or any custom per-tool rule.',
     };
   }
@@ -117,7 +117,7 @@ export function computeApprovalPosture(input: ApprovalPostureInput): ApprovalPos
       mode,
       autoApprove: false,
       bypassesPrompts: false,
-      label: 'Plan mode — read-only, nothing prompts because nothing mutates',
+      label: 'Plan mode, read-only, nothing prompts because nothing mutates',
       detail: 'permissions.mode is plan: read-only tool calls are approved automatically; every write, execute, or delegate tool call is refused outright (never asked) so the model presents a plan instead of acting.',
     };
   }
@@ -128,7 +128,7 @@ export function computeApprovalPosture(input: ApprovalPostureInput): ApprovalPos
       mode,
       autoApprove: false,
       bypassesPrompts: false,
-      label: 'Accept edits — file writes auto-approve, execute/delegate still ask',
+      label: 'Accept edits, file writes auto-approve, execute/delegate still ask',
       detail: 'permissions.mode is accept-edits: read and file write/edit tool calls are approved automatically without asking; execute and every other risky class still prompt for approval.',
     };
   }
@@ -141,7 +141,7 @@ export function computeApprovalPosture(input: ApprovalPostureInput): ApprovalPos
       mode,
       autoApprove: false,
       bypassesPrompts: allAllow,
-      label: allAllow ? 'Custom rules (every category allows — no prompts)' : 'Custom rules',
+      label: allAllow ? 'Custom rules (every category allows, no prompts)' : 'Custom rules',
       detail: allAllow
         ? 'permissions.mode is custom and every configured tool category is set to allow: no tool call prompts.'
         : 'permissions.mode is custom: each tool category is allowed, prompted, or denied per its own configured rule.',

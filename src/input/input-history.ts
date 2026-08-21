@@ -5,7 +5,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 /**
- * InputHistory — Persisted command history with arrow-key navigation.
+ * InputHistory, Persisted command history with arrow-key navigation.
  *
  * Navigation model:
  *   position = -1   : not browsing (at the live draft)

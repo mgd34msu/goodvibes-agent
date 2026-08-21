@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * sdk-release-gates — publish-blocking SDK-pin checks.
+ * sdk-release-gates, publish-blocking SDK-pin checks.
  *
  * The pin/lock/installed tri-agreement, overlay-marker hard-fail, and non-npm
  * import sweep now live in the shared @pellux/goodvibes-toolchain `sdk-pin-gate`
  * (one implementation across tui/agent/webui). This file is a thin adapter that
- * drives that gate with the Agent's pin shape (the SDK is a devDependency here —
+ * drives that gate with the Agent's pin shape (the SDK is a devDependency here,
  * it is bundled into the compiled binary at build time, not shipped as a runtime
  * node_modules dependency) and maps the gate results to the issue-string surface
  * that publish-check and `sdk:gate` already consume.

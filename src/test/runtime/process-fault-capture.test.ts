@@ -1,12 +1,12 @@
 /**
  * The gap this closes: the agent died on an uncaught exception and the stack
- * existed ONLY on the operator's terminal — nothing in the activity log, no
+ * existed ONLY on the operator's terminal, nothing in the activity log, no
  * crash file. The process registered no `uncaughtException` handler at all, so
  * the one path that actually kills the agent recorded nothing.
  *
  * The core assertion runs against a REAL child process that raises a REAL
  * uncaught exception, because the defect was never "the write function is
- * wrong" — it was "nothing runs on the way out".
+ * wrong", it was "nothing runs on the way out".
  */
 import { describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 import { createProcessFaultHandlers } from '../../runtime/process-fault-capture.ts';
-// The record builder, reader and bounded appender are the SDK's now — the agent
+// The record builder, reader and bounded appender are the SDK's now, the agent
 // carried a copy only until the export was published. These assertions are
 // unchanged: they still describe what the agent's crash log must contain, and
 // they now run against the implementation that actually writes it.
@@ -46,7 +46,7 @@ describe('a child process that raises an injected fatal', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('injected fatal from crash-capture-probe');
 
-    // 1. The durable record — the five fields forensics needed and did not have.
+    // 1. The durable record, the five fields forensics needed and did not have.
     const records = readCrashRecords(join(home, '.goodvibes', 'agent', CRASH_LOG_FILENAME));
     expect(records).toHaveLength(1);
     const record = records[0]!;
@@ -59,7 +59,7 @@ describe('a child process that raises an injected fatal', () => {
     expect(Number.isNaN(Date.parse(record.timestamp))).toBe(false);
     expect(record.surface).toBe('agent');
 
-    // 2. The activity log, flushed synchronously — the logger batches on a
+    // 2. The activity log, flushed synchronously, the logger batches on a
     //    timer a dying process never reaches.
     const activity = readFileSync(join(home, '.goodvibes', 'logs', 'activity.md'), 'utf-8');
     expect(activity).toContain('uncaughtException');
