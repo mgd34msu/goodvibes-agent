@@ -249,18 +249,6 @@ const PACKAGE_FACING_REQUIRED_TEXT: readonly {
   { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g @pellux/goodvibes-agent'] },
 ];
 const NON_COMMAND_ROUTE_ROOTS = new Set(['api']);
-/**
- * Slash-shaped tokens in GENERATED docs that are not Agent slash commands and
- * cannot be reworded here. docs/google-setup-runbook.md is rendered verbatim
- * from the SDK's Google setup plan (scripts/generate-google-runbook.ts); its
- * one "`/status` output" phrase means the connected surfaces' status output,
- * not an Agent command, and the wording is SDK-owned. Exempting the exact
- * token per file keeps the rest of the generated page under the
- * phantom-command scan instead of exempting the whole file.
- */
-const GENERATED_DOC_SLASH_TOKEN_EXEMPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
-  ['docs/google-setup-runbook.md', new Set(['status'])],
-]);
 const HTTP_ROUTE_VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 const COMMAND_NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
 const EXACT_SEMVER_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -3620,7 +3608,6 @@ function verifyPackageFacingSlashCommands(path: string, content: string, registe
       const prefix = line.slice(0, slashIndex).trimEnd();
       if (HTTP_ROUTE_VERBS.some((verb) => prefix.endsWith(verb))) continue;
       if (NON_COMMAND_ROUTE_ROOTS.has(root)) continue;
-      if (GENERATED_DOC_SLASH_TOKEN_EXEMPTIONS.get(path)?.has(root) === true) continue;
       if (registeredCommands.has(root)) continue;
       failures.push(`package-facing text ${path}:${lineIndex + 1} references unknown Agent slash command: /${root}`);
     }
