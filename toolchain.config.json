@@ -1,5 +1,5 @@
 {
-  "//": "TOOLCHAIN-PIN: @pellux/goodvibes-toolchain is an exact-version devDependency (2.0.17) resolved from the npm registry, matching the sdk/terminal-shell runtime pins. Reusable-workflow refs stay at mgd34msu/goodvibes-sdk@main; release.yml call sites that accept a toolchain-spec input pin it to the same exact version, so a reusable-workflow runner with no local node_modules also resolves the pinned CLI instead of npm latest. This file is the repo-specific contract consumed by @pellux/goodvibes-toolchain CLIs; behavior lives in the package.",
+  "//": "TOOLCHAIN-PIN: @pellux/goodvibes-toolchain is an exact-version devDependency (2.0.19) resolved from the npm registry, matching the sdk/terminal-shell runtime pins. Reusable-workflow refs stay at mgd34msu/goodvibes-sdk@main; release.yml call sites that accept a toolchain-spec input pin it to the same exact version, so a reusable-workflow runner with no local node_modules also resolves the pinned CLI instead of npm latest. This file is the repo-specific contract consumed by @pellux/goodvibes-toolchain CLIs; behavior lives in the package.",
   "packageName": "@pellux/goodvibes-agent",
   "sdkPin": {
     "sdkPackage": "@pellux/goodvibes-sdk",
