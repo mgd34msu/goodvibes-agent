@@ -31,7 +31,17 @@ on:
 concurrency:
   # Never cancel an in-progress release (push uses the tag; dispatch falls back
   # to a unique run id so manual runs never cancel each other).
-  group: agent-release-${{ github.event.inputs.ref || github.ref_name || github.run_id }}
+  #
+  # A release-mode dispatch (the zero-touch auto-release path) is dispatched
+  # with `--ref refs/tags/vX.Y.Z`, which sets github.ref_name to the tag for
+  # that run, but does NOT populate the workflow_dispatch `ref` input (its
+  # default stays "main" unless a caller passes `-f ref=...`, which the
+  # auto-release job never does). Reading inputs.ref first therefore collapsed
+  # every release-mode dispatch into the constant group agent-release-main,
+  # letting a queued release evict an in-flight one. Check for release-mode
+  # dispatch first and use github.ref_name (the actual dispatched tag) before
+  # falling back to inputs.ref for a plain dry-run dispatch.
+  group: agent-release-${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release' && github.ref_name) || github.event.inputs.ref || github.ref_name || github.run_id }}
   cancel-in-progress: false
 
 # Default read-only; the release-verify leg needs actions:read to inspect the
@@ -65,7 +75,7 @@ jobs:
   # By-reference validation: verify the tagged commit's push-CI run concluded
   # per-job green. Replaces the old hand-rolled `validate-release` poll ("Verify
   # branch CI passed for release SHA" with a 30-minute gh-run loop). toolchain-
-  # source: registry — the Agent bunx-es the published @pellux/goodvibes-toolchain
+  # source: registry, the Agent bunx-es the published @pellux/goodvibes-toolchain
   # (it is a consumer of the SDK's toolchain, not its publisher).
   release-verify:
     name: Release verify (by reference)
@@ -83,6 +93,8 @@ jobs:
       workflow: ci.yml
       event: push
       toolchain-source: registry
+      bun-version: "1.3.14"
+      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.17"
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -123,7 +135,7 @@ jobs:
           # npm tarball was missing the bundled runtime and `bun add -g` exited
           # with "packaged runtime is missing". Assert the packaged runtime
           # entrypoint is inside the tarball BEFORE it is uploaded as an artifact.
-          # NOTE: no `tar | grep -q` — under this step's pipefail, grep -q exits
+          # NOTE: no `tar | grep -q`, under this step's pipefail, grep -q exits
           # on first match and SIGPIPEs tar mid-listing, failing the pipeline
           # even when the entry is present (this false-failed the first v1.12.3
           # release run). List to a file, then grep the file.
@@ -222,7 +234,7 @@ jobs:
          {"key":"linux-arm64","runner":"ubuntu-latest","smoke":false},
          {"key":"darwin-x64","runner":"ubuntu-latest","smoke":false},
          {"key":"darwin-arm64","runner":"macos-14","smoke":true,"binary":"dist/goodvibes-agent-macos-arm64"}]
-      # NOTE: upload-artifact `path:` splits patterns on NEWLINES only — a
+      # NOTE: upload-artifact `path:` splits patterns on NEWLINES only, a
       # space-separated single line is one literal glob that matches nothing
       # (if-no-files-found: error would fail every leg). Keep one glob per line.
       artifact-glob: |
@@ -232,6 +244,8 @@ jobs:
         dist/goodvibes-agent-macos-arm64
         dist/lib
       artifact-prefix: agent-binary
+      bun-version: "1.3.14"
+      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.17"
 
   # Merge every binary leg + the npm tarball, package the four per-platform
   # sqlite-vec native addon archives (missing-addon-fatal), and publish a single
@@ -304,7 +318,7 @@ jobs:
       tag: ${{ github.ref_name }}
       artifact-name: release-assets
       # NOTE: softprops/action-gh-release `files:` splits patterns on NEWLINES
-      # only — a space-separated single line is one literal glob that matches
+      # only, a space-separated single line is one literal glob that matches
       # nothing (fail_on_unmatched_files: true would fail the release). Keep one
       # glob per line.
       assets-glob: |
@@ -318,9 +332,11 @@ jobs:
         dist/sqlite-vec-darwin-arm64.tar.gz
         dist/browser-driver.tar.gz
         dist/*.tgz
+      bun-version: "1.3.14"
+      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.17"
 
   # npm publish via the shared reusable-npm-publish (staged, provenance,
-  # empty-or-complete precheck, propagation poll — the toolchain publish-package
+  # empty-or-complete precheck, propagation poll, the toolchain publish-package
   # owns idempotency + poll). Gated on push tags + the PUBLISH_NPM repo variable.
   publish-npm:
     name: Publish to npm
@@ -344,6 +360,7 @@ jobs:
       # The ./ prefix is load-bearing: npm parses a bare relative path like
       # release-tarball/x.tgz as a GitHub owner/repo spec and tries to clone it.
       publish-command: 'bunx @pellux/goodvibes-toolchain goodvibes-publish-package --poll --tarball "./$(ls release-tarball/*.tgz)"'
+      bun-version: "1.3.14"
     secrets:
       npm-token: ${{ secrets.NPM_TOKEN }}
 

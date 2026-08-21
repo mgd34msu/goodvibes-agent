@@ -963,6 +963,14 @@ function readGithubSetupBunVersion(root: string): string | null {
   const setupActionPath = join(root, '.github', 'actions', 'setup', 'action.yml');
   if (!existsSync(setupActionPath)) return null;
   const source = readFileSync(setupActionPath, 'utf-8');
+  // The Setup Bun step pins bun-version either as a same-line literal, or
+  // indirected through the action's own `inputs.bun-version` (so a reusable
+  // workflow caller can override the pin). Resolve the indirection to the
+  // input's declared default before falling back to a same-line literal.
+  if (/bun-version:\s*\$\{\{\s*inputs\.bun-version\s*\}\}\s*$/m.test(source)) {
+    const defaultMatch = /inputs:[\s\S]*?bun-version:[\s\S]*?default:\s*"?([^"\s]+)"?\s*$/m.exec(source);
+    return defaultMatch?.[1] ?? '';
+  }
   const match = /^\s*bun-version:\s*"?([^"\s]+)"?\s*$/m.exec(source);
   return match?.[1] ?? '';
 }
@@ -3466,8 +3474,8 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   }
   const packageManager = readStringValue(pkg.packageManager);
   const packageManagerBunVersion = readPackageManagerBunVersion(pkg);
-  if (packageManager !== 'bun@1.3.10') {
-    issues.push('package.json packageManager must be bun@1.3.10.');
+  if (packageManager !== 'bun@1.3.14') {
+    issues.push('package.json packageManager must be bun@1.3.14.');
   }
   const githubSetupBunVersion = readGithubSetupBunVersion(root);
   if (githubSetupBunVersion !== null) {

@@ -7,7 +7,7 @@ GoodVibes Agent's current installable version is recorded in `package.json` and 
 - registry package: `@pellux/goodvibes-agent`
 - executable: `goodvibes-agent`
 - connected-host compatibility: checked through public Agent routes; `AGENT_DAEMON_BUILD_FLOOR` (`src/runtime/daemon-build-compatibility.ts`) is `1.28.0`, a breaking change from the daemon/TUI product split. A daemon older than that build is REFUSED AT ADOPTION: the memory spine stays local, the inbound dispatch never binds, and the operator gets a one-time "update the daemon" notice naming both versions. This floor's value and rationale belong in this repository's CHANGELOG and release notes whenever it is raised, not left to infer.
-- runtime: Bun `1.3.10` or newer
+- runtime: Bun `1.3.14` or newer
 - source language: TypeScript
 - package docs: every Markdown file under `docs/*.md`
 - connected host ownership: outside Agent

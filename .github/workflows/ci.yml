@@ -35,7 +35,7 @@ jobs:
       # Each type-check step runs the same package.json script the local
       # `ci:gate` aggregate runs, so CI and the local gate cannot drift apart.
       # The ci-test-policy test enforces that pairing mechanically. Before this,
-      # CI ran `tsc` against tsconfig.json only — which excludes src/test and
+      # CI ran `tsc` against tsconfig.json only, which excludes src/test and
       # src/**/*.test.ts, and never saw scripts/ or bin/ at all.
       - name: Type check (src)
         run: bun run typecheck
@@ -57,7 +57,7 @@ jobs:
         run: bun run build
       - name: Compiled binary smoke
         # `bun run build` compiles the unsuffixed native binary; name it
-        # explicitly — toolchain.config smoke.binaryDefault points at the
+        # explicitly, toolchain.config smoke.binaryDefault points at the
         # linux-x64 release artifact (the binary-matrix fallback), not this one.
         run: bun run scripts/post-build-smoke.ts --binary dist/goodvibes-agent
       - name: Publish package check
@@ -77,7 +77,7 @@ jobs:
   # Why the dispatch (not just the tag push): a tag pushed with GITHUB_TOKEN does
   # NOT trigger workflows, so the tag alone would never start release.yml. The
   # documented exception is that a workflow_dispatch API call made with
-  # GITHUB_TOKEN DOES create a run — so we push the tag (for provenance + the
+  # GITHUB_TOKEN DOES create a run, so we push the tag (for provenance + the
   # manual redo path) and then explicitly dispatch the release at that tag ref.
   # Idempotent: an already-existing tag is a logged no-op.
   # ---------------------------------------------------------------------------
@@ -105,19 +105,38 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v${VERSION}"
-          # Idempotent no-op if the tag already exists on the remote (a re-run,
-          # or a manual tag already pushed): do not re-tag or re-dispatch.
+          # A tag existing on the remote only proves a tag was pushed, not that
+          # release.yml ever ran for it: if every dispatch attempt in a prior
+          # run failed after the tag push already landed, this tag-exists guard
+          # used to exit 0 as a false-green no-op, and the tag's existence then
+          # made per-job-green refuse a later manual `release.yml` dispatch for
+          # the same tag. Check for an actual release.yml run at this tag before
+          # treating it as done; re-dispatch if none is found.
           if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "refs/tags/${TAG}"; then
-            echo "Tag ${TAG} already exists on origin — nothing to do."
-            exit 0
+            echo "Tag ${TAG} already exists on origin, checking whether release.yml already ran for it."
+            # Server-side branch filter: tag-triggered runs carry the bare tag
+            # name as head_branch, and the filter matches it regardless of how
+            # deep the run sits in history (a client-side page scan would miss
+            # runs older than one page).
+            RUN_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml/runs?branch=${TAG}&per_page=1" --jq '.workflow_runs | length' || echo "unknown")"
+            case "${RUN_COUNT}" in ''|*[!0-9]*)
+              echo "ERROR: could not determine whether release.yml has run for ${TAG}." >&2
+              exit 1 ;;
+            esac
+            if [ "${RUN_COUNT}" -gt 0 ]; then
+              echo "Found ${RUN_COUNT} release.yml run(s) for ${TAG}; nothing to do."
+              exit 0
+            fi
+            echo "Tag ${TAG} exists but no release.yml run was found for it; re-dispatching."
+          else
+            git config user.name "GoodVibes CI"
+            git config user.email "ci@goodvibes.local"
+            git tag -a "${TAG}" -m "release ${VERSION}" "${SHA}"
+            # Push with GITHUB_TOKEN: this does NOT trigger release.yml (token
+            # pushes never trigger workflows), which is why we dispatch below.
+            git push origin "refs/tags/${TAG}"
+            echo "Created and pushed ${TAG} at ${SHA}."
           fi
-          git config user.name "GoodVibes CI"
-          git config user.email "ci@goodvibes.local"
-          git tag -a "${TAG}" -m "release ${VERSION}" "${SHA}"
-          # Push with GITHUB_TOKEN: this does NOT trigger release.yml (token
-          # pushes never trigger workflows), which is why we dispatch below.
-          git push origin "refs/tags/${TAG}"
-          echo "Created and pushed ${TAG} at ${SHA}."
           # Dispatch release.yml at the tag ref. workflow_dispatch via the API
           # under GITHUB_TOKEN DOES create a run (the documented exception).
           for attempt in 1 2 3 4 5 6 7 8; do

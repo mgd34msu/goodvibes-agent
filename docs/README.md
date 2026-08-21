@@ -17,7 +17,7 @@ These are the package-facing docs for the GoodVibes Agent `2.0.x` release line.
 ## Baseline
 
 - Package executable: `goodvibes-agent`.
-- Install/runtime: Bun `1.3.10` or newer.
+- Install/runtime: Bun `1.3.14` or newer.
 - Agent version source: exact `package.json` semver, kept in sync with `CHANGELOG.md` and `src/version.ts` during release.
 - Connected-host compatibility: public Agent routes report readiness through the `compat` and `status` CLI commands plus `host action:"status"`.
 - Connected host: owned outside Agent; Agent reports and uses it but does not manage lifecycle.

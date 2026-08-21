@@ -4,7 +4,7 @@ GoodVibes Agent is the installable autonomous operator assistant for GoodVibes.
 
 ## Requirements
 
-- Bun `1.3.10` or newer.
+- Bun `1.3.14` or newer.
 - A connected GoodVibes daemon or compatible host with operator routes. Installing this package installs one: it depends on `goodvibes-daemon`.
 - Token/config state accepted by that daemon.
 
