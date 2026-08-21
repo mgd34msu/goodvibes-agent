@@ -270,7 +270,7 @@ describe('prompt context receipts', () => {
         // was an UNFILTERED browse set, not a recall-eligible count, the
         // exact reword this test locks in.
         expect(memorySegment?.note).toContain('over the wire from the adopted daemon');
-        expect(memorySegment?.note).toContain('in the browse set (unfiltered — recall floor not applied)');
+        expect(memorySegment?.note).toContain('in the browse set (unfiltered, recall floor not applied)');
         expect(memorySegment?.note).not.toContain('recall-eligible');
         // Humanized age (whole seconds), not raw milliseconds.
         expect(memorySegment?.note).toMatch(/captured \d+s ago/);

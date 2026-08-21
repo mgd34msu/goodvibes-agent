@@ -232,7 +232,7 @@ describe('autostartInstalledDaemon (decision engine)', () => {
     expect(outcome).toEqual({
       action: 'start-failed',
       serviceName: 'goodvibes-daemon',
-      reason: 'service "goodvibes-daemon" is active per the service manager but the daemon did not answer within 1000ms — check its logs',
+      reason: 'service "goodvibes-daemon" is active per the service manager but the daemon did not answer within 1000ms, check its logs',
     });
     expect(control.startCalls).toEqual([]);
   });

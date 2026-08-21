@@ -90,6 +90,18 @@ import { InfiniteBuffer } from '@pellux/goodvibes-terminal-shell';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
 
 const FAKE_CVV = '731';
+
+/**
+ * A leaked digit value shows up as its own digit run, never embedded inside a
+ * longer one: epoch-milli timestamps in dumps, temp paths, and mock-call
+ * serializations currently contain "731" (epochs 1787318... do, for days at a
+ * stretch), so a raw substring scan over a composite payload flags time, not
+ * leaks. Exact-echo assertions on single values keep plain matching.
+ */
+function leakedDigits(haystack: string, digits: string): boolean {
+  return new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(haystack);
+}
+
 // Deliberately NOT the command's own placeholder example (4242424242424242,
 // printed as static guidance before any input): a different fake here means a
 // transcript match on THIS value can only be a real echo of what was typed,
@@ -477,7 +489,7 @@ describe('payments card containment (agent terminal)', () => {
     for (const ch of FAKE_CVV) modal.editChar(ch);
 
     const frame = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
-    expect(frame).not.toContain(FAKE_CVV);
+    expect(leakedDigits(frame, FAKE_CVV)).toBe(false);
     expect(frame).toContain('•'.repeat(FAKE_CVV.length));
   });
 
@@ -551,7 +563,7 @@ describe('payments card containment (agent terminal)', () => {
       await Promise.resolve();
 
       const serialized = JSON.stringify(errorSpy.mock.calls);
-      expect(serialized).not.toContain(FAKE_CVV);
+      expect(leakedDigits(serialized, FAKE_CVV)).toBe(false);
     } finally {
       errorSpy.mockRestore();
     }
@@ -624,7 +636,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(transcript).toContain('set');
     expect(transcript).not.toContain(FAKE_CARD_NUMBER);
     // not even the last four
-    expect(transcript).not.toContain(FAKE_CARD_NUMBER.slice(-4));
+    expect(leakedDigits(transcript, FAKE_CARD_NUMBER.slice(-4))).toBe(false);
   });
 
   test('the guided address flow stores what was typed and shows it back — an address is not a credential', async () => {
@@ -918,7 +930,7 @@ describe('payments card containment (agent terminal)', () => {
     };
     walk(JSON.parse(payload));
     expect(stringLeaves.length).toBeGreaterThan(50); // the walk actually reached the payload
-    expect(stringLeaves.filter((leaf) => leaf.includes(FAKE_CVV))).toEqual([]);
+    expect(stringLeaves.filter((leaf) => leakedDigits(leaf, FAKE_CVV))).toEqual([]);
   }, 60_000);
 
   test('DEFECT BACKSTOP: a raw literal under payments.card* is redacted by NAME — the suffix list does not catch these', () => {
@@ -938,7 +950,7 @@ describe('payments card containment (agent terminal)', () => {
     const serialized = JSON.stringify(redacted.value);
     expect(serialized).not.toContain(FAKE_CARD_NUMBER);
     expect(serialized).not.toContain(FAKE_EXPIRY);
-    expect(serialized).not.toContain(FAKE_CVV);
+    expect(leakedDigits(serialized, FAKE_CVV)).toBe(false);
     expect(serialized).not.toContain(FAKE_CARDHOLDER);
     expect(redacted.redactedPaths).toContain('payments.cardNumber');
     expect(redacted.redactedPaths).toContain('payments.cardCvv');
