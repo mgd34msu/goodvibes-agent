@@ -23,7 +23,7 @@ The documented exemption covers apps requesting only `openid`, `email` and `prof
 
 So an app left in **Testing** works perfectly for a week and then dies, and the failure surfaces as an ordinary-looking auth error a week after anyone last touched the setup. Publishing status must be moved to **In production**, which is self-certified and immediate. It is *not* the same thing as verification, and it needs no review.
 
-The flow therefore treats this as a first-class step: it sets the status, then **re-reads it to confirm** rather than assuming the click worked, and reports a plain-language warning if it cannot confirm.
+The flow therefore treats this as a first-class step. It sets the status, then **re-reads it to confirm** rather than assuming the click worked, and reports a plain-language warning if it cannot confirm.
 
 ## Scope classification, and why it still matters
 
@@ -75,9 +75,9 @@ in the platform runtime is therefore the complete set, and a test pins it.
 
 ### On `gmail.readonly` being restricted
 
-It is, and that no longer changes the decision. The restricted tier triggers a
+It is, and that does not change the decision. The restricted tier triggers a
 third-party security assessment for apps **published to other people's users**.
-That is not this model: each person creates the OAuth client in their own
+That is not this model. Each person creates the OAuth client in their own
 Google Cloud account and is its only user, so there is nobody for Google to
 vouch to, the app is self-certified rather than verified, and the 100-user cap
 is irrelevant to a one-user app. The consent screen shows its unverified-app

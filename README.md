@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-2.0.16-blue.svg)](https://github.com/mgd34msu/goodvibes-agent)
 
-GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness: route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes, instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
+GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness, with route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes, instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
 
 <img src="docs/assets/operator-workspace.png" alt="The fullscreen GoodVibes Agent operator workspace. A left column lists operator areas under an Onboarding heading, with Start and Models flagged for attention. The right pane is headed Start, 16 actions, and summarises setup state: 3 of 13 done, 4 need attention, the current chat route, a count of local personas, skills, routines, and memories, and a next step reading Connected-host auth, blocked. Below, a Setting / Default / Current table lists the available actions: use a local model with no sign-in, sign in to a provider, choose main model, import GoodVibes settings, reasoning effort medium, save history true, and a Finish setup row. A footer shows the workspace key hints." width="900">
 
@@ -29,9 +29,20 @@ export PATH="$(bun pm bin -g):$PATH"
 
 On a fresh Agent home, `goodvibes-agent` opens setup first; once setup is applied it opens directly into the Agent workspace.
 
-Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) and a `SHA256SUMS.txt` manifest, for environments that download a binary directly rather than through Bun. A directly-downloaded binary self-updates at launch: a bounded check against the latest GitHub release, then a checksum-verified download-and-swap when one is newer, with the replaced file always kept beside it as `<file>.previous` so `/update rollback` can undo it. Package-managed installs never self-swap; they defer to `bun add -g` instead. `update.autoUpdateAtLaunch: false` in `settings.json` turns the launch check off.
+Each GitHub release also attaches standalone compiled binaries and a `SHA256SUMS.txt` manifest, for environments that download a binary directly rather than through Bun:
 
-A long-running agent also keeps looking after launch: the same checksum-verified path runs on a periodic check (first one ~30s after start, hourly after that) and installs only at an idle moment: no active turn, no in-flight channel delivery, no confirmation waiting on you. It then restarts in place with the same arguments. `update.auto: false` turns that off.
+| Release asset | Platform |
+| --- | --- |
+| `goodvibes-agent-linux-x64` | Linux on x86-64 |
+| `goodvibes-agent-linux-arm64` | Linux on ARM64 |
+| `goodvibes-agent-macos-x64` | macOS on Intel |
+| `goodvibes-agent-macos-arm64` | macOS on Apple silicon |
+| `sqlite-vec-<os>-<arch>.tar.gz` | Per-platform semantic-index addon archives, one per binary above |
+| `SHA256SUMS.txt` | Checksums for every asset; the updater verifies downloads against it |
+
+A directly-downloaded binary self-updates at launch. It runs a bounded check against the latest GitHub release, then a checksum-verified download-and-swap when one is newer, and every swap keeps the replaced file beside it as `<file>.previous` so `/update rollback` can undo it. Package-managed installs never self-swap; they defer to `bun add -g` instead. `update.autoUpdateAtLaunch: false` in `settings.json` turns the launch check off.
+
+A long-running agent also keeps looking after launch. The same checksum-verified path runs on a periodic check (first one ~30s after start, hourly after that) and installs only at an idle moment, meaning no active turn, no in-flight channel delivery, and no confirmation waiting on you. It then restarts in place with the same arguments. `update.auto: false` turns that off.
 
 The semantic (embedding-backed) memory index depends on a native `sqlite-vec` addon that Bun cannot embed in a compiled binary, so each release ships it separately as `sqlite-vec-<os>-<arch>.tar.gz`. A binary with no co-located addon still runs; memory search falls back to literal matching until the matching archive is extracted next to it. This addon stays unavailable on macOS regardless of co-location, because the system SQLite that macOS links refuses to load extensions.
 
@@ -91,7 +102,7 @@ A few keys worth knowing up front:
 | --- | --- | --- |
 | `update.autoUpdateAtLaunch` | `true` | Check for and install a newer release at launch (standalone binaries only) |
 | `update.launchCheckTimeoutMs` | `2500` | How long that launch check may take before it is skipped; clamped to 250–30000 |
-| `update.auto` | `true` | Keep checking WHILE the agent runs, and install at an idle moment (standalone binaries only) |
+| `update.auto` | follows `update.autoUpdateAtLaunch` | Keep checking WHILE the agent runs, and install at an idle moment (standalone binaries only); an explicit value always wins over the inherited one |
 | `update.intervalMinutes` | `60` | Minutes between those periodic checks; clamped to 5–1440 |
 | `update.firstCheckSeconds` | `30` | Seconds after start before the first periodic check; clamped to 0–3600 |
 | `checkpoints.preferGitRoot` | `true` | Snapshot the enclosing git repository's root rather than the raw working directory |
@@ -123,7 +134,7 @@ bun run dev
 | Command | Does |
 | --- | --- |
 | `bun run dev` | Run the Agent TUI from source |
-| `bun test` | Run the test suite |
+| `bun run test` | Run the full test suite through the deterministic suite runner |
 | `bun run typecheck` | Type-check the source tree |
 | `bun run build` | Compile `src/main.ts` into `dist/goodvibes-agent` |
 | `bun run package:install-check` | Verify the packaged CLI actually installs and runs |

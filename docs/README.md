@@ -27,37 +27,21 @@ These are the package-facing docs for the GoodVibes Agent `2.0.x` release line.
 
 ## Model access baseline
 
-Agent-owned model tools expose Agent-controlled product surfaces plus operator/audit inspection routes:
+The main Agent model reaches Agent-controlled product surfaces through Agent-owned tools. The full tool catalog, action values, and confirmation rules live in [Tools and commands](tools-and-commands.md); this baseline names the families so a reader knows what exists before opening that page.
 
-- `setup` for the first-run path: status, item lookup, checkpoint inspect/save/clear, connected-host token repair, setup smoke, finish onboarding, and GoodVibes settings import through existing setup gates.
-- `models` for direct provider/model route readiness, exact route/provider inspection, provider and subscription posture, local model cookbook guidance, and confirmed local server smoke checks while lower-level provider/model harness modes remain compatibility/detail routes.
-- `settings` for first-class Agent settings list/get/set/reset and GoodVibes settings import preview/apply through existing redacted confirmation gates.
-- `agent_harness` for the same assistant-first cockpit shown in TUI Home, searchable mode discovery, workspace actions, GoodVibes settings import workspace parity, detailed setup posture, ordered channel setup guide, channel triage, redacted channel delivery receipts, slash commands, settings compatibility modes, UI surfaces including the confirmed connected browser cockpit/PWA route with certified category coverage, mobile/PWA controls, and first-run receipt evidence, keybindings, tool schemas, model detail compatibility routes, local-vs-delegated execution posture, process monitor/live tail/tool inspector supervision routes, file edit recovery, ongoing-work intake, visible autonomy queue with live research run, connected-host task, approval, automation run, and schedule records/log tails, service/daemon posture, connected-host capability/status, posture catalogs, and operator/audit release artifact inspection.
-- `computer` for direct browser/PWA readiness, certified browser-native category routes and first-run receipts when the SDK/daemon publishes them, browser/screenshot/desktop-control route planning, setup, MCP, and confirmed visible browser cockpit handoffs; `device` remains the companion/mobile/voice/TTS/provider route while lower-level pairing/media/UI harness modes remain compatibility/detail routes.
-- `agent_knowledge` and `agent_knowledge_ingest` for isolated Agent Knowledge.
-- `vibe` for direct VIBE.md personality status/show, confirmed project or global VIBE.md initialization, and confirmed VIBE.md-to-persona import.
-- `personal_ops` for direct daily briefing, readiness status, queue review, daemon/SDK inbox/calendar read-model records, request intake, lane inspection, and one confirmed read-only inbox/calendar connector operation with structured next routes while lower-level harness modes remain available for detailed inspection.
-- `agent_local_registry` and `agent_learning_consolidation` for Agent-local memory, notes, personas, skills, bundles, routines, confirmed duplicate-consolidation phases with receipts, and `agent_harness` learning-curator modes for ranked review/setup/stale, duplicate-consolidation, reviewed-note, completed-work, completed-research, and saved-session memory/behavior proposals.
-- `agent_work_plan` for visible local work-plan state and confirmed dispatch of approved plan items to visible agents, with linked receipts surfaced in orchestration closeout.
-- `agent_operator_briefing` and `agent_operator_action` for public connected operator state and exact confirmed actions.
-- `agent_documents`, `agent_review_packet_presets`, `agent_review_packet_share`, `agent_artifacts`, and `research` for versioned Agent document drafts, review comments, AI suggestion review, saved artifact attachment/insertion, reviewer-ready markdown artifact export with comment and suggestion summaries, reusable review packet preset save/list/show/refresh routes with freshness checks, confirmed reviewer packet archive-reference sharing, saved artifact browsing/export/package/archive, project-local visible research run state with log tails, `research action:"briefing"` next-action queues, `research action:"plan"` route planning with browser-runner and visual-report packet contracts, `research action:"search"` bounded public source-candidate packets with confirmed capture routes, `research action:"runner"` browser-runner readiness, research source review, reviewed-source bundles, `research action:"reports|report_artifact"` saved report inspection, sourced research report artifacts with citation coverage repair hints and optional visual report packets, and reviewed artifact-to-Knowledge promotion; lower-level `agent_research_runs`, `agent_research_sources`, and `agent_research_report` remain compatibility/detail routes.
-- `agent_channel_send`, `agent_notify`, `schedule`, `setup`, `vibe`, `personal_ops action:"read"`, `import_goodvibes_settings`, lower-level schedule compatibility tools, `agent_media_generate`, and `agent_model_compare` for explicit confirmed effects, including:
-  - channel send receipt ids
-  - connected autonomous schedules, reminders, schedule edits and lifecycle controls
-  - setup checkpoint/token/smoke/finish actions
-  - VIBE.md init/persona import
-  - one bounded live Personal Ops inbox/calendar read
-  - redacted settings import preview/apply
-  - blind comparison from saved text artifacts with side-by-side reviewer views
-  - split-pane reviewer handoff diffs with section jumps and recent-handoff choices
-  - chronological review packet timeline state, including packet presets and preset freshness attention
-  - review packet wizard progress/routes/refreshed-preset lineage/share handoff
-  - route-decision receipt artifacts for apply/leave-unchanged evidence
-  - packet-default form prefill for export/handoff/archive/apply/save-preset/share workflows
-  - inline reviewer-readiness badges before export/archive/apply
-  - task/document/benchmark-filtered saved judgment analytics/synthesis
-  - reviewer handoff artifacts
-  - one-click handoff ZIP archives with matching route-decision receipt evidence
+- `setup` walks the first-run path, covering status, single-item lookup, checkpoint inspect/save/clear, connected-host token repair, setup smoke, onboarding finish, and GoodVibes settings import, all through the existing setup gates.
+- `models` reads provider/model route readiness, provider and subscription posture, and the hardware-scored local model cookbook, and runs confirmed local server smoke checks.
+- `settings` lists, gets, sets, and resets Agent settings, and previews or applies shared GoodVibes settings import behind redacted confirmation gates.
+- `agent_harness` is the deep inspection surface. It serves the same assistant cockpit shown in TUI Home, searchable mode discovery, the workspace/command/keybinding/tool catalogs, channel and setup posture, the visible autonomy queue with live records and log tails, execution and delegation posture, service and connected-host posture, and operator/audit release artifacts.
+- `computer` and `device` cover browser/PWA readiness, browser/screenshot/desktop-control route planning, companion/mobile pairing posture, and voice/TTS provider routes, with confirmation-gated handoffs for anything that opens a visible surface.
+- `agent_knowledge` reads isolated Agent Knowledge, and `agent_knowledge_ingest` writes to it after confirmation.
+- `vibe` inspects VIBE.md personality state and, with confirmation, initializes a project or global VIBE.md or imports one as an Agent-local persona.
+- `personal_ops` serves the daily briefing, readiness status, saved review queue, request intake, lane inspection, and one confirmed read-only inbox/calendar connector read.
+- `memory`, `agent_local_registry`, and `agent_learning_consolidation` manage Agent-local memory, notes, personas, skills, bundles, and routines, including the learning curator's review queues and confirmed duplicate-consolidation phases with receipts.
+- `agent_work_plan` keeps the visible local work plan current and, with confirmation, dispatches approved plan items to visible agents with linked receipts.
+- `agent_operator_briefing`, `agent_operator_action`, and `agent_operator_method` read connected operator state and run exact confirmed approval/automation/schedule actions or daemon methods.
+- `agent_documents`, `agent_review_packet_presets`, `agent_review_packet_share`, `agent_artifacts`, `research`, and `agent_model_compare` cover versioned document drafts with review comments and AI suggestions, reusable review packets with freshness checks, saved artifact browse/export/package/archive, visible research runs with source queues and sourced report artifacts, and confirmed blind model comparison with route-decision receipts.
+- `agent_channel_send`, `agent_notify`, `schedule`, and `agent_media_generate` perform explicit confirmed effects, returning channel-send receipt ids, webhook notifications, connected schedules and reminders with lifecycle controls, and generated media artifacts.
 
 Catalog modes are compact by default. `agent_harness mode:"modes"` searches all harness modes; `mode:"mode"` inspects one mode contract. Plural catalog rows keep summaries short and expose effect class, `modelRoute`, or `modelAccess` hints where the model needs an immediate route decision. Detailed schemas, route hints, redacted log tail, release artifact data, and editor fields require `includeParameters:true` or a singular inspect mode.
 

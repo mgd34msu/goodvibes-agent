@@ -10,9 +10,10 @@ Provider and model state should be visible in:
 - `/health` in the TUI and `goodvibes-agent status` in the CLI;
 - `/model` and `/provider`;
 - the Agent operator workspace setup checklist;
-- the TTS configuration workspace when spoken turns are used.
-- `models action:"status|route|local|providers|provider|smoke"` when the model needs provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, readiness scores, safe setting keys, provider auth posture, subscription freshness, or the hardware-scored local model cookbook. Use `includeParameters:true`, `action:"route"`, or `action:"provider"` for full capabilities, readiness dimensions, local hardware profile, fit scores, setup/download guidance, local endpoint candidates with exact endpoint inspection, model-list smoke commands, success criteria, failure triage, confirmed local model-list smoke results, confirmed benchmark action routes, saved benchmark evidence, route-change hints, usage windows, issues, notes, and auth-flow hints.
-- Lower-level `agent_harness` modes `model_routing`, `model_route`, `provider_accounts`, `provider_account`, and confirmed `run_local_model_smoke` remain available for compatibility and detailed harness inspection. Provider/account mutations stay on confirmed workspace or settings routes.
+- the TTS configuration workspace when spoken turns are used;
+- `models action:"status|route|local|providers|provider|smoke"` when the model needs provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, readiness scores, safe setting keys, provider auth posture, subscription freshness, or the hardware-scored local model cookbook;
+- the same `models` routes with `includeParameters:true`, `action:"route"`, or `action:"provider"` for full capabilities, readiness dimensions, the local hardware profile, fit scores, setup/download guidance, local endpoint candidates with exact endpoint inspection, model-list smoke commands and triage, saved benchmark evidence, route-change hints, usage windows, issues, notes, and auth-flow hints;
+- lower-level `agent_harness` modes `model_routing`, `model_route`, `provider_accounts`, `provider_account`, and confirmed `run_local_model_smoke`, which remain available for compatibility and detailed harness inspection; provider/account mutations stay on confirmed workspace or settings routes.
 
 When a selected model is provider-qualified, Agent keeps the runtime provider row and raw model id separate. For example, `openai-subscriber` plus `openai:gpt-5.5` should route as provider `openai-subscriber` and model `gpt-5.5` where the public route expects provider/model fields.
 
@@ -28,11 +29,22 @@ These files are local configuration. They are not Agent Knowledge records and sh
 
 ## Local model cookbook
 
-Agent Workspace -> Model Routing exposes `Inspect route readiness`, `Local model cookbook`, `Check local servers`, `Run local benchmark`, and `Review benchmark evidence` as separate actions so users can inspect, compare, and decide without implicit route changes. `Local model cookbook` and `models action:"local"` provide recommendations for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers.
+The Models workspace (Agent Workspace -> Models) keeps inspection, comparison, and route changes separate so nothing switches a model implicitly. Its detail pane summarizes route readiness, the local cookbook, local server checks, and benchmark evidence, and the model-visible `models` tool carries the same surfaces under these routes:
 
-The cookbook detects local-compatible provider ids and model routes when available, scans local OS CPU/RAM/platform data with safe accelerator hints, ranks recipe fit, recommends the easiest first route, and exposes setup plans with download/start guidance, local server endpoint candidates, exact `models action:"route"` endpoint inspection, model-list smoke commands, success criteria, failure triage, confirmed `models action:"smoke"` checks for detected or default local endpoints, provider-add route hints when no route exists yet, provider-refresh routes, a confirmed `Run local benchmark` model-lane action backed by `agent_model_compare`, and saved local benchmark comparison artifacts when they exist.
+| Surface | What it does |
+| --- | --- |
+| Choose provider and model | Workspace picker action for the main chat route; helper, tool, and spoken-turn routes have their own picker rows. |
+| Run a local model benchmark | Confirmed workspace action that runs a local-route benchmark through blind comparison and saves latency/task-fit evidence without changing the route. |
+| `models action:"status"` | Route readiness scores, missing signals, pinned state, and safe route keys. |
+| `models action:"local"` | The hardware-scored local model cookbook with recipe ranking and setup/download guidance. |
+| `models action:"route"` | Exact endpoint inspection for one route, with model-list smoke commands, success criteria, and failure triage. |
+| `models action:"smoke"` | Confirmed model-list smoke checks against detected or default local endpoints. |
 
-Every selectable model and local recipe gets a 0-100 readiness score with dimensions for latency, context window, tool support, vision, cost, and privacy. Scores are estimated unless a live route benchmark has been recorded; they are intended for triage, not as hidden permission to switch the user's default model. Saved local benchmark artifacts are tagged through `agent_model_compare` with `benchmarkKind:"local-model-route"` and `taskType:"local-model-route"`; revealed winner judgments raise matching recipe confidence to measured evidence, and benchmark analytics open on that filtered slice. Default-model changes still require a separate confirmed route update.
+The cookbook covers Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers. It detects local-compatible provider ids and model routes when available, scans local OS CPU/RAM/platform data with safe accelerator hints, ranks recipe fit, and recommends the easiest first route. Each recipe's setup plan carries download/start guidance, local server endpoint candidates, provider-add route hints when no route exists yet, provider-refresh routes, and saved local benchmark comparison artifacts when they exist.
+
+Every selectable model and local recipe gets a 0-100 readiness score with dimensions for latency, context window, tool support, vision, cost, and privacy. Scores are estimated unless a live route benchmark has been recorded; they are intended for triage, not as hidden permission to switch the user's default model.
+
+Saved local benchmark artifacts are tagged through `agent_model_compare` with `benchmarkKind:"local-model-route"` and `taskType:"local-model-route"`; revealed winner judgments raise matching recipe confidence to measured evidence, and benchmark analytics open on that filtered slice. Default-model changes still require a separate confirmed route update.
 
 The cookbook does not probe drivers, call local network endpoints, install servers, download models, or change the selected route. Live local benchmark execution is a separate confirmed action that spends model tokens, saves comparison evidence, and leaves default-model changes to a separate revealed judgment and confirmed apply step.
 

@@ -20,30 +20,41 @@ GoodVibes Agent supports spoken turns as an Agent TUI feature. Text output remai
 
 `/config tts` opens the fullscreen configuration workspace for streaming provider, voice, and spoken-turn model routing.
 
-The model can inspect the same settings through `settings action:"list|get"`, use `device action:"voice|provider"` for voice/media posture and provider inspection, open the visible TTS provider or voice picker through `device action:"open_tts_provider|open_tts_voice"` with confirmation, and change Agent-owned TTS settings with `settings action:"set"` plus explicit confirmation. Lower-level `mode:"media_posture"` is compact by default; use `includeParameters:true` or `mode:"media_provider"` for full provider readiness, generation route hints, picker routes, and media policy detail. It also returns a voice workflow map for push-to-talk input, voice memo transcription, spoken responses, and wake-word capture, with ready/attention/setup-needed/not-published states, exact setup routes, and certified SDK/daemon permission-scoped live records when published.
+The model can inspect the same settings through `settings action:"list|get"`, use `device action:"voice|provider"` for voice/media posture and provider inspection, open the visible TTS provider or voice picker through `device action:"open_tts_provider|open_tts_voice"` with confirmation, and change Agent-owned TTS settings with `settings action:"set"` plus explicit confirmation.
 
-The wake row reports THIS surface's capture host: whether both enablement rows are on, which recorder is configured, whether a row is refusing to start it. It also keeps the paired-phone half in its own evidence field.
+Lower-level `mode:"media_posture"` is compact by default; use `includeParameters:true` or `mode:"media_provider"` for full provider readiness, generation route hints, picker routes, and media policy detail. It also returns a voice workflow map for push-to-talk input, voice memo transcription, spoken responses, and wake-word capture, with ready/attention/setup-needed/not-published states, exact setup routes, and certified SDK/daemon permission-scoped live records when published.
+
+The wake row in that map reports this surface's capture host, covering whether both enablement rows are on, which recorder is configured, and whether a row is refusing to start it. It keeps the paired-phone half in its own evidence field.
 
 Workspace action discovery includes compact `modelRoute` hints for TTS prompts, image input, and confirmed media generation; generated image/video requests use `agent_media_generate` when the user asks for that effect. Connected-host listener or lifecycle settings remain outside Agent ownership.
 
 ## Wake-word capture
 
 Wake-word detection runs on this surface. It is off by default in two places, and
-both have to be on before a microphone is opened: `voice.wake.enabled` (the feature)
-and `voice.wake.surfaces.agent` (delivery here, off by default because two terminal
-surfaces both acting on one spoken utterance is a confusing default). Nothing about
-this is implicit. A configuration that is off never opens a device and never
-produces a microphone permission prompt.
+both have to be on before a microphone is opened. `voice.wake.enabled` turns the
+feature on, and `voice.wake.surfaces.agent` delivers it here, off by default because
+two terminal surfaces both acting on one spoken utterance is a confusing default.
+Nothing about this is implicit. A configuration that is off never opens a device and
+never produces a microphone permission prompt.
 
-What happens when both are on:
+Capture uses an external recorder command. `voice.wake.captureCommand` names one,
+or `auto` (the default) probes them in this order and uses the first one installed:
 
-1. A recorder subprocess starts: `pw-record`, `parecord`, `arecord`, `ffmpeg` or
-   `sox`, whichever `voice.wake.captureCommand` names, or the first one installed
-   when it is `auto`. A named recorder that is not installed is reported, not
-   silently replaced.
+| Recorder | Audio stack it serves |
+| --- | --- |
+| `pw-record` | PipeWire, probed first |
+| `parecord` | PulseAudio |
+| `arecord` | ALSA |
+| `ffmpeg` | General-purpose capture through each platform's input framework |
+| `sox` | General-purpose capture, probed last |
+
+What happens when both enablement rows are on:
+
+1. The recorder subprocess starts. A named recorder that is not installed is
+   reported, not silently replaced.
 2. Every 80 ms frame is scored against the pinned "hey goodvibes" classifier through
-   onnxruntime-web on its WASM backend. The models are NOT downloaded automatically:
-   run `/voice wake status` to see what is on disk (verified by content, so a
+   onnxruntime-web on its WASM backend. The models are NOT downloaded automatically.
+   Run `/voice wake status` to see what is on disk (verified by content, so a
    truncated file reads as corrupt rather than present) and `/voice wake setup --yes`
    to download them. The same provision also fetches the speech gate
    `voice.wake.vadThreshold` uses, reported separately because the detector runs
@@ -64,35 +75,51 @@ What happens when both are on:
 
 ### Noise suppression and the speech gate
 
-Both of these rows shipped refusing, because neither stage existed. Both run now.
-
 `voice.wake.noiseSuppression: speex` applies SpeexDSP's denoiser. The filter is a
-WebAssembly module carried inside the platform package: 53 kB, embedded rather than
-downloaded, so there is no state in which the row is configured, unprovisioned, and
-therefore not filtering. It sits between the device and every consumer, so the engine
-scores filtered frames, the utterance recorded after a wake is filtered, and the
-pre-roll carried from before the wake is filtered. `none` is not a stage that does
-nothing. It is no stage, and the byte path is exactly the one that shipped.
+WebAssembly module embedded inside the platform package rather than downloaded, so
+there is no state in which the row is configured, unprovisioned, and therefore not
+filtering. It sits between the device and every consumer, so the engine scores
+filtered frames, the utterance recorded after a wake is filtered, and the pre-roll
+carried from before the wake is filtered. `none` inserts no stage at all; audio
+bytes reach every consumer unmodified.
 
 `voice.wake.vadThreshold` above 0 screens frames through a speech gate before the
 wake classifier sees them, so non-speech costs no classifier inference. The gate is a
 pinned head that runs over the SAME embedding the classifier consumes, and it
 provisions with the wake models. `/voice wake status` reports it separately from the
-classifier, because the detector is fully operational without it (the shipped default
-is 0). Its threshold table is measured, not guessed: `/voice wake status` prints what
-the configured value passes and stops.
+classifier, because the detector is fully operational without it (the default is 0).
+Its threshold table is measured rather than guessed, and `/voice wake status` prints
+what the configured value passes and stops.
 
-One refusal remains, moved rather than removed: `voice.wake.vadThreshold` above 0 on a
-host that does not have the gate on disk refuses to start the detector, because frames
-reaching the classifier unscreened while the row says they were screened is exactly
-what the refusal exists to prevent. Run `/voice wake setup --yes` and it runs.
+One refusal is deliberate. `voice.wake.vadThreshold` above 0 on a host that does not
+have the gate on disk refuses to start the detector, because frames reaching the
+classifier unscreened while the row says they were screened is exactly what the
+refusal exists to prevent. Run `/voice wake setup --yes` and the detector starts.
 
-A runtime with no WebAssembly at all would refuse `speex` for the same class of
-reason, in the platform's own wording, so it reads identically on every surface.
+A runtime with no WebAssembly at all refuses `speex` for the same class of reason,
+in the platform's own wording, so it reads identically on every surface.
 
 `voice.wake.surfaces.tui`, `voice.wake.surfaces.webui` and `voice.wake.browserBackend`
 are other surfaces' rows and change nothing here. The model's published recall figures
 are measured on synthesised speech only. No human has recorded the phrase.
+
+The `voice.wake.*` keys this surface reads, with their defaults:
+
+| Key | Default | What it controls |
+| --- | --- | --- |
+| `voice.wake.enabled` | off | The feature switch; off never opens a device |
+| `voice.wake.surfaces.agent` | off | Delivery of wake events to this surface |
+| `voice.wake.captureCommand` | `auto` | Which recorder starts, per the table above |
+| `voice.wake.activationSound` | `chime` | The sound played on a confirmed wake |
+| `voice.wake.indicator` | `statusline` | Where the persistent listening row renders |
+| `voice.wake.preRollMs` | 500 | Audio carried from before the wake fired into the recorded utterance |
+| `voice.wake.silenceStopMs` | 1200 | Silence that ends the post-wake utterance |
+| `voice.wake.captureMaxSeconds` | 10 | Hard ceiling on post-wake capture length |
+| `voice.wake.autoSubmit` | off | Submit the transcription as a turn instead of placing it in the input |
+| `voice.wake.maxRestarts` | 3 | Restart budget for a capture stream that dies |
+| `voice.wake.restartBackoffMs` | 2000 | Delay between those restarts |
+| `voice.wake.noiseSuppression` | `none` | The denoise stage described above |
+| `voice.wake.vadThreshold` | 0 | The speech gate described above |
 
 Wake capture on a PAIRED PHONE is a different capability and is still reported as
 `not-published` until the runtime exposes a certified permission-scoped contract. When
@@ -103,8 +130,8 @@ receipt evidence, and exact inspect/control routes.
 
 Live playback streams audio to a local player. Install one of:
 
-- `mpv`;
-- `ffplay`.
+- `mpv`, preferred and probed first; its read-ahead cache buffers the incoming stream so the opening audio survives device-open latency;
+- `ffplay` (part of FFmpeg), used when `mpv` is not installed.
 
 If neither player is on `PATH`, the Agent still submits and renders the normal text response. Audio is skipped with a concise status message.
 
@@ -131,52 +158,47 @@ If a spoken result should become durable, store it through an explicit Agent mem
 
 ## Platform voice-config cohesion
 
-The `tts.*` config keys (`tts.provider`, `tts.voice`, `tts.speed`, `tts.llmProvider`,
-`tts.llmModel`) are defined once, in the shared GoodVibes SDK config schema, and read
-identically by every surface: Agent, TUI, and the daemon. Agent does not define its
-own voice-config schema and does not read tts.* through any path other than the
-standard `ConfigManager.get`/`set` API that every other Agent setting uses. Changing
-`tts.provider` through `/config tts.provider` or `settings action:"set"` changes the
-exact same key a TUI user would change through its own `/config` surface. The
-key name, type, and default are one contract, not two independently-maintained ones.
+The `tts.*` config keys are defined once, in the shared GoodVibes SDK config schema,
+and read identically by every surface, including Agent, the TUI, and the daemon:
 
-`src/test/audio/voice-config-cohesion.test.ts` is the regression guard: it fails if
-the Agent ever reads a tts.* key that isn't in the shared schema, or if a tts.*
-reader stops importing `ConfigManager` from the shared SDK package.
+| Key | What it sets |
+| --- | --- |
+| `tts.provider` | Default TTS provider used when no provider is supplied on the request |
+| `tts.voice` | Default TTS voice id; empty lets the provider choose its default voice |
+| `tts.speed` | Playback speed multiplier for synthesis; 1.0 is normal speed |
+| `tts.llmProvider` | Optional LLM provider override for spoken-output turns; empty uses the active chat provider |
+| `tts.llmModel` | Optional LLM model override for spoken-output turns; empty uses the active chat model |
 
-What "shared" does **not** mean here: each surface still persists its *values* to its
-own settings file (Agent's under its own surface root, TUI's under its own). That is
-the existing, general-purpose per-surface config storage model, not something voice-
-specific, and changing it is out of scope for this ruling.
+Agent does not define its own voice-config schema and does not read `tts.*` through
+any path other than the standard `ConfigManager.get`/`set` API that every other Agent
+setting uses. Changing `tts.provider` through `/config tts.provider` or
+`settings action:"set"` changes the exact same key a TUI user would change through
+its own `/config` surface. The key name, type, and default are one contract, not two
+independently-maintained ones, and a regression test fails if Agent ever reads a
+`tts.*` key outside the shared schema or stops reading it through the shared
+`ConfigManager`.
 
-"Shared" means the
-schema/contract (the key names, types, and defaults) is one definition used by every
-surface, so the same key always means the same thing and takes the same kind of
-value everywhere. A user (or an operator script) setting `tts.voice` on one surface
-is setting the same conceptual value the other surfaces would read under that name,
-even though each surface keeps its own copy of the setting today.
+Sharing covers the schema, not the stored values. Each surface still persists its own
+values to its own settings file (Agent's under its own surface root, the TUI's under
+its own), which is the general per-surface config storage model rather than anything
+voice-specific. Setting `tts.voice` on one surface sets the same conceptual value the
+other surfaces read under that name, even though each surface keeps its own copy.
 
-Two related rulings, made for this parity pass:
+Two deliberate boundaries follow from Agent's local-first design:
 
 - **Local synthesis stays local.** Agent synthesizes speech directly against the
   configured provider (through the shared `VoiceService`/`VoiceProviderRegistry`) via
   a local `mpv`/`ffplay` subprocess, rather than routing playback through the daemon's
-  `voice.tts`/`voice.tts.stream` HTTP routes. This is deliberate, not an oversight:
-  Agent is a terminal tool that must keep working when there is no daemon running
-  (offline use), so voice output cannot depend on a daemon round-trip. The daemon's
-  voice routes exist for network consumers (the web UI); Agent's local-first design
-  is the reason it doesn't use them, and the config it reads to pick a provider is
-  still the one shared contract described above.
-- **Mic input arrives through the wake word, and only through it.** The ruling
-  recorded here used to be that Agent had no microphone capture at all and should not
-  grow a partial one. That ruling has been revisited exactly as it said to: the
-  platform now owns the low-level capture routine, the recorder argv, the framing arithmetic
-  and the post-wake utterance policy, so this surface composes them rather than
-  building a partial flow of its own (see "Wake-Word Capture" above).
-
-  What is still
-  deliberately absent is PUSH-TO-TALK: no key here opens a microphone, because the
-  wake phrase is the intended way to speak to the Agent and a second capture entry
-  point would be a second thing to hold the device. `voice.wake.captureMaxSeconds`
-  therefore bounds post-wake capture here and nothing else, even though its
-  description also names push-to-talk on surfaces that have it.
+  `voice.tts`/`voice.tts.stream` HTTP routes. Agent is a terminal tool that must keep
+  working when there is no daemon running, so voice output cannot depend on a daemon
+  round-trip. The daemon's voice routes exist for network consumers such as the web
+  UI, and the config Agent reads to pick a provider is still the one shared contract
+  described above.
+- **Mic input arrives through the wake word, and only through it.** The platform owns
+  the low-level capture routine, the recorder argv, the framing arithmetic, and the
+  post-wake utterance policy, and this surface composes them rather than building a
+  partial capture flow of its own (see "Wake-word capture" above). Push-to-talk is
+  deliberately absent. No key here opens a microphone, because the wake phrase is the
+  intended way to speak to the Agent, so `voice.wake.captureMaxSeconds` bounds
+  post-wake capture here and nothing else, even though its description also names
+  push-to-talk on surfaces that have it.

@@ -49,7 +49,7 @@ bun run dev
 
 Use the interactive workspace first. CLI subcommands are secondary support paths for install checks, setup inspection, and scriptable mirrors.
 
-Primary first-run areas:
+The workspace opens into a set of operator areas. Each area below names what it covers; the Setup area carries the guided path from a fresh install to a working connected host and model route, and the rest become useful as soon as setup is applied.
 
 - Setup:
   - guided first-run wizard with progress, current-step route hints, saved setup checkpoints, checkpoint auto-advance evidence when a saved step is already ready, backtracking routes, setup-smoke rerun/save routes, repeated-blocker focus from saved smoke history, and closeout state from critical blocker, saved smoke, durable setup receipt, and user completion-marker evidence
@@ -67,7 +67,7 @@ Primary first-run areas:
   - hardware-scored local model cookbook with setup/download guidance
   - certified local serving diagnostics with host-published start/repair route evidence
   - confirmed benchmark action/history
-  - connected-host compatibility
+  - connected-host compatibility reporting against the public Agent routes
   - live service probe evidence
   - token-safe connected-host auth posture with exact pairing route ids
   - confirmed local token create/repair
@@ -75,10 +75,10 @@ Primary first-run areas:
   - diagnostic/status repair recommendations
   - inspect-first confirmed service install/start/restart routes with success criteria and certified service receipt outcomes
   - Agent Knowledge readiness
-  - profiles
-  - support bundles
-  - subscriptions
-  - auth review
+  - isolated Agent profile creation and switching
+  - redacted support bundle export for troubleshooting handoffs
+  - provider subscription session posture
+  - provider auth review with redacted export
 - Home: assistant cockpit lanes for setup, chat/model choice, browser cockpit/PWA handoff, project work, Personal Ops, research/docs, background supervision, and safety/recovery, plus briefing, model refresh, health, doctor, and compatibility actions.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
 - Research: read-only web research and URL inspection, a visible Research briefing next-action queue, workflow planning with bounded public source-candidate search, certified live SDK/daemon browser-runner and visual-report render evidence when published, project-local visible research runs with log tails, browser-backed runner readiness/fallback posture, source queue, credibility review, reviewed-source bundles, plus confirmed sourced report artifacts with source maps, citation coverage checks, repair hints, and optional visual report packets.
@@ -92,9 +92,9 @@ Primary first-run areas:
   - visible reviewer-readiness preflight before export/archive/apply
   - inline readiness badges at document export, reviewer handoff/archive, and route-apply forms
   - packet defaults that prefill the next export/handoff/archive/apply/leave-unchanged/save-preset/share ids from the latest review packet while falling back to saved preset metadata only when live evidence is missing
-  - uploads
-  - exports
-  - source checks
+  - file uploads into saved artifacts
+  - document and artifact exports to workspace files
+  - source checks against attached evidence
   - generated media artifacts
   - saved artifact browse/show/export/package/archive
   - reviewed artifact-to-Knowledge promotion
@@ -133,14 +133,14 @@ Primary first-run areas:
   - fresh daemon/SDK-published inbox/calendar/task/reminder queue records with durable ids, labels, redacted snippets/notes, agenda windows, conflict signals, due times, cadence, delivery targets, freshness status, source paths, schema/version/publication/publisher/provenance/receipt evidence, read-only inspect routes, local draft/reminder follow-up routes, and confirmed provider-effect boundaries only when matching routes are published
   - live records for Agent-owned notes, routines, schedule receipts, delivery channels, and redacted delivery receipts
 - Memory & Skills:
-  - VIBE.md personality
-  - project context files
-  - local memory
-  - notes
-  - personas
-  - skills
-  - routines
-  - learned behavior capture
+  - VIBE.md personality inspection and import
+  - project context file inspection
+  - durable Agent-local memory records
+  - scratchpad notes
+  - reusable personas
+  - reusable skills and skill bundles
+  - startable routines with explicit schedule promotion
+  - learned behavior capture from completed work
   - prompt injection limited to safe VIBE.md, safe project context, and reviewed/confident setup-ready behavior
   - visible Local Context and Personas workspace health counts for VIBE.md/project context files
   - setup/curator visibility for blocked or truncated VIBE.md files
@@ -170,7 +170,7 @@ Common model routes:
 
 | Need | Tool Or Mode |
 | --- | --- |
-| Choose the best route for a user task | `route action:"plan" query:"..."`; host diagnostics route through `host action:"status"`; settings route through `settings action:"list"`; model provider/local-cookbook/smoke/route-fit requests route through `models action:"provider|local|smoke|route"`; Personal Ops briefing/queue/fresh-read/connector requests route through `personal_ops action:"briefing|queue|intake|lane"`; reminders/schedules route through `schedule action:"list"`; local background commands route through `execution action:"processes"`; interactive PTY/stdin/sudo questions route through `execution action:"process_capabilities"`, which surfaces certified daemon runtime records when published; external memory-provider/backend/sync requests route through `memory action:"provider"` or the provider checklist, which now shows provider-specific next routes, certified live read-model status when published, certified receipt evidence, and remaining checks before provider effects; browser-backed research runner requests route through `research action:"runner"`; visual research report rendering routes through `research action:"plan"` plus report artifacts; voice workflow and TTS-provider requests route through `device action:"voice|provider"`; browser cockpit/PWA requests route through `computer action:"browser"` before confirmed open handoff; channel setup/triage/delivery-receipt/send requests route through `channels action:"setup|triage|deliveries|channel"`; permission posture/finding/blocked-action questions route through `security action:"status|finding|explain"`; support-bundle requests route through `support action:"status|bundle"`; saved-session/bookmark/continuity requests route through `sessions action:"list|get"`; release readiness/evidence requests route through `audit action:"readiness|evidence|item|artifact"`; file undo/redo routes through `execution action:"recovery"`; media generation routes through provider readiness plus `agent_media_generate`; screenshot/browser/desktop-control tasks route through `computer action:"plan"`; lower-level `agent_harness mode:"route_decision"` remains available for compatibility/detail |
+| Choose the best route for a user task | `route action:"plan" query:"..."`; host diagnostics route through `host action:"status"`; settings route through `settings action:"list"`; model provider/local-cookbook/smoke/route-fit requests route through `models action:"provider|local|smoke|route"`; Personal Ops briefing/queue/fresh-read/connector requests route through `personal_ops action:"briefing|queue|intake|lane"`; reminders/schedules route through `schedule action:"list"`; local background commands route through `execution action:"processes"`; interactive PTY/stdin/sudo questions route through `execution action:"process_capabilities"`, which surfaces certified daemon runtime records when published; external memory-provider/backend/sync requests route through `memory action:"provider"` or the provider checklist, which shows provider-specific next routes, certified live read-model status when published, certified receipt evidence, and remaining checks before provider effects; browser-backed research runner requests route through `research action:"runner"`; visual research report rendering routes through `research action:"plan"` plus report artifacts; voice workflow and TTS-provider requests route through `device action:"voice|provider"`; browser cockpit/PWA requests route through `computer action:"browser"` before confirmed open handoff; channel setup/triage/delivery-receipt/send requests route through `channels action:"setup|triage|deliveries|channel"`; permission posture/finding/blocked-action questions route through `security action:"status|finding|explain"`; support-bundle requests route through `support action:"status|bundle"`; saved-session/bookmark/continuity requests route through `sessions action:"list|search|get"`; release readiness/evidence requests route through `audit action:"readiness|evidence|item|artifact"`; file undo/redo routes through `execution action:"recovery"`; media generation routes through provider readiness plus `agent_media_generate`; screenshot/browser/desktop-control tasks route through `computer action:"plan"`; lower-level `agent_harness mode:"route_decision"` remains available for compatibility/detail |
 | Harness mode discovery | `agent_harness mode:"modes"`, `mode:"mode"` |
 | Workspace actions | `workspace action:"status|actions|action|run"`; lower-level workspace harness modes remain available for compatibility/detail |
 | Slash commands | `workspace action:"commands|command|run_command"`; lower-level command harness modes remain available for compatibility/detail |
@@ -225,11 +225,24 @@ Named profiles isolate Agent-local config, sessions, VIBE.md, memory, notes, per
 
 VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, surfaced in the Local Context and Personas workspaces, setup, and the learning curator when blocked or truncated, optionally carried through profile starter export/import with `--include-vibe`, and applied to the serial Agent conversation. The model-visible route is `vibe action:"status|show"` for inspection and `vibe action:"init|import_persona" confirm:true explicitUserRequest:"..."` for confirmed personality changes; previews also return exact model and CLI `confirmationRoutes` for the same init/import action. They do not write into default knowledge or other product segments.
 
-Project context files are workspace instructions, not personality. GoodVibes Agent discovers `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, optional `HERMES_HOME/SOUL.md`, `.cursorrules`, and `.cursor/rules/*.mdc`, scans them for secret-looking content, applies bounded safe content to the serial Agent prompt, shows loaded/blocked/truncated counts in Local Context, and exposes loaded or blocked files through `context action:"files"` and `context action:"file"`. Subdirectory context is discovered when a target path is supplied.
+Project context files are workspace instructions, not personality. GoodVibes Agent discovers them from these sources, in this application order:
+
+| Source | Where it is discovered | What it is |
+| --- | --- | --- |
+| `HERMES_HOME/SOUL.md` | Only when the `HERMES_HOME` environment variable is set | Global instruction file, applied before everything else |
+| `.hermes.md`, `HERMES.md` | Every directory from the project root down to the target directory | Hermes-convention project instruction files |
+| `AGENTS.md` | The same directory walk | The shared cross-agent instruction file convention |
+| `CLAUDE.md` | The same directory walk | Claude-convention project instruction file |
+| `.cursorrules` | The working directory | Cursor's single-file rules format |
+| `.cursor/rules/*.mdc` | The working directory, sorted by filename | Cursor's per-rule files |
+
+Every discovered file is scanned for secret-looking content, and bounded safe content is applied to the serial Agent prompt. Local Context shows loaded/blocked/truncated counts, and `context action:"files"` and `context action:"file"` expose loaded or blocked files to the model. Subdirectory context is discovered when a target path is supplied.
 
 Memory, notes, personas, routines, and Agent skills are local to GoodVibes Agent. Only reviewed, high-confidence local context should steer the assistant. Prompt context includes reviewed memory at or above the durable confidence threshold and reviewed setup-ready skills, routines, bundles, and personas. Enabled but unreviewed, stale, low-confidence, setup-blocked, or blocked context records are surfaced as suppressed review work instead of being applied silently.
 
-Prompt builds write durable receipts with ids, turn/source/model/provider, selected and suppressed record refs, segment counts, prompt hash, size, timestamp, and sanitized completed/error/cancelled outcome without storing raw prompt or response text. Agent Workspace -> Local Context shows a compact receipt timeline with outcome counts, latest turn outcome, applied/suppressed counts, bounded outcome detail, exact latest-receipt drill-in, and outcome filter routes. Use `context action:"prompt"`, `context action:"receipts"`, or `context action:"receipt"` when the model or operator needs the current applied order, recent receipt ids, exact `receiptId`, `turnId`, or `outcomeStatus` filtering, turn outcomes, selected records, suppressed records, prompt previews on request, and approximate token budget.
+Prompt builds write durable receipts with ids, turn/source/model/provider, selected and suppressed record refs, segment counts, prompt hash, size, timestamp, and sanitized completed/error/cancelled outcome without storing raw prompt or response text. Agent Workspace -> Local Context shows a compact receipt timeline with outcome counts, latest turn outcome, applied/suppressed counts, bounded outcome detail, exact latest-receipt drill-in, and outcome filter routes.
+
+Use `context action:"prompt"`, `context action:"receipts"`, or `context action:"receipt"` when the model or operator needs the current applied order, recent receipt ids, exact `receiptId`, `turnId`, or `outcomeStatus` filtering, turn outcomes, selected records, suppressed records, prompt previews on request, and approximate token budget.
 
 Use the workspace first:
 
@@ -257,7 +270,9 @@ Agent commands fail closed if the route is unavailable or a successful-looking r
 
 The Knowledge workspace also exposes route-backed and command-backed workflows for issue review, prompt packet previews, context-selection explain output, consolidation, and reindex. Read-only ask/search/list/get/map/connector/packet/explain paths do not require mutation confirmation. Ingest, review-issue, consolidation, and reindex paths require explicit confirmation.
 
-Use Agent Workspace -> Research for read-only web research, URL inspection, visible checkpointable research run state, a read-only Research briefing queue, bounded public source-candidate search, certified live SDK/daemon browser-runner and visual-report render evidence when published, project-local source queue review, reviewed-source bundles, saved report inspection, and confirmed sourced report artifacts. Research requests do not ingest sources. The Research workspace shows browser-runner and visual-report readiness, the direct `research` run/source/report routes, a Research briefing action for `research action:"briefing"`, a Plan workflow action for `research action:"plan"`, a Public source search action for `research action:"search"`, a Browser runner readiness action for `research action:"runner"`, and a Report artifacts action for `research action:"reports"`.
+Use Agent Workspace -> Research for read-only web research, URL inspection, visible checkpointable research run state, a read-only Research briefing queue, bounded public source-candidate search, certified live SDK/daemon browser-runner and visual-report render evidence when published, project-local source queue review, reviewed-source bundles, saved report inspection, and confirmed sourced report artifacts. Research requests do not ingest sources.
+
+The Research workspace shows browser-runner and visual-report readiness, the direct `research` run/source/report routes, a Research briefing action for `research action:"briefing"`, a Plan workflow action for `research action:"plan"`, a Public source search action for `research action:"search"`, a Browser runner readiness action for `research action:"runner"`, and a Report artifacts action for `research action:"reports"`.
 
 Use `research action:"briefing"` first when the model needs one read-only next-action queue across visible runs, source review, saved report artifacts, certified live runner/render evidence, browser readiness, and exact follow-up routes. Use `research action:"search"` for one bounded public web search that returns capture-ready source candidates plus exact confirmed `add_source` routes; pass `runId` to use an existing visible run's saved question and receive run-specific start/checkpoint follow-up routes. It does not create runs or write source records by itself.
 
@@ -343,24 +358,32 @@ One bounded exception happens at boot: when the host is already installed on thi
 
 ## Current product notes
 
-Agent uses the GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. Use `execution action:"status"` before computer-work handoffs: local read/edit/exec is the preferred route when the current workspace and permissions are sufficient, and Agent Workspace -> Work & Approvals shows local process supervision with tracked/running/completed counts, stdin/PTY/sudo parity, and Background processes / Process capabilities actions. Local shell/edit routes advertise process monitor/live tail/tool inspector supervision; first-class `execution`, `terminal`, and `process` adapters expose `execution action:"status|route|history|record|processes|process_capabilities|process|recovery"`, `terminal(command, background:true)`, and `process(action:"list|poll|wait|log|kill|write")` over the same tracked ProcessManager lifecycle. `execution action:"capabilities|doctor|parity"` now goes straight to the read-only process capability report, while `process action:"capabilities"` remains available for users already in the process lifecycle tool. Lower-level `mode:"execution_posture|execution_route|browser_control_route|background_processes|background_process|run_background_process|execution_history|execution_history_item|file_recovery|run_file_recovery"` routes remain available for compatibility and detailed inspection.
+Agent uses the GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. Use `execution action:"status"` before computer-work handoffs. Local read/edit/exec is the preferred route when the current workspace and permissions are sufficient, and Agent Workspace -> Work & Approvals shows local process supervision with tracked/running/completed counts, stdin/PTY/sudo parity, and Background processes / Process capabilities actions.
+
+Local shell/edit routes advertise process monitor/live tail/tool inspector supervision. First-class `execution`, `terminal`, and `process` adapters expose `execution action:"status|route|history|record|processes|process_capabilities|process|recovery"`, `terminal(command, background:true)`, and `process(action:"list|poll|wait|log|kill|write")` over the same tracked ProcessManager lifecycle. `execution action:"capabilities|doctor|parity"` goes straight to the read-only process capability report, while `process action:"capabilities"` remains available for users already in the process lifecycle tool. Lower-level `mode:"execution_posture|execution_route|browser_control_route|background_processes|background_process|run_background_process|execution_history|execution_history_item|file_recovery|run_file_recovery"` routes remain available for compatibility and detailed inspection.
 
 The process capability report probes SDK ProcessManager methods plus daemon terminal/PTY, session-input, and credential routes so unsupported interactive features are tied to exact contract evidence instead of stale assumptions. PTY remains unsupported until a typed interactive session contract exists, and background sudo prompts are blocked in favor of visible user-supervised escalation. `setup action:"item" setupItemId:"sudo-execution-posture"` exposes SUDO_PASSWORD presence only, `~/.goodvibes/.env` guidance, blocked background sudo/stdin password routes, and the foreground shell route without reading or returning raw password values.
 
 `setup action:"status"` also exposes connected-host setup repair cards with live service probe evidence, token-safe auth posture, exact pairing route ids, confirmed local token provisioning, status, service posture, recommended diagnostic/status routes, and confirmed service install/start/restart routes that stay inspect-first until service status proves need, plus browser/desktop-control readiness with ready, attention, or setup-needed state, workflow cards, setup checklist, fallback routes, MCP review routes, and `computer action:"plan"` for selecting a browser navigation, screenshot/observation, or desktop-control workflow before any trusted live-control tool is invoked.
 
-Visible subagents stay serial-by-default unless independent work materially helps the user. `agent_harness mode:"agent_orchestration"` exposes the live Agent manager, managed multi-agent plan milestones, per-agent plan cards, linked work-plan receipts, closeout review/update routes, remote-runner contracts/artifact trails, certified daemon/SDK live capture/export/closeout outcome records, certified workspace/worktree isolation evidence with schema/version/publication/publisher/provenance/freshness-cursor/receipt metadata and missing-signal surfacing, auto-attached remote artifact review routes matched by runner id, spawn/batch-spawn decision cards, templates, and exact `agent` list/inspect/message/wait/cancel routes; `mode:"agent_orchestration_agent"` inspects one visible agent record with its plan card.
+Visible subagents stay serial-by-default unless independent work materially helps the user. `agent_harness mode:"agent_orchestration"` exposes the live Agent manager, managed multi-agent plan milestones, per-agent plan cards, linked work-plan receipts, closeout review/update routes, remote-runner contracts/artifact trails, certified daemon/SDK live capture/export/closeout outcome records, and certified workspace/worktree isolation evidence with schema/version/publication/publisher/provenance/freshness-cursor/receipt metadata and missing-signal surfacing.
+
+The same mode carries auto-attached remote artifact review routes matched by runner id, spawn/batch-spawn decision cards, templates, and exact `agent` list/inspect/message/wait/cancel routes; `mode:"agent_orchestration_agent"` inspects one visible agent record with its plan card.
 
 Approved visible work-plan items can be converted into visible agents through confirmed `agent_work_plan action:"dispatch_agents"`; the route previews without spawning, then calls first-class `agent` spawn or batch-spawn, writes linked-agent receipts back to the plan, and returns next routes for orchestration, work-plan detail, agent inspect/wait/message/cancel, and closeout.
 
 Delegation is reserved for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review. `delegation action:"status|routes"` exposes local-first, TUI handoff, delegated-review, remote-inspection, and hidden-fanout-blocked decision cards; `delegation action:"route"` rows show required fields, success evidence, status routes, and recovery routes, while lower-level `agent_harness mode:"delegation_posture|delegation_route"` remains available for detailed compatibility inspection. The confirmed `/delegate` and Agent Workspace handoff form preserve the original ask plus delegation reason, success criteria, workspace/worktree hint, priority, and explicit review intent.
 
-The active autonomy policy is visible autonomy: long-running work must have a user-readable task, status/progress, cancellation route, success criteria, and confirmation gates for external or daemon-mutating effects. Use `autonomy action:"intake"` to turn an ongoing-work request into the safest visible route and missing fields; webhook/event-trigger requests expose trigger workflow posture and route applicable incoming watcher setup to the published `watchers.create` operator method, with trusted source/scope, task or run target, success criteria, `confirm:true`, and `explicitUserRequest` required. Confirmed autonomous schedule creation uses `schedule action:"create"`, and confirmed existing-schedule edits use `schedule action:"edit"` with read-only current-state diffs before confirmation. Inspect current autonomy cards with `autonomy action:"queue"` or one card with `action:"item"`; lower-level `agent_harness mode:"autonomy_intake|autonomy_queue|autonomy_queue_item"` remains available for detailed compatibility inspection.
+The active autonomy policy is visible autonomy. Long-running work must have a user-readable task, status/progress, cancellation route, success criteria, and confirmation gates for external or daemon-mutating effects. Use `autonomy action:"intake"` to turn an ongoing-work request into the safest visible route and missing fields; webhook/event-trigger requests expose trigger workflow posture and route applicable incoming watcher setup to the published `watchers.create` operator method, with trusted source/scope, task or run target, success criteria, `confirm:true`, and `explicitUserRequest` required.
 
-Research runs, connected-host tasks, approvals, automation runs, schedules, and delegated subagents surface live records or exact orchestration routes with progress/status, source ids, next steps, log tails when available, task retry/output/correlation diagnostics, bounded redacted host task output route/preview descriptors, automation telemetry/delivery/route diagnostics, normalized available/unavailable controls with reasons, and exact inspect/checkpoint/pause/resume/cancel/approve/deny/retry/run/edit/enable/disable/delete routes where the owning surface supports them. Schedule records also expose pause/resume aliases over daemon enable/disable lifecycle routes so the queue speaks in user intent instead of scheduler internals. Connected-host task cancel/retry stays on exact confirmed `agent_operator_method` routes, while `/tasks` remains inspection-only.
+Confirmed autonomous schedule creation uses `schedule action:"create"`, and confirmed existing-schedule edits use `schedule action:"edit"` with read-only current-state diffs before confirmation. Inspect current autonomy cards with `autonomy action:"queue"` or one card with `action:"item"`; lower-level `agent_harness mode:"autonomy_intake|autonomy_queue|autonomy_queue_item"` remains available for detailed compatibility inspection.
+
+Research runs, connected-host tasks, approvals, automation runs, schedules, and delegated subagents surface live records or exact orchestration routes with progress/status, source ids, next steps, log tails when available, task retry/output/correlation diagnostics, bounded redacted host task output route/preview descriptors, automation telemetry/delivery/route diagnostics, normalized available/unavailable controls with reasons, and exact inspect/checkpoint/pause/resume/cancel/approve/deny/retry/run/edit/enable/disable/delete routes where the owning surface supports them.
+
+Schedule records also expose pause/resume aliases over daemon enable/disable lifecycle routes so the queue speaks in user intent instead of scheduler internals. Connected-host task cancel/retry stays on exact confirmed `agent_operator_method` routes, while `/tasks` remains inspection-only.
 
 The autonomy queue also consumes SDK/daemon watcher run/source read models when they are published, including watcher run history, automation watcher runs, Gmail/email provider sources, bounded redacted watcher output chunks, source/checkpoint/correlation diagnostics, read-only provider-source inspect/refresh controls, and exact confirmed watcher controls only when the owning host publishes those routes.
 
-The preferred model-facing schedule path is now `schedule action:"list|create|remind|edit|run|pause|resume|delete"`. The lower-level `agent_autonomy_schedule`, `agent_reminder_schedule`, `agent_schedule_edit`, and `agent_operator_action` routes remain available for exact diagnostics and compatibility.
+The preferred model-facing schedule path is `schedule action:"list|create|remind|edit|run|pause|resume|delete"`. The lower-level `agent_autonomy_schedule`, `agent_reminder_schedule`, `agent_schedule_edit`, and `agent_operator_action` routes remain available for exact diagnostics and compatibility.
 
 Security policy decisions are inspectable before execution. The route planner sends active permission or approval questions to `security action:"status"`, incident/finding/leaked-secret questions to `security action:"finding"`, and blocked-action or confirmation questions to `security action:"explain"` before any risky work is attempted. Use `security action:"explain" toolName:"<tool>" toolArgs:{...}` or lower-level `agent_harness mode:"policy_explain"` to see the Agent route guard, permission-mode prediction, typed-confirmation requirement, redacted argument preview, and exact follow-up routes for one model action. The explanation is read-only; final execution still uses the live safety guard, permission prompt, and owning tool confirmation.
