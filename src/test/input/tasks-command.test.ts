@@ -225,7 +225,7 @@ describe('tasks command', () => {
 
     await tasksCommand!.handler(['open'], ctx);
 
-    expect(out.join('\n')).toContain('Agent Workspace -> Work -> Host tasks');
+    expect(out.join('\n')).toContain('Agent Workspace -> Work & Approvals -> Filter host tasks');
   });
 
   test('blocks copied runtime task interventions in Agent', async () => {

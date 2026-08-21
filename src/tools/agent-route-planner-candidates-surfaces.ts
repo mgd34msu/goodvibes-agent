@@ -11,7 +11,7 @@ if (browserControlLike(lower)) {
       id: 'browser-control-workflow-plan',
       label: 'Browser, screenshot, or desktop-control workflow plan',
       score: 97,
-      userSurface: 'Work and computer-use workspace',
+      userSurface: 'Work & Approvals workspace',
       userOutcome: 'Choose the safest browser, screenshot, or desktop-control workflow before any live UI action.',
       why: 'The request asks for screenshot, browser navigation/control, screen observation, or desktop control.',
       modelRoute: `computer action:"plan" query:${quote(request)} includeParameters:true`,
@@ -62,7 +62,7 @@ if (browserControlLike(lower)) {
       why: 'The request mentions voice workflows, voice memo transcription, push-to-talk, spoken responses, or wake-word capture.',
       modelRoute: `device action:"voice" query:${quote(request)} includeParameters:true`,
       inspectRoute: 'device action:"voice" includeParameters:true',
-      userRoute: 'Agent Workspace -> Voice & Media -> Voice workflows',
+      userRoute: 'Agent Workspace -> Voice & Media -> Voice readiness',
       requiresConfirmation: voiceEffect,
       missingFields: voiceEffect
         ? ['voice workflow id or audio source', 'selected provider when needed', 'confirmation before capture, transcription, playback, or visible picker handoff']
@@ -88,7 +88,7 @@ if (browserControlLike(lower)) {
       why: 'The request mentions TTS, text-to-speech, speech synthesis, voice provider, or TTS voice selection.',
       modelRoute: 'device action:"provider" target:"tts" includeParameters:true',
       inspectRoute: 'device action:"voice" includeParameters:true',
-      userRoute: 'Agent Workspace -> Voice & Media -> TTS setup',
+      userRoute: 'Agent Workspace -> Voice & Media -> TTS provider',
       requiresConfirmation: openPicker,
       missingFields: openPicker ? ['provider or voice target when known', 'confirmation before visible picker handoff or setting change'] : undefined,
       supportingRoutes: [
@@ -111,7 +111,7 @@ if (browserControlLike(lower)) {
       why: 'The request mentions the browser cockpit, PWA, web dashboard, or browser dashboard.',
       modelRoute: 'computer action:"browser" includeParameters:true',
       inspectRoute: 'workspace action:"surface" surfaceId:"connected-browser-cockpit" includeParameters:true',
-      userRoute: 'Agent Workspace -> Home -> Browser cockpit',
+      userRoute: 'Connected Browser Cockpit (opened through confirmed computer action:"open_browser")',
       requiresConfirmation: openCockpit,
       missingFields: openCockpit ? ['confirmation before opening the external browser/PWA handoff'] : undefined,
       supportingRoutes: [
@@ -238,7 +238,7 @@ if (browserControlLike(lower)) {
       why: 'The request mentions external channels, notifications, target setup, or delivery receipts.',
       modelRoute,
       inspectRoute: deliveries ? 'channels action:"status" includeParameters:true' : triage ? 'channels action:"status" includeParameters:true' : 'channels action:"triage" includeParameters:true',
-      userRoute: 'Agent Workspace -> Channels',
+      userRoute: 'Agent Workspace -> Messaging',
       requiresConfirmation: setupEffect || sendEffect,
       missingFields: sendEffect
         ? ['configured target', 'message text', 'confirmation']
@@ -261,12 +261,12 @@ if (browserControlLike(lower)) {
       id: 'documents-artifacts-compare',
       label: 'Documents, artifacts, and model comparison',
       score: 86,
-      userSurface: 'Documents & Compare workspace',
+      userSurface: 'Documents & Files workspace',
       userOutcome: 'Keep drafts, uploads, artifacts, reviewer packets, and model choices in one reviewable workflow.',
       why: 'The request is about documents, artifacts, exports, reviewer packets, or blind model comparison.',
       modelRoute: 'workspace action:"actions" categoryId:"documents" query:"documents compare artifacts"',
       inspectRoute: 'agent_harness mode:"document_ops" includeParameters:true',
-      userRoute: 'Agent Workspace -> Documents & Compare',
+      userRoute: 'Agent Workspace -> Documents & Files',
       requiresConfirmation: hasAny(lower, ['create', 'revise', 'export', 'archive', 'share', 'compare', 'apply', 'attach', 'insert']),
       supportingRoutes: [
         'agent_documents action:"browse"',
@@ -304,12 +304,12 @@ if (browserControlLike(lower)) {
         id: 'security-permission-status',
         label: 'Security and permission posture',
         score: 98,
-        userSurface: 'Safety and recovery workspace',
+        userSurface: 'Security panel',
         userOutcome: 'Show the current permission, approval, trust, and security posture before changing policy or attempting risky work.',
         why: 'The request asks what permissions, approvals, policies, or safety status are active.',
         modelRoute: `security action:"status" query:${quote(request)} includeParameters:true`,
         inspectRoute: 'security action:"status" includeParameters:true',
-        userRoute: 'Agent Workspace -> Safety & Recovery',
+        userRoute: '/security',
         requiresConfirmation: false,
         supportingRoutes: [
           'workspace action:"actions" categoryId:"tools-permissions"',
@@ -325,12 +325,12 @@ if (browserControlLike(lower)) {
         id: 'security-finding-inspection',
         label: 'Security finding inspection',
         score: 97,
-        userSurface: 'Safety and recovery workspace',
+        userSurface: 'Security panel',
         userOutcome: 'Inspect the exact security finding, trust issue, incident, or leaked-secret record before repair work.',
         why: 'The request asks to inspect a security finding, incident, vulnerability, trust warning, or secret-leak issue.',
         modelRoute: `security action:"finding" target:${quote(request)} includeParameters:true`,
         inspectRoute: 'security action:"status" includeParameters:true',
-        userRoute: 'Agent Workspace -> Safety & Recovery',
+        userRoute: '/security',
         requiresConfirmation: false,
         supportingRoutes: [
           'security action:"status" includeParameters:true',
@@ -347,14 +347,14 @@ if (browserControlLike(lower)) {
         id: 'security-policy-explanation',
         label: 'Security policy explanation',
         score: securityPolicyExplainLike(lower) ? 100 : 90,
-        userSurface: 'Safety and recovery workspace',
+        userSurface: 'Security panel',
         userOutcome: 'Explain whether one model action is allowed, blocked, or waiting on confirmation before performing it.',
         why: 'The request asks about a tool, route, command, approval, confirmation, or why an action is allowed, denied, or blocked.',
         modelRoute: explainTarget
           ? `security action:"explain" target:${quote(explainTarget)} toolArgs:{...} includeParameters:true`
           : 'security action:"explain" toolName:"..." toolArgs:{...} includeParameters:true',
         inspectRoute: 'security action:"status" includeParameters:true',
-        userRoute: 'Agent Workspace -> Safety & Recovery',
+        userRoute: '/security',
         requiresConfirmation: false,
         missingFields: explainTarget ? ['arguments or action details to explain'] : ['tool name or route id', 'arguments or action details to explain'],
         supportingRoutes: [
@@ -373,12 +373,12 @@ if (browserControlLike(lower)) {
       id: 'support-bundle-route',
       label: 'Support bundle and diagnostics packet route',
       score: 96,
-      userSurface: 'Safety and recovery workspace',
+      userSurface: 'Connected Host workspace',
       userOutcome: 'Inspect available redacted support, diagnostic, trust, auth, or forensic bundles before exporting or importing anything.',
       why: 'The request mentions support bundles, diagnostic bundles, forensic bundles, or support packets.',
       modelRoute: `support action:"status" query:${quote(request)} includeParameters:true`,
       inspectRoute: 'support action:"status" includeParameters:true',
-      userRoute: 'Agent Workspace -> Safety & Recovery -> Support bundles',
+      userRoute: 'Agent Workspace -> Connected Host -> Export support bundle',
       requiresConfirmation: bundleEffect,
       missingFields: bundleEffect ? ['bundle type or path', 'export/import/share destination when applicable', 'confirmation before bundle export, import, or external sharing'] : undefined,
       supportingRoutes: [
@@ -402,7 +402,7 @@ if (browserControlLike(lower)) {
       why: 'The request mentions saved sessions, session search, transcript export, bookmarks, restore, or conversation continuity.',
       modelRoute: `sessions action:"list" query:${quote(request)} includeParameters:true`,
       inspectRoute: 'sessions action:"list" includeParameters:true',
-      userRoute: 'Agent Workspace -> Conversation -> Saved sessions',
+      userRoute: 'Agent Workspace -> Conversation -> Search saved sessions',
       requiresConfirmation: mutation,
       missingFields: mutation ? ['session id, title, or search target', 'exact lifecycle action', 'confirmation before save/load/resume/rename/fork/export/delete/bookmark changes'] : undefined,
       supportingRoutes: [
@@ -422,7 +422,7 @@ if (browserControlLike(lower)) {
       id: evidence ? 'release-evidence-route' : 'release-readiness-route',
       label: evidence ? 'Release evidence artifact route' : 'Release readiness inventory route',
       score: 96,
-      userSurface: 'Operator audit workspace',
+      userSurface: 'Operator/audit release artifacts',
       userOutcome: evidence
         ? 'Inspect packaged release evidence and operator/audit artifacts without expanding raw files blindly.'
         : 'Inspect the release-quality inventory, gates, and readiness dimensions before claiming a product capability is covered.',
@@ -433,7 +433,7 @@ if (browserControlLike(lower)) {
       inspectRoute: evidence
         ? 'audit action:"evidence" includeParameters:true'
         : 'audit action:"readiness" includeParameters:true',
-      userRoute: 'Agent Workspace -> Operator Audit',
+      userRoute: 'release/ evidence files shipped in the package',
       requiresConfirmation: false,
       supportingRoutes: evidence
         ? [

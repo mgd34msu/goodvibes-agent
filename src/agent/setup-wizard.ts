@@ -586,7 +586,7 @@ function buildCloseout(input: {
       nextAction: 'Run the confirmed setup smoke route, capture user-visible package/status and first-turn output, then save the redacted evidence.',
       primaryStepId: 'install-smoke',
       primaryStepLabel: 'Install smoke',
-      userRoute: 'Agent Workspace -> Start -> Install smoke',
+      userRoute: 'Agent Workspace -> Start',
       modelRoute: input.smokeHistory.saveRoute,
       requiresConfirmation: true,
       evidence,

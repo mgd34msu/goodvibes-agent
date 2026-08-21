@@ -76,12 +76,12 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
 
   const nextActions = [
     snapshot.provider === 'unknown' || snapshot.model === 'unknown'
-      ? 'Choose the assistant model from Agent Workspace -> Home -> Choose model.'
+      ? 'Choose the assistant model from Agent Workspace -> Start -> Choose main model.'
       : '',
     snapshot.localMemoryCount === 0
-      ? 'Store durable non-secret facts from Agent Workspace -> Memory -> Add memory.'
+      ? 'Store durable non-secret facts from Agent Workspace -> Memory -> Create memory.'
       : snapshot.localMemoryReviewQueueCount > 0
-        ? `Review ${plural(snapshot.localMemoryReviewQueueCount, 'memory record')} from Agent Workspace -> Memory -> Review queue.`
+        ? `Review ${plural(snapshot.localMemoryReviewQueueCount, 'memory record')} from Agent Workspace -> Memory -> Learning curator.`
         : '',
     !hasLocalSkillBehavior
       ? 'Create reusable procedures from Agent Workspace -> Skills or import reviewed skill files.'
@@ -103,7 +103,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
         ? 'Enable reviewed routines from Agent Workspace -> Routines.'
         : '',
     channelSetupGaps > 0
-      ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup from Agent Workspace -> Channels.`
+      ? `Review ${plural(channelSetupGaps, 'enabled channel')} needing setup from Agent Workspace -> Messaging.`
       : '',
     voiceSetupNeedsReview
       ? 'Review voice setup from Agent Workspace -> Voice & Media before relying on spoken replies.'
@@ -112,7 +112,7 @@ export function formatAgentOperatorBriefing(ctx: CommandContext): string {
       ? 'Review media provider setup from Agent Workspace -> Voice & Media before relying on image or media workflows.'
       : '',
     'Use Agent Workspace -> Knowledge for Agent Knowledge status, search, and explicit ingest forms.',
-    'Use Agent Workspace -> Build Delegation only for explicit build, fix, implementation, or review handoff to GoodVibes TUI.',
+    'Use Agent Workspace -> Work & Approvals -> Delegate a build task only for explicit build, fix, implementation, or review handoff to GoodVibes TUI.',
   ].filter((line): line is string => line.length > 0);
 
   return [

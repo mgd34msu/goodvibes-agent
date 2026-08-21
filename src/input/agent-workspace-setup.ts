@@ -73,7 +73,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       label: 'Connected host',
       status: 'ready',
       detail: `Agent will connect to ${input.runtimeBaseUrl}; protected host routes also need the Agent companion token below.`,
-      breadcrumb: 'Home -> Review health',
+      breadcrumb: 'Connected Host',
     },
     {
       id: 'connected-host-auth',
@@ -88,7 +88,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
           : tokenPathKnown
             ? `Provision Agent's local connected-host operator token at ${input.connectedHostTokenPath} before pairing channels, Knowledge, schedules, or protected daemon routes.`
             : 'Shell paths are unavailable in this runtime, so connected-host auth cannot be verified from the workspace snapshot.',
-      breadcrumb: 'Host -> Connected-host auth owner',
+      breadcrumb: 'Connected Host',
     },
     {
       id: 'provider-model',
@@ -97,7 +97,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: providerReady
         ? `Current chat route is ${input.provider} / ${input.model}.`
         : 'Choose a provider and model before relying on assistant turns.',
-      breadcrumb: 'Setup -> Provider and model',
+      breadcrumb: 'Start -> Choose main model',
     },
     {
       id: 'subscriptions',
@@ -114,7 +114,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
           : input.availableSubscriptionProviderCount > 0
             ? `${input.availableSubscriptionProviderCount} subscription-capable provider(s) are available. Start login if you want subscription routing.`
             : 'No subscription-capable providers are available yet. Use API keys or add an OAuth provider service.',
-      breadcrumb: 'Start -> Start subscription login',
+      breadcrumb: 'Start -> Sign in to a provider',
     },
     {
       id: 'agent-knowledge',
@@ -200,7 +200,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: input.readyChannelCount > 0
         ? `${input.readyChannelCount} external channel(s) are ready.`
         : 'Pair or review channels only when you want the assistant reachable outside this terminal.',
-      breadcrumb: 'Channels',
+      breadcrumb: 'Messaging',
     },
     {
       id: 'voice-media',

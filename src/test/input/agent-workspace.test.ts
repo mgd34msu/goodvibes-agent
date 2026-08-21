@@ -2749,7 +2749,7 @@ describe('AgentWorkspace', () => {
 
     expect(byId.get('runtime')?.status).toBe('ready');
     expect(byId.get('connected-host-auth')?.status).toBe('recommended');
-    expect(byId.get('connected-host-auth')?.breadcrumb).toBe('Host -> Connected-host auth owner');
+    expect(byId.get('connected-host-auth')?.breadcrumb).toBe('Connected Host');
     expect(byId.get('provider-model')?.status).toBe('ready');
     expect(byId.get('agent-knowledge')?.status).toBe('recommended');
     expect(byId.get('memory')?.status).toBe('ready');
@@ -2760,7 +2760,7 @@ describe('AgentWorkspace', () => {
     expect(byId.get('skills')?.breadcrumb).toBe('Skills');
     expect(byId.get('routines')?.breadcrumb).toBe('Routines');
     expect(byId.get('memory')?.breadcrumb).toBe('Memory');
-    expect(byId.get('channels')?.breadcrumb).toBe('Channels');
+    expect(byId.get('channels')?.breadcrumb).toBe('Messaging');
     expect(byId.get('voice-media')?.breadcrumb).toBe('Voice & Media');
     expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
   });

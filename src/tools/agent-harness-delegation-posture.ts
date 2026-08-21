@@ -190,7 +190,7 @@ function routes(): readonly DelegationRoute[] {
       optionalFields: ['visible work-plan item', 'delegation reason', 'success criteria'],
       successEvidence: ['chosen visible route', 'confirmation receipt when delegated'],
       statusRoutes: ['execution action:"status"', 'autonomy action:"intake"'],
-      recoveryRoutes: ['delegation action:"status"', 'Agent Workspace -> Work plan'],
+      recoveryRoutes: ['delegation action:"status"', 'Agent Workspace -> Work & Approvals'],
       reviewPolicy: 'not-applicable',
     },
   ];

@@ -298,7 +298,7 @@ export function wireSetupIncompleteHint(deps: SetupIncompleteHintDeps): void {
         blocksAutonomy: false,
         reason: '',
         nextAction: 'Run /agent to set up a local model route.',
-        userRoute: 'Agent Workspace -> Models -> Local models',
+        userRoute: 'Agent Workspace -> Start -> Use a local model (no sign-in)',
         modelRoute: '',
       },
     ];

@@ -90,7 +90,7 @@ export function buildLanes(
             : inboxEffectReceiptRecords.length > 0
               ? 'Review saved inbox provider-effect receipts, then repair an email connector before reading fresh inbox data or sending another provider effect.'
         : 'Connect a Google account with /google connect, then triage and draft replies through the built-in google tool.',
-      userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
+      userRoute: 'Agent Workspace -> Personal Ops -> Delivery channels',
       modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'host action:"methods" query:"email"',
       signals: [
         `${inboxProviderRecords.length} fresh provider-backed inbox thread record(s)`,
@@ -201,7 +201,7 @@ export function buildLanes(
         : taskEffectReceiptRecords.length > 0
           ? 'Review saved task provider-effect receipts, then repair or refresh the task provider before another provider update.'
         : 'Use work plans for user-visible task tracking; inspect runtime host tasks separately before mutating anything.',
-      userRoute: 'Agent Workspace -> Personal Ops -> Add work item',
+      userRoute: 'Agent Workspace -> Work & Approvals -> Autonomy queue',
       modelRoute: 'agent_work_plan action:"create"',
       signals: [
         `${taskProviderRecords.length} fresh provider-backed task record(s)`,
@@ -277,7 +277,7 @@ export function buildLanes(
       next: readyChannels > 0
         ? 'Use confirmed channel send or notification tools when the user asks for delivery.'
         : 'Enable and configure one delivery channel so personal-ops reminders and summaries can reach the user.',
-      userRoute: 'Agent Workspace -> Personal Ops -> Channels',
+      userRoute: 'Agent Workspace -> Personal Ops -> Delivery channels',
       modelRoute: 'channels action:"status"',
       signals: [
         `${readyChannels} ready channel(s)`,

@@ -249,6 +249,18 @@ const PACKAGE_FACING_REQUIRED_TEXT: readonly {
   { path: 'docs/release-and-publishing.md', required: ['/api/goodvibes-agent/knowledge', 'bun add -g @pellux/goodvibes-agent'] },
 ];
 const NON_COMMAND_ROUTE_ROOTS = new Set(['api']);
+/**
+ * Slash-shaped tokens in GENERATED docs that are not Agent slash commands and
+ * cannot be reworded here. docs/google-setup-runbook.md is rendered verbatim
+ * from the SDK's Google setup plan (scripts/generate-google-runbook.ts); its
+ * one "`/status` output" phrase means the connected surfaces' status output,
+ * not an Agent command, and the wording is SDK-owned. Exempting the exact
+ * token per file keeps the rest of the generated page under the
+ * phantom-command scan instead of exempting the whole file.
+ */
+const GENERATED_DOC_SLASH_TOKEN_EXEMPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['docs/google-setup-runbook.md', new Set(['status'])],
+]);
 const HTTP_ROUTE_VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 const COMMAND_NAME_PATTERN = /^[a-z][a-z0-9_-]*$/;
 const EXACT_SEMVER_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
@@ -449,6 +461,15 @@ const ALLOWED_PACKAGE_DOC_FILENAMES = [
   'channels-remote-and-api.md',
   'connected-host.md',
   'getting-started.md',
+  // The Google pages are user-facing package docs: the runbook is the written
+  // fallback for the /google setup automation (generated from the SDK's setup
+  // plan) and the scope strategy explains exactly what that integration
+  // requests. They ship via the package `files` glob either way; listing them
+  // here brings them under the same required-path, docs-index, and
+  // package-facing text policy as every other shipped docs page instead of
+  // leaving them packaged but un-policed.
+  'google-scope-strategy.md',
+  'google-setup-runbook.md',
   'knowledge-artifacts-and-multimodal.md',
   'providers-and-routing.md',
   'release-and-publishing.md',
@@ -3530,8 +3551,12 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
     issues.push('package.json publishConfig.access must be public.');
   }
   const engines = isRecord(pkg.engines) ? pkg.engines : {};
-  if (readStringValue(engines.bun) !== '>=1.3.10') {
-    issues.push('package.json engines.bun must be >=1.3.10.');
+  // The floor matches packageManager and every build leg: 1.3.10's
+  // `bun build --compile` is documented to miscompile, and the docs advertise
+  // "Bun `1.3.14` or newer" as the supported runtime, so the enforced engines
+  // floor is the same version rather than a lower one nothing tests against.
+  if (readStringValue(engines.bun) !== '>=1.3.14') {
+    issues.push('package.json engines.bun must be >=1.3.14.');
   }
   const bin = readStringRecord(pkg.bin);
   if (bin['goodvibes-agent'] !== 'bin/goodvibes-agent.ts') {
@@ -3595,6 +3620,7 @@ function verifyPackageFacingSlashCommands(path: string, content: string, registe
       const prefix = line.slice(0, slashIndex).trimEnd();
       if (HTTP_ROUTE_VERBS.some((verb) => prefix.endsWith(verb))) continue;
       if (NON_COMMAND_ROUTE_ROOTS.has(root)) continue;
+      if (GENERATED_DOC_SLASH_TOKEN_EXEMPTIONS.get(path)?.has(root) === true) continue;
       if (registeredCommands.has(root)) continue;
       failures.push(`package-facing text ${path}:${lineIndex + 1} references unknown Agent slash command: /${root}`);
     }

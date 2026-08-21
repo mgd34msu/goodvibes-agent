@@ -107,7 +107,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       try {
 
       if (sub === 'open' || sub === 'panel') {
-        ctx.print('Open Agent Workspace -> Home -> Review health for the workspace view, or run /health review for the compact command output.');
+        ctx.print('Open Agent Workspace -> Home for the workspace view, or run /health review for the compact command output.');
         return;
       }
 

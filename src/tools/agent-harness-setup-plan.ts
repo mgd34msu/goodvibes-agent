@@ -45,7 +45,7 @@ export function buildSetupPlan(
       blocksAutonomy: true,
       reason: 'Daemon-backed automation, Agent Knowledge, channels, and companion routes need a reachable compatible GoodVibes host.',
       nextAction: 'Run connected-host status, then start, update, or repair the owning GoodVibes host if the live check reports a gap.',
-      userRoute: 'Agent Workspace -> Home -> Host compatibility',
+      userRoute: 'Agent Workspace -> Connected Host; /compat',
       modelRoute: 'host action:"status"',
       relatedSetupItemId: 'operator-terminal',
       signals: [
@@ -66,7 +66,7 @@ export function buildSetupPlan(
       blocksAutonomy: true,
       reason: 'Protected daemon routes, approvals, schedules, channels, and Agent Knowledge writes need a usable connected-host operator token from the canonical GoodVibes host token store.',
       nextAction: connectedHostAuthNextAction(authPosture),
-      userRoute: 'Agent Workspace -> Host -> Connected-host auth owner; /auth review',
+      userRoute: 'Agent Workspace -> Connected Host; /auth review',
       modelRoute: authPosture.operatorToken.usable
         ? 'host action:"status" includeParameters:true'
         : authPosture.routes.provisionTokenRoute,
@@ -111,7 +111,7 @@ export function buildSetupPlan(
       nextAction: smokePlan.status === 'ready-to-run'
         ? 'Run the confirmed setup smoke route, then complete the user-visible package/status and first-turn checks.'
         : 'Resolve connected-host, connected-host auth, and provider/model blockers, then rerun the confirmed setup smoke route.',
-      userRoute: 'Agent Workspace -> Start -> Install smoke',
+      userRoute: 'Agent Workspace -> Start',
       modelRoute: 'setup action:"smoke" setupItemId:"install-smoke"',
       signals: installSmokeSignals(smokePlan),
       installSmokePlan: smokePlan,
@@ -124,7 +124,7 @@ export function buildSetupPlan(
       blocksAutonomy: false,
       reason: 'A local route gives the assistant a private/offline fallback and can reduce cost, but it should be set up through visible server, refresh, and benchmark steps.',
       nextAction: localModelSetupNextAction(localModels),
-      userRoute: 'Agent Workspace -> Start -> Local model cookbook',
+      userRoute: 'Agent Workspace -> Start -> Use a local model (no sign-in)',
       modelRoute: 'models action:"local"',
       signals: localModelSetupSignals(localModels),
       localModelReadiness,
@@ -174,7 +174,7 @@ export function buildSetupPlan(
       blocksAutonomy: false,
       reason: communicationChannels.detail,
       nextAction: communicationChannels.selected ? 'Review channel readiness and delivery safety.' : 'Enable only the channels where the assistant should be reachable.',
-      userRoute: 'Agent Workspace -> Channels',
+      userRoute: 'Agent Workspace -> Messaging',
       modelRoute: 'channels action:"status"',
       relatedSetupItemId: communicationChannels.id,
       signals: snapshot.surfaces.configuredEnabledKinds,
@@ -219,7 +219,7 @@ export function buildSetupPlan(
       blocksAutonomy: false,
       reason: 'Privilege escalation must stay explicit, visible, and user-supervised; background sudo prompts, stdin password writes, and raw password display are blocked until the SDK/daemon publishes safe mediation.',
       nextAction: sudoPosture.nextAction,
-      userRoute: 'Agent Workspace -> Computer Use -> Sudo posture',
+      userRoute: 'Agent Workspace -> Work & Approvals -> Process capabilities',
       modelRoute: sudoPosture.setupRoute,
       signals: sudoPosture.signals,
       sudoPosture,
@@ -232,7 +232,7 @@ export function buildSetupPlan(
       blocksAutonomy: false,
       reason: tuiDelegation.detail,
       nextAction: 'Use delegation for explicit build, fix, review, isolation, or parallelism work rather than as a setup prerequisite.',
-      userRoute: 'Agent Workspace -> Home -> Connected host',
+      userRoute: 'Agent Workspace -> Work & Approvals -> Delegate a build task',
       modelRoute: 'delegation action:"status"',
       relatedSetupItemId: tuiDelegation.id,
     },
@@ -244,7 +244,7 @@ export function buildSetupPlan(
       blocksAutonomy: false,
       reason: setupMarkerDone ? 'A setup marker already exists for this Agent scope.' : 'No setup marker exists yet, so the user may see first-run guidance again.',
       nextAction: setupMarkerDone ? 'Reopen setup only when changing provider, channel, automation, or local behavior decisions.' : 'Open onboarding, review the selected choices, then apply and close when the assistant is usable.',
-      userRoute: 'Agent Workspace -> Start -> Onboarding',
+      userRoute: 'Agent Workspace -> Finish',
       modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding"',
     },
   ];

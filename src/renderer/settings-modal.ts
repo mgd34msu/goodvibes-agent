@@ -303,7 +303,7 @@ function buildSubscriptionContext(modal: SettingsModal, entry: SubscriptionEntry
     ? modal.subscriptionLogoutConfirmationTarget === entry.provider
       ? `Press Enter again to sign out ${entry.provider}. Move selection or close config to cancel.`
       : 'Press Enter to review sign-out for this provider session.'
-    : `Open Agent Workspace -> Setup and choose Start subscription login for ${entry.provider}.`;
+    : `Open Agent Workspace -> Start and choose Sign in to a provider for ${entry.provider}.`;
   return [
     entry.provider,
     `State: ${entry.state}`,

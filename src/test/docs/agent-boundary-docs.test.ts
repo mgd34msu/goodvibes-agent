@@ -163,7 +163,9 @@ describe('Agent user-first product docs', () => {
       const content = readRepoFile(docFile);
       tokenPattern.lastIndex = 0;
       for (let m = tokenPattern.exec(content); m !== null; m = tokenPattern.exec(content)) {
-        const tokens = (m[1] ?? '').split('|');
+        // Markdown table cells escape pipes inside code spans as `\|` so the
+        // cell renders correctly; normalize before tokenizing.
+        const tokens = (m[1] ?? '').replaceAll('\\|', '|').split('|');
         for (const token of tokens) {
           const t = token.trim();
           if (t && !realActions.has(t)) {

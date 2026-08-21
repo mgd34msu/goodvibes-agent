@@ -7,8 +7,8 @@ const CONTEXT_INSPECTOR_TITLE = 'Context Inspector';
 const CONTEXT_INSPECTOR_EMPTY_MESSAGE = 'No messages in conversation yet.';
 const CONTEXT_INSPECTOR_CLOSE_HINTS = ['[Esc] Close'];
 const CONTEXT_INSPECTOR_CONTEXT_HINTS = ['[*] >10% of context', '[Esc] Close'];
-const CONTEXT_INSPECTOR_FULL_WARNING = 'WARNING: context is 80%+ full. Open Agent Workspace -> Conversation -> Compact conversation.';
-const CONTEXT_INSPECTOR_COMPACT_GUIDANCE = 'Open Agent Workspace -> Conversation -> Compact conversation to summarise and reduce context size.';
+const CONTEXT_INSPECTOR_FULL_WARNING = 'WARNING: context is 80%+ full. Run /compact to summarise and reduce context size.';
+const CONTEXT_INSPECTOR_COMPACT_GUIDANCE = 'Run /compact to summarise and reduce context size.';
 
 function contextInspectorTotalText(
   totalTokens: string,

@@ -62,7 +62,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
       const sub = (args[0] ?? 'matrix').toLowerCase();
       if (await handleApprovalOperatorAction(args, ctx)) return;
       if (sub === 'open' || sub === 'panel') {
-        ctx.print('Open Agent Workspace -> Work -> Review approvals for the workspace view, or run /approval matrix for the compact command output.');
+        ctx.print('Open Agent Workspace -> Work & Approvals -> Review approval class for the workspace view, or run /approval matrix for the compact command output.');
         return;
       }
       const matrix = [

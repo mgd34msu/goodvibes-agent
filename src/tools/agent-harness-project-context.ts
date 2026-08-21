@@ -56,7 +56,7 @@ function describeRecord(record: ProjectContextRecord, includeParameters: boolean
       ? previewHarnessText(record.reason, includeParameters ? 180 : 96)
       : previewHarnessText(record.body, includeParameters ? 240 : 96),
     modelRoute: 'context action:"file"',
-    userRoute: 'Agent Workspace -> Context Inspector',
+    userRoute: 'Agent Workspace -> Local Context -> Inspect project context',
     ...(includeParameters && 'body' in record ? { body: record.body, truncated: record.truncated } : {}),
     ...(includeParameters && !('body' in record) ? { reason: record.reason } : {}),
   };

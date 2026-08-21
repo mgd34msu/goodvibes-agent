@@ -30,7 +30,7 @@ describe('experience runtime commands', () => {
     await command!.handler(['open'], makeContext(out, opened));
 
     expect(opened).toEqual([]);
-    expect(out.join('\n')).toContain('Open Agent Workspace -> Work -> Review approvals');
+    expect(out.join('\n')).toContain('Open Agent Workspace -> Work & Approvals -> Review approval class');
     expect(out.join('\n')).toContain('or run /approval matrix');
   });
 
@@ -64,7 +64,7 @@ describe('experience runtime commands', () => {
     await command!.handler(['open'], makeContext(out, opened));
 
     expect(opened).toEqual([]);
-    expect(out.join('\n')).toContain('Open Agent Workspace -> Setup -> Provider accounts');
+    expect(out.join('\n')).toContain('Open Agent Workspace -> Start -> Sign in to a provider');
     expect(out.join('\n')).toContain('or run /accounts review');
   });
 
@@ -80,7 +80,7 @@ describe('experience runtime commands', () => {
 
     await command!.handler(['open'], makeContext(out, []));
 
-    expect(out.join('\n')).toContain('Open Agent Workspace -> Home -> Review health');
+    expect(out.join('\n')).toContain('Open Agent Workspace -> Home');
     expect(out.join('\n')).toContain('or run /health review');
   });
 

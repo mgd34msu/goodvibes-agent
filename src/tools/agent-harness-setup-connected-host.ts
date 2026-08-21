@@ -257,7 +257,7 @@ export function connectedHostRepairCards(
       state: 'available',
       effect: 'read-only',
       modelRoute: 'host action:"status" includeParameters:true',
-      userRoute: 'Agent Workspace -> Home -> Host compatibility',
+      userRoute: '/compat',
       recommendation: statusRecommendation,
       liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
         ? 'Runtime endpoint is reachable; use connected-host status when token, compatibility, or Knowledge readiness still needs review.'
@@ -273,7 +273,7 @@ export function connectedHostRepairCards(
       state: 'available',
       effect: 'read-only',
       modelRoute: 'host action:"services" includeParameters:true',
-      userRoute: 'Agent Workspace -> Home -> Doctor diagnostics',
+      userRoute: '/health',
       recommendation: postureRecommendation,
       liveEvidence: repairLiveEvidence(probe, probe.issues.length > 0
         ? `Service posture reports ${probe.issues.length} issue(s); inspect endpoint binding, reachability, and logs before mutation.`
@@ -288,7 +288,7 @@ export function connectedHostRepairCards(
       label: 'Read service install/runtime status',
       methodId: 'services.status',
       effect: 'read-only',
-      userRoute: 'Agent Workspace -> Home -> Host compatibility',
+      userRoute: '/compat',
       prerequisite: liveHostPrerequisite,
       recommendation: statusRecommendation,
       liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'

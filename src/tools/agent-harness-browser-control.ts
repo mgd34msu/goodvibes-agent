@@ -387,7 +387,7 @@ function browserControlDecision(
     id: 'setup-browser-control',
     status: 'setup-needed',
     modelRoute: posture.setupRoute,
-    userRoute: 'Agent Workspace -> Setup',
+    userRoute: 'Agent Workspace -> Start',
     nextStep: 'Configure a trusted browser/desktop tool or MCP server, or use the public web/fetch fallback when live UI state is not required.',
     reason: 'No trusted browser/desktop control tool or fresh MCP server is configured.',
     safety: 'This planner does not open, observe, or control the browser or desktop.',

@@ -338,7 +338,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       next: uploadActions.length > 0
         ? 'Use attach, paste, or reviewed source ingest depending on whether the file is prompt context or durable Agent Knowledge.'
         : 'Wire upload, paste, and file ingest actions before exposing this as ready.',
-      userRoute: 'Agent Workspace -> Documents & Files -> Attach or ingest',
+      userRoute: 'Agent Workspace -> Documents & Files -> Attach artifact to draft',
       modelRoute: 'agent_harness mode:"workspace_actions" query:"upload file ingest"',
       signals: [
         `${uploadActions.length} upload/ingest action(s)`,
@@ -353,7 +353,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       outcome: 'Turn conversations, sessions, documents, and saved artifacts into local files the user can keep or reuse.',
       current: `${exportActions.length} export action(s) are reachable for conversation, session, document, comparison, and saved artifact output.`,
       next: 'Keep transcript, session, document, comparison, and artifact exports visible, explicit, and reusable from one place.',
-      userRoute: 'Agent Workspace -> Documents & Files -> Export',
+      userRoute: 'Agent Workspace -> Documents & Files -> Export document artifact',
       modelRoute: 'agent_harness mode:"workspace_actions" query:"export artifact"',
       signals: [
         `${exportActions.length} export action(s)`,
@@ -489,7 +489,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       outcome: 'Inspect source-backed records before citing, summarizing, or promoting knowledge.',
       current: `${sourceActions.length} source lookup/search action(s) are reachable through isolated Agent Knowledge.`,
       next: 'Use source search/show for citation checks; ingest reviewed files or URLs only through explicit source actions.',
-      userRoute: 'Agent Workspace -> Documents & Files -> Sources',
+      userRoute: 'Agent Workspace -> Documents & Files -> Show source or node',
       modelRoute: 'agent_harness mode:"workspace_actions" query:"Agent Knowledge sources"',
       signals: [
         `Knowledge route ${snapshot.knowledgeRoute}`,
@@ -506,7 +506,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       next: snapshot.mediaGenerationProviderCount > 0
         ? 'Use confirmed media generation when the user asks for a concrete artifact.'
         : 'Configure a media generation provider before claiming generated media is ready.',
-      userRoute: 'Agent Workspace -> Documents & Files -> Generate media',
+      userRoute: 'Agent Workspace -> Documents & Files -> Generate media artifact',
       modelRoute: 'agent_media_generate',
       signals: [
         `${mediaActions.length} media action(s)`,
@@ -525,7 +525,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       next: artifactBrowserReady
         ? 'Use package or ZIP archive exports across document, upload, generated media, session, comparison, and Knowledge artifacts.'
         : 'Wire agent_artifacts and browse/show workspace actions over the SDK artifact store.',
-      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts, Export package, or Promote to Knowledge',
+      userRoute: 'Agent Workspace -> Documents & Files -> Browse artifacts, Export package, or Promote to Knowledge',
       modelRoute: artifactBrowserReady ? 'agent_artifacts + agent_knowledge_ingest' : 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
       signals: [
         `${uploadActions.length + exportActions.length + mediaActions.length} related artifact action(s)`,

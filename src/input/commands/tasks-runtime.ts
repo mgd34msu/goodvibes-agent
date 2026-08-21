@@ -90,7 +90,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
     async handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'list';
       if (subcommand === 'open' || subcommand === 'panel') {
-        ctx.print('Open Agent Workspace -> Work -> Host tasks for the workspace view, or run /tasks list for compact command output.');
+        ctx.print('Open Agent Workspace -> Work & Approvals -> Filter host tasks for the workspace view, or run /tasks list for compact command output.');
         return;
       }
 

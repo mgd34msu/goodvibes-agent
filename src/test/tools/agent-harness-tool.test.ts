@@ -1107,7 +1107,7 @@ describe('agent_harness tool', () => {
       expect(first?.status).toBe('check');
       expect(first?.blocksAutonomy).toBe(true);
       expect(first?.modelRoute).toContain('host action:"status"');
-      expect(first?.userRoute).toContain('Host compatibility');
+      expect(first?.userRoute).toContain('Connected Host');
       expect(first?.primaryHandoff?.id).toBe('connected-host-status');
       expect(first?.primaryHandoff?.kind).toBe('diagnostic');
       expect(first?.primaryHandoff?.modelRoute).toContain('host action:"status"');

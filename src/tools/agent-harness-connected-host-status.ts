@@ -147,7 +147,7 @@ export async function connectedHostStatusSummary(
       daemonAliases: 'mode:"daemon_status" is an alias for mode:"connected_host_status"; mode:"daemon" is an alias for mode:"connected_host".',
       lifecycle: 'Use setup or agent_operator_method with confirm:true and explicitUserRequest for supported daemon service methods.',
       cliMirrors: ['goodvibes-agent status --json', 'goodvibes-agent doctor', 'goodvibes-agent compat'],
-      tuiMirrors: ['Agent Workspace -> Home -> Host compatibility', 'Agent Workspace -> Home -> Doctor diagnostics', 'Agent Workspace -> Home -> Review health'],
+      tuiMirrors: ['/health', '/compat', 'Agent Workspace -> Connected Host'],
     },
     routeFamilies: connectedHostRouteFamilies(),
     capabilities: connectedHostCapabilityMap(toolRegistry),

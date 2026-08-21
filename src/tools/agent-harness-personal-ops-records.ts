@@ -177,7 +177,7 @@ export function routineReceiptRecord(receipt: ReturnType<typeof buildAgentWorksp
     label: receipt.scheduleName,
     status: receipt.status,
     summary: `${receipt.routineName} -> ${receipt.scheduleKind} ${receipt.scheduleValue}`,
-    userRoute: 'Agent Workspace -> Personal Ops -> Routine schedule receipts',
+    userRoute: 'Agent Workspace -> Personal Ops -> Routine library',
     modelRoute: 'autonomy action:"item" queueItemId:"routine-schedule-promotions"',
   };
 }
@@ -188,7 +188,7 @@ export function channelRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRu
     label: channel.label,
     status: channel.setupState,
     summary: `${channel.delivery}; ${channel.riskLabel}. ${channel.nextStep}`,
-    userRoute: 'Agent Workspace -> Channels',
+    userRoute: 'Agent Workspace -> Messaging',
     modelRoute: `channels action:"channel" channelId:"${channel.id}"`,
     tags: [channel.risk, channel.delivery],
   }));
@@ -242,7 +242,7 @@ export function connectorRecords(signals: readonly PersonalOpsConnectorSignal[],
             tool.requiredFields && tool.requiredFields.length > 0 ? `required fields ${tool.requiredFields.join(', ')}` : 'schema fields unknown until inspected',
             tool.description ?? '',
           ].filter(Boolean).join(' '),
-          userRoute: 'Agent Workspace -> Tools & MCP -> Tool schema',
+          userRoute: 'Agent Workspace -> Tools & MCP -> Server tool inventory',
           modelRoute: tool.schemaRoute ?? signal.modelRoute,
           tags: ['connector-operation', signal.kind, tool.capability, tool.effect],
           effect: tool.effect,
@@ -440,7 +440,7 @@ export function savedProviderEffectReceiptRecords(
         sourceTool ? `Source ${sourceTool}.` : '',
         createdAt ? `Recorded ${createdAt}.` : '',
       ].filter(Boolean).join(' '),
-      userRoute: `Agent Workspace -> Personal Ops -> ${laneLabel} effect receipts`,
+      userRoute: 'Agent Workspace -> Personal Ops -> Review queue',
       modelRoute: artifactRoute,
       tags: [
         'provider-effect-receipt',
@@ -562,9 +562,7 @@ export function savedReviewQueueRecords(
               ? 'Inspect the artifact before creating reminders or proposing calendar edits.'
               : 'Inspect the artifact before drafting; sending remains a separate confirmed connector action.',
           ].filter(Boolean).join(' '),
-          userRoute: calendar
-            ? 'Agent Workspace -> Personal Ops -> Calendar review queue'
-            : 'Agent Workspace -> Personal Ops -> Inbox review queue',
+          userRoute: 'Agent Workspace -> Personal Ops -> Review queue',
           modelRoute: artifactRoute,
           tags: [
             'saved-review',
@@ -666,7 +664,7 @@ export function savedReviewArtifactRecords(
         createdAt ? `Saved ${createdAt}.` : '',
         'Use the artifact route to reopen redacted cards before summary, draft, or promotion work.',
       ].filter(Boolean).join(' '),
-      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts',
+      userRoute: 'Agent Workspace -> Documents & Files -> Browse artifacts',
       modelRoute: `agent_artifacts show artifactId:"${artifact.id}" includeContent:true`,
       tags: ['saved-review', 'artifact', laneId === 'calendar' ? 'calendar-read' : 'inbox-read'],
       effect: 'read-only',

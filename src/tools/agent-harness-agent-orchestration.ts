@@ -648,7 +648,7 @@ function describeAgent(
     progress: progress ? previewHarnessText(progress, includeParameters ? 180 : 72) : null,
     toolCallCount: typeof record.toolCallCount === 'number' ? record.toolCallCount : 0,
     modelRoute: 'agent { mode: "get" }',
-    userRoute: 'Agent Workspace -> Work -> Autonomy queue',
+    userRoute: 'Agent Workspace -> Work & Approvals -> Autonomy queue',
     routes: agentRoutes(id),
     managedPlanCard: managedPlanItem(record, contract, artifacts, outcomes, workspaces, linkedWorkItems, includeParameters),
     ...(readString(record.model) ? { model: readString(record.model) } : {}),
