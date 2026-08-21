@@ -87,7 +87,7 @@ jobs:
       contents: read
       actions: read
       checks: read
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-release-verify.yml@main
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-release-verify.yml@ae53b1bb6d584dee66e6934c35591a4ef8317379 # 2026-08-20 hardened reusables
     with:
       sha: ${{ github.sha }}
       workflow: ci.yml
@@ -159,7 +159,7 @@ jobs:
   # The compiled binary carries no node_modules, so `require('playwright-core')`
   # resolves nothing inside it and the driver cannot be bundled either (it reads
   # browsers.json and its own driver files by path at runtime). It therefore has
-  # to travel as its OWN release asset, exactly like the sqlite-vec addons —
+  # to travel as its OWN release asset, exactly like the sqlite-vec addons ,
   # 1.18.1 shipped without one and every downloaded binary reported the browser
   # as unavailable, because the binary matrix builds through the toolchain and
   # never ran scripts/stage-browser-driver.ts at all.
@@ -223,7 +223,7 @@ jobs:
     name: Build binaries
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
     needs: [release-verify]
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-binary-matrix.yml@main
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-binary-matrix.yml@ae53b1bb6d584dee66e6934c35591a4ef8317379 # 2026-08-20 hardened reusables
     with:
       # Each smoke leg carries its own suffixed artifact as `binary` so the
       # matrix smokes the binary that leg actually built (the reusable passes it
@@ -313,7 +313,7 @@ jobs:
     needs: [assemble-release-assets]
     permissions:
       contents: write
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-gh-release.yml@main
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-gh-release.yml@ae53b1bb6d584dee66e6934c35591a4ef8317379 # 2026-08-20 hardened reusables
     with:
       tag: ${{ github.ref_name }}
       artifact-name: release-assets
@@ -346,7 +346,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-npm-publish.yml@main
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-npm-publish.yml@ae53b1bb6d584dee66e6934c35591a4ef8317379 # 2026-08-20 hardened reusables
     with:
       package-name: "@pellux/goodvibes-agent"
       environment: production
@@ -359,7 +359,7 @@ jobs:
       tarball-artifact: npm-tarball
       # The ./ prefix is load-bearing: npm parses a bare relative path like
       # release-tarball/x.tgz as a GitHub owner/repo spec and tries to clone it.
-      publish-command: 'bunx @pellux/goodvibes-toolchain goodvibes-publish-package --poll --tarball "./$(ls release-tarball/*.tgz)"'
+      publish-command: 'bunx @pellux/goodvibes-toolchain@2.0.17 goodvibes-publish-package --poll --tarball "./$(ls release-tarball/*.tgz)"'
       bun-version: "1.3.14"
     secrets:
       npm-token: ${{ secrets.NPM_TOKEN }}
