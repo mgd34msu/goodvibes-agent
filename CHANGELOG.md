@@ -2,6 +2,21 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.17 - 2026-08-21
+
+- **Fixed: the workspace no longer offers routes that go nowhere.** Around 70
+  emitted "Agent Workspace" routes named views that were never registered; a
+  tap on one dead-ended. Every emitted route now resolves against the real
+  workspace category registry, and a guard test walks all 35 emitting files
+  so a phantom route fails the build.
+- Changed: the Google setup runbook is regenerated from the platform runtime
+  2.0.20 generator, and with its one sdk-owned `/status` phrase gone, the
+  phantom-command scan covers the runbook whole again — the last per-file
+  exemption is deleted.
+- Changed: platform runtime pin moves to 2.0.20 (payments boot recovery on
+  the daemon side; no Agent-side behavior change). The reusable-workflow pins
+  repoint to the 2.0.20 release commit.
+
 ## 2.0.16 - 2026-08-21
 
 - **Fixed: two processes writing to the same local store at once can no longer corrupt it.** Every on-disk JSON store this Agent keeps (calendar, notes, personas, routines, skills, research, schedules, and more) had its own hand-rolled "write to a `.tmp` path, then rename" implementation, each one copied from the last, all sharing one fixed temp file name. This Agent and a one-shot `goodvibes ...` CLI invocation writing to the same store at the same moment could splice their bytes together, and the next read of that store would fail to parse, losing its entire history rather than just the one write in flight. All 22 store writers now go through a single shared writer, each write picking a temp name only that write can ever hold, and the build fails if a hand-rolled temp path is ever reintroduced. A concurrency test spawns four real OS processes hammering one store at once and proves no torn file and no lost update.
