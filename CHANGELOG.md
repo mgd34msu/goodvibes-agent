@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.20 - 2026-08-22
+
+- **Fixed: this Agent adopts the running daemon again.** The adoption gate compared the daemon's 1.28.x artifact version against the platform's 2.x version and refused every adoption since sdk 2.0.0, silently running without the shared daemon. It now band-checks the platform build the daemon reports.
+- Changed: a dead subscription login is stamped and shown as ended everywhere a status renders, and a near-expiry token refreshes silently before the send (platform runtime 2.0.22).
+- Changed: a machine with no microphone is reported as that, once, in plain words, with a gentle retry. A busy device keeps prompt retries and the crash latch.
+- Changed: pins move to sdk/terminal-shell/toolchain 2.0.22 and daemon 1.28.24; reusable-workflow pins repoint to the 2.0.22 release commit.
+
 ## 2.0.19 - 2026-08-21
 
 - **Fixed: a dead OpenAI subscription login recovers or says so honestly.** Platform runtime 2.0.21 inside: a token OpenAI rejects mid-lifetime gets one shared, time-bounded refresh attempt and one retry before anything is surfaced; when the session truly is over, the error names the subscription session and says to sign in again, never "check your API key". The bundled daemon moves to 1.28.23 with the same runtime.
@@ -20,7 +27,7 @@ Product-facing release notes for GoodVibes Agent.
   so a phantom route fails the build.
 - Changed: the Google setup runbook is regenerated from the platform runtime
   2.0.20 generator, and with its one sdk-owned `/status` phrase gone, the
-  phantom-command scan covers the runbook whole again — the last per-file
+  phantom-command scan covers the runbook whole again; the last per-file
   exemption is deleted.
 - Changed: platform runtime pin moves to 2.0.20 (payments boot recovery on
   the daemon side; no Agent-side behavior change). The reusable-workflow pins
