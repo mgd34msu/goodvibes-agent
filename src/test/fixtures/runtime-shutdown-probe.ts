@@ -1,5 +1,5 @@
 /**
- * runtime-shutdown-probe.ts — the measurement half of
+ * runtime-shutdown-probe.ts, the measurement half of
  * src/test/runtime/runtime-shutdown-timer-teardown.test.ts.
  *
  * Not a test file (the suite runner collects only *.test.ts). It runs as its
@@ -7,7 +7,7 @@
  * timer globals process-wide, so anything else running in the same process gets
  * counted. Measured in-suite, this probe attributed an MCP reconnect schedule,
  * an orchestrator-runner timeout and a knowledge cooperative-yield to the graph
- * under test — all of them in-flight async work left over from earlier test
+ * under test, all of them in-flight async work left over from earlier test
  * files, none of them composed here. A subprocess has no such neighbours.
  *
  * Composes the runtime graph, lets composition quiesce, disposes it, and prints
@@ -50,7 +50,7 @@ const realClearTimeout = globalThis.clearTimeout;
 
 /**
  * One-shot timeouts are tracked as well as intervals, because a `setTimeout`
- * that reschedules itself is a poller wearing a different hat — three of the
+ * that reschedules itself is a poller wearing a different hat, three of the
  * graph's schedulers are exactly that. A timeout leaves the live set when it
  * fires, so an ordinary elapsed sleep never counts as still-live.
  */
@@ -82,7 +82,7 @@ function installTimerTracking(): void {
   }) as typeof globalThis.clearTimeout;
 }
 
-/** The frame that made the timer — the field that names what still needs disposing. */
+/** The frame that made the timer, the field that names what still needs disposing. */
 function siteOf(stack: string): string {
   for (const line of stack.split('\n').slice(2)) {
     const match = /([^\s()]+\.(?:ts|tsx|js|mjs)):\d+:\d+/.exec(line);

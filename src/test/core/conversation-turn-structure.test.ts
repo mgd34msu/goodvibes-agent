@@ -80,7 +80,7 @@ describe('assistant turn grouping', () => {
     expect(computeAssistantTurns(messages, 0).get(0)!.sharedToolLabel).toBeUndefined();
   });
 
-  test('prose closes the group — what follows starts a new header', () => {
+  test('prose closes the group: what follows starts a new header', () => {
     const messages: Message[] = [
       assistant({ calls: [{ id: 'a' }] }),
       toolResult('a'),
@@ -242,7 +242,7 @@ describe('nested agents', () => {
     expect(childDepth).toBeGreaterThan(callDepth);
   });
 
-  test('nesting recurses — an agent that spawns an agent nests again', () => {
+  test('nesting recurses: an agent that spawns an agent nests again', () => {
     const grandchild: Message[] = [assistant({ calls: [{ id: 'g' }] })];
     const child: Message[] = [spawnCall('s2'), spawnResult('s2', 'agent-2')];
     const plan = buildRenderPlan(

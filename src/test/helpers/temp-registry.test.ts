@@ -74,7 +74,7 @@ describe('tracked temp directory sweep', () => {
     expect(registry.count()).toBe(0);
   });
 
-  test('it removes ONLY tracked directories — an untracked sibling survives', () => {
+  test('it removes ONLY tracked directories: an untracked sibling survives', () => {
     // NO-proof: without this, a "sweep" that simply emptied the whole temp dir
     // would satisfy the test above just as well, and "tracked" would mean
     // nothing.

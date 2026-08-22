@@ -118,7 +118,7 @@ describe('buildReviewedMemoryPrompt', () => {
 });
 
 describe('describeMemoryPromptEligibility', () => {
-  test('never returns a blanket-boosted confidence — the reported reason always reflects the record’s own stored confidence and reviewState', async () => {
+  test('never returns a blanket-boosted confidence: the reported reason always reflects the record\'s own stored confidence and reviewState', async () => {
     await withMemoryRegistry(async (registry) => {
       const record = await registry.add({
         scope: 'project',

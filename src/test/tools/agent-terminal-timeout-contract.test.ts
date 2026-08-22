@@ -23,7 +23,7 @@ import type { AgentHarnessBackgroundProcessArgs } from '@/tools/agent-harness-ba
 const args = (extra: Record<string, unknown> = {}): AgentHarnessBackgroundProcessArgs =>
   extra as AgentHarnessBackgroundProcessArgs;
 
-describe('terminal — process classification', () => {
+describe('terminal: process classification', () => {
   const longLived = [
     'brave --new-window https://example.com',
     'firefox',
@@ -61,7 +61,7 @@ describe('terminal — process classification', () => {
   });
 });
 
-describe('terminal — kill-on-timeout is opt-in for anything long-lived', () => {
+describe('terminal: kill-on-timeout is opt-in for anything long-lived', () => {
   test('a long-lived process is not killed by a timeout by default', () => {
     expect(resolveKillOnTimeout(args(), 'long_lived')).toBe(false);
   });

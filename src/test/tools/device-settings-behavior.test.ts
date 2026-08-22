@@ -351,7 +351,7 @@ function captureIntervals(): IntervalCapture {
   };
 }
 
-describe('device.* settings — behaviour', () => {
+describe('device.* settings: behaviour', () => {
   // -------------------------------------------------------------------------
   // device.capabilities.mode
   // -------------------------------------------------------------------------

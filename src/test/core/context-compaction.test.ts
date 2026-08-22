@@ -56,7 +56,7 @@ describe('estimateConversationTokens', () => {
     expect(estimateConversationTokens(msgs)).toBe(2);
   });
 
-  it('handles ContentPart[] messages — text and image parts both count', () => {
+  it('handles ContentPart[] messages: text and image parts both count', () => {
     const parts: ContentPart[] = [
       { type: 'text', text: 'abcd' },       // 4 chars → 1 token
       { type: 'image', url: 'http://x' } as unknown as ContentPart, // SDK 0.35.0: images now cost IMAGE_TOKEN_ESTIMATE (1600) tokens

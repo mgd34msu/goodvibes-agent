@@ -36,7 +36,7 @@ describe('wallClockToUtcMs', () => {
     //   instant (correctedMs), which Intl maps to the first valid post-gap
     //   wall-clock time. For 02:30 AM NY this is 03:30 AM EDT = 07:30Z.
     //   This is the conventional "spring forward" behavior.
-    test('gap 02:30 AM NY resolves to 03:30 AM EDT (07:30Z) — pinned regression', () => {
+    test('gap 02:30 AM NY resolves to 03:30 AM EDT (07:30Z): pinned regression', () => {
       const ms = wallClockToUtcMs('2026-03-08T02:30:00', 'America/New_York');
       expect(new Date(ms).toISOString()).toBe('2026-03-08T07:30:00.000Z');
     });

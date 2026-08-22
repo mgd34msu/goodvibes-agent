@@ -1,5 +1,5 @@
 /**
- * fatal-boot-guarded-legacy-entry.ts — the fatal tail as it shipped, on purpose.
+ * fatal-boot-guarded-legacy-entry.ts, the fatal tail as it shipped, on purpose.
  *
  * The control for the compiled-binary disclosure test. This is the shape
  * `src/main.ts` actually used: hand `reportFatalStartupError` a `writeStderr`
@@ -9,7 +9,7 @@
  * Compiled and run, it produces zero bytes on stdout and zero bytes on stderr,
  * because the guard replaced `process.stderr.write` with a writer that records
  * to the activity log and returns true. The reason for the crash is real, the
- * reporter runs, the logger works — and an operator watching the terminal or a
+ * reporter runs, the logger works, and an operator watching the terminal or a
  * service journal sees nothing at all.
  *
  * Its only job is to hold that baseline still, so the fixed entry's output is

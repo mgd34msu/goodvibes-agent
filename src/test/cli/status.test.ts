@@ -122,7 +122,7 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('secretPolicy: Require secure storage (require_secure)');
   });
 
-  test('autoApprove=true with mode=prompt (the reproduced disagreement bug) — status honestly says auto-approve is on', () => {
+  test('autoApprove=true with mode=prompt (the reproduced disagreement bug): status honestly says auto-approve is on', () => {
     const text = renderCliStatus(makeOptions({
       'permissions.mode': 'prompt',
       'behavior.autoApprove': true,

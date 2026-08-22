@@ -101,7 +101,7 @@ describe('health-cascades contract', () => {
     });
   });
 
-  describe('CascadeEngine — all 8 rules fire for correct domain+state', () => {
+  describe('CascadeEngine: all 8 rules fire for correct domain+state', () => {
     test('turn:failed fires turn-failed-cancels-tools', () => {
       const agg = makeAggregator();
       const engine = makeEngine(agg);

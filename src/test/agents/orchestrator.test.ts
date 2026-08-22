@@ -508,7 +508,7 @@ describe('AgentOrchestrator', () => {
       }
     });
 
-    test('never throws — all errors captured in record.error', async () => {
+    test('never throws: all errors captured in record.error', async () => {
       const origWarn = console.warn;
       console.warn = () => {};
       try {
@@ -612,7 +612,7 @@ describe('AgentOrchestrator', () => {
       expect((provider.chat as ReturnType<typeof mock>).mock.calls.length).toBe(2);
     });
 
-    test('tool call for unknown tool does not crash — records error in result', async () => {
+    test('tool call for unknown tool does not crash: records error in result', async () => {
       const provider = makeMockProvider([
         {
           content: '',

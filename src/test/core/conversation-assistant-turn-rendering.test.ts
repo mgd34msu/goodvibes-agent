@@ -135,7 +135,7 @@ describe('merged assistant turns', () => {
     expect(text).not.toContain('call-1');
   });
 
-  test('a turn defaults to EXPANDED — its tool activity is visible with no interaction', () => {
+  test('a turn defaults to EXPANDED: its tool activity is visible with no interaction', () => {
     const cm = twoSearchTurn();
     const text = transcript(cm);
     const turn = cm.getBlockRegistry().find((b) => b.type === 'assistant_turn')!;

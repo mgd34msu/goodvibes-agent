@@ -260,7 +260,7 @@ export class ConversationManager extends SdkConversationManager {
     this.messageLineRegistry = [];
     this.errorLineRegistry = [];
     this.streamingStartLine = -1;
-    this._displayFromMessageIndex = 0; // full reset — show everything on next render
+    this._displayFromMessageIndex = 0; // full reset, show everything on next render
   }
 
   /**

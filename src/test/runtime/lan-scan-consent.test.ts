@@ -97,7 +97,7 @@ describe('lan-scan-consent: persistence', () => {
   });
 });
 
-describe('runGatedLanScan: consent gate (test doubles only — never a real network probe)', () => {
+describe('runGatedLanScan: consent gate (test doubles only: never a real network probe)', () => {
   test('first run never scans silently: no decision on disk -> discovery is not invoked', () => {
     const root = makeProjectTempDir('gv-lan-consent');
     const discovery = fakeDiscovery(() => {

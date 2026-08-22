@@ -8,8 +8,8 @@
  * "there is nothing here" and told its owner it could not send a message.
  *
  * An inventory that filters must say so in the same breath. This helper is the
- * one place that wording is produced, so every list answers the question the
- * caller actually asked: not just "what matched" but "what does this mean".
+ * one place that wording is produced, so every list explains what matched and
+ * what it means.
  */
 
 export interface InventoryDisclosureInput {

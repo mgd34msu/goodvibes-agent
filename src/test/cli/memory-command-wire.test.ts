@@ -66,7 +66,7 @@ async function runCli(args: readonly string[], workingDir: string, homeDirectory
   }
 }
 
-describe('memory CLI — daemon up routes over the wire', () => {
+describe('memory CLI: daemon up routes over the wire', () => {
   let root: string;
   let workingDir: string;
   let homeDir: string;

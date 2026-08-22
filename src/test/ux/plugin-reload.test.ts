@@ -161,7 +161,7 @@ function applyPluginReload(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('ux:plugin-reload — plugin reload while panels subscribed', () => {
+describe('ux:plugin-reload: plugin reload while panels subscribed', () => {
   let state: RuntimeState;
 
   beforeEach(() => {

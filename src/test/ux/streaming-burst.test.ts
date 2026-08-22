@@ -88,7 +88,7 @@ function makeRunningAgent(id: string, parentId?: string): RuntimeAgent {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('ux:streaming-burst — simultaneous streaming + tool + agent bursts', () => {
+describe('ux:streaming-burst: simultaneous streaming + tool + agent bursts', () => {
   let state: RuntimeState;
 
   beforeEach(() => {

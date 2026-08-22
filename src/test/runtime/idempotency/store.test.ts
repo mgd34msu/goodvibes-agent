@@ -279,7 +279,7 @@ describe('concurrent duplicate detection', () => {
 // ---------------------------------------------------------------------------
 
 describe('markComplete and markFailed', () => {
-  test('markComplete without result — record has no result property', () => {
+  test('markComplete without result: record has no result property', () => {
     const store = makeStore();
     const key = store.generateKey(CTX);
     store.checkAndRecord(key);
@@ -289,7 +289,7 @@ describe('markComplete and markFailed', () => {
     expect(record.result).toBeUndefined();
   });
 
-  test('markComplete with result — result is retrievable on duplicate', () => {
+  test('markComplete with result: result is retrievable on duplicate', () => {
     const store = makeStore();
     const key = store.generateKey(CTX);
     store.checkAndRecord(key);

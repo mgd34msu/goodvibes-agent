@@ -29,7 +29,7 @@ function makeEvent(overrides: Partial<HookEvent> = {}): HookEvent {
 // HookDispatcher unit tests
 // ---------------------------------------------------------------------------
 
-describe('Hook lifecycle — dispatcher', () => {
+describe('Hook lifecycle: dispatcher', () => {
   let dispatcher: HookDispatcher;
 
   beforeEach(() => {
@@ -98,7 +98,7 @@ describe('Hook lifecycle — dispatcher', () => {
 // Hook phase transitions (simulated)
 // ---------------------------------------------------------------------------
 
-describe('Hook lifecycle — phase transitions', () => {
+describe('Hook lifecycle: phase transitions', () => {
   test('Pre phase has correct path format', () => {
     const event = makeEvent({ phase: 'Pre', category: 'tool', specific: 'write' });
     expect(event.phase).toBe('Pre');
@@ -170,7 +170,7 @@ describe('Hook lifecycle — phase transitions', () => {
 // Hook event builder helpers
 // ---------------------------------------------------------------------------
 
-describe('Hook lifecycle — event builders', () => {
+describe('Hook lifecycle: event builders', () => {
   test('git hook events have git category', () => {
     const event = makeEvent({
       path: 'Pre:git:commit',

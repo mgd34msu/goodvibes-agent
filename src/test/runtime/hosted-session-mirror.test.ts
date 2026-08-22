@@ -137,7 +137,7 @@ describe('mirroring a hosted conversation into the session store', () => {
   });
 });
 
-describe('crash path — completion is never delivered', () => {
+describe('crash path: completion is never delivered', () => {
   test('a hosted session the store never heard of is recovered at the next boot', async () => {
     // Simulates the crash exactly as the brief describes: no completion ever
     // reaches this surface, so nothing mirrored at turn end. The daemon still

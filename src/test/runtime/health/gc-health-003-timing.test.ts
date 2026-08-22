@@ -65,7 +65,7 @@ function expectCascade(
 // 1. Timing emission
 // ---------------------------------------------------------------------------
 
-describe('CascadeTimer — timing emission', () => {
+describe('CascadeTimer: timing emission', () => {
   test('totalLatencyMs is a non-negative number', () => {
     const { timer } = makeSystem();
     const result = timer.evaluate('turn', 'failed');
@@ -115,7 +115,7 @@ describe('CascadeTimer — timing emission', () => {
 // 2. Severity attachment
 // ---------------------------------------------------------------------------
 
-describe('CascadeTimer — severity attachment', () => {
+describe('CascadeTimer: severity attachment', () => {
   test('cascade results carry a severity string', () => {
     const { timer } = makeSystem();
     const result = timer.evaluate('turn', 'failed');
@@ -170,7 +170,7 @@ describe('CascadeTimer — severity attachment', () => {
 // 3. Remediation playbook ID attachment
 // ---------------------------------------------------------------------------
 
-describe('CascadeTimer — remediationPlaybookIds attachment', () => {
+describe('CascadeTimer: remediationPlaybookIds attachment', () => {
   test('cascade results carry remediationPlaybookIds array', () => {
     const { timer } = makeSystem();
     const result = timer.evaluate('turn', 'failed');
@@ -298,7 +298,7 @@ describe('deriveCascadeSeverity', () => {
 // 5. createCascadeAppliedEvent, timing field preservation
 // ---------------------------------------------------------------------------
 
-describe('createCascadeAppliedEvent — timing field preservation', () => {
+describe('createCascadeAppliedEvent: timing field preservation', () => {
   test('preserves latencyMs, severity, and remediationPlaybookIds from TimedCascadeResult', () => {
     const { timer } = makeSystem();
     // timer.evaluate returns TimedCascadeResult objects with all three fields populated

@@ -27,7 +27,7 @@ const envelope = (
   discovery?: string,
 ): Envelope => catalogEnvelope('actions', items, total, filters, discovery) as unknown as Envelope;
 
-describe('catalog envelope — an empty page explains itself', () => {
+describe('catalog envelope: an empty page explains itself', () => {
   test('an empty page under a filter names the filter and the way out', () => {
     const result = envelope([], 463, { category: 'actions' }, 'agent_harness mode:"workspace_actions" with no category or query');
 
@@ -60,7 +60,7 @@ describe('catalog envelope — an empty page explains itself', () => {
   });
 });
 
-describe('catalog envelope — a non-empty page is left alone', () => {
+describe('catalog envelope: a non-empty page is left alone', () => {
   test('a SHORTENED page says so rather than passing for the whole catalog', () => {
     // This assertion used to require the opposite, that a populated page carry
     // no note, on the reasoning that it speaks for itself. It does not.

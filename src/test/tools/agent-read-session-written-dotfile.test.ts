@@ -25,7 +25,7 @@ beforeEach(() => {
   clearAgentSessionWrites();
 });
 
-describe('read guard — dotted paths this session wrote', () => {
+describe('read guard: dotted paths this session wrote', () => {
   test('a dotted path is blocked when the session did not write it', () => {
     expect(isBlockedReadPath(SCREENSHOT)).toBe(true);
   });
@@ -48,7 +48,7 @@ describe('read guard — dotted paths this session wrote', () => {
   });
 });
 
-describe('read guard — the waiver does not reach real secrets', () => {
+describe('read guard: the waiver does not reach real secrets', () => {
   const stillBlocked = [
     '/home/buzzkill/.netrc',
     '/home/buzzkill/.npmrc',
@@ -70,7 +70,7 @@ describe('read guard — the waiver does not reach real secrets', () => {
   }
 });
 
-describe('read guard — undotted paths are unaffected', () => {
+describe('read guard: undotted paths are unaffected', () => {
   test('an ordinary project file is allowed with or without a ledger entry', () => {
     expect(isBlockedReadPath('src/main.ts')).toBe(false);
     recordAgentSessionWrite('src/main.ts');

@@ -80,7 +80,7 @@ function drive(
 
 // ── Gate: no_data ─────────────────────────────────────────────────────────────
 
-describe('DivergenceDashboard.checkEnforceGate() — no_data', () => {
+describe('DivergenceDashboard.checkEnforceGate(): no_data', () => {
   it('returns no_data when no evaluations have been recorded', () => {
     const sim = makeSimulator();
     const dash = new DivergenceDashboard(sim, 'warn-on-divergence', {
@@ -115,7 +115,7 @@ describe('DivergenceDashboard.checkEnforceGate() — no_data', () => {
 
 // ── Gate: allowed ─────────────────────────────────────────────────────────────
 
-describe('DivergenceDashboard.checkEnforceGate() — allowed', () => {
+describe('DivergenceDashboard.checkEnforceGate(): allowed', () => {
   it('returns allowed when divergence rate is within threshold', () => {
     const sim = makeSimulator();
     // 1 divergence in 100 evals → 1% < default 5%
@@ -151,7 +151,7 @@ describe('DivergenceDashboard.checkEnforceGate() — allowed', () => {
 
 // ── Gate: blocked ─────────────────────────────────────────────────────────────
 
-describe('DivergenceDashboard.checkEnforceGate() — blocked', () => {
+describe('DivergenceDashboard.checkEnforceGate(): blocked', () => {
   it('returns blocked when divergence rate exceeds threshold', () => {
     const sim = makeSimulator();
     // 20 divergences in 100 evals → 20% > 5%
@@ -214,7 +214,7 @@ describe('DivergenceDashboard.checkEnforceGate() — blocked', () => {
 
 // ── setMode, non-enforce modes always succeed ─────────────────────────────────
 
-describe('DivergenceDashboard.setMode() — non-enforce modes', () => {
+describe('DivergenceDashboard.setMode(): non-enforce modes', () => {
   it('allows transitioning to simulation-only regardless of divergence', () => {
     const sim = makeSimulator();
     drive(sim, { total: 100, diverging: 50 }); // 50% divergence

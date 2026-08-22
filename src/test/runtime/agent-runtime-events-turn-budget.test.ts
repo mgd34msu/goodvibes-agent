@@ -25,7 +25,7 @@ const flushMicrotasks = async (rounds = 6) => {
  * fields alone, never touching the (irrelevant, generic) child-failure
  * envelope path.
  */
-describe('registerAgentRuntimeEvents — AGENT_FAILED typed turn-budget outcome (SDK 1.8.0)', () => {
+describe('registerAgentRuntimeEvents: AGENT_FAILED typed turn-budget outcome (SDK 1.8.0)', () => {
   function makeHarness() {
     const configDir = makeProjectTempDir('gv-turn-budget');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir });

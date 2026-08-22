@@ -2238,7 +2238,7 @@ describe('renderAgentWorkspace', () => {
     // setup category covers runtime + connected-host-auth + provider-model, all ready in liveCommandContext
     // So the Start row should show the success glyph ✓
     // We look for the left pane: the Start label with a readiness marker
-    expect(output).toContain('✓'); // ✓ GLYPHS.status.success — at least one ready category
+    expect(output).toContain('✓'); // ✓ GLYPHS.status.success, at least one ready category
 
     // onboarding-context covers agent-knowledge (recommended), should show attention marker !
     // Navigate to a different category so onboarding-context row is still visible in the left pane

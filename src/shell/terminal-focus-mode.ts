@@ -85,7 +85,7 @@ export function installFocusModeExitGuard(
   isFocusModeEnabled: () => boolean = () => focusModeEnabled,
 ): void {
   process.on('exit', () => {
-    if (!isFocusModeEnabled()) return; // never enabled (blocked/scriptable command) — keep stdout clean
+    if (!isFocusModeEnabled()) return; // never enabled (blocked/scriptable command), keep stdout clean
     try { stdout.write(FOCUS_DISABLE); } catch { /* stdout may already be torn down */ }
   });
 }

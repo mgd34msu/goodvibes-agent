@@ -124,7 +124,7 @@ describe('the local adapter agrees with the canonical fold policy', () => {
     }
   });
 
-  test('the rendered preview is the policy text, truncated — never re-flattened locally', () => {
+  test('the rendered preview is the policy text, truncated: never re-flattened locally', () => {
     const tone = { marker: '●', markerFg: '244', label: 'tool result', labelFg: '244' };
     const badge = { text: ' ▸ 44 lines ', fg: '244', dim: true };
     const raw = 'alpha\n\tbeta   gamma\ndelta';
@@ -158,7 +158,7 @@ describe('renderConversationFoldedRow owns the fold geometry', () => {
       .map((cell) => cell.char).join('').replace(/\s+$/, '');
   }
 
-  test('the fold is ONE row — always exactly one line', () => {
+  test('the fold is ONE row: always exactly one line', () => {
     const line = renderConversationFoldedRow(WIDTH, tone, [badge], 'some content');
     expect(Array.isArray(line)).toBe(true);
     expect(line.length).toBe(WIDTH);

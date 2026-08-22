@@ -51,7 +51,7 @@ describe('readPromptFile', () => {
     expect(readPromptFile(a)).toBe('C');
   });
 
-  test('circular include detection: A includes B includes A — skips circular ref', () => {
+  test('circular include detection: A includes B includes A: skips circular ref', () => {
     // Write placeholders first so paths resolve, then overwrite with circular refs
     const aPath = join(dir, 'a.md');
     const bPath = join(dir, 'b.md');
@@ -106,7 +106,7 @@ describe('readPromptFile', () => {
     expect(readPromptFile(p)).toBe('before\nafter');
   });
 
-  test('visited Set is shared across siblings — file included once is not duplicated', () => {
+  test('visited Set is shared across siblings: file included once is not duplicated', () => {
     write(dir, 'shared.md', 'SHARED');
     // Both branches include shared.md; should only appear once
     const p = write(dir, 'main.md', '@shared.md\n@shared.md');

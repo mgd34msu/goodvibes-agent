@@ -742,7 +742,7 @@ describe('AgentWorkspace', () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(configManager.get(THEME_MODE_CONFIG_KEY as ConfigKey)).toBe('auto');
-      expect(getActiveThemeMode()).toBe('light'); // unchanged now — auto only re-probes at startup
+      expect(getActiveThemeMode()).toBe('light'); // unchanged now, auto only re-probes at startup
       expect(workspace.status).toContain('next startup');
     } finally {
       setActiveThemeMode('dark'); // restore the shared test-process default
@@ -994,7 +994,7 @@ describe('AgentWorkspace', () => {
     expect(output).not.toContain('default knowledge');
   });
 
-  test('memory items carry describeMemoryPromptEligibility\'s own reason — no locally invented "not reviewed"/"outside prompt limit" paraphrase', () => {
+  test('memory items carry describeMemoryPromptEligibility\'s own reason: no locally invented "not reviewed"/"outside prompt limit" paraphrase', () => {
     const eligible = memoryRecord({
       id: 'mem-eligible',
       reviewState: 'fresh',
@@ -1029,7 +1029,7 @@ describe('AgentWorkspace', () => {
     expect(ineligibleItem?.promptEligibilityReason).not.toBe('outside prompt limit');
   });
 
-  test('temporal validity (validFrom/validUntil) is visible, not silent — expired/pending records stay stored but stop counting as prompt-active', () => {
+  test('temporal validity (validFrom/validUntil) is visible, not silent: expired/pending records stay stored but stop counting as prompt-active', () => {
     const now = Date.now();
     const active = memoryRecord({ id: 'mem-active', reviewState: 'reviewed', confidence: 90 });
     const pending = memoryRecord({ id: 'mem-pending', reviewState: 'reviewed', confidence: 90, validFrom: now + 60_000 });

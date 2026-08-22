@@ -131,7 +131,7 @@ describe('occasions raise decision', () => {
     const first = decideOccasionsRaises(
       pending({
         nudge: nudge(),
-        conflicts: [{ occasionId: 'anniversary', message: 'Your profile has 2 different dates recorded for Our anniversary. Nothing has been changed — which one is right?' }],
+        conflicts: [{ occasionId: 'anniversary', message: 'Your profile has 2 different dates recorded for Our anniversary. Nothing has been changed, which one is right?' }],
       } as Partial<OccasionsPendingResponse>),
       EMPTY_LEDGER,
     );
@@ -141,7 +141,7 @@ describe('occasions raise decision', () => {
     // He answered the nudge; only the conflict is still open.
     const second = decideOccasionsRaises(
       pending({
-        conflicts: [{ occasionId: 'anniversary', message: 'Your profile has 2 different dates recorded for Our anniversary. Nothing has been changed — which one is right?' }],
+        conflicts: [{ occasionId: 'anniversary', message: 'Your profile has 2 different dates recorded for Our anniversary. Nothing has been changed, which one is right?' }],
       } as Partial<OccasionsPendingResponse>),
       first.ledger,
     );
@@ -152,7 +152,7 @@ describe('occasions raise decision', () => {
   });
 
   test('a conflict is raised as written and is never offered a yes/no', () => {
-    const message = 'Your profile has 2 different dates recorded for Our anniversary. Nothing has been changed — which one is right?';
+    const message = 'Your profile has 2 different dates recorded for Our anniversary. Nothing has been changed, which one is right?';
     const decision = decideOccasionsRaises(
       pending({ conflicts: [{ occasionId: 'our-anniversary', message }] } as Partial<OccasionsPendingResponse>),
       EMPTY_LEDGER,

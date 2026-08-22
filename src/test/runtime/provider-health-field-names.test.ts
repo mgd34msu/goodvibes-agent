@@ -64,7 +64,7 @@ function makeModelState(): ModelDomainState {
   } as unknown as ModelDomainState;
 }
 
-describe('ProviderHealthDataProvider — D1 field name accuracy', () => {
+describe('ProviderHealthDataProvider: D1 field name accuracy', () => {
   test('entry exposes maxLatencyMs (not p95LatencyMs)', () => {
     const provider = new ProviderHealthDataProvider(makeHealthState(999), makeModelState());
     const snap = provider.getSnapshot();
@@ -92,7 +92,7 @@ function makeModel(): ModelDefinition {
   } as ModelDefinition;
 }
 
-describe('health-enrichment — D1 field name accuracy', () => {
+describe('health-enrichment: D1 field name accuracy', () => {
   test('ProviderLatencyStats exposes maxMs (not p95Ms)', () => {
     const healthState = makeHealthState(750);
     const modelState = makeModelState();

@@ -208,7 +208,7 @@ describe('sender registered: the push lands and the pull goes quiet', () => {
     expect(/\d/.test(h.said[0] ?? '')).toBe(false);
   });
 
-  test('and the pull then says nothing about it — one thing said once', async () => {
+  test('and the pull then says nothing about it: one thing said once', async () => {
     const outstanding = await h.invoke('occasions.pending') as { nudge: { message: string } | null };
     // The item is stamped, the agent is a configured push destination, so the pull
     // leaves it out. He was told once.

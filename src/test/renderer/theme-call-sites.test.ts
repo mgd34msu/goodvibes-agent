@@ -75,7 +75,7 @@ function fgSet(lines: Line[]): Set<string> {
 describe('markdown transcript renders in the active mode', () => {
   const MD = '# Heading One\n\nA `code` span and a [link](https://example.com).';
 
-  test('dark uses the historical heading cyan (#00ffff) — byte-identical', () => {
+  test('dark uses the historical heading cyan (#00ffff): byte-identical', () => {
     const fgs = fgSet(renderMarkdown(MD, 80));
     expect(fgs.has('#00ffff')).toBe(true);   // DARK.heading1
     expect(fgs.has('#0077aa')).toBe(false);  // no light heading leaks

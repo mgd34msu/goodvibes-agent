@@ -191,7 +191,7 @@ describe('switching or failing over re-resolves the level against the serving mo
     expect(remapped.note).toBeUndefined();
   });
 
-  test('resolution only ever snaps DOWN — never up to a costlier level', () => {
+  test('resolution only ever snaps DOWN: never up to a costlier level', () => {
     const highOnly: ReasoningEffortSpec = { kind: 'effort', values: ['high', 'max'], source: 'catalog' };
     const remapped = remapEffortForServingModel('low', model(highOnly));
     // Nothing at or below 'low' exists, so the field is dropped and the

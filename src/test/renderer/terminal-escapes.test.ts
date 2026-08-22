@@ -81,7 +81,7 @@ describe('buildEnterSequence', () => {
 });
 
 describe('CLEAR_VIEWPORT_HOME', () => {
-  test('is exactly 2J + cursor-home — never 3J', () => {
+  test('is exactly 2J + cursor-home: never 3J', () => {
     expect(CLEAR_VIEWPORT_HOME).toBe('\x1b[2J\x1b[H');
   });
 });

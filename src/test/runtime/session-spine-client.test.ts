@@ -381,7 +381,7 @@ function startKeepaliveClient(overrides: Partial<SessionSpineClientOptions> = {}
   };
 }
 
-describe('SessionSpineClient timer-driven keepalive (an idle-open session must not go stale — ports goodvibes-tui bda3cf5f)', () => {
+describe('SessionSpineClient timer-driven keepalive (an idle-open session must not go stale: ports goodvibes-tui bda3cf5f)', () => {
   const registerCalls = (): CapturedRequest[] => requests.filter((r) => r.url.endsWith('/api/sessions/register'));
 
   test('keepalive re-heartbeats on its own cadence with NO turn activity', async () => {
@@ -504,7 +504,7 @@ describe('SessionSpineClient result-kind fold (REST adapter -> SDK SpineResult, 
     client.register({ sessionId: 'fold-2', project: '/p' });
     await settle();
     expect(client.status()).toBe('unknown'); // never claims online; reachability untouched by a durable reject
-    expect(client.pendingOps).toBe(0); // NOT enqueued — a durable refusal must not retry-forever
+    expect(client.pendingOps).toBe(0); // NOT enqueued, a durable refusal must not retry-forever
     client.dispose();
   });
 

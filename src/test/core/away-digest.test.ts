@@ -95,7 +95,7 @@ describe('buildAwayDigest', () => {
     const result = buildAwayDigest({
       ...baseInput,
       pendingApprovals: 1,
-      approvalsUnavailableReason: 'the connected host is disabled (daemon.enabled=false) — nothing to reach.',
+      approvalsUnavailableReason: 'the connected host is disabled (daemon.enabled=false), nothing to reach.',
     });
     expect(result).not.toBeNull();
     expect(result!.lines[0]).toContain('1 approval is waiting');
@@ -120,7 +120,7 @@ describe('buildAwayDigest', () => {
     // single launch. `/health approvals` is where that question gets asked.
     const result = buildAwayDigest({
       ...baseInput,
-      approvalsUnavailableReason: 'the connected host is disabled (daemon.enabled=false) — nothing to reach.',
+      approvalsUnavailableReason: 'the connected host is disabled (daemon.enabled=false), nothing to reach.',
     });
     expect(result).toBeNull();
   });

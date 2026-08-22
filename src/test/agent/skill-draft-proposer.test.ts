@@ -39,7 +39,7 @@ function makeInput(overrides: Partial<ProposeSkillDraftsInput> = {}): ProposeSki
 // Target / status filtering
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — filtering', () => {
+describe('proposeSkillDrafts: filtering', () => {
   test('only accepts proposal-ready + skill target', () => {
     const candidates = [
       makeCandidate({ id: 'c-1', status: 'proposal-ready', proposalTarget: 'skill' }),
@@ -72,7 +72,7 @@ describe('proposeSkillDrafts — filtering', () => {
 // Cap
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — cap', () => {
+describe('proposeSkillDrafts: cap', () => {
   test('emits at most 3 proposals per pass', () => {
     const candidates = Array.from({ length: 6 }, (_, i) =>
       makeCandidate({
@@ -91,7 +91,7 @@ describe('proposeSkillDrafts — cap', () => {
 // Dedup, existing names
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — dedup vs existing names', () => {
+describe('proposeSkillDrafts: dedup vs existing names', () => {
   test('skips candidates whose slug matches an existing skill name (case-insensitive)', () => {
     // The proposer slugifies the description. "Do Something Useful Every Day"
     // becomes "do-something-useful-every-day"
@@ -123,7 +123,7 @@ describe('proposeSkillDrafts — dedup vs existing names', () => {
 // Dedup, previously proposed names
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — dedup vs previously proposed names', () => {
+describe('proposeSkillDrafts: dedup vs previously proposed names', () => {
   test('skips candidates whose slug appears in previouslyProposedNames', () => {
     const candidates = [
       makeCandidate({
@@ -141,7 +141,7 @@ describe('proposeSkillDrafts — dedup vs previously proposed names', () => {
 // Within-pass dedup
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — within-pass dedup', () => {
+describe('proposeSkillDrafts: within-pass dedup', () => {
   test('two candidates that resolve to the same slug yield only one proposal', () => {
     const candidates = [
       makeCandidate({
@@ -167,7 +167,7 @@ describe('proposeSkillDrafts — within-pass dedup', () => {
 // Secret skip, no abort
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — secret skip', () => {
+describe('proposeSkillDrafts: secret skip', () => {
   test('skips a candidate containing secret-like text without aborting the pass', () => {
     const candidates = [
       makeCandidate({
@@ -192,7 +192,7 @@ describe('proposeSkillDrafts — secret skip', () => {
 // Empty name / description guard
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — empty guards', () => {
+describe('proposeSkillDrafts: empty guards', () => {
   test('skips a candidate whose description resolves to an empty string', () => {
     // Both the proposalFields.description and label produce empty after trim
     const candidates = [
@@ -224,7 +224,7 @@ describe('proposeSkillDrafts — empty guards', () => {
 // Payload shape
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — payload shape', () => {
+describe('proposeSkillDrafts: payload shape', () => {
   test('emitted payload has enabled:true (autonomous), source:agent, provenance:auto-proposed-skill-draft', () => {
     const candidates = [
       makeCandidate({
@@ -269,7 +269,7 @@ describe('proposeSkillDrafts — payload shape', () => {
 // Determinism
 // ---------------------------------------------------------------------------
 
-describe('proposeSkillDrafts — determinism', () => {
+describe('proposeSkillDrafts: determinism', () => {
   test('same input always produces the same output (no Date.now / Math.random)', () => {
     const candidates = [
       makeCandidate({ id: 'c-1', proposalFields: { description: 'First proposal' } }),

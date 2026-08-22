@@ -104,7 +104,7 @@ describe('occasions nudge surface', () => {
     expect(seen.renders.count).toBe(0);
   });
 
-  test('occasions.enabled false stops the pull entirely, and true resumes it — read live', async () => {
+  test('occasions.enabled false stops the pull entirely, and true resumes it: read live', async () => {
     let enabled = false;
     const { surface, seen } = harness(
       () => ({ ok: true, data: pendingPayload(), route: 'in-process' }),

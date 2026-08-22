@@ -49,7 +49,7 @@ function makeOptions(overrides: Partial<Parameters<typeof createAutonomySurfacin
 // onAwayDigest wiring in announceAwayDigest
 // ---------------------------------------------------------------------------
 
-describe('announceAwayDigest — onAwayDigest wiring', () => {
+describe('announceAwayDigest: onAwayDigest wiring', () => {
   test('stub returning > 0 appends the skill-draft feed line', async () => {
     const { options, feedPushes } = makeOptions({
       onAwayDigest: () => 2,
@@ -126,7 +126,7 @@ describe('announceAwayDigest — onAwayDigest wiring', () => {
 // the local automation manager. See src/agent/automation-runs-source.ts.
 // ---------------------------------------------------------------------------
 
-describe('announceAwayDigest — connected-host run outcomes', () => {
+describe('announceAwayDigest: connected-host run outcomes', () => {
   function makeRun(overrides: Partial<AutomationRunOutcome> & Pick<AutomationRunOutcome, 'status'>): AutomationRunOutcome {
     return {
       id: overrides.id ?? 'run-1',
@@ -248,7 +248,7 @@ describe('announceAwayDigest — connected-host run outcomes', () => {
 // F7, comingUpItems returns a defensive copy
 // ---------------------------------------------------------------------------
 
-describe('comingUpItems — defensive copy', () => {
+describe('comingUpItems: defensive copy', () => {
   test('mutating the returned array does not affect subsequent calls', async () => {
     const shellPaths = tempShellPaths();
     const autonomy = createAutonomySurfacing({
@@ -287,7 +287,7 @@ describe('comingUpItems — defensive copy', () => {
 // F5, buildCalendarEventsLister timezone correctness (real function, DI seam)
 // ---------------------------------------------------------------------------
 
-describe('buildCalendarEventsLister — timezone and sort correctness', () => {
+describe('buildCalendarEventsLister: timezone and sort correctness', () => {
   /**
    * These tests exercise the REAL buildCalendarEventsLister via the
    * dependency-injection seam added in the second parameter: `upcomingEvents`.

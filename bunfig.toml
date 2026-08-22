@@ -11,14 +11,14 @@ preload = ["./src/test/helpers/preload.ts"]
 # there. But a developer running against a local SDK checkout replaces that
 # directory with a symlink to it, and the resolved paths then land OUTSIDE this
 # repo, where the node_modules exclusion no longer applies. Every SDK dist file
-# joins the coverage table, and the run dies partway through printing it — so
-# the gate fails for everyone using a dev link, and reports nothing about this
+# joins the coverage table, and the run dies partway through printing it. The
+# gate fails for everyone using a dev link and reports nothing about this
 # repo's coverage while doing it.
 #
 # The `**/goodvibes-sdk/**` pattern covers a link to an SDK checkout's package
 # directory. It does NOT cover a link into the SDK MONOREPO, where the directory
-# is named `packages/sdk` and resolving it drags in its workspace siblings too —
-# measured: contracts, errors, daemon-sdk, operator-sdk, peer-sdk and sdk dist
+# is named `packages/sdk` and resolving it drags in its workspace siblings too.
+# Measured: contracts, errors, daemon-sdk, operator-sdk, peer-sdk, and sdk dist
 # trees all joined the table, and the gate read 44.88% functions against an 84%
 # floor while reporting nothing about this repo. `**/packages/*/dist/**` covers
 # that layout and cannot match anything here: this repo has no packages/ dir,

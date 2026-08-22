@@ -30,7 +30,7 @@ function fakeOrchestrator(turnInjections: unknown[] = []) {
 }
 
 describe('bindOrchestratorContextAccounting (SDK 1.6.1 context_accounting tool)', () => {
-  test('unbound holder — the context_accounting tool reports the honest "no live session context" message', async () => {
+  test('unbound holder: the context_accounting tool reports the honest "no live session context" message', async () => {
     const holder = new ContextAccountingHolder();
     const tool = createContextAccountingTool(holder);
     const result = await tool.execute({}, {} as never);
@@ -40,7 +40,7 @@ describe('bindOrchestratorContextAccounting (SDK 1.6.1 context_accounting tool)'
     expect(parsed.reason).toBe('No live session context is bound to this tool instance. Context accounting is populated on the interactive session.');
   });
 
-  test('bound to a real Orchestrator-backed source — the tool returns real token/injection/compaction data, not the unbound message', async () => {
+  test('bound to a real Orchestrator-backed source: the tool returns real token/injection/compaction data, not the unbound message', async () => {
     const holder = new ContextAccountingHolder();
     const runtimeBus = new RuntimeEventBus();
     const runtimeStore = createRuntimeStore();

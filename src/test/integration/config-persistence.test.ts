@@ -13,7 +13,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 // ConfigManager set/get roundtrip
 // ---------------------------------------------------------------------------
 
-describe('Config persistence — set/get roundtrip', () => {
+describe('Config persistence: set/get roundtrip', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe('Config persistence — set/get roundtrip', () => {
 // ConfigManager get() with typed paths
 // ---------------------------------------------------------------------------
 
-describe('Config persistence — typed path access', () => {
+describe('Config persistence: typed path access', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
@@ -111,7 +111,7 @@ describe('Config persistence — typed path access', () => {
 // Config provider.model / provider.provider fields
 // ---------------------------------------------------------------------------
 
-describe('Config persistence — provider fields', () => {
+describe('Config persistence: provider fields', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
@@ -142,7 +142,7 @@ describe('Config persistence — provider fields', () => {
 // Config display fields
 // ---------------------------------------------------------------------------
 
-describe('Config persistence — display fields', () => {
+describe('Config persistence: display fields', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
@@ -174,7 +174,7 @@ describe('Config persistence — display fields', () => {
 // Config state isolation
 // ---------------------------------------------------------------------------
 
-describe('Config persistence — isolation between tests', () => {
+describe('Config persistence: isolation between tests', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {

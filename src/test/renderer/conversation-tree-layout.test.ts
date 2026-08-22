@@ -102,7 +102,7 @@ function mixedStatusTurn(): Message[] {
 }
 
 describe('tree column grid', () => {
-  test('the status column IS the bullet column — one definition, not two numbers', () => {
+  test('the status column IS the bullet column: one definition, not two numbers', () => {
     // Not a tautology in the direction that matters: the RENDERED tests below
     // prove writeTreeStatusMarker actually lands here, and this pins the column
     // itself to the depth-0 marker column rather than to a literal.
@@ -171,7 +171,7 @@ describe('rendered turn: status markers align with the assistant bullet', () => 
     expect(callRow).not.toContain('✓');
   });
 
-  test('a result row carries no marker of its own — the call row above already said it', () => {
+  test('a result row carries no marker of its own: the call row above already said it', () => {
     const rows = renderRows(mixedStatusTurn());
     const resultRow = rows.find((row) => row.includes('lines') || row.includes('line'))!;
     expect(resultRow.slice(0, STATUS_COL + 1).trim()).toBe('');
@@ -237,7 +237,7 @@ describe('rails are continuous through a subtree', () => {
     expect(rows[firstCall + 1]![railCol], JSON.stringify(rows[firstCall + 1])).toBe('│');
   });
 
-  test('the last sibling ends the rail — nothing is drawn below its └', () => {
+  test('the last sibling ends the rail: nothing is drawn below its └', () => {
     const rows = renderRows(mixedStatusTurn()).filter((row) => row.length > 0);
     const railCol = treeBranchCol(treeIndentCols(1, WIDTH));
     const last = rows.findIndex((row) => row[railCol] === '└');
@@ -311,13 +311,13 @@ describe('a collapsed tool result is one compact row', () => {
     }
   });
 
-  test('the count is stated once, by the badge — no separate hidden marker', () => {
+  test('the count is stated once, by the badge: no separate hidden marker', () => {
     const rows = renderRows(threeFlatResults());
     expect(rows.some((row) => row.includes('hidden'))).toBe(false);
     expect(rows.filter((row) => /▸ \d+ lines/.test(row)).length).toBe(3);
   });
 
-  test('three collapsed results render as three ADJACENT rows — no blank filler', () => {
+  test('three collapsed results render as three ADJACENT rows: no blank filler', () => {
     const rows = renderRows(threeFlatResults());
     const badgeRows = rows
       .map((row, index) => ({ row, index }))

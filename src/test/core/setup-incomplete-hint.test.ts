@@ -37,7 +37,7 @@ function makeState(overrides: Partial<OnboardingState> = {}): OnboardingState {
 // Phase gating: fresh and complete return null
 // ---------------------------------------------------------------------------
 
-describe('buildSetupIncompleteHint — phase gating', () => {
+describe('buildSetupIncompleteHint: phase gating', () => {
   test('returns null for phase fresh', () => {
     const state = makeState({ phase: 'fresh' });
     expect(buildSetupIncompleteHint(state)).toBeNull();
@@ -58,7 +58,7 @@ describe('buildSetupIncompleteHint — phase gating', () => {
 // in-progress with readyToChat = true
 // ---------------------------------------------------------------------------
 
-describe('buildSetupIncompleteHint — in-progress, ready to chat', () => {
+describe('buildSetupIncompleteHint: in-progress, ready to chat', () => {
   test('line 1 mentions setup is not finished or still in progress', () => {
     const state = makeState({ readyToChat: true });
     const result = buildSetupIncompleteHint(state);
@@ -112,7 +112,7 @@ describe('buildSetupIncompleteHint — in-progress, ready to chat', () => {
 // in-progress with readyToChat = false (model-first lead)
 // ---------------------------------------------------------------------------
 
-describe('buildSetupIncompleteHint — in-progress, not ready to chat', () => {
+describe('buildSetupIncompleteHint: in-progress, not ready to chat', () => {
   test('leads with pick a model prompt', () => {
     const state = makeState({ readyToChat: false });
     const result = buildSetupIncompleteHint(state);
@@ -139,7 +139,7 @@ describe('buildSetupIncompleteHint — in-progress, not ready to chat', () => {
 // Host readiness line
 // ---------------------------------------------------------------------------
 
-describe('buildSetupIncompleteHint — host readiness line', () => {
+describe('buildSetupIncompleteHint: host readiness line', () => {
   test('hostReady true appends assistant service active line', () => {
     const state = makeState({ readyToChat: true });
     const result = buildSetupIncompleteHint(state, true);
@@ -181,7 +181,7 @@ describe('buildSetupIncompleteHint — host readiness line', () => {
 // MINOR-1: local-model-readiness ready while provider-access blocked
 // ---------------------------------------------------------------------------
 
-describe('buildSetupIncompleteHint — local-model-readiness ready, provider blocked', () => {
+describe('buildSetupIncompleteHint: local-model-readiness ready, provider blocked', () => {
   /**
    * Simulate the OnboardingState that deriveOnboardingState produces when:
    *   - provider-access: 'blocked'
@@ -256,7 +256,7 @@ const BANNED_JARGON = [
   /\bcli\b/i,
 ];
 
-describe('buildSetupIncompleteHint — plain language', () => {
+describe('buildSetupIncompleteHint: plain language', () => {
   const scenarios: Array<[string, Partial<OnboardingState>, boolean | null | undefined]> = [
     ['in-progress, readyToChat, no host signal', { readyToChat: true }, undefined],
     ['in-progress, not readyToChat, no host signal', { readyToChat: false }, undefined],

@@ -71,7 +71,7 @@ describe('parseCliFlags', () => {
     expect(flags.workingDir).toBeUndefined();
   });
 
-  test('flag overrides env for working-dir — flag present, env set', () => {
+  test('flag overrides env for working-dir: flag present, env set', () => {
     const savedEnv = process.env['GOODVIBES_WORKING_DIR'];
     try {
       process.env['GOODVIBES_WORKING_DIR'] = '/from/env';

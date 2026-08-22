@@ -203,7 +203,7 @@ describe('agent_harness remote surface', () => {
     }
   });
 
-  test('mutation surfaces are confirmation-gated — reject without confirm+explicitUserRequest', async () => {
+  test('mutation surfaces are confirmation-gated: reject without confirm+explicitUserRequest', async () => {
     const fixture = makeRemoteFixture();
     try {
       for (const mode of REMOTE_MUTATION_MODES) {

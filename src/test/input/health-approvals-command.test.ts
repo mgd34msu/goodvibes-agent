@@ -72,7 +72,7 @@ describe('/health approvals', () => {
     const text = await runHealthApprovals(stubView({
       approvals: [],
       hostRecordRead: false,
-      unavailableReason: 'the connected host is disabled (daemon.enabled=false) — nothing to reach.',
+      unavailableReason: 'the connected host is disabled (daemon.enabled=false), nothing to reach.',
       localOnlyCount: 0,
     }));
 

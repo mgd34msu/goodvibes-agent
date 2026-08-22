@@ -28,7 +28,7 @@ function flagsUrlEncoding(cmd: string): boolean {
   return obfuscationPatternsFor(cmd).some((pattern) => pattern.includes('URL-encoded'));
 }
 
-describe('exec guard — format specifiers are not URL-encoded content', () => {
+describe('exec guard: format specifiers are not URL-encoded content', () => {
   const formatCommands: ReadonlyArray<[label: string, command: string]> = [
     ['printf width specifiers', 'printf "%4d %4d %-20s\\n" 1 2 three'],
     ['printf zero-padded pairs', 'printf "%02d:%02d\\n" 7 5'],
@@ -51,7 +51,7 @@ describe('exec guard — format specifiers are not URL-encoded content', () => {
   });
 });
 
-describe('exec guard — genuine percent-encoding is still detected', () => {
+describe('exec guard: genuine percent-encoding is still detected', () => {
   it('flags a percent-encoded path inside a URL', () => {
     expect(flagsUrlEncoding('curl http://example.com/path%2Fetc%2Fpasswd')).toBe(true);
   });

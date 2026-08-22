@@ -110,7 +110,7 @@ function releaseFetch(assets: Record<string, Buffer>, options: { readonly manife
   }) as unknown as UpdateFetchLike;
 }
 
-describe('swapDirectory — the driver is a directory, not a file', () => {
+describe('swapDirectory: the driver is a directory, not a file', () => {
   test('replaces the driver and parks the outgoing one', () => {
     const installDir = scratch('gv-swap');
     const driverPath = join(installDir, BROWSER_DRIVER_DIR_NAME);

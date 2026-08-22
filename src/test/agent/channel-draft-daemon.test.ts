@@ -80,7 +80,7 @@ function daemonDraft(id: string, message: string, updatedAt: string): Record<str
   };
 }
 
-describe('saving a draft — the daemon takes it', () => {
+describe('saving a draft: the daemon takes it', () => {
   test('the draft is offered to channels.drafts.save with both halves of the gate', async () => {
     const calls: Call[] = [];
 
@@ -113,7 +113,7 @@ describe('saving a draft — the daemon takes it', () => {
   });
 });
 
-describe('saving a draft — the daemon is unreachable', () => {
+describe('saving a draft: the daemon is unreachable', () => {
   test('the composition is kept', async () => {
     const result = await saveDraft(
       shellPaths,

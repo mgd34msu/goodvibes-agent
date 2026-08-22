@@ -70,7 +70,7 @@ test('session teardown disposes the runtime graph', async () => {
   expect(order).toContain('graph-dispose');
 });
 
-test('the graph is disposed last — after the shutdown that still needs its schedulers', async () => {
+test('the graph is disposed last: after the shutdown that still needs its schedulers', async () => {
   const order: string[] = [];
   await createRuntimeShutdown(makeDeps(order))(SESSION_DATA);
   // Whatever else ran, the graph teardown is the final act: the steps before it

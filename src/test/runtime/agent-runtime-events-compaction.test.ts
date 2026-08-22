@@ -10,7 +10,7 @@ import { createTestManagers } from '../helpers/test-managers.ts';
 // Drain queued microtasks so bus.emit() listeners (OBS-14 async dispatch) run before assertions.
 const flushMicrotasks = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
 
-describe('registerAgentRuntimeEvents — compaction receipt routing (SDK 1.6.1)', () => {
+describe('registerAgentRuntimeEvents: compaction receipt routing (SDK 1.6.1)', () => {
   function setup() {
     const runtimeBus = new RuntimeEventBus();
     const domainDispatch = createDomainDispatch(createRuntimeStore());

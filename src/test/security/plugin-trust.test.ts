@@ -429,7 +429,7 @@ describe('security: PluginQuarantineEngine', () => {
 // exercise the trust/quarantine delegation through the underlying engines in a
 // coordinated integration scenario that mirrors PluginManager's internal logic.
 
-describe('security: PluginManager layer — trust/quarantine integration', () => {
+describe('security: PluginManager layer: trust/quarantine integration', () => {
   let trustStore: InstanceType<typeof PluginTrustStore>;
   let quarantineEngine: InstanceType<typeof PluginQuarantineEngine>;
 

@@ -133,7 +133,7 @@ afterEach(() => {
 // ModelPickerModal, enterContextCapMode
 // ---------------------------------------------------------------------------
 
-describe('ModelPickerModal — enterContextCapMode', () => {
+describe('ModelPickerModal: enterContextCapMode', () => {
   let picker: ModelPickerModal;
 
   beforeEach(() => {
@@ -170,7 +170,7 @@ describe('ModelPickerModal — enterContextCapMode', () => {
 // ModelPickerModal, appendContextCapChar
 // ---------------------------------------------------------------------------
 
-describe('ModelPickerModal — appendContextCapChar', () => {
+describe('ModelPickerModal: appendContextCapChar', () => {
   let picker: ModelPickerModal;
 
   beforeEach(() => {
@@ -200,7 +200,7 @@ describe('ModelPickerModal — appendContextCapChar', () => {
     }
   });
 
-  test('enforces 9-digit limit — rejects 10th digit', () => {
+  test('enforces 9-digit limit: rejects 10th digit', () => {
     for (const d of '123456789') picker.appendContextCapChar(d);
     expect(picker.contextCapQuery).toBe('123456789');
     picker.appendContextCapChar('0');
@@ -217,7 +217,7 @@ describe('ModelPickerModal — appendContextCapChar', () => {
 // ModelPickerModal, deleteContextCapChar
 // ---------------------------------------------------------------------------
 
-describe('ModelPickerModal — deleteContextCapChar', () => {
+describe('ModelPickerModal: deleteContextCapChar', () => {
   let picker: ModelPickerModal;
 
   beforeEach(() => {
@@ -251,7 +251,7 @@ describe('ModelPickerModal — deleteContextCapChar', () => {
 // ProviderRegistry, setModelContextCap
 // ---------------------------------------------------------------------------
 
-describe('ProviderRegistry — setModelContextCap', () => {
+describe('ProviderRegistry: setModelContextCap', () => {
   let registry: ProviderRegistry;
 
   beforeEach(() => {
@@ -286,7 +286,7 @@ describe('ProviderRegistry — setModelContextCap', () => {
 // Handler, Space key (local vs cloud)
 // ---------------------------------------------------------------------------
 
-describe('ModelPickerModal — isLocalModel', () => {
+describe('ModelPickerModal: isLocalModel', () => {
   let picker: ModelPickerModal;
 
   beforeEach(() => {
@@ -337,7 +337,7 @@ describe('ModelPickerModal — isLocalModel', () => {
 // Handler, Enter key in contextCap mode
 // ---------------------------------------------------------------------------
 
-describe('ModelPickerModal — contextCap Enter scenarios', () => {
+describe('ModelPickerModal: contextCap Enter scenarios', () => {
   let picker: ModelPickerModal;
   const local = makeLocalModel();
 
@@ -346,7 +346,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
     picker.enterContextCapMode(local);
   });
 
-  test('blank input — parsedCap is null (validCap is null)', () => {
+  test('blank input: parsedCap is null (validCap is null)', () => {
     // Simulate what handler does on Enter
     const rawInput = picker.contextCapQuery.trim();
     const parsedCap = rawInput.length > 0 ? parseInt(rawInput, 10) : null;
@@ -354,7 +354,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
     expect(validCap).toBeNull();
   });
 
-  test('valid positive integer — validCap is that integer', () => {
+  test('valid positive integer: validCap is that integer', () => {
     picker.appendContextCapChar('8');
     picker.appendContextCapChar('1');
     picker.appendContextCapChar('9');
@@ -365,7 +365,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
     expect(validCap).toBe(8192);
   });
 
-  test('zero input — validCap is null (zero is not positive)', () => {
+  test('zero input: validCap is null (zero is not positive)', () => {
     picker.appendContextCapChar('0');
     const rawInput = picker.contextCapQuery.trim();
     const parsedCap = rawInput.length > 0 ? parseInt(rawInput, 10) : null;
@@ -373,7 +373,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
     expect(validCap).toBeNull();
   });
 
-  test('value exceeding 10_000_000 — validCap is null', () => {
+  test('value exceeding 10_000_000: validCap is null', () => {
     // 10000001, one over the limit
     for (const d of '10000001') picker.appendContextCapChar(d);
     const rawInput = picker.contextCapQuery.trim();
@@ -382,7 +382,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
     expect(validCap).toBeNull();
   });
 
-  test('value at exact upper bound 10_000_000 — validCap is accepted', () => {
+  test('value at exact upper bound 10_000_000: validCap is accepted', () => {
     for (const d of '10000000') picker.appendContextCapChar(d);
     const rawInput = picker.contextCapQuery.trim();
     const parsedCap = rawInput.length > 0 ? parseInt(rawInput, 10) : null;
@@ -395,7 +395,7 @@ describe('ModelPickerModal — contextCap Enter scenarios', () => {
 // Handler, Escape key in contextCap mode (reset)
 // ---------------------------------------------------------------------------
 
-describe('ModelPickerModal — Escape from contextCap resets state', () => {
+describe('ModelPickerModal: Escape from contextCap resets state', () => {
   let picker: ModelPickerModal;
 
   beforeEach(() => {

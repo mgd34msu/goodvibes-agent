@@ -155,7 +155,7 @@ describe('agent conversation sender', () => {
     expect(second.said).toEqual([NUDGE_BODY]);
   });
 
-  test('a non-occasions push lands the same way — this destination is not occasions-specific', async () => {
+  test('a non-occasions push lands the same way: this destination is not occasions-specific', async () => {
     const primary = conversation();
     const sender = createAgentConversationSender({
       primaryConversation: () => primary,
@@ -203,7 +203,7 @@ describe('installing the destination at startup', () => {
     expect(released).toBe(1);
   });
 
-  test('the installed sender is the live one — it lands a body through the same path', async () => {
+  test('the installed sender is the live one: it lands a body through the same path', async () => {
     const primary = conversation();
     let installed: AgentConversationSender | null = null;
     installAgentConversationSender({

@@ -47,7 +47,7 @@ describe('McpSchemaFreshnessTracker: quarantine', () => {
       expect(record?.quarantine?.quarantinedAt).toBeGreaterThanOrEqual(before);
     });
 
-    test('quarantine is sticky — markStale does not override quarantine', () => {
+    test('quarantine is sticky: markStale does not override quarantine', () => {
       const tracker = new McpSchemaFreshnessTracker();
       tracker.registerServer('srv');
       tracker.markFresh('srv');
@@ -93,7 +93,7 @@ describe('McpSchemaFreshnessTracker: quarantine', () => {
     });
   });
 
-  describe('approveQuarantine — operator override', () => {
+  describe('approveQuarantine: operator override', () => {
     test('transitions quarantined to stale after operator approval', () => {
       const tracker = new McpSchemaFreshnessTracker();
       tracker.registerServer('srv');

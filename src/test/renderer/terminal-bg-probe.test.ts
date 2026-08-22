@@ -229,7 +229,7 @@ function fakeConfig(themeMode: unknown): Pick<ConfigManager, 'get'> {
   } as unknown as Pick<ConfigManager, 'get'>;
 }
 
-describe('installBackgroundThemeProbe — forcing paths', () => {
+describe('installBackgroundThemeProbe: forcing paths', () => {
   test("forced 'dark' applies dark, writes no query, filter is passthrough", () => {
     let wrote = '';
     const applied: ThemeMode[] = [];
@@ -278,7 +278,7 @@ describe('installBackgroundThemeProbe — forcing paths', () => {
   });
 });
 
-describe('installBackgroundThemeProbe — auto probe flow', () => {
+describe('installBackgroundThemeProbe: auto probe flow', () => {
   test('auto + TTY writes the query; a light reply applies light + repaints once', () => {
     let wrote = '';
     let repaints = 0;

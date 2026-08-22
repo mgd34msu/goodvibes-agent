@@ -125,7 +125,7 @@ describe('getCostFromPricingCatalog', () => {
   it('returns zero cost for free-tier models in catalog', () => {
     expect(getCostFromPricingCatalog('gpt-oss-120b', COST_FIXTURE)).toEqual({ input: 0, output: 0 });
   });
-  it('returns null for unknown models — honestly unpriced, never $0', () => {
+  it('returns null for unknown models: honestly unpriced, never $0', () => {
     expect(getCostFromPricingCatalog('unknown-model-xyz-9999', COST_FIXTURE)).toBeNull();
   });
   it('handles prefix/substring match for versioned model IDs', () => {
@@ -145,7 +145,7 @@ describe('getCostFromPricingCatalog', () => {
     expect(cost?.output).toBe(84);
   });
 
-  it('goes null after rewriting the catalog with no models — absent never looks free', () => {
+  it('goes null after rewriting the catalog with no models: absent never looks free', () => {
     const customCatalog: PricingCatalog = {
       fetchedAt: Date.now(),
       models: [{ id: 'test-model', name: 'Test Model', provider: 'test', providerId: 'test', providerEnvVars: [], pricing: { input: 99, output: 99 }, tier: 'paid' }],
@@ -478,7 +478,7 @@ function buildBroadFamily(
   return [...fillers, ...extras];
 }
 
-describe('buildSyntheticCanonicalModels — slug-based merging in broad families', () => {
+describe('buildSyntheticCanonicalModels: slug-based merging in broad families', () => {
   it('merges models whose names differ only in punctuation/spacing into one canonical group', () => {
     const family = 'gpt';
     const hyphen = makeCatalogModel('gpt-4o-openai', 'GPT-4o', family, 'provider-a');

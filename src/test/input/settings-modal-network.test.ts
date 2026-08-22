@@ -42,7 +42,7 @@ const emptyMcpRegistry: McpRegistry = {
   setServerTrustMode: () => {},
 } as unknown as McpRegistry;
 
-describe('SettingsModal — Agent service-hosting boundaries', () => {
+describe('SettingsModal: Agent service-hosting boundaries', () => {
   const originalCwd = process.cwd();
   const originalHome = process.env.HOME;
   let tmpDir: string;

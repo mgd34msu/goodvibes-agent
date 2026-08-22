@@ -16,7 +16,7 @@ beforeEach(() => {
   resetTestRuntimeServices();
 });
 
-describe('ModeManager — HITL UX modes', () => {
+describe('ModeManager: HITL UX modes', () => {
   // ── setHITLMode / getHITLMode ──────────────────────────────────────────────
 
   it('defaults to balanced mode', () => {
@@ -190,7 +190,7 @@ describe('ModeManager — HITL UX modes', () => {
 // permissive and accepts the mode change anyway.
 // ---------------------------------------------------------------------------
 
-describe('ModeManager — behavior.hitlMode feature gate', () => {
+describe('ModeManager: behavior.hitlMode feature gate', () => {
   function modeManagerWithGate(root: string, hitlMode: 'off' | 'balanced'): ModeManager {
     const configManager = new ConfigManager({ surfaceRoot: 'agent', workingDir: root, homeDir: root, configDir: join(root, '.goodvibes', 'agent') });
     configManager.set('behavior.hitlMode', hitlMode);

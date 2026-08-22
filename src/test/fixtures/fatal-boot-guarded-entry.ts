@@ -1,5 +1,5 @@
 /**
- * fatal-boot-guarded-entry.ts — main.ts's fatal tail, with the output guard on.
+ * fatal-boot-guarded-entry.ts, main.ts's fatal tail, with the output guard on.
  *
  * Not a test file (the suite runner collects only *.test.ts). This exists to be
  * built with `bun build --compile` and RUN, because the defect it guards is
@@ -10,7 +10,7 @@
  * It mirrors `src/main.ts` exactly at the two points that matter:
  *
  *   1. `installFullScreenTerminalOutputGuard` with `process.stderr` as the guarded
- *      stream — the call main.ts makes once the renderer exists (line ~681),
+ *      stream, the call main.ts makes once the renderer exists (line ~681),
  *      which REPLACES `process.stderr.write` so stray output cannot corrupt a
  *      rendered screen.
  *   2. `main().catch(...)` handing the real `reportFatalStartupError` the same
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
     stderr: process.stderr,
     notify: () => undefined,
   });
-  // A startup failure raised AFTER the guard is installed — the window main.ts
+  // A startup failure raised AFTER the guard is installed, the window main.ts
   // really has, between the guard and first render (theme probe, voice capture,
   // history rebuild, first-render followups).
   throw new Error(`Global config load failed for ${join(WORKING_DIR, 'settings.json')}: JSON Parse error: Expected '}'`);

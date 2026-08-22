@@ -181,7 +181,7 @@ describe('the shape that shipped writes NOTHING once the output guard is on', ()
   beforeAll(() => { entry = compileEntry('src/test/fixtures/fatal-boot-guarded-legacy-entry.ts', 'agent-legacy'); });
   afterAll(() => { rmSync(entry.dir, { recursive: true, force: true }); });
 
-  test('exit 1, zero bytes on stdout, zero bytes on stderr — the baseline', () => {
+  test('exit 1, zero bytes on stdout, zero bytes on stderr: the baseline', () => {
     // Not an assumption about how a compiled binary flushes. The reporter runs,
     // the logger has a destination and works, and the reason still reaches
     // nobody, because the guard replaced the stream this sink writes to.

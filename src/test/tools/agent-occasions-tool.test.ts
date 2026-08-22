@@ -52,7 +52,7 @@ function answers(data: unknown): OccasionsGatewayResult {
   return { ok: true, data, route: 'in-process' };
 }
 
-describe('occasions tool — shape', () => {
+describe('occasions tool: shape', () => {
   test('an unknown action is refused rather than defaulted to a read', async () => {
     const { run, calls } = toolWith(() => answers({}));
     const result = await run({ action: 'sing' });
@@ -71,7 +71,7 @@ describe('occasions tool — shape', () => {
   });
 });
 
-describe('occasions tool — pending', () => {
+describe('occasions tool: pending', () => {
   const PENDING = {
     today: '2026-03-01',
     nudge: {
@@ -122,7 +122,7 @@ describe('occasions tool — pending', () => {
   });
 });
 
-describe('occasions tool — answers', () => {
+describe('occasions tool: answers', () => {
   test('later is sent as later, never folded into no', async () => {
     const { run, calls } = toolWith(() => answers({ ok: true, reason: null, interview: null }));
     const result = await run({ action: 'answer', occasionId: 'sarahs-birthday', answer: 'later' });
@@ -176,7 +176,7 @@ describe('occasions tool — answers', () => {
   });
 });
 
-describe('occasions tool — the interview', () => {
+describe('occasions tool: the interview', () => {
   test('an answer is recorded verbatim and the next question comes back', async () => {
     const { run, calls } = toolWith(() => answers({
       present: true,
@@ -254,9 +254,9 @@ describe('occasions tool — the interview', () => {
   });
 });
 
-describe('occasions tool — capture', () => {
+describe('occasions tool: capture', () => {
   test('propose writes nothing and relays the confirmation, kind question included', async () => {
-    const confirmation = 'Noted Our anniversary as 2015-09-12 — right? And is that one you\'ll want to sort something for, one to just remember, or neither?';
+    const confirmation = 'Noted Our anniversary as 2015-09-12, right? And is that one you\'ll want to sort something for, one to just remember, or neither?';
     const { run, calls } = toolWith((methodId) => {
       expect(methodId).toBe('occasions.propose');
       return answers({
@@ -284,7 +284,7 @@ describe('occasions tool — capture', () => {
       ok: true,
       reason: null,
       line: 'Our anniversary · 2015-09-12 · annual · gift-giving',
-      confirmation: 'Noted Our anniversary as 2015-09-12 — right?',
+      confirmation: 'Noted Our anniversary as 2015-09-12, right?',
       needsKind: false,
       conflictsWith: ['2015-09-14'],
     }));
@@ -383,7 +383,7 @@ describe('occasions tool — capture', () => {
   });
 });
 
-describe('occasions tool — removal and conflicts', () => {
+describe('occasions tool: removal and conflicts', () => {
   test('removal asks once before it happens, and asks nothing else', async () => {
     const { run, calls } = toolWith(() => answers({}));
     const result = await run({ action: 'remove', occasionId: 'sarahs-birthday', authority: 'owner-direct' });
@@ -422,7 +422,7 @@ describe('occasions tool — removal and conflicts', () => {
   });
 });
 
-describe('occasions tool — reads that do carry dates', () => {
+describe('occasions tool: reads that do carry dates', () => {
   test('list returns dates and says plainly they must not go into anything outbound', async () => {
     const { run } = toolWith(() => answers({
       today: '2026-03-01',
@@ -502,7 +502,7 @@ describe('occasions tool — reads that do carry dates', () => {
   });
 });
 
-describe('occasions tool — sweep', () => {
+describe('occasions tool: sweep', () => {
   test('quiet hours are reported as a hold, and nothing is described as dropped', async () => {
     const { run } = toolWith(() => answers({
       ranAt: 1, today: '2026-03-01', hold: 'quiet-hours', nudge: null,
@@ -526,7 +526,7 @@ describe('occasions tool — sweep', () => {
   });
 });
 
-describe('occasions tool — sweep reports every destination, not an aggregate', () => {
+describe('occasions tool: sweep reports every destination, not an aggregate', () => {
   const base = {
     ranAt: 1, today: '2026-03-01', hold: null,
     nudge: {

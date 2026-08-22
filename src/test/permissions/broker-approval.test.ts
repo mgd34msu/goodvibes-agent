@@ -37,7 +37,7 @@ function makeFakeBroker(records: Record<string, { status: string; request: unkno
   } as never;
 }
 
-describe('permissions/broker-approval — pure reducer (fake broker)', () => {
+describe('permissions/broker-approval: pure reducer (fake broker)', () => {
   test('a broker-originated ask with no local prompt opens a card built from broker state', () => {
     let pending: PendingPermissionState | null = null;
     let renders = 0;
@@ -182,7 +182,7 @@ function makeLatch(): { promise: Promise<void>; signal: () => void } {
   return { promise, signal: signalFn };
 }
 
-describe('permissions/broker-approval — real ApprovalBroker (in-memory)', () => {
+describe('permissions/broker-approval: real ApprovalBroker (in-memory)', () => {
   test('a broker approval raised with no local prompt (a daemon/other-surface ask) appears in the agent surface', async () => {
     const broker = new ApprovalBroker({ storePath: ':memory:' });
     const pendingRef = makePendingRef();

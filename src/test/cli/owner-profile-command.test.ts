@@ -201,7 +201,7 @@ describe('owner-profile CLI command', () => {
           text: 'shipping address: 401 Home St',
           value: '401 Home St',
           supersededOn: '2026-07-27',
-          previousLine: 'shipping address: 401 Home St — tui, 2026-07-20, "ship to 401 Home St"',
+          previousLine: 'shipping address: 401 Home St, from tui on 2026-07-20, you said: "ship to 401 Home St"',
           provenance: { surface: 'tui', date: '2026-07-20', said: 'ship to 401 Home St' },
         }],
       })) },
@@ -262,7 +262,7 @@ describe('owner-profile CLI command', () => {
     expect(result.exitCode).toBe(0);
     expect(result.output).toContain('## Identity');
     expect(result.output).toContain('goes by: Mike');
-    expect(result.output).toContain('Gym: the Y on Michigan Ave — agent, 2026-07-27, "I go to the Y on Michigan Ave"');
+    expect(result.output).toContain('Gym: the Y on Michigan Ave, from agent on 2026-07-27, you said: "I go to the Y on Michigan Ave"');
   });
 
   test('an unreadable profile exits non-zero with the reason, never an empty document', async () => {
@@ -446,7 +446,7 @@ describe('owner-profile CLI command', () => {
     const calls: Call[] = [];
     const result = await handleOwnerProfileCommand(
       runtime(['forget', '--section', 'Notes', '--text', 'Allergic to shellfish', '--yes']),
-      { invoke: stubInvoke(() => wrote('Forgotten — removed a line from Notes.'), calls) },
+      { invoke: stubInvoke(() => wrote('Forgotten. Removed a line from Notes.'), calls) },
     );
 
     expect(result.exitCode).toBe(0);

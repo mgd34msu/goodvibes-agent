@@ -127,7 +127,7 @@ function applyReconnectStorm(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('ux:notification-throttle — MCP reconnect storms', () => {
+describe('ux:notification-throttle: MCP reconnect storms', () => {
   let state: RuntimeState;
 
   beforeEach(() => {
@@ -173,7 +173,7 @@ describe('ux:notification-throttle — MCP reconnect storms', () => {
     });
   });
 
-  describe('reconnect storm behavior — rapid cycling', () => {
+  describe('reconnect storm behavior: rapid cycling', () => {
     test('10-cycle storm produces monotonically increasing revision', () => {
       const stormStates = applyReconnectStorm(state, 'srv-storm', 10);
 
@@ -213,7 +213,7 @@ describe('ux:notification-throttle — MCP reconnect storms', () => {
       }
     });
 
-    test('multiple server storms are isolated — no cross-server state leakage', () => {
+    test('multiple server storms are isolated: no cross-server state leakage', () => {
       let s = state;
 
       // Interleave storms for 3 servers
@@ -252,7 +252,7 @@ describe('ux:notification-throttle — MCP reconnect storms', () => {
       expect(selectMcp(s).revision).toBe(initialRevision + 20);
     });
 
-    test('server registry size stays stable under storm — no duplicate entries', () => {
+    test('server registry size stays stable under storm: no duplicate entries', () => {
       let s = applyMcpEvent(state, { serverName: 'srv-1', type: 'connecting' });
       expect(selectMcp(s).servers.size).toBe(1);
 

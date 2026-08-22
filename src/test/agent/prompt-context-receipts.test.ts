@@ -291,7 +291,7 @@ describe('prompt context receipts', () => {
       });
     });
 
-    test('a recall-filtered (recall: true) snapshot would report "recall-eligible", not "browse set" — documenting why the agent stays on recall:false', async () => {
+    test('a recall-filtered (recall: true) snapshot would report "recall-eligible", not "browse set": documenting why the agent stays on recall:false', async () => {
       await withReceiptFixture(async ({ memoryRegistry }) => {
         const reviewed = await memoryRegistry.add({
           scope: 'project',

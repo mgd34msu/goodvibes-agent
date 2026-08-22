@@ -104,7 +104,7 @@ describe('agent memory-spine wiring', () => {
     rmSync(agentRoot, { recursive: true, force: true });
   });
 
-  test('offline: no daemon reachable — the spine stays local and add() lands in the agent\'s own memoryRegistry', async () => {
+  test('offline: no daemon reachable: the spine stays local and add() lands in the agent\'s own memoryRegistry', async () => {
     expect(agentServices.memorySpineClient.mode()).toBe('local');
 
     const probeReachability = realReachabilityProbe(agentServices, agentHomeDir);

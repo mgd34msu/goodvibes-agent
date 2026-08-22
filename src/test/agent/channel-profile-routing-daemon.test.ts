@@ -85,7 +85,7 @@ function unreachableDaemon(calls: RecordedCall[]): DaemonOperatorInvoke {
   };
 }
 
-describe('assigning a channel to a profile — the daemon takes it', () => {
+describe('assigning a channel to a profile: the daemon takes it', () => {
   test('the assignment is offered to channels.routing.assign', async () => {
     const calls: RecordedCall[] = [];
     await assignChannelToProfile(
@@ -149,7 +149,7 @@ describe('assigning a channel to a profile — the daemon takes it', () => {
   });
 });
 
-describe('assigning a channel to a profile — the daemon is unreachable', () => {
+describe('assigning a channel to a profile: the daemon is unreachable', () => {
   test('the assignment is still saved, and still resolves', async () => {
     const result = await assignChannelToProfile(
       shellPaths,

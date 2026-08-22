@@ -23,7 +23,7 @@ workspace/.goodvibes/
 .codex
 .claude/
 
-# UAT validation reports — local-only; live-daemon smoke results, not canonical
+# UAT validation reports. Local only, live-daemon smoke results, not canonical.
 docs/uat/
 
 # Artifacts

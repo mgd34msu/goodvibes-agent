@@ -53,7 +53,7 @@ describe('buildExecPromptAnswerHandler', () => {
     await expect(handler(ASK)).resolves.toEqual({ answered: false });
   });
 
-  test('an approval carrying no typed answer declines — nothing is ever fabricated', async () => {
+  test('an approval carrying no typed answer declines: nothing is ever fabricated', async () => {
     const { handler } = makeHandler(() => ({ approved: true }));
     await expect(handler(ASK)).resolves.toEqual({ answered: false });
   });

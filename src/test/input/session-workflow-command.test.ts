@@ -124,7 +124,7 @@ describe('session workflow command', () => {
   });
 
   // ── saveSource: 'user' on every user-directed save path (raw-disk proof) ──
-  describe('saveSource stamping — user-directed saves are never left "auto"', () => {
+  describe('saveSource stamping: user-directed saves are never left "auto"', () => {
     test('/session save stamps saveSource: "user" on the file it writes', async () => {
       const { ctx, tmpDir, sm } = makeRealSessionManagerContext();
       try {

@@ -56,7 +56,7 @@ describe('parsing the receiving server verdict', () => {
     expect(hasAnySenderVerdict(parseAuthenticationResults(''))).toBe(false);
   });
 
-  test('ONLY the top-most header is read — a forged one below it is ignored', () => {
+  test('ONLY the top-most header is read: a forged one below it is ignored', () => {
     // A sender can embed their own Authentication-Results in the message they
     // submit; it lands below the receiving server's. Reading lower would let
     // them overwrite a genuine `fail` with a claimed `pass`.

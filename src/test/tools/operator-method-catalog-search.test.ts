@@ -37,7 +37,7 @@ function page(args: Parameters<typeof operatorMethodSummary>[0]): {
   return operatorMethodSummary(args) as never;
 }
 
-describe('operator method catalog — plain-word search', () => {
+describe('operator method catalog: plain-word search', () => {
   test('"google" surfaces the calendar and mail methods it is actually the connector for, plus the account posture', () => {
     const result = page({ query: 'google' });
 

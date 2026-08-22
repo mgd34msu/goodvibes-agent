@@ -43,7 +43,7 @@ describe('countExpandedToolResultLines', () => {
     expect(countExpandedToolResultLines(json, WIDTH)).toBeGreaterThan(5);
   });
 
-  test('counts are memoised per width — a repeat call is cheap and identical', () => {
+  test('counts are memoised per width: a repeat call is cheap and identical', () => {
     const json = JSON.stringify({ results: Array.from({ length: 40 }, (_, i) => ({ i, text: 'x'.repeat(60) })) });
 
     const first = countExpandedToolResultLines(json, WIDTH);

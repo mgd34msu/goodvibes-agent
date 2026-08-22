@@ -105,7 +105,7 @@ describe('Agent workspace command parity', () => {
     } satisfies AgentWorkspaceAction;
     const category: AgentWorkspaceCategory = {
       id: 'bad-category' as unknown as AgentWorkspaceCategory['id'],
-      group: 'START', // test fixture — real group not needed for this structural test
+      group: 'START', // test fixture, real group not needed for this structural test
       label: 'Bad Category',
       summary: 'Malformed test category.',
       detail: 'Malformed test category.',

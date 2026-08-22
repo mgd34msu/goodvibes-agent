@@ -434,7 +434,7 @@ describe('Concurrent hook execution limits', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('hooks do not run concurrently — second hook starts after first completes', async () => {
+  test('hooks do not run concurrently: second hook starts after first completes', async () => {
     const timings: number[] = [];
     // Simulate ordering via additionalContext ordering which requires sequential execution
     dispatcher.register('Pre:tool:*', {

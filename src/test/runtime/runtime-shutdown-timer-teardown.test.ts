@@ -95,7 +95,7 @@ beforeAll(async () => {
   // regression reads as the pollers that survived rather than as a timeout.
 }, 120_000);
 
-test('createRuntimeServices() actually starts timers — the measurement is not vacuous', () => {
+test('createRuntimeServices() actually starts timers: the measurement is not vacuous', () => {
   // Guards the false pass where the graph stopped composing anything and the
   // leak count reads zero for entirely the wrong reason.
   expect(report.created).toBeGreaterThan(10);

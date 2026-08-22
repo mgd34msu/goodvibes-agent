@@ -91,7 +91,7 @@ describe('reconcileMemorySpineAdoption', () => {
     expect(client.deactivateCalls).toEqual([]);
   });
 
-  test('re-adopts a daemon that reappears after a prior deactivation — the whole-process-lifetime recheck', async () => {
+  test('re-adopts a daemon that reappears after a prior deactivation: the whole-process-lifetime recheck', async () => {
     const client = spyClient(true);
     // First tick: daemon goes away -> deactivate.
     await reconcileMemorySpineAdoption({
@@ -111,7 +111,7 @@ describe('reconcileMemorySpineAdoption', () => {
     expect(client.deactivateCalls).toEqual(['daemon unreachable on periodic reachability check']);
   });
 
-  test('fires onAttach exactly on the adoption edge — once per (re)attach, never on a no-op', async () => {
+  test('fires onAttach exactly on the adoption edge: once per (re)attach, never on a no-op', async () => {
     const client = spyClient(false);
     let attachCount = 0;
     const opts = {
@@ -215,7 +215,7 @@ describe('reconcileMemorySpineAdoption: the daemon build floor refuses adoption'
     expect(attachCount).toBe(1);
   });
 
-  test('the gate is asked only after reachability — an unreachable daemon is not judged', async () => {
+  test('the gate is asked only after reachability: an unreachable daemon is not judged', async () => {
     const client = spyClient(false);
     let asked = 0;
     await reconcileMemorySpineAdoption({
@@ -281,7 +281,7 @@ describe('reconcileMemorySpineAdoption: the daemon build floor refuses adoption'
     expect(client.activateCalls).toEqual([]);
   });
 
-  test('no gate at all keeps the previous behaviour — adopt on reachability alone', async () => {
+  test('no gate at all keeps the previous behaviour: adopt on reachability alone', async () => {
     const client = spyClient(false);
     await reconcileMemorySpineAdoption({
       memorySpineClient: client,

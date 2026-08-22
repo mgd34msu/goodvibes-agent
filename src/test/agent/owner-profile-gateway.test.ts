@@ -60,7 +60,7 @@ function catalogRecordingBodies(): { readonly catalog: GatewayMethodCatalog; rea
   return { catalog, bodies };
 }
 
-describe('owner-profile-gateway — authority reaches the daemon on every write verb', () => {
+describe('owner-profile-gateway: authority reaches the daemon on every write verb', () => {
   test('profile.set forwards authority unchanged', async () => {
     const { catalog, bodies } = catalogRecordingBodies();
     const invoke = createProfileGatewayInvoke({ gatewayMethods: catalog, configManager, homeDirectory: '/home/owner' });

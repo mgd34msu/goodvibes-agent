@@ -29,14 +29,14 @@ describe('missingClipboardReaderHint', () => {
     expect(hint).toContain('X11');
   });
 
-  test('wl-paste alone is enough — no complaint', () => {
+  test('wl-paste alone is enough: no complaint', () => {
     const hint = missingClipboardReaderHint({
       platform: 'linux', wayland: true, has: tool => tool === 'wl-paste',
     });
     expect(hint).toBeUndefined();
   });
 
-  test('xclip alone is enough — no complaint', () => {
+  test('xclip alone is enough: no complaint', () => {
     const hint = missingClipboardReaderHint({
       platform: 'linux', wayland: false, has: tool => tool === 'xclip',
     });

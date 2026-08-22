@@ -76,7 +76,7 @@ function makeAllReadyPlan(): readonly SetupPlanItem[] {
 // Phase transition tests
 // ---------------------------------------------------------------------------
 
-describe('deriveOnboardingState — phase transitions', () => {
+describe('deriveOnboardingState: phase transitions', () => {
   test('fresh: no markers present', () => {
     const shellPaths = createShellPaths();
     const context: DeriveOnboardingStateContext = {
@@ -180,7 +180,7 @@ describe('deriveOnboardingState — phase transitions', () => {
 // Blockers and readyToChat
 // ---------------------------------------------------------------------------
 
-describe('deriveOnboardingState — blockers and readyToChat', () => {
+describe('deriveOnboardingState: blockers and readyToChat', () => {
   test('blockers contains only non-ready autonomy-blocking steps', () => {
     const plan: readonly SetupPlanItem[] = [
       makePlanItem('connected-host-readiness', 'blocked', true),
@@ -336,7 +336,7 @@ describe('deriveOnboardingState — blockers and readyToChat', () => {
 // categoryId mapping
 // ---------------------------------------------------------------------------
 
-describe('deriveOnboardingState — categoryId mapping', () => {
+describe('deriveOnboardingState: categoryId mapping', () => {
   test('every step the full plan can emit has a non-empty categoryId', () => {
     const shellPaths = createShellPaths();
     const plan = makeFullPlan();
@@ -453,7 +453,7 @@ describe('deriveOnboardingState — categoryId mapping', () => {
 // Recap content
 // ---------------------------------------------------------------------------
 
-describe('deriveOnboardingState — recap', () => {
+describe('deriveOnboardingState: recap', () => {
   test('recap headline changes by phase', () => {
     const shellPaths = createShellPaths();
     const plan = makeFullPlan();

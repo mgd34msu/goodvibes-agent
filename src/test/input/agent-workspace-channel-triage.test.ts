@@ -52,7 +52,7 @@ const EMPTY_ROUTE_BODIES: Record<string, unknown> = {
   '/api/control-plane/messages': { messages: [] },
 };
 
-describe('agent workspace channel triage — honest inbound attribution', () => {
+describe('agent workspace channel triage: honest inbound attribution', () => {
   test('a binding whose externalId resolves to a known principal shows the resolved name', async () => {
     const home = writeTokenHome();
     const context = triageContext(home);

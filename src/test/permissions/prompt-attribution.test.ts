@@ -26,7 +26,7 @@ function renderedText(request: PermissionRequest): string {
 }
 
 describe('PermissionPromptUI attribution rendering (SDK 1.6.1 PermissionAttribution union)', () => {
-  test('no attribution (foreground ask) — no "Asked by" row, height unchanged', () => {
+  test('no attribution (foreground ask): no "Asked by" row, height unchanged', () => {
     const request = baseRequest();
     expect(renderedText(request)).not.toContain('Asked by');
     const heightWithout = PermissionPromptUI.getPromptHeight(request);
@@ -48,7 +48,7 @@ describe('PermissionPromptUI attribution rendering (SDK 1.6.1 PermissionAttribut
     expect(text).toContain('Sandbox exec-sandbox: wants-network, wants-host-privilege');
   });
 
-  test('background-agent attribution renders no "Asked by" row — it is attributed via fleet metadata.agentId instead', () => {
+  test('background-agent attribution renders no "Asked by" row: it is attributed via fleet metadata.agentId instead', () => {
     const request = baseRequest({ kind: 'background-agent', agentId: 'agent-123', template: 'engineer' });
     const text = renderedText(request);
     expect(text).not.toContain('Asked by');

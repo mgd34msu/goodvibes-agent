@@ -183,28 +183,28 @@ describe('ModelPickerModal', () => {
       ]);
     });
 
-    test('filters by query — matches id', () => {
+    test('filters by query: matches id', () => {
       picker.query = 'free-1';
       const result = picker.getFilteredModels();
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('free-1');
     });
 
-    test('filters by query — matches displayName case-insensitive', () => {
+    test('filters by query: matches displayName case-insensitive', () => {
       picker.query = 'PREMIUM MODEL';
       const result = picker.getFilteredModels();
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('premium-1');
     });
 
-    test('filters by query — matches provider', () => {
+    test('filters by query: matches provider', () => {
       picker.query = 'provB';
       const result = picker.getFilteredModels();
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('free-2');
     });
 
-    test('fuzzy query — all words must match', () => {
+    test('fuzzy query: all words must match', () => {
       picker.query = 'free provA';
       const result = picker.getFilteredModels();
       expect(result).toHaveLength(1);
@@ -303,7 +303,7 @@ describe('ModelPickerModal', () => {
       ]);
     });
 
-    test('effort mode — unknown level gets empty detail', () => {
+    test('effort mode: unknown level gets empty detail', () => {
       picker.mode = 'effort';
       picker.effortLevels = ['ultra'];
       const items = picker.getItems();

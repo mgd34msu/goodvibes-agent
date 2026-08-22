@@ -157,7 +157,7 @@ describe('plain-language gate', () => {
     'memory', 'research',
   ].filter((id, i, arr) => arr.indexOf(id) === i); // deduplicate
 
-  test('friendly tool labels are human phrases, not identifiers — full catalog', () => {
+  test('friendly tool labels are human phrases, not identifiers: full catalog', () => {
     const failures: string[] = [];
     for (const id of ALL_TOOL_IDS) {
       const label = friendlyToolLabel(id);

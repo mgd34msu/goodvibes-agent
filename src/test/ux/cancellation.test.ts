@@ -147,7 +147,7 @@ function applyCancel(busyState: RuntimeState): RuntimeState {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('ux:cancellation — abort during heavy tool/agent updates', () => {
+describe('ux:cancellation: abort during heavy tool/agent updates', () => {
   let state: RuntimeState;
 
   beforeEach(() => {

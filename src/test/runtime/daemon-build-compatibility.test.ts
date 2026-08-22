@@ -61,7 +61,7 @@ describe('the floor this product declares', () => {
 });
 
 describe('judging for adoption, as the adoption path does', () => {
-  test('an updated daemon is adoptable again — the refusal does not latch against a real newer build', () => {
+  test('an updated daemon is adoptable again: the refusal does not latch against a real newer build', () => {
     const guard = new DaemonBuildGuard({ floor: '1.28.0' });
 
     expect(guard.judgeForAdoption({ version: '1.27.1' }).status).toBe('daemon-update-required');
@@ -104,7 +104,7 @@ describe('judging for adoption, as the adoption path does', () => {
     expect(notices).toHaveLength(1);
   });
 
-  test('an unreadable body is unknown, not ok — but unknown does not refuse adoption', () => {
+  test('an unreadable body is unknown, not ok: but unknown does not refuse adoption', () => {
     const guard = new DaemonBuildGuard({ floor: '1.28.0' });
 
     const verdict = guard.judgeForAdoption({ status: 'running' });
@@ -288,7 +288,7 @@ describe('the adoption gate as services composes it', () => {
     expect(await gate(guard, respond({ status: 'running', version: '1.28.0' }))()).toBe(true);
   });
 
-  test('an unreachable daemon adopts — a dropped read is not evidence of an old build', async () => {
+  test('an unreachable daemon adopts: a dropped read is not evidence of an old build', async () => {
     const guard = new DaemonBuildGuard({ floor: AGENT_DAEMON_BUILD_FLOOR });
     const failing = (async () => { throw new Error('ECONNREFUSED'); }) as unknown as typeof fetch;
 

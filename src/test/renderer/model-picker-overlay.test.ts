@@ -138,7 +138,7 @@ afterEach(() => {
 // Model mode
 // ---------------------------------------------------------------------------
 
-describe('renderModelPickerOverlay — model mode', () => {
+describe('renderModelPickerOverlay: model mode', () => {
   test('returns a non-empty Line[] array', () => {
     const lines = renderModelPickerOverlay(makePicker(), W);
     expect(lines).toEqual(expect.any(Array));
@@ -258,7 +258,7 @@ describe('renderModelPickerOverlay — model mode', () => {
     expect(texts).not.toContain('Code:');
   });
 
-  test('null capabilities guard — model without capabilities still renders', () => {
+  test('null capabilities guard: model without capabilities still renders', () => {
     const picker = makePicker();
     // Simulate missing capabilities
     (picker.models[0] as ModelDefinition & { capabilities: unknown }).capabilities = undefined as unknown as ModelDefinition['capabilities'];
@@ -295,7 +295,7 @@ describe('renderModelPickerOverlay — model mode', () => {
 // Provider mode
 // ---------------------------------------------------------------------------
 
-describe('renderModelPickerOverlay — provider mode', () => {
+describe('renderModelPickerOverlay: provider mode', () => {
   function makeProviderPicker(): ModelPickerModal {
     const picker = new ModelPickerModal(harness.favoritesStore, harness.benchmarkStore, harness.providerRegistry);
     picker.active = true;
@@ -396,7 +396,7 @@ describe('renderModelPickerOverlay — provider mode', () => {
 // Effort mode
 // ---------------------------------------------------------------------------
 
-describe('renderModelPickerOverlay — effort mode', () => {
+describe('renderModelPickerOverlay: effort mode', () => {
   function makeEffortPicker(): ModelPickerModal {
     const picker = new ModelPickerModal(harness.favoritesStore, harness.benchmarkStore, harness.providerRegistry);
     picker.active = true;
@@ -468,7 +468,7 @@ describe('renderModelPickerOverlay — effort mode', () => {
 // Stage 5: Quality tier badge, pin indicator, filters
 // ---------------------------------------------------------------------------
 
-describe('renderModelPickerOverlay — Stage 5 features', () => {
+describe('renderModelPickerOverlay: Stage 5 features', () => {
   test('quality tier badge [S]/[A]/[B]/[C] renders for models with benchmark data', () => {
     writeBenchmarks([
       { modelId: 'model-a', name: 'model-a', organization: 'test', benchmarks: { swe: 0.92, gpqa: 0.88 } },

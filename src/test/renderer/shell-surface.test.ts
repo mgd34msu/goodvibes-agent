@@ -191,7 +191,7 @@ describe('shell surface', () => {
     }
   });
 
-  test('dangerMode and powerNote render simultaneously — neither suppresses the other', () => {
+  test('dangerMode and powerNote render simultaneously: neither suppresses the other', () => {
     const result = buildShellFooter({
       width: 100,
       promptText: 'hello',
@@ -344,7 +344,7 @@ describe('shell surface', () => {
  * estimateShellFooterHeight, so a footer that renders one row more than the
  * estimate draws the transcript's last line underneath the prompt box.
  */
-describe('shell surface — the live-microphone row', () => {
+describe('shell surface: the live-microphone row', () => {
   const listening = {
     kind: 'wake-listening',
     deviceLabel: 'parecord',

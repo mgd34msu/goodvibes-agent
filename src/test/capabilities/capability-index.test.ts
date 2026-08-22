@@ -72,7 +72,7 @@ function writeGoogleCredentials(): string {
   return path;
 }
 
-describe('capability index — the owner\'s case', () => {
+describe('capability index: the owner\'s case', () => {
   test('credentials on disk and a registered provider resolve to ready with a route', () => {
     writeGoogleCredentials();
     registerCapability(emailCapability());

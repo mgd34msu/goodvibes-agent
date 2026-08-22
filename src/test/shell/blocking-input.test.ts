@@ -294,7 +294,7 @@ describe('shell/blocking-input', () => {
 // scoped recovery directory. Uses the real SDK session-persistence primitives
 // against real files on disk (no mocks) so the raw filesystem state is the
 // proof.
-describe('shell/blocking-input — recovery targets exactly the offered snapshot', () => {
+describe('shell/blocking-input: recovery targets exactly the offered snapshot', () => {
   function makeTwoSnapshots() {
     const surface = makeRecoverySurface();
     // Two independent sessions each have their own crash-recovery snapshot.
@@ -379,7 +379,7 @@ describe('shell/blocking-input — recovery targets exactly the offered snapshot
 // answered and, in a dual-session workdir, the OTHER session's still-live
 // snapshot. This exercises the exact same real SDK primitive main.ts's exit
 // path calls, keyed the same way, against real files on disk.
-describe('shell/blocking-input — exit removes only the exiting session snapshot', () => {
+describe('shell/blocking-input: exit removes only the exiting session snapshot', () => {
   test('removeRecoveryPoint(surface, sessionId) retires only that session, leaving a second session snapshot intact', () => {
     const surface = makeRecoverySurface();
     writeRecoveryFile({ messages: [{ role: 'user', content: 'exiting session' }] }, 'session-exiting', 'Exiting', { surface });

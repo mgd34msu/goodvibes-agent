@@ -15,7 +15,7 @@ const flushMicrotasks = async (rounds = 6) => {
   for (let i = 0; i < rounds; i += 1) await Promise.resolve();
 };
 
-describe('registerAgentRuntimeEvents — AGENT_FAILED child-failure envelope enrichment (SDK 1.6.1)', () => {
+describe('registerAgentRuntimeEvents: AGENT_FAILED child-failure envelope enrichment (SDK 1.6.1)', () => {
   test('AGENT_FAILED renders a compact suffix with the real classified reason from the agent tool\'s own status action', async () => {
     const configDir = makeProjectTempDir('gv-child-failure');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir });

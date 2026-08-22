@@ -73,7 +73,7 @@ describe('Your Profile workspace card', () => {
   });
 });
 
-describe('Your Profile card — reading', () => {
+describe('Your Profile card: reading', () => {
   test('read dispatches the profile read once confirmed', () => {
     const submission = submit('owner-profile-read', { confirm: 'yes' });
     expect(submission.kind).toBe('dispatch');
@@ -104,7 +104,7 @@ describe('Your Profile card — reading', () => {
   });
 });
 
-describe('Your Profile card — third-party containment', () => {
+describe('Your Profile card: third-party containment', () => {
   test('a person is not reachable without the words that pointed at them', () => {
     const submission = submit('owner-profile-person', { name: 'Sarah' });
     // Held at the card. Nothing is dispatched, so nothing about Sarah reaches
@@ -131,7 +131,7 @@ describe('Your Profile card — third-party containment', () => {
   });
 });
 
-describe('Your Profile card — correcting and forgetting', () => {
+describe('Your Profile card: correcting and forgetting', () => {
   test('a correction carries his words verbatim when he supplies them', () => {
     const submission = submit('owner-profile-set', {
       fieldId: 'commerce.shippingAddress',

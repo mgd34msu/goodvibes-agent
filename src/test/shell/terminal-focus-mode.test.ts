@@ -30,7 +30,7 @@ describe('FOCUS_ENABLE / FOCUS_DISABLE constants', () => {
   });
 });
 
-describe('installFocusModeExitGuard — ?1004h teardown proof', () => {
+describe('installFocusModeExitGuard: ?1004h teardown proof', () => {
   const installedListeners: Array<() => void> = [];
 
   afterEach(() => {
@@ -53,7 +53,7 @@ describe('installFocusModeExitGuard — ?1004h teardown proof', () => {
     return installed;
   }
 
-  test('the registered exit listener writes FOCUS_DISABLE — proves every process.exit() path (normal exit) disables OS focus reporting', () => {
+  test('the registered exit listener writes FOCUS_DISABLE: proves every process.exit() path (normal exit) disables OS focus reporting', () => {
     const written: string[] = [];
     const stub = { write: (s: string) => { written.push(s); return true; } };
     const listener = installAndCapture(stub);
@@ -83,13 +83,13 @@ describe('installFocusModeExitGuard — ?1004h teardown proof', () => {
     expect(written.join('')).toContain(FOCUS_DISABLE);
   });
 
-  test('a torn-down stdout (write throws) never propagates — the teardown itself must not crash exit handling', () => {
+  test('a torn-down stdout (write throws) never propagates: the teardown itself must not crash exit handling', () => {
     const stub = { write: () => { throw new Error('EPIPE'); } };
     const listener = installAndCapture(stub);
     expect(() => listener()).not.toThrow();
   });
 
-  test('writes NOTHING when ?1004h was never enabled (blocked/scriptable command, or the terminal-launch-error path before terminal mode is entered) — a stray ?1004l on stdout is escape garbage that would corrupt e.g. `status --json`', () => {
+  test('writes NOTHING when ?1004h was never enabled (blocked/scriptable command, or the terminal-launch-error path before terminal mode is entered): a stray ?1004l on stdout is escape garbage that would corrupt e.g. `status --json`', () => {
     const written: string[] = [];
     const stub = { write: (s: string) => { written.push(s); return true; } };
     const listener = installAndCapture(stub, () => false); // focus mode never enabled this run
@@ -120,7 +120,7 @@ describe('wrapRequestPermissionWithApprovalAlert', () => {
   }
 
   test('fires the notify callback when the terminal is unfocused-or-unknown (honest fallback: never observed = alert)', async () => {
-    const focusTracker = new FocusTracker(); // isFocused() starts null — "unknown"
+    const focusTracker = new FocusTracker(); // isFocused() starts null, "unknown"
     const notified: Array<{ title: string; message: string; durationMs: number }> = [];
     const original = async (request: PermissionPromptRequest) => ({ approved: true, remember: false, request });
     const wrapped = wrapRequestPermissionWithApprovalAlert(original as never, {

@@ -56,7 +56,7 @@ function expectCascade(
 // ---------------------------------------------------------------------------
 
 describe('chaos: health cascades', () => {
-  describe('recovery-first rules — deferral when recovery not exhausted', () => {
+  describe('recovery-first rules: deferral when recovery not exhausted', () => {
     test('toolExecution failed with recovery not exhausted: cascade deferred', () => {
       const sys = makeSystem(0, 3); // 0 attempts, max 3
       const result = sys.engine.evaluate('toolExecution', 'failed');
@@ -91,7 +91,7 @@ describe('chaos: health cascades', () => {
     });
   });
 
-  describe('recovery-first rules — cascade fires when recovery exhausted', () => {
+  describe('recovery-first rules: cascade fires when recovery exhausted', () => {
     test('toolExecution failed with exhausted recovery: cascade fires', () => {
       // Set recovery attempts = max (exhausted)
       const sys = makeSystem(3, 3);
@@ -111,7 +111,7 @@ describe('chaos: health cascades', () => {
     });
   });
 
-  describe('non-recovery-first rules — immediate cascade', () => {
+  describe('non-recovery-first rules: immediate cascade', () => {
     test('turn failed immediately cancels all in-flight tools', () => {
       const sys = makeSystem();
       const result = sys.engine.evaluate('turn', 'failed');

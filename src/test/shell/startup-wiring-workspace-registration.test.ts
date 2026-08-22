@@ -46,7 +46,7 @@ function makeDeps(overrides: Partial<SessionPersistenceAndRecoveryDeps> & { work
   return { deps, messages, renderCount: () => renders };
 }
 
-describe('wireSessionPersistenceAndRecovery — first-start registration prompt', () => {
+describe('wireSessionPersistenceAndRecovery: first-start registration prompt', () => {
   test('an unknown, non-broad, onboarding-complete workspace triggers the prompt', () => {
     const { work, home, shellPaths } = makeRoots();
     markOnboardingDone(shellPaths);

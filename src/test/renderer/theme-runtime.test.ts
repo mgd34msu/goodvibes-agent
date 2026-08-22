@@ -123,7 +123,7 @@ describe('installBackgroundThemeProbe wired to setActiveThemeMode (R4 startup pa
     expect(getActiveThemeMode()).toBe('light');
   });
 
-  test('auto + non-TTY stays dark (headless/piped — probe cannot run)', () => {
+  test('auto + non-TTY stays dark (headless/piped: probe cannot run)', () => {
     setActiveThemeMode('light'); // prove it actively resolves to dark, not just leftover
     installBackgroundThemeProbe({
       configManager: fakeConfig('auto'),

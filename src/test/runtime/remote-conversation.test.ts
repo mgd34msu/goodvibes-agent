@@ -95,7 +95,7 @@ describe('routing a conversation turn to the connected daemon', () => {
     expect(router.hostedSessionId()).toBe(HOSTED_ID);
   });
 
-  test('the second message steers the session the first one opened — it does not create another', async () => {
+  test('the second message steers the session the first one opened: it does not create another', async () => {
     const { router, calls } = harness({
       invoke: (methodId) => (methodId === 'sessions.hosted.create' ? { session: { id: HOSTED_ID } } : {}),
     });
@@ -160,7 +160,7 @@ describe('routing a conversation turn to the connected daemon', () => {
 });
 
 describe('a turn that runs locally always says so, and why', () => {
-  test('no connected host — the reason names what could not be resolved', async () => {
+  test('no connected host: the reason names what could not be resolved', async () => {
     const { router, calls } = harness({
       invoke: () => ({ session: { id: HOSTED_ID } }),
       connection: { reason: 'no operator token has been written yet.' },
@@ -176,7 +176,7 @@ describe('a turn that runs locally always says so, and why', () => {
     expect(calls).toHaveLength(0);
   });
 
-  test('the create failing — the reason names the daemon\'s own refusal', async () => {
+  test('the create failing: the reason names the daemon\'s own refusal', async () => {
     const { router } = harness({
       invoke: () => new ConnectedHostVerbError('hostedSessions.maxSessions reached', 429),
     });
@@ -238,7 +238,7 @@ describe('the setting that forces every turn to run locally', () => {
     expect(calls).toHaveLength(0);
   });
 
-  test('routing is on when the setting is absent — on by default, per the ruling', async () => {
+  test('routing is on when the setting is absent: on by default, per the ruling', async () => {
     const router = createRemoteConversationRouter({
       verbs: {
         probe: () => ({ available: true }),

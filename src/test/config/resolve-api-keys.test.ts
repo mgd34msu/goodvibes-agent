@@ -101,7 +101,7 @@ describe('resolveApiKeys', () => {
   // Tier 1, environment variables win
   // -------------------------------------------------------------------------
 
-  describe('Tier 1 — env var resolution', () => {
+  describe('Tier 1: env var resolution', () => {
     test('resolves openai from OPENAI_API_KEY env var', async () => {
       process.env['OPENAI_API_KEY'] = 'env-openai-key';
       const keys = await resolveWithEmptySecrets();
@@ -175,7 +175,7 @@ describe('resolveApiKeys', () => {
   // Tier 2, SecretsManager fallback when env var is absent
   // -------------------------------------------------------------------------
 
-  describe('Tier 2 — SecretsManager fallback', () => {
+  describe('Tier 2: SecretsManager fallback', () => {
     test('falls back to SecretsManager for openai when env var absent', async () => {
       const tmpDir = makeTmpDir();
       const encPath = join(tmpDir, '.goodvibes', 'tui', 'secrets.enc');

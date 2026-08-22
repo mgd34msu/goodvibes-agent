@@ -210,7 +210,7 @@ describe('a settings read comes back from the host the write went to', () => {
     expect(view.get(DAEMON_KEY)).toBe('late-but-live');
   });
 
-  test('with no connection held, discovery still runs — and the live daemon wins over a dead record', async () => {
+  test('with no connection held, discovery still runs: and the live daemon wins over a dead record', async () => {
     const h = home();
     const daemonHome = plantStaleAddressEverywhere(h);
     // The binding now names the port a daemon really is on, while the record

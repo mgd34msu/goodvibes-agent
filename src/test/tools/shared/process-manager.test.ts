@@ -25,7 +25,7 @@ afterEach(() => {
 // construction / isolation
 // ---------------------------------------------------------------------------
 
-describe('ProcessManager — construction', () => {
+describe('ProcessManager: construction', () => {
   test('fresh instances are independent', () => {
     const a = new ProcessManager();
     const b = new ProcessManager();
@@ -43,7 +43,7 @@ describe('ProcessManager — construction', () => {
 // spawn
 // ---------------------------------------------------------------------------
 
-describe('ProcessManager — spawn', () => {
+describe('ProcessManager: spawn', () => {
   test('returns a process_id and pid', async () => {
     const result = await processManager.spawn('echo hello', undefined, undefined);
     expect(typeof result.process_id).toBe('string');
@@ -82,7 +82,7 @@ describe('ProcessManager — spawn', () => {
 // getStatus
 // ---------------------------------------------------------------------------
 
-describe('ProcessManager — getStatus', () => {
+describe('ProcessManager: getStatus', () => {
   test('returns entry for known process', async () => {
     const result = await processManager.spawn('sleep 5', undefined, undefined);
     const entry = processManager.getStatus(result.process_id!);
@@ -100,7 +100,7 @@ describe('ProcessManager — getStatus', () => {
 // getOutput
 // ---------------------------------------------------------------------------
 
-describe('ProcessManager — getOutput', () => {
+describe('ProcessManager: getOutput', () => {
   test('returns undefined for unknown ID', () => {
     expect(processManager.getOutput('bg_nonexistent')).toBeUndefined();
   });
@@ -120,7 +120,7 @@ describe('ProcessManager — getOutput', () => {
 // stop
 // ---------------------------------------------------------------------------
 
-describe('ProcessManager — stop', () => {
+describe('ProcessManager: stop', () => {
   test('returns false for unknown process', () => {
     expect(processManager.stop('bg_nonexistent')).toBe(false);
   });
@@ -139,7 +139,7 @@ describe('ProcessManager — stop', () => {
 // list
 // ---------------------------------------------------------------------------
 
-describe('ProcessManager — list', () => {
+describe('ProcessManager: list', () => {
   test('returns empty array when no processes', () => {
     expect(processManager.list()).toEqual([]);
   });
@@ -171,7 +171,7 @@ describe('ProcessManager — list', () => {
 // handleCommand
 // ---------------------------------------------------------------------------
 
-describe('ProcessManager — handleCommand', () => {
+describe('ProcessManager: handleCommand', () => {
   test('returns null for non-bg commands', () => {
     expect(processManager.handleCommand('echo hello')).toBeNull();
     expect(processManager.handleCommand('ls -la')).toBeNull();
@@ -272,7 +272,7 @@ describe('ProcessManager — handleCommand', () => {
 // BackgroundProcess interface shape
 // ---------------------------------------------------------------------------
 
-describe('BackgroundProcess — interface shape', () => {
+describe('BackgroundProcess: interface shape', () => {
   test('spawned entry has all required fields', async () => {
     const result = await processManager.spawn('echo shape_test', undefined, undefined);
     const entry = processManager.getStatus(result.process_id!) as BackgroundProcess;

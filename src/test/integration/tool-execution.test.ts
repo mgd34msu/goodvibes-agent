@@ -41,7 +41,7 @@ function buildStack(configManager?: ConfigManager) {
 // ToolRegistry unit integration
 // ---------------------------------------------------------------------------
 
-describe('Tool execution pipeline — ToolRegistry', () => {
+describe('Tool execution pipeline: ToolRegistry', () => {
   test('registered tool executes and returns success result', async () => {
     const { registry } = buildStack();
     registry.register({
@@ -156,7 +156,7 @@ describe('Tool execution pipeline — ToolRegistry', () => {
 // Permission + registry integration
 // ---------------------------------------------------------------------------
 
-describe('Tool execution pipeline — permission + registry', () => {
+describe('Tool execution pipeline: permission + registry', () => {
   let savedAutoApprove: boolean;
   let savedPermissionMode: 'prompt' | 'allow-all' | 'custom';
   let tmpConfigDir: string;

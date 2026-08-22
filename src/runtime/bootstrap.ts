@@ -672,7 +672,7 @@ export async function bootstrapRuntime(
     systemMessageRouter,
     requestRender,
   });
-  const mcpDiscovery = scheduleMcpSuggestionScanOnFirstUse({ // lazy — see mcp-lazy-start.ts
+  const mcpDiscovery = scheduleMcpSuggestionScanOnFirstUse({ // lazy, see mcp-lazy-start.ts
     mcpRegistry: services.mcpRegistry,
     systemMessageRouter,
     requestRender,

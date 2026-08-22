@@ -102,7 +102,7 @@ describe('mcp call route', () => {
     expect(invoked.input).toEqual({ url: 'https://example.com' });
   });
 
-  test('a browser tool is callable — the old keyword filter would have refused it', async () => {
+  test('a browser tool is callable: the old keyword filter would have refused it', async () => {
     const called: string[] = [];
     const { registry, tool } = registryWithMcp();
     installAgentMcpCallRoute(registry, createContext({

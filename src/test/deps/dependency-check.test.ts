@@ -42,7 +42,7 @@ describe('dependency surface', () => {
    * placing a copy of the daemon package is how a machine ends up with two of
    * them on different version lines.
    */
-  test('declares one runtime dependency — the daemon program; every library is bundled or comes with the SDK', () => {
+  test('declares one runtime dependency: the daemon program; every library is bundled or comes with the SDK', () => {
     expect(Object.keys(packageJson.dependencies ?? {})).toEqual(['@pellux/goodvibes-daemon']);
   });
 

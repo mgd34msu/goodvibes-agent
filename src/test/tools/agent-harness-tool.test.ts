@@ -2214,7 +2214,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('prompt context memory suppressed reasons come straight from describeMemoryPromptEligibility — no "not reviewed"/"outside prompt limit" paraphrase', async () => {
+  test('prompt context memory suppressed reasons come straight from describeMemoryPromptEligibility: no "not reviewed"/"outside prompt limit" paraphrase', async () => {
     const fixture = makeFixture();
     try {
       // 11 eligible records (confidence 100 down to 90, all reviewed) so the top-10
@@ -14052,7 +14052,7 @@ interface CatalogPage {
   readonly appliedFilters?: Record<string, string>;
 }
 
-describe('agent_harness catalogs — an empty page states its cause', () => {
+describe('agent_harness catalogs: an empty page states its cause', () => {
   test('an unqualified call returns the whole catalog for every discovery mode', async () => {
     const fixture = makeFixture({ builtinCommands: true });
     try {

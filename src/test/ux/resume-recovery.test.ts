@@ -110,7 +110,7 @@ function applyResume(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('ux:resume-recovery — resume session while ignoring copied panel state', () => {
+describe('ux:resume-recovery: resume session while ignoring copied panel state', () => {
   let state: RuntimeState;
 
   beforeEach(() => {

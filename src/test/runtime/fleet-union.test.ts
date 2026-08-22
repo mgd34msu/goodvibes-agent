@@ -71,7 +71,7 @@ describe('createAgentFleetUnion', () => {
     union.stop();
   });
 
-  test('a row both halves carry is shown from the local copy — the live one', async () => {
+  test('a row both halves carry is shown from the local copy: the live one', async () => {
     const union = createAgentFleetUnion({
       local: { nodes: () => [nodeOf('shared', { label: 'live here' })] },
       verbs: verbsDouble({

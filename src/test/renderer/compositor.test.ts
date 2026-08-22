@@ -65,7 +65,7 @@ function makeBaseRequest(overrides: Partial<CompositeRequest> = {}): CompositeRe
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('Compositor — no sidebar', () => {
+describe('Compositor: no sidebar', () => {
   test('produces output (stdout.write called)', () => {
     const { compositor, stream } = makeCompositor();
     compositor.composite(makeBaseRequest());
@@ -141,7 +141,7 @@ describe('Compositor — no sidebar', () => {
   });
 });
 
-describe('Compositor — with sidebar', () => {
+describe('Compositor: with sidebar', () => {
   function makeSidebarData(): SidebarCompositeData {
     return { lines: Array.from({ length: 6 }, () => makeLine(SIDEBAR_WIDTH, 'P')) };
   }
@@ -204,7 +204,7 @@ describe('Compositor — with sidebar', () => {
   });
 });
 
-describe('Compositor — R3 buffer reuse (double-buffer, no clone)', () => {
+describe('Compositor: R3 buffer reuse (double-buffer, no clone)', () => {
   test('TerminalBuffer constructor is NOT called on second composite() (buffer is reused)', () => {
     // We track constructor calls by counting .cells allocations via composite calls.
     // The core assertion: lastBufferForTest after N composites always returns a non-null
@@ -250,7 +250,7 @@ describe('Compositor — R3 buffer reuse (double-buffer, no clone)', () => {
   });
 });
 
-describe('Compositor — degenerate sidebarWidth >= width', () => {
+describe('Compositor: degenerate sidebarWidth >= width', () => {
   test('leftWidth clamped to 1 when sidebarWidth >= width - 1', () => {
     const { compositor } = makeCompositor();
     const huge: SidebarCompositeData = { lines: Array.from({ length: 6 }, () => makeLine(WIDTH - 1, 'P')) };

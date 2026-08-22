@@ -74,7 +74,7 @@ afterEach(() => {
 // 1. All 12 tools + delegate: PermissionManager.check() is the gate
 // ---------------------------------------------------------------------------
 
-describe('Tool permission gate — all 12 tools + delegate', () => {
+describe('Tool permission gate: all 12 tools + delegate', () => {
   // Read-category tools: auto-approved in prompt mode (no event fired)
   const READ_TOOLS: Array<[string, Record<string, unknown>]> = [
     ['read',     { path: 'src/index.ts' }],
@@ -157,7 +157,7 @@ describe('Unknown tools default to delegate category', () => {
 // 3. Protected recursive orchestration policy
 // ---------------------------------------------------------------------------
 
-describe('Recursive orchestration policy — SpawnTokenManager.canSpawn', () => {
+describe('Recursive orchestration policy: SpawnTokenManager.canSpawn', () => {
   beforeEach(() => resetTestSpawnTokenManagers());
   afterEach(() => resetTestSpawnTokenManagers());
 
@@ -259,7 +259,7 @@ describe('Path traversal protection via resolveAndValidatePath', () => {
 // 5. PermissionPromptUI, renders correct category label per category
 // ---------------------------------------------------------------------------
 
-describe('PermissionPromptUI — renders correctly per category', () => {
+describe('PermissionPromptUI: renders correctly per category', () => {
   const WIDTH = 80;
 
   test('write category: label is WRITE, color is yellow (220)', () => {

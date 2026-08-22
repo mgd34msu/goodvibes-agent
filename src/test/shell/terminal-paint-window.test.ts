@@ -65,7 +65,7 @@ describe('the paint window is shut at both ends of the session', () => {
     expect(calls).toEqual(['enter', 'discard']);
   });
 
-  test('closing shuts the window for good — a late frame cannot follow the terminal-restore write', () => {
+  test('closing shuts the window for good: a late frame cannot follow the terminal-restore write', () => {
     const { window, calls } = makeWindow();
     window.open();
     window.close();

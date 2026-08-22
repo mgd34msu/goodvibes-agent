@@ -43,7 +43,7 @@ function makeContextWithPaths(paths: ReturnType<typeof createShellPathService>):
 // Ledger round-trip
 // ---------------------------------------------------------------------------
 
-describe('runSkillDraftProposer — ledger round-trip', () => {
+describe('runSkillDraftProposer: ledger round-trip', () => {
   test('ledger file is created as a sibling of skills.json', () => {
     const { registry, paths } = tempRegistry();
     runSkillDraftProposer(makeContextWithPaths(paths), registry);
@@ -101,7 +101,7 @@ describe('runSkillDraftProposer — ledger round-trip', () => {
 // Malformed ledger treated as empty
 // ---------------------------------------------------------------------------
 
-describe('runSkillDraftProposer — malformed ledger', () => {
+describe('runSkillDraftProposer: malformed ledger', () => {
   test('malformed JSON in ledger file is treated as empty (no throw)', () => {
     const { registry } = tempRegistry();
     const ledgerPath = ledgerSiblingPath(registry);
@@ -153,7 +153,7 @@ describe('runSkillDraftProposer — malformed ledger', () => {
 // Created skills shape
 // ---------------------------------------------------------------------------
 
-describe('runSkillDraftProposer — created skill shape', () => {
+describe('runSkillDraftProposer: created skill shape', () => {
   test('skill created via registry has enabled:false and reviewState:fresh', () => {
     // Directly test registry.create() contract (runner delegates to it)
     const { registry } = tempRegistry();
@@ -198,7 +198,7 @@ describe('runSkillDraftProposer — created skill shape', () => {
 // Skipped count
 // ---------------------------------------------------------------------------
 
-describe('runSkillDraftProposer — result shape', () => {
+describe('runSkillDraftProposer: result shape', () => {
   test('returns proposed=0, skipped=0, skillIds=[] for an empty-candidate pass', () => {
     const { registry, paths } = tempRegistry();
     const result: SkillDraftRunResult = runSkillDraftProposer(makeContextWithPaths(paths), registry);
@@ -252,7 +252,7 @@ describe('runSkillDraftProposer — result shape', () => {
 // Ledger sibling path
 // ---------------------------------------------------------------------------
 
-describe('runSkillDraftProposer — ledger path', () => {
+describe('runSkillDraftProposer: ledger path', () => {
   test('ledger path is always a sibling of skills.json', () => {
     const { registry } = tempRegistry();
     const skillsPath = registry.snapshot().path;

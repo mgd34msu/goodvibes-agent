@@ -207,7 +207,7 @@ describe('the trigger: the agent lists the inbox to prove reading works, then se
    * run. It fires for every "check my inbox and then email X" session, which is
    * among the most ordinary things anyone asks an assistant that reads mail.
    */
-  test('lists the inbox, then sends an unrelated mail in the same process — the reported failure', async () => {
+  test('lists the inbox, then sends an unrelated mail in the same process: the reported failure', async () => {
     const { tool, sent } = googleTool({
       messages: [{ id: 'm1', from: 'stranger@evil.example', subject: STRANGER_SUBJECT, body: STRANGER_BODY }],
     });

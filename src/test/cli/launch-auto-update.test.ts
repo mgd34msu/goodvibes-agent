@@ -69,7 +69,7 @@ describe('runLaunchAutoUpdate', () => {
     expect(env[LAUNCH_UPDATED_FROM_ENV]).toBeUndefined();
   });
 
-  test('autoUpdateAtLaunch=false turns the feature off — silently, with no network traffic', async () => {
+  test('autoUpdateAtLaunch=false turns the feature off: silently, with no network traffic', async () => {
     let fetched = false;
     const { options, printed } = baseOptions({
       settings: { autoUpdateAtLaunch: false },
@@ -84,7 +84,7 @@ describe('runLaunchAutoUpdate', () => {
     expect(fetched).toBe(false);
   });
 
-  test('package-manager and from-source installs never self-update at launch — each skip states itself honestly', async () => {
+  test('package-manager and from-source installs never self-update at launch: each skip states itself honestly', async () => {
     const cases = [
       {
         execPath: '/home/u/.bun/install/global/node_modules/@pellux/goodvibes-agent/bin/goodvibes-agent',

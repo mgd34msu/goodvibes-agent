@@ -65,7 +65,7 @@ const AGENT_VOICE_CONFIG_READERS = [
   'src/input/tts-settings-actions.ts',
 ] as const;
 
-describe('Voice config cohesion — Agent reads the shared tts.* contract, not a private silo', () => {
+describe('Voice config cohesion: Agent reads the shared tts.* contract, not a private silo', () => {
   test('every tts.* key the Agent reads is a valid key in the shared SDK config schema', () => {
     for (const key of AGENT_VOICE_CONFIG_KEYS) {
       expect(isValidConfigKey(key)).toBe(true);
@@ -113,7 +113,7 @@ describe('Voice config cohesion — Agent reads the shared tts.* contract, not a
     }
   });
 
-  test('tts.* keys round-trip through the standard ConfigManager set/get API — no special-cased voice-config path', () => {
+  test('tts.* keys round-trip through the standard ConfigManager set/get API: no special-cased voice-config path', () => {
     const homeDir = makeProjectTempDir('goodvibes-agent-voice-cohesion');
     try {
       const configManager = new ConfigManager({
@@ -159,7 +159,7 @@ describe('Voice config cohesion — Agent reads the shared tts.* contract, not a
   });
 });
 
-describe('Voice config cohesion — cross-surface proof (2026-07-06 shared config tier)', () => {
+describe('Voice config cohesion: cross-surface proof (2026-07-06 shared config tier)', () => {
   // Mike's label is "one voice across terminal, desktop, and agent." Schema
   // cohesion (above) only proves the Agent reads the same KEYS everyone else
   // does; it says nothing about whether a VALUE set on one surface is the

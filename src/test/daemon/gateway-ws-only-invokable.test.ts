@@ -67,7 +67,7 @@ describe('this process serves no gateway verb', () => {
   const services = getTestRuntimeServices();
 
   for (const methodId of DAEMON_SERVED_METHOD_IDS) {
-    test(`${methodId} has no handler here — the daemon serves it`, () => {
+    test(`${methodId} has no handler here, the daemon serves it`, () => {
       expect(
         services.gatewayMethods.hasHandler(methodId),
         `${methodId} has a handler in the agent process. Nothing outside this process can call it, `
@@ -85,7 +85,7 @@ describe('this process serves no gateway verb', () => {
     ).rejects.toThrow();
   });
 
-  test('the descriptors remain — they are the shared contract, not a claim to serve them', () => {
+  test('the descriptors remain: they are the shared contract, not a claim to serve them', () => {
     // Descriptors are how a client knows a verb's shape. Keeping them while
     // dropping the handlers is the whole distinction: this process describes
     // the platform's verbs and answers none of them.

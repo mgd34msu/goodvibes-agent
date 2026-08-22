@@ -54,8 +54,8 @@ function makeInput(printed: string[]): InputHandler {
   return ih;
 }
 
-describe('feedInputTokens — the composer\'s free-text capture is NEVER guarded (product parity with the TUI\'s own unguarded composer)', () => {
-  test('a >8-char command string fed in one call is not truncated — no false-positive flood (regression coverage)', () => {
+describe('feedInputTokens: the composer\'s free-text capture is NEVER guarded (product parity with the TUI\'s own unguarded composer)', () => {
+  test('a >8-char command string fed in one call is not truncated: no false-positive flood (regression coverage)', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);
     ih.feed('/config display.stream');
@@ -63,7 +63,7 @@ describe('feedInputTokens — the composer\'s free-text capture is NEVER guarded
     expect(printed.some((line) => line.includes('flood'))).toBe(false);
   });
 
-  test('20 ordinary chat characters fed one at a time (rapid, same millisecond) are never guarded — plain text insertion is unconditionally exempt', () => {
+  test('20 ordinary chat characters fed one at a time (rapid, same millisecond) are never guarded: plain text insertion is unconditionally exempt', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);
     let realNow: typeof Date.now | undefined;
@@ -83,7 +83,7 @@ describe('feedInputTokens — the composer\'s free-text capture is NEVER guarded
   });
 });
 
-describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
+describe('feedInputTokens: command-mode key-dispatch flood guard', () => {
   let realNow: typeof Date.now;
   let clock = 1_000_000;
 
@@ -99,13 +99,13 @@ describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
   test('a 20-key burst while commandMode is armed is guarded: at most 8 land, and the notice is honest (never silent)', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);
-    ih.feed('/help'); // arms commandMode; autocomplete becomes active — never closes on 'up'/'down'
+    ih.feed('/help'); // arms commandMode; autocomplete becomes active, never closes on 'up'/'down'
     expect(ih.commandMode).toBe(true);
 
     const moveUpSpy = spyOn(AutocompleteEngine.prototype, 'moveUp');
     for (let i = 0; i < 20; i++) {
-      clock = 1_000_000 + i; // 1ms apart — far beyond sustained human typing
-      ih.feed('\x1b[A'); // up arrow — commandMode's autocomplete navigation, never closes commandMode
+      clock = 1_000_000 + i; // 1ms apart, far beyond sustained human typing
+      ih.feed('\x1b[A'); // up arrow, commandMode's autocomplete navigation, never closes commandMode
     }
     expect(ih.commandMode).toBe(true); // never force-closed by the flood
     expect(moveUpSpy.mock.calls.length).toBeLessThanOrEqual(8);
@@ -114,7 +114,7 @@ describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
     moveUpSpy.mockRestore();
   });
 
-  test('6 rapid command-mode keys under the threshold all dispatch — normal autocomplete navigation is unaffected', () => {
+  test('6 rapid command-mode keys under the threshold all dispatch: normal autocomplete navigation is unaffected', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);
     ih.feed('/help');
@@ -128,14 +128,14 @@ describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
     moveUpSpy.mockRestore();
   });
 
-  test('key tokens outside commandMode (ordinary composer navigation) are never guarded — no new friction in the default interaction mode', () => {
+  test('key tokens outside commandMode (ordinary composer navigation) are never guarded: no new friction in the default interaction mode', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);
     ih.feed('hello world'); // plain chat text, commandMode stays false
     expect(ih.commandMode).toBe(false);
     for (let i = 0; i < 20; i++) {
       clock = 3_000_000 + i;
-      ih.feed('\x1b[D'); // left arrow — plain composer cursor movement, not command-mode dispatch
+      ih.feed('\x1b[D'); // left arrow, plain composer cursor movement, not command-mode dispatch
     }
     expect(printed.some((line) => line.includes('flood'))).toBe(false);
   });
@@ -156,7 +156,7 @@ describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
   });
 });
 
-describe('feedInputTokens — OS focus tokens', () => {
+describe('feedInputTokens: OS focus tokens', () => {
   test('a focus-in/focus-out escape sequence updates the shared FocusTracker and never reaches the composer', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);

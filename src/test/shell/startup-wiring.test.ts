@@ -36,15 +36,15 @@ function makeRouter(): { router: { low(msg: string): void }; captured: CapturedM
 // Phase gating
 // ---------------------------------------------------------------------------
 
-describe('wireSetupIncompleteHint — phase gating', () => {
-  test('fresh phase — no markers — does not push any message', () => {
+describe('wireSetupIncompleteHint: phase gating', () => {
+  test('fresh phase, no markers, does not push any message', () => {
     const shellPaths = createShellPaths();
     const { router, captured } = makeRouter();
     wireSetupIncompleteHint({ shellPaths, providerReady: true, systemMessageRouter: router });
     expect(captured.low).toHaveLength(0);
   });
 
-  test('complete phase — completion marker present — does not push any message', () => {
+  test('complete phase, completion marker present, does not push any message', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCompletionMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -52,7 +52,7 @@ describe('wireSetupIncompleteHint — phase gating', () => {
     expect(captured.low).toHaveLength(0);
   });
 
-  test('in-progress phase — check marker present, no completion — pushes at least one message', () => {
+  test('in-progress phase, with a check marker present but no completion marker, pushes at least one message', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -65,7 +65,7 @@ describe('wireSetupIncompleteHint — phase gating', () => {
 // in-progress content
 // ---------------------------------------------------------------------------
 
-describe('wireSetupIncompleteHint — in-progress message content', () => {
+describe('wireSetupIncompleteHint: in-progress message content', () => {
   test('message includes /agent', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
@@ -83,7 +83,7 @@ describe('wireSetupIncompleteHint — in-progress message content', () => {
     expect(captured.low[0]).toMatch(/^\[Setup\]/);
   });
 
-  test('providerReady false — message leads with model prompt', () => {
+  test('providerReady false: message leads with model prompt', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -92,7 +92,7 @@ describe('wireSetupIncompleteHint — in-progress message content', () => {
     expect(allText).toMatch(/model|pick/);
   });
 
-  test('providerReady true — message says chat still works', () => {
+  test('providerReady true: message says chat still works', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -102,7 +102,7 @@ describe('wireSetupIncompleteHint — in-progress message content', () => {
     expect(allText).toMatch(/chat|now/);
   });
 
-  test('hostReady omitted — only one low message (no host line)', () => {
+  test('hostReady omitted: only one low message (no host line)', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -127,8 +127,8 @@ describe('wireSetupIncompleteHint — in-progress message content', () => {
 // MINOR-1: localReady signal, local model route detected, no cloud provider
 // ---------------------------------------------------------------------------
 
-describe('wireSetupIncompleteHint — localReady signal', () => {
-  test('providerReady:false + localReady:true — does NOT lead with pick-a-model', () => {
+describe('wireSetupIncompleteHint: localReady signal', () => {
+  test('providerReady:false + localReady:true: does NOT lead with pick-a-model', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -139,7 +139,7 @@ describe('wireSetupIncompleteHint — localReady signal', () => {
     expect(allText).not.toMatch(/pick a model/);
   });
 
-  test('providerReady:false + localReady:true — says chat works', () => {
+  test('providerReady:false + localReady:true: says chat works', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -149,7 +149,7 @@ describe('wireSetupIncompleteHint — localReady signal', () => {
     expect(allText).toMatch(/chat|now/);
   });
 
-  test('providerReady:false + localReady:false — still leads with pick-a-model', () => {
+  test('providerReady:false + localReady:false: still leads with pick-a-model', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -159,7 +159,7 @@ describe('wireSetupIncompleteHint — localReady signal', () => {
     expect(allText).toMatch(/model|pick/);
   });
 
-  test('providerReady:false + localReady omitted — leads with pick-a-model (backward compat)', () => {
+  test('providerReady:false + localReady omitted: leads with pick-a-model (backward compat)', () => {
     const shellPaths = createShellPaths();
     writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
     const { router, captured } = makeRouter();
@@ -173,7 +173,7 @@ describe('wireSetupIncompleteHint — localReady signal', () => {
 // Error resilience: bad shellPaths should not throw
 // ---------------------------------------------------------------------------
 
-describe('wireSetupIncompleteHint — error resilience', () => {
+describe('wireSetupIncompleteHint: error resilience', () => {
   test('does not throw when shellPaths resolveUserPath throws', () => {
     const badShellPaths = {
       resolveUserPath: () => { throw new Error('path service unavailable'); },

@@ -18,7 +18,7 @@ const projectRoot = resolve(join(import.meta.dir, '..', '..', '..'));
  * requires forging a test file, which is a thing a reviewer can see.
  */
 describe('settings behaviour coverage evidence', () => {
-  test('the inherited baseline may never grow — new claims must be itemised', () => {
+  test('the inherited baseline may never grow: new claims must be itemised', () => {
     // 184 is the un-itemised count inherited from commit 0ea661ea. It has no
     // per-key list, so it can never be a place to hide new claims. Raising it
     // is the exact move this whole file exists to prevent; anything new goes

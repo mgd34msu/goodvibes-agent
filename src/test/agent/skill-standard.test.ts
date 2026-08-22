@@ -112,7 +112,7 @@ describe('round-trip: parse(render(skill)) recovers original fields', () => {
     expect(parsed.description).toBe(original.description);
   });
 
-  test('description with embedded newline collapses to single line — frontmatter unbroken', () => {
+  test('description with embedded newline collapses to single line: frontmatter unbroken', () => {
     // Skill created with a multi-line description (e.g. via API with \n in the string).
     // render must collapse it so the YAML frontmatter is never broken across lines,
     // and the recovered description equals the collapsed form.
@@ -135,7 +135,7 @@ describe('round-trip: parse(render(skill)) recovers original fields', () => {
   });
 });
 
-describe('parseSkillStandardMarkdown — input normalization', () => {
+describe('parseSkillStandardMarkdown: input normalization', () => {
   test('parses SKILL.md with CRLF line endings (round-trip)', () => {
     const content = '---\r\nname: CRLF Skill\r\ndescription: Authored with Windows line endings.\r\n---\r\nDo the thing.\r\n';
     const result = parseSkillStandardMarkdown(content);

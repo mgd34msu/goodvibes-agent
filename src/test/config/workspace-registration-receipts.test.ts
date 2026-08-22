@@ -176,7 +176,7 @@ describe('a damaged backfill receipt RE-RUNS the backfill (its work is idempoten
     expect(snapshot.workspaces[0]?.checkpointEligible).toBeUndefined();
   });
 
-  test('a NEWER schema receipt is accepted — a downgrade must not re-backfill every boot', async () => {
+  test('a NEWER schema receipt is accepted: a downgrade must not re-backfill every boot', async () => {
     const { shellPaths, work, home } = makeShellPaths();
     seedLegacyRegistry(home, work);
     migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);

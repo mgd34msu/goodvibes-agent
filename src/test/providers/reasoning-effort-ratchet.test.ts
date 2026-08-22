@@ -139,7 +139,7 @@ function makeCommandContext(config: ReturnType<typeof makeConfig>, printed: stri
   return { context, runtime };
 }
 
-describe('/model — the requested level is never overwritten by the snapped one', () => {
+describe('/model: the requested level is never overwritten by the snapped one', () => {
   test('capable -> capped -> capable returns to the requested level on its own', async () => {
     const registry = new CommandRegistry();
     registerShellCoreCommands(registry);
@@ -192,7 +192,7 @@ describe('/model — the requested level is never overwritten by the snapped one
   });
 });
 
-describe('/effort — an explicit user choice still persists', () => {
+describe('/effort: an explicit user choice still persists', () => {
   test('setting a level writes the preference and the effective level together', async () => {
     const registry = new CommandRegistry();
     registerShellCoreCommands(registry);
@@ -224,7 +224,7 @@ describe('/effort — an explicit user choice still persists', () => {
   });
 });
 
-describe('/effort — the list opens on the level in effect, not a level the model lacks', () => {
+describe('/effort: the list opens on the level in effect, not a level the model lacks', () => {
   test('a capped model preselects its own top level, not the lowest one', async () => {
     const registry = new CommandRegistry();
     registerShellCoreCommands(registry);
@@ -274,7 +274,7 @@ function makePickerActions(config: ReturnType<typeof makeConfig>, logged: string
   return { actions, runtime };
 }
 
-describe('model picker commit — same rules as /model', () => {
+describe('model picker commit: same rules as /model', () => {
   test('capable -> capped -> capable returns to the requested level, preference untouched', () => {
     const config = makeConfig({ 'provider.reasoningEffort': 'xhigh' });
     const logged: string[] = [];
@@ -320,7 +320,7 @@ describe('model picker commit — same rules as /model', () => {
 // ---------------------------------------------------------------------------
 
 describe('requested-level helper', () => {
-  test('reads config only — a snapped effective value cannot become the baseline', () => {
+  test('reads config only: a snapped effective value cannot become the baseline', () => {
     const config = makeConfig({ 'provider.reasoningEffort': 'xhigh' });
     expect(requestedEffortLevel(config as never)).toBe('xhigh');
     const serving = resolveRequestedEffortForServingModel(config as never, CAPPED);

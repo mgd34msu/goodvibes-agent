@@ -341,7 +341,7 @@ describe('the wake activation sound', () => {
     return { player, played };
   }
 
-  test('"none" plays nothing at all, where "chime" plays a real WAV — the row decides whether audio happens', async () => {
+  test('"none" plays nothing at all, where "chime" plays a real WAV: the row decides whether audio happens', async () => {
     const silent = recordingPlayer();
     const silentNotices: string[] = [];
     playActivationSound({ kind: 'none', path: '' }, { player: silent.player, notify: (m) => silentNotices.push(m) });

@@ -4,7 +4,7 @@
  *
  * Spawned by src/test/runtime/process-fault-capture.test.ts. It has to be a
  * separate process because the behaviour under test is what survives an actual
- * process-level fault — an in-process test would only ever exercise a function
+ * process-level fault, an in-process test would only ever exercise a function
  * call, which is precisely the thing that was already fine. What was broken was
  * the path where the process dies.
  *

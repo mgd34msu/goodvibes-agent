@@ -77,7 +77,7 @@ describe('crash record', () => {
   });
 });
 
-describe('crash log — bounded and content-validated', () => {
+describe('crash log: bounded and content-validated', () => {
   test('keeps the NEWEST records within the cap', () => {
     const path = join(tempHome(), CRASH_LOG_FILENAME);
     for (let i = 0; i < CRASH_LOG_MAX_RECORDS + 15; i++) {

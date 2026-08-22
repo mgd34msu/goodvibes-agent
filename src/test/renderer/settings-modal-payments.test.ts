@@ -156,7 +156,7 @@ describe('renderSettingsModal payments category', () => {
     }
   });
 
-  test('no category ever renders a card value — masked at rest and masked mid-edit', () => {
+  test('no category ever renders a card value: masked at rest and masked mid-edit', () => {
     const FAKE_PAN = '4000056655665556';
     const FAKE_CODE = '731';
 

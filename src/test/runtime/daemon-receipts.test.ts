@@ -165,7 +165,7 @@ describe('receipt consumer (?receipts=consume, once per attach)', () => {
     });
     // Mirror services.consumeDaemonReceipts: one consuming read, push to the feed.
     feed.push(await consume());
-    feed.push(await consume()); // dedupe by id — a re-consume must not double-render.
+    feed.push(await consume()); // dedupe by id, a re-consume must not double-render.
 
     const rendered: string[] = [];
     feed.attach((receipt) => rendered.push(receipt.text));

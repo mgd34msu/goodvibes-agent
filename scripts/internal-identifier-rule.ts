@@ -61,7 +61,7 @@ const INTERNAL_IDENTIFIER_PATTERNS: readonly RegExp[] = [
   /\bUX-[A-Z]\b/g, // UX-workstream id: "UX-" followed by one capital letter
   /\bWave[- ][0-9]+\b/g, // wave word-form: "Wave" plus a hyphen or space plus digits
   /\bW[0-9]+-R[0-9]+\b/g, // wave-round id: a capital W, digits, a hyphen, capital R, digits
-  /\([A-E][0-9]{1,2}\)/g, // a lettered finding id (A-E, one or two digits) alone inside parentheses — F excluded (function keys)
+  /\([A-E][0-9]{1,2}\)/g, // a lettered finding id (A-E, one or two digits) alone inside parentheses. F excluded (function keys)
   /\b(?:describe|test|it)\(\s*['"][A-E][0-9]{1,2}\s*(?::|—)/g, // a test/describe/it title starting with a lettered finding id, immediately followed by a colon or an em-dash
   /\b[A-E][0-9]{1,2}(?:\/[A-E][0-9]{1,2}){1,}\b/g, // two or more lettered finding ids chained by forward slashes
 ];

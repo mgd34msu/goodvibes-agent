@@ -273,7 +273,7 @@ afterEach(() => {
 // project mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — project mode', () => {
+describe('inspect: project mode', () => {
   test('detects Node.js project from package.json', async () => {
     write(tmpDir, 'package.json', JSON.stringify({
       name: 'my-app',
@@ -361,7 +361,7 @@ describe('inspect — project mode', () => {
 // api mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — api mode', () => {
+describe('inspect: api mode', () => {
   test('finds Next.js App Router routes', async () => {
     // Create app/users/route.ts with GET and POST exports
     write(tmpDir, 'app/users/route.ts',
@@ -422,7 +422,7 @@ describe('inspect — api mode', () => {
 // database mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — database mode', () => {
+describe('inspect: database mode', () => {
   const PRISMA_SCHEMA = `
 datasource db {
   provider = "postgresql"
@@ -516,7 +516,7 @@ enum Role {
 // components mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — components mode', () => {
+describe('inspect: components mode', () => {
   test('finds React function components', async () => {
     write(tmpDir, 'src/Button.tsx', [
       'import React from "react";',
@@ -586,7 +586,7 @@ describe('inspect — components mode', () => {
 // accessibility mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — accessibility mode', () => {
+describe('inspect: accessibility mode', () => {
   test('detects missing alt text on img', async () => {
     write(tmpDir, 'src/Page.tsx', [
       'export function Page() {',
@@ -679,7 +679,7 @@ describe('inspect — accessibility mode', () => {
 // layout mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — layout mode', () => {
+describe('inspect: layout mode', () => {
   test('extracts Tailwind flex and grid classes', async () => {
     write(tmpDir, 'src/Layout.tsx', [
       'export function Layout() {',
@@ -720,7 +720,7 @@ describe('inspect — layout mode', () => {
 // scaffold mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — scaffold mode', () => {
+describe('inspect: scaffold mode', () => {
   test('dry run returns file plan without writing', async () => {
     const r = await exec(tool, {
       mode: 'scaffold',
@@ -787,7 +787,7 @@ describe('inspect — scaffold mode', () => {
 // Error cases
 // ---------------------------------------------------------------------------
 
-describe('inspect — error cases', () => {
+describe('inspect: error cases', () => {
   test('invalid mode returns error', async () => {
     const r = await exec(tool, { mode: 'invalid-mode' });
     expect(r.success).toBe(false);
@@ -819,7 +819,7 @@ describe('inspect — error cases', () => {
 // api_spec mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — api_spec mode', () => {
+describe('inspect: api_spec mode', () => {
   test('generates OpenAPI 3.0 spec from Next.js routes', async () => {
     write(tmpDir, 'app/users/route.ts',
       'export async function GET(req: Request) {}\nexport async function POST(req: Request) {}\n');
@@ -902,7 +902,7 @@ describe('inspect — api_spec mode', () => {
 // api_validate mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — api_validate mode', () => {
+describe('inspect: api_validate mode', () => {
   test('reports valid when spec matches code routes', async () => {
     write(tmpDir, 'app/users/route.ts',
       'export async function GET(req: Request) {}\nexport async function POST(req: Request) {}\n');
@@ -1024,7 +1024,7 @@ describe('inspect — api_validate mode', () => {
 // api_sync mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — api_sync mode', () => {
+describe('inspect: api_sync mode', () => {
   test('detects no drift when fetch calls match routes', async () => {
     write(tmpDir, 'app/users/route.ts',
       'export async function GET(req: Request) {}\n');
@@ -1098,7 +1098,7 @@ describe('inspect — api_sync mode', () => {
 // component_state mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — component_state mode', () => {
+describe('inspect: component_state mode', () => {
   test('finds useState calls and names state variables', async () => {
     write(tmpDir, 'MyComp.tsx', [
       "import React, { useState } from 'react';",
@@ -1152,7 +1152,7 @@ describe('inspect — component_state mode', () => {
 // render_triggers mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — render_triggers mode', () => {
+describe('inspect: render_triggers mode', () => {
   test('finds state setters and effect/memo/callback hooks', async () => {
     write(tmpDir, 'Triggers.tsx', [
       "import { useState, useEffect, useMemo, useCallback, memo } from 'react';",
@@ -1189,7 +1189,7 @@ describe('inspect — render_triggers mode', () => {
 // hooks mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — hooks mode', () => {
+describe('inspect: hooks mode', () => {
   test('detects useEffect with dependency array', async () => {
     write(tmpDir, 'Hooks.tsx', [
       "import { useEffect } from 'react';",
@@ -1218,7 +1218,7 @@ describe('inspect — hooks mode', () => {
 // overflow mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — overflow mode', () => {
+describe('inspect: overflow mode', () => {
   test('flags overflow-hidden without height', async () => {
     write(tmpDir, 'Overflow.tsx', [
       'function Card() {',
@@ -1258,7 +1258,7 @@ describe('inspect — overflow mode', () => {
 // sizing mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — sizing mode', () => {
+describe('inspect: sizing mode', () => {
   test('detects tailwind fixed, flex, percentage and viewport sizing', async () => {
     write(tmpDir, 'Sizing.tsx', [
       'function Layout() {',
@@ -1289,7 +1289,7 @@ describe('inspect — sizing mode', () => {
 // stacking mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — stacking mode', () => {
+describe('inspect: stacking mode', () => {
   test('finds tailwind z-index classes', async () => {
     write(tmpDir, 'Stacking.tsx', [
       'function Modal() {',
@@ -1320,7 +1320,7 @@ describe('inspect — stacking mode', () => {
 // responsive mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — responsive mode', () => {
+describe('inspect: responsive mode', () => {
   test('finds Tailwind responsive breakpoint classes', async () => {
     write(tmpDir, 'Responsive.tsx', [
       'function Hero() {',
@@ -1350,7 +1350,7 @@ describe('inspect — responsive mode', () => {
 // events mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — events mode', () => {
+describe('inspect: events mode', () => {
   test('finds onClick and onChange event handlers', async () => {
     write(tmpDir, 'Events.tsx', [
       'function Form() {',
@@ -1382,7 +1382,7 @@ describe('inspect — events mode', () => {
 // tailwind mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — tailwind mode', () => {
+describe('inspect: tailwind mode', () => {
   test('detects conflicting display classes on same element', async () => {
     write(tmpDir, 'TwConflict.tsx', [
       'function X() {',
@@ -1416,7 +1416,7 @@ describe('inspect — tailwind mode', () => {
 // client_boundary mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — client_boundary mode', () => {
+describe('inspect: client_boundary mode', () => {
   test("detects 'use client' directive", async () => {
     write(tmpDir, 'Client.tsx', [
       "'use client';",
@@ -1458,7 +1458,7 @@ describe('inspect — client_boundary mode', () => {
 // error_boundary mode
 // ---------------------------------------------------------------------------
 
-describe('inspect — error_boundary mode', () => {
+describe('inspect: error_boundary mode', () => {
   test('finds ErrorBoundary component usage', async () => {
     write(tmpDir, 'App.tsx', [
       "import { ErrorBoundary } from 'react-error-boundary';",
@@ -1486,7 +1486,7 @@ describe('inspect — error_boundary mode', () => {
   });
 });
 
-describe('inspect — output formatting', () => {
+describe('inspect: output formatting', () => {
   test('summary output is semantically smaller than detailed for project mode', async () => {
     write(tmpDir, 'package.json', JSON.stringify({
       name: 'format-project',

@@ -123,7 +123,7 @@ describe('bracket-text-without-ESC over-strip guard', () => {
   });
 });
 
-describe('truncateDisplay — ANSI-safe slice boundaries', () => {
+describe('truncateDisplay: ANSI-safe slice boundaries', () => {
   test('truncation of ANSI-styled string does not cut mid-escape', () => {
     const styled = '\x1b[1;31m' + 'hello world' + '\x1b[0m';
     const truncated = truncateDisplay(styled, 5);
@@ -139,7 +139,7 @@ describe('truncateDisplay — ANSI-safe slice boundaries', () => {
   });
 });
 
-describe('getDisplayWidth — combining marks and variation selectors', () => {
+describe('getDisplayWidth: combining marks and variation selectors', () => {
   test('combining diacritical marks (U+0300-U+036F) add zero width', () => {
     const withCombining = 'è';
     expect(getDisplayWidth(withCombining)).toBe(1);

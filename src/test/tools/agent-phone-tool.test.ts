@@ -167,7 +167,7 @@ describe('every device action leaves this process as a devices.* verb', () => {
     expect((revoke!.input as { grantId: string }).grantId).toBe('grant-1');
   });
 
-  test('housekeeping is devices.housekeeping.run — no sweep runs in this process', async () => {
+  test('housekeeping is devices.housekeeping.run: no sweep runs in this process', async () => {
     const calls: RecordedCall[] = [];
     const tool = registerPhone(stubVerbs({
       calls,

@@ -130,7 +130,7 @@ describe('ensureDaemonEnabledMigrated', () => {
     expect(notice!).toContain(projectPath);
   });
 
-  test('a flat dotted key — the shape a hand-edited file carries — is corrected too', () => {
+  test('a flat dotted key, the shape a hand-edited file carries, is corrected too', () => {
     const home = makeProjectTempDir('daemon-enabled');
     const path = writeSettings(home, { 'daemon.enabled': false });
     expect(ensureDaemonEnabledMigrated({ homeDir: home })).not.toBeNull();
@@ -151,7 +151,7 @@ describe('ensureDaemonEnabledMigrated', () => {
     expect(daemonEnabledOf(path)).toBe(false);
   });
 
-  test('no settings file at all is not an error — the marker is still written', () => {
+  test('no settings file at all is not an error: the marker is still written', () => {
     const home = makeProjectTempDir('daemon-enabled');
     expect(ensureDaemonEnabledMigrated({ homeDir: home })).toBeNull();
     expect(existsSync(daemonEnabledMigrationReceiptPath(home))).toBe(true);

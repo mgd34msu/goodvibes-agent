@@ -147,7 +147,7 @@ describe('memory-spine REST transport against a real daemon', () => {
     await expect(transport.delete(added.id)).resolves.toBe(false);
   });
 
-  test('honestSearch() recall-filters flagged and sub-floor records and reports exact exclusion counts — the honesty envelope survives the wire', async () => {
+  test('honestSearch() recall-filters flagged and sub-floor records and reports exact exclusion counts: the honesty envelope survives the wire', async () => {
     const transport = createMemorySpineRestTransport({ resolveConnection: () => connection });
     const clean = await transport.add({ cls: 'fact', scope: 'project', summary: 'clean eligible fact', review: { confidence: 80 } });
     const belowFloor = await transport.add({ cls: 'fact', scope: 'project', summary: 'below floor fact', review: { confidence: 40 } });
@@ -178,7 +178,7 @@ describe('memory-spine REST transport against a real daemon', () => {
     await expect(transport.add({ cls: 'fact', summary: 'no token' })).rejects.toThrow(/operator token/);
   });
 
-  test('every op rejects once the daemon has stopped — the honest-failure contract (no silent local fallback inside the transport)', async () => {
+  test('every op rejects once the daemon has stopped: the honest-failure contract (no silent local fallback inside the transport)', async () => {
     const transport = createMemorySpineRestTransport({ resolveConnection: () => connection, timeoutMs: 500 });
     await daemon.stop();
     await expect(transport.add({ cls: 'fact', summary: 'daemon is down' })).rejects.toThrow();
@@ -188,7 +188,7 @@ describe('memory-spine REST transport against a real daemon', () => {
 
   // ── Extended verbs (1.2.0 full-detach catalog), same real-daemon proof ────
 
-  test('list() returns every record from the DAEMON store — an empty filter is getAll semantics', async () => {
+  test('list() returns every record from the DAEMON store: an empty filter is getAll semantics', async () => {
     const transport = createFullMemoryAccess({ resolveConnection: () => connection });
     const first = await transport.add({ cls: 'fact', scope: 'project', summary: 'list me one' });
     const second = await transport.add({ cls: 'fact', scope: 'team', summary: 'list me two' });

@@ -37,7 +37,7 @@ type ProviderCapabilityRegistryTestAccess = {
 // ProviderCapabilityRegistry, merge order
 // ---------------------------------------------------------------------------
 
-describe('ProviderCapabilityRegistry.getCapability — merge order', () => {
+describe('ProviderCapabilityRegistry.getCapability: merge order', () => {
   let registry: ProviderCapabilityRegistry;
 
   beforeEach(() => {

@@ -191,7 +191,7 @@ describe('periodic self-update wiring', () => {
     expect(() => stop()).not.toThrow();
   });
 
-  test('a non-binary install never arms the loop — there is no file to swap', () => {
+  test('a non-binary install never arms the loop: there is no file to swap', () => {
     const stop = startPeriodicSelfUpdate({
       configManager: configWith({}) as never,
       services,

@@ -298,7 +298,7 @@ describe('SessionManager', () => {
       expect(meta.title).toBe('New Title');
     });
 
-    test('does not change the filename — only the in-file title', () => {
+    test('does not change the filename: only the in-file title', () => {
       sm.save('rename-file-check', [], META);
       sm.rename('rename-file-check', 'Updated Title');
       // Session must still be loadable under the original name
@@ -410,7 +410,7 @@ describe('SessionManager', () => {
       expect(results[1].session.name).toBe('one-match');
     });
 
-    test('skips meta line — only searches messages', () => {
+    test('skips meta line: only searches messages', () => {
       // Title contains query but no messages do, should not match
       sm.save('title-only-match', [], { ...META, title: 'contains-the-keyword' });
       const results = sm.search('contains-the-keyword');

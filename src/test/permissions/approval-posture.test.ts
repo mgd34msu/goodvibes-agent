@@ -43,8 +43,8 @@ const SCENARIOS: readonly Scenario[] = [
   { name: 'autoApprove on, mode custom with every category denied', autoApprove: true, mode: 'custom', tools: allToolsAs('deny') },
   { name: 'allow-all mode, autoApprove off', autoApprove: false, mode: 'allow-all' },
   { name: 'custom mode, every category allow (full bypass)', autoApprove: false, mode: 'custom', tools: allToolsAs('allow') },
-  { name: 'custom mode, write set to prompt (mixed — not a full bypass)', autoApprove: false, mode: 'custom', tools: { ...allToolsAs('allow'), write: 'prompt' } },
-  { name: 'custom mode, write set to deny (mixed — not a full bypass)', autoApprove: false, mode: 'custom', tools: { ...allToolsAs('allow'), write: 'deny' } },
+  { name: 'custom mode, write set to prompt (mixed, not a full bypass)', autoApprove: false, mode: 'custom', tools: { ...allToolsAs('allow'), write: 'prompt' } },
+  { name: 'custom mode, write set to deny (mixed, not a full bypass)', autoApprove: false, mode: 'custom', tools: { ...allToolsAs('allow'), write: 'deny' } },
 ];
 
 describe('approval posture: shared helper agrees with the real permission gate', () => {

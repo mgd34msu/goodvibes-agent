@@ -180,7 +180,7 @@ describe('update.autoUpdateAtLaunch: false stops a compiled binary replacing its
     expect(settingsFrom(other.home, other.work).autoUpdateAtLaunch).toBe(false);
   });
 
-  test('with no setting at all, a binary still updates itself — the default is unchanged', async () => {
+  test('with no setting at all, a binary still updates itself: the default is unchanged', async () => {
     const { home, work } = scratch();
     const settings = settingsFrom(home, work);
 

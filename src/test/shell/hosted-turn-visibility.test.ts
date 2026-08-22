@@ -58,7 +58,7 @@ function overlayLines(state: ThinkingUiState): string[] {
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms); });
 
-describe('symptom 1 — the waiting state exists during a hosted turn', () => {
+describe('symptom 1: the waiting state exists during a hosted turn', () => {
   test('no waiting state before, a waiting state during, none after', () => {
     const state = turnState();
     const activity = createHostedTurnActivity({ turnState: state, requestRender: () => {} });
@@ -102,7 +102,7 @@ describe('symptom 1 — the waiting state exists during a hosted turn', () => {
   });
 });
 
-describe('symptom 2 — the shell repaints with no input events at all', () => {
+describe('symptom 2: the shell repaints with no input events at all', () => {
   test('hosted turn activity schedules real repaints on the local cadence', async () => {
     let repaints = 0;
     const state = turnState();
@@ -128,7 +128,7 @@ describe('symptom 2 — the shell repaints with no input events at all', () => {
     activity.dispose();
   });
 
-  test('repainting stops when the turn ends — no timer outlives the turn', async () => {
+  test('repainting stops when the turn ends: no timer outlives the turn', async () => {
     let repaints = 0;
     const state = turnState();
     const activity = createHostedTurnActivity({
@@ -152,7 +152,7 @@ describe('symptom 2 — the shell repaints with no input events at all', () => {
   });
 });
 
-describe('symptom 3 — streamed text is visible as deltas arrive', () => {
+describe('symptom 3: streamed text is visible as deltas arrive', () => {
   test('each delta updates the streaming block before the turn completes', () => {
     const updates: string[] = [];
     let repaints = 0;

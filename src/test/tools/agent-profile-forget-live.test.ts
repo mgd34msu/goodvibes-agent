@@ -297,7 +297,7 @@ describe('forget, against the real store', () => {
     expect(profile.read()).toBe(before);
   });
 
-  test('the whole line is what matches — a partial or reworded line finds nothing', async () => {
+  test('the whole line is what matches: a partial or reworded line finds nothing', async () => {
     const profile = await liveProfile();
     const before = profile.read();
 

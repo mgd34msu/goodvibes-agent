@@ -189,7 +189,7 @@ describe('getCatalogModelDefinitions', () => {
 // getModelRegistry, catalog-sourced models
 // ---------------------------------------------------------------------------
 
-describe('getModelRegistry — catalog-sourced models', () => {
+describe('getModelRegistry: catalog-sourced models', () => {
   beforeEach(() => {
     cacheFixture = createProviderCacheFixture(testManagers.configManager.getControlPlaneConfigDir());
     loadCatalog(FIXTURE_CATALOG.models);
@@ -267,7 +267,7 @@ describe('getModelRegistry — catalog-sourced models', () => {
 // getModelRegistry, discovered servers merge
 // ---------------------------------------------------------------------------
 
-describe('getModelRegistry — discovered servers', () => {
+describe('getModelRegistry: discovered servers', () => {
   beforeEach(() => {
     cacheFixture = createProviderCacheFixture(testManagers.configManager.getControlPlaneConfigDir());
     loadCatalog(FIXTURE_CATALOG.models);
@@ -299,7 +299,7 @@ describe('getModelRegistry — discovered servers', () => {
 // getModelRegistry, empty catalog fallback
 // ---------------------------------------------------------------------------
 
-describe('getModelRegistry — empty catalog fallback', () => {
+describe('getModelRegistry: empty catalog fallback', () => {
   beforeEach(() => {
     cacheFixture = createProviderCacheFixture(testManagers.configManager.getControlPlaneConfigDir());
     loadCatalog([]);
@@ -388,7 +388,7 @@ describe('Structural verification', () => {
 // ProviderRegistry.get(), alias resolution
 // ---------------------------------------------------------------------------
 
-describe('ProviderRegistry.get() — alias resolution', () => {
+describe('ProviderRegistry.get(): alias resolution', () => {
   beforeEach(() => {
     cacheFixture = createProviderCacheFixture(testManagers.configManager.getControlPlaneConfigDir());
     loadCatalog(FIXTURE_CATALOG.models);
@@ -418,7 +418,7 @@ describe('ProviderRegistry.get() — alias resolution', () => {
   });
 });
 
-describe('ProviderRegistry.getForModel() — explicit provider lock', () => {
+describe('ProviderRegistry.getForModel(): explicit provider lock', () => {
   beforeEach(() => {
     cacheFixture = createProviderCacheFixture(testManagers.configManager.getControlPlaneConfigDir());
   });

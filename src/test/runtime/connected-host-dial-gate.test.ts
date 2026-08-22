@@ -44,7 +44,7 @@ function configWith(values: Record<string, unknown>): never {
 }
 
 describe('the connected-host dial gate', () => {
-  test("the owner's configuration — daemon.enabled false — no longer refuses the dial", () => {
+  test("the owner's configuration, daemon.enabled false, no longer refuses the dial", () => {
     const { home, cleanup } = homeWithOperatorToken();
     try {
       const resolved = resolveConnectedHostConnection({

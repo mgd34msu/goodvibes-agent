@@ -113,7 +113,7 @@ describe('registerToken', () => {
 // Scope minimization tests
 // ---------------------------------------------------------------------------
 
-describe('auditScope — minimum scope principle', () => {
+describe('auditScope: minimum scope principle', () => {
   test('returns ok when token scopes exactly match policy allowedScopes', () => {
     const auditor = makeAuditor();
     auditor.registerToken(makeToken({ grantedScopes: ['completions:write', 'models:read'] }));
@@ -177,7 +177,7 @@ describe('auditScope — minimum scope principle', () => {
 // Rotation expiry warning tests
 // ---------------------------------------------------------------------------
 
-describe('auditRotation — rotation cadence', () => {
+describe('auditRotation: rotation cadence', () => {
   test('returns ok for a recently issued token', () => {
     const auditor = makeAuditor();
     const now = Date.now();

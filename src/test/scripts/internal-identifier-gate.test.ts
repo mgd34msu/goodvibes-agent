@@ -195,7 +195,7 @@ describe('checkNoInternalIdentifiers', () => {
       expect(violations[0]).toContain(findingChain);
     });
 
-    test('does NOT flag a bare id with no delimiter — the shape stays legal (control-character sets, Slack channel ids, IMAP tags, quoted-printable)', () => {
+    test('does NOT flag a bare id with no delimiter: the shape stays legal (control-character sets, Slack channel ids, IMAP tags, quoted-printable)', () => {
       const violations = checkNoInternalIdentifiers([
         { relPath: 'src/core/example.ts', text: '// C0 control characters (0x00-0x1f) and DEL (0x7f).' },
         { relPath: 'src/agent/email/example.ts', text: '// CR, LF, and the other C0 and C1 control characters.' },

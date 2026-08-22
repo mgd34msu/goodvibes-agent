@@ -116,7 +116,7 @@ describe('approvals view: an unreachable host is never an empty list', () => {
       verbs: verbs({
         probe: {
           available: false,
-          reason: 'the connected host is disabled (daemon.enabled=false) — nothing to reach.',
+          reason: 'the connected host is disabled (daemon.enabled=false), nothing to reach.',
         },
       }),
       localBroker: { listApprovals: () => [] },
@@ -267,7 +267,7 @@ describe('approvals view: transitions arrive on the push channel, with the poll 
     view.stop();
   });
 
-  test('a claimed ask stays on the panel — someone answering is not someone answered', async () => {
+  test('a claimed ask stays on the panel: someone answering is not someone answered', async () => {
     const channel = stream();
     const view = createApprovalsView({
       verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [] }) }),

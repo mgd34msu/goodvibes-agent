@@ -174,7 +174,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(await secrets.get(secretKey)).toBe(FAKE_CVV);
   });
 
-  test('the card reference lands in the DAEMON-owned config tier — the file the daemon reads with this program closed', async () => {
+  test('the card reference lands in the DAEMON-owned config tier: the file the daemon reads with this program closed', async () => {
     const stored = await persistSecretBackedConfigValue(cm, secrets, PAYMENTS_CARD_NUMBER_CONFIG_KEY, FAKE_CARD_NUMBER, { scope: 'daemon' });
 
     const daemonTierPath = cm.getDaemonTierPath();
@@ -196,7 +196,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(defaultSecretBackedScope('provider.model' as never)).toBe('user' satisfies SecretScope);
   });
 
-  test('the settings-modal secret edit path also writes at daemon scope — not just the /payments card path', () => {
+  test('the settings-modal secret edit path also writes at daemon scope: not just the /payments card path', () => {
     const scopes: (string | undefined)[] = [];
     const fakeSecrets = {
       set: mock(async (_k: string, _v: string, opts?: { scope?: string }) => { scopes.push(opts?.scope); }),
@@ -213,7 +213,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(String(cm.get(PAYMENTS_CARD_CVV_CONFIG_KEY))).not.toContain(FAKE_CVV);
   });
 
-  test('a guided address field lands in the daemon-owned tier too — the daemon needs somewhere to ship to', () => {
+  test('a guided address field lands in the daemon-owned tier too: the daemon needs somewhere to ship to', () => {
     const key = paymentsAddressConfigKey('shipping', 'line1');
     cm.setDynamic(key, '123 Fake St');
     const daemonTierPath = cm.getDaemonTierPath();
@@ -226,7 +226,7 @@ describe('payments card containment (agent terminal)', () => {
   // 2. Nothing is echoed during entry.
   // -------------------------------------------------------------------------
 
-  test('the composer masks a concealed buffer to bullets of the same length — no plaintext character reaches the screen', () => {
+  test('the composer masks a concealed buffer to bullets of the same length: no plaintext character reaches the screen', () => {
     const host: ConcealedInputHost = { prompt: '', cursorPos: 0, concealedInput: null, requestRender: () => {} };
     beginConcealedInputFor(host, { label: 'CVV', onSubmit: () => {} });
     host.prompt = FAKE_CVV;
@@ -265,7 +265,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(host.concealedInput).toBeNull();
   });
 
-  test('the REAL InputHandler renders a concealed card number as bullets — the masking is wired, not just available', () => {
+  test('the REAL InputHandler renders a concealed card number as bullets: the masking is wired, not just available', () => {
     const sel = new SelectionManager();
     const history = new InfiniteBuffer();
     const input = new InputHandler(() => {}, sel, () => 0, () => 20, () => history, () => {}, () => {}, createDefaultUiRuntimeServices());
@@ -298,7 +298,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(input.getWrappedPromptInfo(60).visibleLines.join('\n')).toContain('Springfield');
   });
 
-  test('beginning a plain prompt cancels a pending concealed one — the two slots are never both live', () => {
+  test('beginning a plain prompt cancels a pending concealed one: the two slots are never both live', () => {
     const sel = new SelectionManager();
     const history = new InfiniteBuffer();
     const input = new InputHandler(() => {}, sel, () => 0, () => 20, () => history, () => {}, () => {}, createDefaultUiRuntimeServices());
@@ -639,7 +639,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(leakedDigits(transcript, FAKE_CARD_NUMBER.slice(-4))).toBe(false);
   });
 
-  test('the guided address flow stores what was typed and shows it back — an address is not a credential', async () => {
+  test('the guided address flow stores what was typed and shows it back: an address is not a credential', async () => {
     const { ctx, printed, submitField } = makeCommandContext();
     startAddressEntryFlow(ctx, 'billing');
 
@@ -726,7 +726,7 @@ describe('payments card containment (agent terminal)', () => {
 
     await submitField('Jane Doe');   // name
     await submitField('1 Main St');  // line1
-    await submitField('   ');        // line2 — whitespace only, treated as blank
+    await submitField('   ');        // line2, whitespace only, treated as blank
 
     expect(cm.get(paymentsAddressConfigKey('shipping', 'line2'))).toBe('Unit 7');
   });
@@ -756,7 +756,7 @@ describe('payments card containment (agent terminal)', () => {
     }
   });
 
-  test('startCardEntryFlow refuses on a non-entry surface and never offers the prompt — the prompt is the harm', () => {
+  test('startCardEntryFlow refuses on a non-entry surface and never offers the prompt: the prompt is the harm', () => {
     const { ctx, printed, concealedOffers } = makeCommandContext();
     startCardEntryFlow(ctx, 'telegram');
 
@@ -766,7 +766,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(transcript).toContain('telegram');
   });
 
-  test('startCardEntryFlow proceeds normally on the real agent-terminal surface — unchanged behavior', () => {
+  test('startCardEntryFlow proceeds normally on the real agent-terminal surface: unchanged behavior', () => {
     const { ctx, concealedOffers } = makeCommandContext();
     startCardEntryFlow(ctx);
     expect(concealedOffers.length).toBeGreaterThan(0);
@@ -844,7 +844,7 @@ describe('payments card containment (agent terminal)', () => {
     }
   });
 
-  test('the card scan covers the TITLE as well as the body — a title is a message too', () => {
+  test('the card scan covers the TITLE as well as the body: a title is a message too', () => {
     const refusal = screenOutboundForCardMaterial({
       surface: 'discord',
       message: 'nothing to see',
@@ -854,7 +854,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(refusal!.matched).toContain('card-number');
   });
 
-  test('an ordinary message to a remote channel is delivered untouched — the guard is not a blanket block', async () => {
+  test('an ordinary message to a remote channel is delivered untouched: the guard is not a blanket block', async () => {
     const deliver = mock(async () => 'response-id');
     const router = { deliver, listStrategies: () => [{}] } as never;
     const result = await deliverAgentChannelMessage(router, {
@@ -865,7 +865,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(result.responseId).toBe('response-id');
   });
 
-  test('an approval prompt still goes out over Telegram — answering is a different axis from entering', async () => {
+  test('an approval prompt still goes out over Telegram: answering is a different axis from entering', async () => {
     const deliver = mock(async () => 'response-id');
     const router = { deliver, listStrategies: () => [{}] } as never;
     await deliverAgentChannelMessage(router, {
@@ -893,7 +893,7 @@ describe('payments card containment (agent terminal)', () => {
   // 8. Exports and diagnostic dumps.
   // -------------------------------------------------------------------------
 
-  test('the real support-bundle export contains no card value — walked as the actual written payload', async () => {
+  test('the real support-bundle export contains no card value: walked as the actual written payload', async () => {
     await persistSecretBackedConfigValue(cm, secrets, PAYMENTS_CARD_CVV_CONFIG_KEY, FAKE_CVV, { scope: 'daemon' });
     await persistSecretBackedConfigValue(cm, secrets, PAYMENTS_CARD_NUMBER_CONFIG_KEY, FAKE_CARD_NUMBER, { scope: 'daemon' });
 
@@ -933,7 +933,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(stringLeaves.filter((leaf) => leakedDigits(leaf, FAKE_CVV))).toEqual([]);
   }, 60_000);
 
-  test('DEFECT BACKSTOP: a raw literal under payments.card* is redacted by NAME — the suffix list does not catch these', () => {
+  test('DEFECT BACKSTOP: a raw literal under payments.card* is redacted by NAME: the suffix list does not catch these', () => {
     // If a future bug ever wrote a literal instead of a reference, this is what
     // stands between it and a file the owner emails to someone.
     const config = {

@@ -142,7 +142,7 @@ function makeParityFixture() {
 }
 
 describe('agent_harness parity', () => {
-  test('every mode in AGENT_HARNESS_MODES is handled by dispatch — never hits unhandled fallback', async () => {
+  test('every mode in AGENT_HARNESS_MODES is handled by dispatch: never hits unhandled fallback', async () => {
     const fixture = makeParityFixture();
     try {
       const unhandledPattern = /^Unhandled agent_harness mode: /;

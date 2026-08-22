@@ -38,7 +38,7 @@ describe('trackPanelPasteFloodGuard', () => {
     expect(guard.suspended).toBe(true);
   });
 
-  test('6 rapid tokens under the threshold all dispatch — human typing is unaffected', () => {
+  test('6 rapid tokens under the threshold all dispatch: human typing is unaffected', () => {
     const guard = freshGuard();
     const t0 = 2_000_000;
     for (let i = 0; i < 6; i++) {

@@ -130,7 +130,7 @@ describe('FileBackend', () => {
 // FileBackend, path traversal guard
 // ---------------------------------------------------------------------------
 
-describe('FileBackend — path traversal guard', () => {
+describe('FileBackend: path traversal guard', () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -230,7 +230,7 @@ describe('LedgerBackend', () => {
     expect(totalBytes).toBeLessThanOrEqual(100);
   });
 
-  it('is ephemeral — new instance has empty ledger', () => {
+  it('is ephemeral: new instance has empty ledger', () => {
     backend.write('x', 'data');
     const fresh = new LedgerBackend();
     expect(fresh.list().length).toBe(0);
@@ -326,7 +326,7 @@ describe('createSpillBackend', () => {
 // OverflowHandler, backend switching
 // ---------------------------------------------------------------------------
 
-describe('OverflowHandler — backend switching', () => {
+describe('OverflowHandler: backend switching', () => {
   const TINY_LIMIT = 10; // 10 chars → easy to trigger overflow
 
   it('uses file backend by default and produces file: ref', () => {
@@ -391,7 +391,7 @@ describe('OverflowHandler — backend switching', () => {
 // OverflowHandler, retention policy integration
 // ---------------------------------------------------------------------------
 
-describe('OverflowHandler — retention policy', () => {
+describe('OverflowHandler: retention policy', () => {
   it('cleanup() delegates to backend with merged retention config', () => {
     const calls: Array<RetentionPolicyConfig | undefined> = [];
     const trackingBackend: SpillBackend = {
@@ -442,7 +442,7 @@ describe('overflowCleanup operator command', () => {
 // Retention pruning, cross-backend
 // ---------------------------------------------------------------------------
 
-describe('Retention pruning — all three backends apply same policy logic', () => {
+describe('Retention pruning: all three backends apply same policy logic', () => {
   const backends: Array<{ name: string; make: () => SpillBackend }> = [
     { name: 'LedgerBackend', make: () => new LedgerBackend() },
     { name: 'DiagnosticsBackend', make: () => new DiagnosticsBackend() },

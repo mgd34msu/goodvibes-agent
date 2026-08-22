@@ -219,7 +219,7 @@ async function runInstalledBinary(
   return { stdout: out + err, exitCode };
 }
 
-describe.if(appAsset !== null && addonAsset !== null)('launch auto-update — end to end with real processes and a real release server', () => {
+describe.if(appAsset !== null && addonAsset !== null)('launch auto-update: end to end with real processes and a real release server', () => {
   test('a stale binary launches, updates through the real verify path (binary AND addon), and the respawn runs the NEW binary with the original argv', async () => {
     const install = installOldVersion('gv-agent-e2e-update');
     const newAppBytes = newBinarySource();
@@ -275,7 +275,7 @@ describe.if(appAsset !== null && addonAsset !== null)('launch auto-update — en
     expect(restored.stdout).toContain(`RUNNING v${OLD_VERSION} argv=["--after-rollback"] outcome=continue:disabled`);
   }, 30_000);
 
-  test('a corrupted binary checksum swaps NOTHING — not even the already-verified addon: the failure is stated and the current version starts', async () => {
+  test('a corrupted binary checksum swaps NOTHING: not even the already-verified addon: the failure is stated and the current version starts', async () => {
     const install = installOldVersion('gv-agent-e2e-corrupt-bin');
     const base = serveRelease({ appBytes: newBinarySource(), corruptAppChecksum: true });
 
@@ -292,7 +292,7 @@ describe.if(appAsset !== null && addonAsset !== null)('launch auto-update — en
     expect(() => readFileSync(`${install.addonPath}${PREVIOUS_FILE_SUFFIX}`)).toThrow();
   }, 30_000);
 
-  test('a corrupted addon-archive checksum also swaps NOTHING — the addon verifies BEFORE the binary swap begins', async () => {
+  test('a corrupted addon-archive checksum also swaps NOTHING: the addon verifies BEFORE the binary swap begins', async () => {
     const install = installOldVersion('gv-agent-e2e-corrupt-addon');
     const base = serveRelease({ appBytes: newBinarySource(), corruptAddonChecksum: true });
 

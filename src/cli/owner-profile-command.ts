@@ -138,14 +138,14 @@ async function handleRead(
     }
     for (const field of section.fields) {
       const suffix = field.provenance
-        ? ` — ${field.provenance.surface}, ${field.provenance.date}, "${field.provenance.said}"`
+        ? `, from ${field.provenance.surface} on ${field.provenance.date}, you said: "${field.provenance.said}"`
         : '';
       const invalid = field.valid ? '' : `  (did not parse: ${field.invalidReason ?? 'no reason given'})`;
       lines.push(`    ${field.label}: ${field.value}${suffix}${invalid}`);
     }
     for (const line of section.prose) {
       const suffix = line.provenance
-        ? ` — ${line.provenance.surface}, ${line.provenance.date}, "${line.provenance.said}"`
+        ? `, from ${line.provenance.surface} on ${line.provenance.date}, you said: "${line.provenance.said}"`
         : '';
       lines.push(`    ${line.text}${suffix}`);
     }
@@ -243,7 +243,7 @@ async function handlePerson(
   const lines = [`${response.name}`];
   for (const line of response.lines) {
     const suffix = line.provenance
-      ? ` — ${line.provenance.surface}, ${line.provenance.date}, "${line.provenance.said}"`
+      ? `, from ${line.provenance.surface} on ${line.provenance.date}, you said: "${line.provenance.said}"`
       : '';
     lines.push(`  ${line.text}${suffix}`);
   }

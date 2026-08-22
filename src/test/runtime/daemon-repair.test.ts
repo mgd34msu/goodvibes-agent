@@ -71,7 +71,7 @@ const NO_SLEEP = async (): Promise<void> => {};
 // ── Layer 1: the diagnosis, over a real executable on PATH ──────────────────
 
 describe('diagnoseDaemonRepair', () => {
-  test('the wedged state — flag false AND service installed but stopped — produces the offer', async () => {
+  test('the wedged state, flag false AND service installed but stopped, produces the offer', async () => {
     const cli = createFakeDaemonCli(makeProjectTempDir('daemon-repair'));
     await withPath(cli.binDir, () => {
       const offer = diagnoseDaemonRepair({
@@ -132,7 +132,7 @@ describe('diagnoseDaemonRepair', () => {
     });
   });
 
-  test('a service manager that refuses the query is not an offer — guessing on an unanswered question is worse', async () => {
+  test('a service manager that refuses the query is not an offer: guessing on an unanswered question is worse', async () => {
     const cli = createFakeDaemonCli(makeProjectTempDir('daemon-repair'));
     cli.setServiceState('refused');
     await withPath(cli.binDir, () => {

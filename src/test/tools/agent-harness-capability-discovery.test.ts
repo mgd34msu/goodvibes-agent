@@ -57,7 +57,7 @@ function commandNames(query: string): readonly string[] {
   return searchHarnessCommands(registry, { query }).matches.map((command) => String(command.name));
 }
 
-describe('capability discovery — the settings catalog answers in plain words', () => {
+describe('capability discovery: the settings catalog answers in plain words', () => {
   test('"payment" returns the payments section instead of nothing', async () => {
     const page = await settingsPage('payment');
     expect(page.returned).toBeGreaterThan(0);
@@ -66,7 +66,7 @@ describe('capability discovery — the settings catalog answers in plain words',
     expect(keys).toContain('payments.enabled');
   });
 
-  test('"spending limit" reaches payments.budget.* — no key or description says that phrase', async () => {
+  test('"spending limit" reaches payments.budget.*: no key or description says that phrase', async () => {
     const page = await settingsPage('spending limit');
     const keys = page.settings.map((setting) => setting.key);
     expect(keys.filter((key) => key.startsWith('payments.budget.')).length).toBeGreaterThan(0);
@@ -124,7 +124,7 @@ describe('capability discovery — the settings catalog answers in plain words',
   });
 });
 
-describe('capability discovery — modes and commands', () => {
+describe('capability discovery: modes and commands', () => {
   test('the settings mode is findable by the domain it holds', () => {
     expect(modeIds('payment')).toContain('settings');
     expect(modeIds('credit card')).toContain('settings');
@@ -139,7 +139,7 @@ describe('capability discovery — modes and commands', () => {
   });
 });
 
-describe('capability discovery — the shared match rule', () => {
+describe('capability discovery: the shared match rule', () => {
   const entries = ['payments budget daily item amount', 'voice wake word threshold'] as const;
   const text = (entry: string): string => entry;
 

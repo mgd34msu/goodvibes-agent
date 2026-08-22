@@ -80,7 +80,7 @@ describe('context window pre-flight decision logic', () => {
     });
   });
 
-  describe('request exceeding context — auto-compact enabled', () => {
+  describe('request exceeding context: auto-compact enabled', () => {
     it('triggers compact and returns compacted when post-compact tokens fit', () => {
       const { result, compactTriggered } = simulatePreflightCheck(
         150_000, // exceeds 128K
@@ -119,14 +119,14 @@ describe('context window pre-flight decision logic', () => {
         estimatedTokens,
         128_000,
         true,
-        estimatedTokens, // compact threw — token count unchanged
+        estimatedTokens, // compact threw, token count unchanged
       );
       expect(result).toBe('error');
       expect(compactTriggered).toBe(true);
     });
   });
 
-  describe('request exceeding context — auto-compact disabled', () => {
+  describe('request exceeding context: auto-compact disabled', () => {
     it('returns error immediately without triggering compact', () => {
       const { result, compactTriggered } = simulatePreflightCheck(
         150_000, 128_000,
@@ -215,7 +215,7 @@ describe('context overflow error message', () => {
     expect(msg).toContain('256K');
   });
 
-  it('handles rounding — 130500 tokens rounds to 131K', () => {
+  it('handles rounding: 130500 tokens rounds to 131K', () => {
     const msg = buildOverflowMessage(130_500, 128_000, 'Model X', []);
     // Math.round(130500 / 1000) = 131
     expect(msg).toContain('~131K tokens');

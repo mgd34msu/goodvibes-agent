@@ -90,14 +90,14 @@ function registryWithRecorder(fetcher: FeedFetcher): { registry: CalendarSubscri
 }
 
 describe('subscribed calendar feed content is untrusted content', () => {
-  test('subscribe() records NOTHING — arrival is not ingest', async () => {
+  test('subscribe() records NOTHING: arrival is not ingest', async () => {
     const { registry, recorded } = registryWithRecorder(okFetch(ICS));
     const res = await registry.subscribe(FEED_URL, 'work');
     expect(res.ok).toBe(true);
     expect(recorded).toEqual([]);
   });
 
-  test('refresh() records NOTHING — a timer-driven fetch is not a turn read', async () => {
+  test('refresh() records NOTHING: a timer-driven fetch is not a turn read', async () => {
     const { registry, recorded } = registryWithRecorder(okFetch(ICS));
     await registry.subscribe(FEED_URL, 'work');
     recorded.length = 0;
@@ -140,7 +140,7 @@ describe('subscribed calendar feed content is untrusted content', () => {
     expect(recorded.map((r) => r.content ?? '').some((c) => c.includes('Standup'))).toBe(true);
   });
 
-  test('the origin names the subscription and a MASKED url — never the raw feed url', async () => {
+  test('the origin names the subscription and a MASKED url: never the raw feed url', async () => {
     const { registry, recorded } = registryWithRecorder(okFetch(ICS));
     await registry.subscribe(FEED_URL, 'work');
     recorded.length = 0;
@@ -246,7 +246,7 @@ describe('subscribed calendar feed content is untrusted content', () => {
     expect(raw).toContain('calendar.example.invalid');
   });
 
-  test('the recorder stays optional — reads work with none wired', async () => {
+  test('the recorder stays optional: reads work with none wired', async () => {
     const registry = new CalendarSubscriptionRegistry({
       storePath: tmpStore(),
       secrets: memorySecrets(),

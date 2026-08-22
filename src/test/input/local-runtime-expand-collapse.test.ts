@@ -59,7 +59,7 @@ function buildFoldedGroup(): ConversationManager {
 }
 
 describe('/expand tool on a collapsed assistant turn', () => {
-  test('one pass expands the turn header AND every result — no second /expand needed', async () => {
+  test('one pass expands the turn header AND every result: no second /expand needed', async () => {
     const cm = buildFoldedGroup();
     const registry = new CommandRegistry();
     registerLocalRuntimeCommands(registry);

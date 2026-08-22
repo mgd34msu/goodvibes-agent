@@ -154,7 +154,7 @@ describe('applyThemeModeSettingChange (the ui-openers apply hook)', () => {
     expect(result.message).toBe('Theme mode: auto (probes terminal on next startup)');
   });
 
-  test('garbage input coerces to the default (auto) — no flip', () => {
+  test('garbage input coerces to the default (auto): no flip', () => {
     const result = applyThemeModeSettingChange(42);
     expect(getActiveThemeMode()).toBe('dark');
     expect(result.message).toContain('auto');

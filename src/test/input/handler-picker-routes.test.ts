@@ -114,7 +114,7 @@ function makePickerState(selectedModel: ModelDefinition) {
   return { state, calls, get pickerActive() { return pickerActive; } };
 }
 
-describe('handleModelPickerToken — sign-in row on Enter', () => {
+describe('handleModelPickerToken: sign-in row on Enter', () => {
   test('invokes openProviderPicker when the sign-in row is selected', () => {
     const signInRow = buildSignInRow();
     const { state, calls } = makePickerState(signInRow);
@@ -154,7 +154,7 @@ describe('handleModelPickerToken — sign-in row on Enter', () => {
   });
 });
 
-describe('handleModelPickerToken — local fit recommendation on Enter', () => {
+describe('handleModelPickerToken: local fit recommendation on Enter', () => {
   test('does NOT call completeModelSelection when a local rec is selected', () => {
     const recs = buildLocalFitRecommendations(STUB_PROFILE);
     const localRec = recs[0]!;

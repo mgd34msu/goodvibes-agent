@@ -58,7 +58,7 @@ function stubTool(
   return { tool, calls };
 }
 
-describe('profile tool — untrusted sources stay barred', () => {
+describe('profile tool: untrusted sources stay barred', () => {
   test('a write claiming a non-owner-direct authority is refused, with the daemon reason surfaced', async () => {
     const calls: RecordedCall[] = [];
     const { tool } = stubTool(
@@ -162,9 +162,9 @@ describe('profile tool — untrusted sources stay barred', () => {
   });
 });
 
-describe('profile tool — it tells him what it recorded', () => {
+describe('profile tool: it tells him what it recorded', () => {
   test('a successful write carries the daemon disclosure into the reply and never quotes the value', async () => {
-    const { tool } = stubTool(() => wrote('Noted — saved your office address to your profile.', [
+    const { tool } = stubTool(() => wrote('Noted, saved your office address to your profile.', [
       { kind: 'set', fieldId: 'commerce.shippingAddress', section: 'Commerce', label: 'shipping address', superseded: true },
     ]));
 
@@ -177,7 +177,7 @@ describe('profile tool — it tells him what it recorded', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.output).toContain('Noted — saved your office address to your profile.');
+    expect(result.output).toContain('Noted, saved your office address to your profile.');
     expect(result.output).not.toContain('200 Office Way');
   });
 
@@ -202,7 +202,7 @@ describe('profile tool — it tells him what it recorded', () => {
   });
 });
 
-describe('profile tool — forgetting something that was not there', () => {
+describe('profile tool: forgetting something that was not there', () => {
   test('reports the daemon reason and does not report success', async () => {
     const { tool } = stubTool(() => refused('Your profile has no phone recorded, so there was nothing to forget.'));
 
@@ -216,17 +216,17 @@ describe('profile tool — forgetting something that was not there', () => {
   });
 
   test('an actual deletion is reported as one', async () => {
-    const { tool } = stubTool(() => wrote('Forgotten — removed your phone number from your profile.'));
+    const { tool } = stubTool(() => wrote('Forgotten, removed your phone number from your profile.'));
 
     const result = await tool.execute({ action: 'forget', fieldId: 'contact.phone', authority: 'owner-direct' });
 
     expect(result.success).toBe(true);
-    expect(result.output).toContain('Forgotten — removed your phone number from your profile.');
+    expect(result.output).toContain('Forgotten, removed your phone number from your profile.');
   });
 
   test('a prose line is addressed by its section and exact text', async () => {
     const calls: RecordedCall[] = [];
-    const { tool } = stubTool(() => wrote('Forgotten — removed a line from your profile.'), calls);
+    const { tool } = stubTool(() => wrote('Forgotten, removed a line from your profile.'), calls);
 
     const result = await tool.execute({
       action: 'forget',
@@ -295,7 +295,7 @@ describe('profile tool — forgetting something that was not there', () => {
           return { ok: true, data: refused(`Your profile has no line reading "${wanted}" under ${section} any more.`), route: 'in-process' };
         }
         document.splice(index, 1);
-        return { ok: true, data: wrote(`Forgotten — removed a line from ${section}.`), route: 'in-process' };
+        return { ok: true, data: wrote(`Forgotten, removed a line from ${section}.`), route: 'in-process' };
       },
     });
 
@@ -339,7 +339,7 @@ describe('profile tool — forgetting something that was not there', () => {
   });
 });
 
-describe('profile tool — third-party containment', () => {
+describe('profile tool: third-party containment', () => {
   test('read counts the People section instead of listing it', async () => {
     const { tool } = stubTool(() => ({
       state: {
@@ -428,7 +428,7 @@ describe('profile tool — third-party containment', () => {
   });
 });
 
-describe('profile tool — honest degradation', () => {
+describe('profile tool: honest degradation', () => {
   test('an unreadable profile is reported as unreadable, never as an empty one', async () => {
     const { tool } = stubTool(() => ({
       state: {
@@ -571,7 +571,7 @@ describe('profile tool — honest degradation', () => {
   });
 });
 
-describe('profile tool — the declared field catalog', () => {
+describe('profile tool: the declared field catalog', () => {
   function fieldIdProperty(): { readonly enum?: readonly string[]; readonly description?: string } {
     const invoke = async (): Promise<ProfileGatewayResult> => ({ ok: true, data: {}, route: 'in-process' });
     const parameters = createAgentProfileTool({ invoke }).definition.parameters as {
@@ -610,7 +610,7 @@ describe('profile tool — the declared field catalog', () => {
   });
 });
 
-describe('profile tool — registration', () => {
+describe('profile tool: registration', () => {
   test('registers once under the name profile', () => {
     const registry = new ToolRegistry();
     const invoke = async (): Promise<ProfileGatewayResult> => ({ ok: true, data: {}, route: 'in-process' });

@@ -214,7 +214,7 @@ describe('AcpConnection', () => {
     });
   });
 
-  describe('cancel — no active session', () => {
+  describe('cancel: no active session', () => {
     test('cancel when not yet running sets status to cancelled', async () => {
       const transportEvents: TransportEvent[] = [];
       runtimeBus.onDomain('transport', ({ payload }) => transportEvents.push(payload));
@@ -238,7 +238,7 @@ describe('AcpConnection', () => {
     });
   });
 
-  describe('run — error path (Bun.spawn throws)', () => {
+  describe('run: error path (Bun.spawn throws)', () => {
     let originalSpawn: typeof Bun.spawn;
 
     beforeEach(() => {
@@ -348,7 +348,7 @@ describe('AcpConnection', () => {
     });
   });
 
-  describe('run — with stubbed ACP stack', () => {
+  describe('run: with stubbed ACP stack', () => {
     let originalSpawn: typeof Bun.spawn;
 
     /** Build a minimal fake child process compatible with what AcpConnection uses. */
@@ -734,7 +734,7 @@ describe('AcpManager', () => {
     });
   });
 
-  describe('resolveAgentCommand — ACP_AGENT_CMD env override', () => {
+  describe('resolveAgentCommand: ACP_AGENT_CMD env override', () => {
     test('spawn uses ACP_AGENT_CMD when set', async () => {
       const proto = AcpConnection.prototype;
       const originalRun = proto.run;
@@ -853,7 +853,7 @@ describe('Error handling', () => {
     expect(errors).toContain('multi-fail-2');
   });
 
-  test('run does not throw — always returns a SubagentResult', async () => {
+  test('run does not throw: always returns a SubagentResult', async () => {
     (Bun as unknown as Record<string, unknown>).spawn = () => {
       throw new Error('catastrophic failure');
     };

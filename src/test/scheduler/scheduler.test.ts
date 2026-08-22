@@ -106,7 +106,7 @@ describe('Cron parser', () => {
 // dayOfMonth / dayOfWeek, POSIX OR logic
 // ---------------------------------------------------------------------------
 
-describe('computeNextRun — dayOfMonth/dayOfWeek OR logic', () => {
+describe('computeNextRun: dayOfMonth/dayOfWeek OR logic', () => {
   let scheduler: TaskScheduler;
 
   beforeEach(() => {
@@ -114,13 +114,13 @@ describe('computeNextRun — dayOfMonth/dayOfWeek OR logic', () => {
     scheduler = getTestTaskScheduler(schedulerStorePath('dom-dow'));
   });
 
-  test('both wildcard — matches every day', () => {
+  test('both wildcard: matches every day', () => {
     const from = new Date('2024-01-15T10:00:00Z'); // Monday
     const next = scheduler.getNextRun('0 12 * * *', from);
     expect(next.getDate()).toBe(15); // same day
   });
 
-  test('only dom specified — only dom must match', () => {
+  test('only dom specified: only dom must match', () => {
     // Fire on the 1st of every month
     const from = new Date('2024-01-15T00:00:00Z');
     const next = scheduler.getNextRun('0 0 1 * *', from);
@@ -128,14 +128,14 @@ describe('computeNextRun — dayOfMonth/dayOfWeek OR logic', () => {
     expect(next.getMonth()).toBe(1); // February
   });
 
-  test('only dow specified — only dow must match', () => {
+  test('only dow specified: only dow must match', () => {
     // Fire on Mondays (1); Jan 15 2024 is Monday, next Monday is Jan 22
     const from = new Date('2024-01-15T12:00:00Z');
     const next = scheduler.getNextRun('0 8 * * 1', from);
     expect(next.getDay()).toBe(1);
   });
 
-  test('both dom and dow specified — OR logic (either match fires)', () => {
+  test('both dom and dow specified: OR logic (either match fires)', () => {
     // dom=1 (1st of month) OR dow=1 (Monday)
     // From Jan 15 (Mon), next is Jan 16 (1st check fails, Mon check: Jan 15 is Mon but hour already past)
     // Actually from Jan 15 12:00, next Mon 8:00 = Jan 22 8:00, but dom=1 = Feb 1 8:00

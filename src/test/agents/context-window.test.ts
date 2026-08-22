@@ -189,7 +189,7 @@ describe('compactSmallWindow', () => {
       { role: 'assistant' as const, content: 'world' },
     ];
     const result = compactSmallWindow(messages, 10);
-    expect(result).toBe(messages); // reference equality — no copy
+    expect(result).toBe(messages); // reference equality, no copy
   });
 
   test('truncates to keepRecent messages plus 2 summary messages', () => {
@@ -360,7 +360,7 @@ describe('AgentOrchestrator context-window awareness', () => {
     expect(capturedMessageCounts[0]).toBeGreaterThanOrEqual(1);
   });
 
-  test('feature flag disabled — context-exceeded error is not retried', async () => {
+  test('feature flag disabled: context-exceeded error is not retried', async () => {
     const contextError = new Error('context_length_exceeded: over limit');
     const provider = makeMockProvider([
       { content: '', throws: contextError },

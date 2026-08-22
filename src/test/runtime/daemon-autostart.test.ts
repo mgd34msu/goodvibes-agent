@@ -111,7 +111,7 @@ describe('autostartInstalledDaemon (decision engine)', () => {
     expect(control.startCalls).toEqual([]);
   });
 
-  test('a held port (blocked or incompatible) is respected — another owner may be mid-update', async () => {
+  test('a held port (blocked or incompatible) is respected: another owner may be mid-update', async () => {
     for (const mode of ['blocked', 'incompatible'] as const) {
       const control = spyControl({ snapshots: [snapshotOf()] });
       const outcome = await autostartInstalledDaemon({

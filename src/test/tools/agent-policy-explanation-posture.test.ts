@@ -40,7 +40,7 @@ function registryWithWriteTool(): ToolRegistry {
 }
 
 describe('agent-policy-explanation: approval posture agreement', () => {
-  test('autoApprove=true, mode=prompt (the reproduced A2 bug) — explanation posture honestly says auto-approve is on', () => {
+  test('autoApprove=true, mode=prompt (the reproduced A2 bug): explanation posture honestly says auto-approve is on', () => {
     const context = fakeContext({ 'behavior.autoApprove': true, 'permissions.mode': 'prompt' });
     const resolved = explainAgentPolicyDecision(context, registryWithWriteTool(), { toolName: 'write' });
 
@@ -62,7 +62,7 @@ describe('agent-policy-explanation: approval posture agreement', () => {
     expect(resolved.explanation.status).toBe('allowed');
   });
 
-  test('default posture: autoApprove=false, mode=prompt — write requires confirmation and posture says Ask before powerful actions', () => {
+  test('default posture: autoApprove=false, mode=prompt: write requires confirmation and posture says Ask before powerful actions', () => {
     const context = fakeContext({ 'behavior.autoApprove': false, 'permissions.mode': 'prompt' });
     const resolved = explainAgentPolicyDecision(context, registryWithWriteTool(), { toolName: 'write' });
 
@@ -74,7 +74,7 @@ describe('agent-policy-explanation: approval posture agreement', () => {
     expect(resolved.explanation.status).toBe('confirmation_required');
   });
 
-  test('allow-all mode, autoApprove=false — posture says Allow everything, matching the shared helper', () => {
+  test('allow-all mode, autoApprove=false: posture says Allow everything, matching the shared helper', () => {
     const context = fakeContext({ 'behavior.autoApprove': false, 'permissions.mode': 'allow-all' });
     const resolved = explainAgentPolicyDecision(context, registryWithWriteTool(), { toolName: 'write' });
 
@@ -86,7 +86,7 @@ describe('agent-policy-explanation: approval posture agreement', () => {
     expect(posture.label).toBe('Allow everything');
   });
 
-  test('plan mode — write is predicted denied outright (plan_mode), never "prompt"', () => {
+  test('plan mode: write is predicted denied outright (plan_mode), never "prompt"', () => {
     const context = fakeContext({ 'behavior.autoApprove': false, 'permissions.mode': 'plan' });
     const resolved = explainAgentPolicyDecision(context, registryWithWriteTool(), { toolName: 'write' });
 
@@ -103,7 +103,7 @@ describe('agent-policy-explanation: approval posture agreement', () => {
     expect(resolved.explanation.status).toBe('denied');
   });
 
-  test('accept-edits mode — write is predicted allowed (auto-approves), matching the shared helper', () => {
+  test('accept-edits mode: write is predicted allowed (auto-approves), matching the shared helper', () => {
     const context = fakeContext({ 'behavior.autoApprove': false, 'permissions.mode': 'accept-edits' });
     const resolved = explainAgentPolicyDecision(context, registryWithWriteTool(), { toolName: 'write' });
 

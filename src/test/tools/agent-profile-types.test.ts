@@ -47,7 +47,7 @@ const SWITCH_CASES: readonly ProfileAuthority[] = [
   'calendar-event',
 ];
 
-describe('agent-profile-types — PROFILE_AUTHORITIES has no SDK runtime value to import', () => {
+describe('agent-profile-types: PROFILE_AUTHORITIES has no SDK runtime value to import', () => {
   test('every entry in PROFILE_AUTHORITIES passes the exhaustive switch without throwing', () => {
     for (const authority of PROFILE_AUTHORITIES) {
       expect(exhaustiveProfileAuthorityCheck(authority)).toBe(true);

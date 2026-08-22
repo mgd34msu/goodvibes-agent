@@ -80,7 +80,7 @@ describe('search() with a conversationManager counts matches inside collapsed co
   test('a query matching only the raw (collapsed) content finds nothing without a conversationManager', () => {
     const { cm, needle } = buildLongToolResult();
     sm.open();
-    sm.search(needle, cm.history); // no conversationManager passed — pre-existing behavior
+    sm.search(needle, cm.history); // no conversationManager passed, pre-existing behavior
     expect(sm.matches).toHaveLength(0);
   });
 
