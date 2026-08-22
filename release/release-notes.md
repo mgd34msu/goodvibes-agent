@@ -1,7 +1,7 @@
-- **Fixed: the daemon installed alongside this Agent is current again.** The daemon dependency moves from 1.28.19 to 1.28.22, so an Agent install no longer carries a daemon three platform releases behind the Agent's own runtime pin.
-- Changed: the bundled daemon's daily spending budget now survives restarts, persisting reservations and commits atomically and reloading them at boot instead of forgetting the day's spend.
-- Changed: approving a purchase through the bundled daemon is now a real recorded act: a single-use, content-bound owner approval with a five-minute lifetime that checkout entry spends or refuses without.
-- Changed: the bundled daemon journals every in-flight checkout phase to disk before proceeding, so a crash mid-checkout leaves a record instead of nothing.
-- Changed: at boot the bundled daemon now discloses checkouts interrupted by a crash, settling each by its journaled phase instead of forgetting it. 2.0.17 shipped hours earlier with the stale daemon pin; this release corrects it and changes nothing else.
+- **Fixed: a dead OpenAI subscription login recovers or says so honestly.** A token OpenAI rejects mid-lifetime (a Codex login elsewhere, a password change, an expired session) now gets one shared, time-bounded refresh attempt and one retry before anything is surfaced to you.
+- Changed: when the subscription session truly is over, the error names the subscription session and tells you to sign in again. It never says "check your API key" to a logged-in subscriber any more.
+- Changed: a refresh that cannot be judged (the token endpoint unreachable or answering 5xx) surfaces the original rejection instead of demanding a re-login the account may not need.
+- Changed: concurrent requests hitting the same revoked token share one refresh instead of each spending the rotating refresh token, which could falsely kill a session another request had just healed.
+- Changed: the bundled platform runtime, terminal-shell, and release toolchain move to 2.0.21, and the bundled daemon moves to 1.28.23 carrying the same runtime.
 
-GoodVibes Agent 2.0.18 - 2026-08-21
+GoodVibes Agent 2.0.19 - 2026-08-21

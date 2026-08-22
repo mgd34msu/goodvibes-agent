@@ -87,14 +87,14 @@ jobs:
       contents: read
       actions: read
       checks: read
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-release-verify.yml@c486285dcb2da775a29c0a4f1647f873d9279db1 # sdk 2.0.20 release
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-release-verify.yml@d5ebf5272c5092334e10be2a184c44cabc41fe88 # sdk 2.0.21 release
     with:
       sha: ${{ github.sha }}
       workflow: ci.yml
       event: push
       toolchain-source: registry
       bun-version: "1.3.14"
-      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.20"
+      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.21"
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -223,7 +223,7 @@ jobs:
     name: Build binaries
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
     needs: [release-verify]
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-binary-matrix.yml@c486285dcb2da775a29c0a4f1647f873d9279db1 # sdk 2.0.20 release
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-binary-matrix.yml@d5ebf5272c5092334e10be2a184c44cabc41fe88 # sdk 2.0.21 release
     with:
       # Each smoke leg carries its own suffixed artifact as `binary` so the
       # matrix smokes the binary that leg actually built (the reusable passes it
@@ -245,7 +245,7 @@ jobs:
         dist/lib
       artifact-prefix: agent-binary
       bun-version: "1.3.14"
-      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.20"
+      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.21"
 
   # Merge every binary leg + the npm tarball, package the four per-platform
   # sqlite-vec native addon archives (missing-addon-fatal), and publish a single
@@ -313,7 +313,7 @@ jobs:
     needs: [assemble-release-assets]
     permissions:
       contents: write
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-gh-release.yml@c486285dcb2da775a29c0a4f1647f873d9279db1 # sdk 2.0.20 release
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-gh-release.yml@d5ebf5272c5092334e10be2a184c44cabc41fe88 # sdk 2.0.21 release
     with:
       tag: ${{ github.ref_name }}
       artifact-name: release-assets
@@ -333,7 +333,7 @@ jobs:
         dist/browser-driver.tar.gz
         dist/*.tgz
       bun-version: "1.3.14"
-      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.20"
+      toolchain-spec: "@pellux/goodvibes-toolchain@2.0.21"
 
   # npm publish via the shared reusable-npm-publish (staged, provenance,
   # empty-or-complete precheck, propagation poll, the toolchain publish-package
@@ -346,7 +346,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-npm-publish.yml@c486285dcb2da775a29c0a4f1647f873d9279db1 # sdk 2.0.20 release
+    uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-npm-publish.yml@d5ebf5272c5092334e10be2a184c44cabc41fe88 # sdk 2.0.21 release
     with:
       package-name: "@pellux/goodvibes-agent"
       environment: production
@@ -359,7 +359,7 @@ jobs:
       tarball-artifact: npm-tarball
       # The ./ prefix is load-bearing: npm parses a bare relative path like
       # release-tarball/x.tgz as a GitHub owner/repo spec and tries to clone it.
-      publish-command: 'bunx @pellux/goodvibes-toolchain@2.0.20 goodvibes-publish-package --poll --tarball "./$(ls release-tarball/*.tgz)"'
+      publish-command: 'bunx @pellux/goodvibes-toolchain@2.0.21 goodvibes-publish-package --poll --tarball "./$(ls release-tarball/*.tgz)"'
       bun-version: "1.3.14"
     secrets:
       npm-token: ${{ secrets.NPM_TOKEN }}
