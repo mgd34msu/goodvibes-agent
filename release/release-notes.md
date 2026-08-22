@@ -1,7 +1,7 @@
-- **Fixed: the workspace no longer offers routes that go nowhere.** Around 70 emitted "Agent Workspace" routes named views that were never registered, so a tap on one dead-ended in an empty screen. Every emitted route now resolves against the real workspace category registry.
-- Changed: a guard test now walks all 35 files that emit workspace routes and resolves each against the registry by longest label match, so a phantom route fails the build instead of shipping.
-- Changed: the Google setup runbook is regenerated from the platform runtime 2.0.20 generator, so the setup steps it walks through match what the platform actually does at this pin.
-- Changed: the runbook's one sdk-owned `/status` phrase is gone with that regeneration, so the phantom-command scan covers the runbook whole again and the last per-file scan exemption is deleted. No slash-shaped token in any package-facing page escapes the scan any more.
-- Changed: the bundled platform runtime, terminal-shell, and release toolchain are now 2.0.20 (up from 2.0.19), and the reusable release workflows are repinned to the 2.0.20 release commit. The platform side of that cycle is daemon boot recovery for interrupted checkouts; no Agent-side behavior changed with the pin.
+- **Fixed: the daemon installed alongside this Agent is current again.** The daemon dependency moves from 1.28.19 to 1.28.22, so an Agent install no longer carries a daemon three platform releases behind the Agent's own runtime pin.
+- Changed: the bundled daemon's daily spending budget now survives restarts, persisting reservations and commits atomically and reloading them at boot instead of forgetting the day's spend.
+- Changed: approving a purchase through the bundled daemon is now a real recorded act: a single-use, content-bound owner approval with a five-minute lifetime that checkout entry spends or refuses without.
+- Changed: the bundled daemon journals every in-flight checkout phase to disk before proceeding, so a crash mid-checkout leaves a record instead of nothing.
+- Changed: at boot the bundled daemon now discloses checkouts interrupted by a crash, settling each by its journaled phase instead of forgetting it. 2.0.17 shipped hours earlier with the stale daemon pin; this release corrects it and changes nothing else.
 
-GoodVibes Agent 2.0.17 - 2026-08-21
+GoodVibes Agent 2.0.18 - 2026-08-21

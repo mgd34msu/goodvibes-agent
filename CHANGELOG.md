@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.18 - 2026-08-21
+
+- **Fixed: the daemon installed alongside this Agent is current again.** The daemon dependency moves from 1.28.19 to 1.28.22, so an Agent install no longer carries a daemon three platform releases behind the Agent's own runtime pin. The jump brings the daemon's durable daily budget, the recorded owner-approval verb for checkout, the durable in-flight checkout journal, and boot recovery for checkouts interrupted by a crash.
+- Changed: 2.0.17 shipped hours earlier with the stale daemon pin; this release exists to correct it and changes nothing else.
+
 ## 2.0.17 - 2026-08-21
 
 - **Fixed: the workspace no longer offers routes that go nowhere.** Around 70
