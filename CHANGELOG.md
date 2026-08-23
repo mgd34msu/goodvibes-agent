@@ -2,6 +2,14 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 2.0.21 - 2026-08-23
+
+- **Fixed: an error that is not the model's fault no longer blames the model.** Platform runtime 2.0.23 inside: failure hints name the part that actually failed, so a network, auth, or configuration problem stops sending you to check the model or its key.
+- Changed: calendar authentication reports its real state, and a provider's authentication status folds its routes into one aggregate (platform runtime 2.0.23).
+- Changed: catalog providers that publish no routes get routes derived from their environment configuration, so an env-only provider works instead of sitting invisible.
+- Changed: the reasoning-effort setting is served whole by the pinned platform: the level persists, null clears it, and the options follow the selected model.
+- Changed: pins move to sdk/terminal-shell/toolchain 2.0.23 and daemon 1.28.25; reusable-workflow pins repoint to the 2.0.23 release commit. A repo-wide prose cleanup rides along with no behavior change.
+
 ## 2.0.20 - 2026-08-22
 
 - **Fixed: this Agent adopts the running daemon again.** The adoption gate compared the daemon's 1.28.x artifact version against the platform's 2.x version and refused every adoption since sdk 2.0.0, silently running without the shared daemon. It now band-checks the platform build the daemon reports.
