@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
 import type { BackgroundProcess } from '@pellux/goodvibes-sdk/platform/tools';
 import { ProcessModal, renderProcessModal } from '../../renderer/process-modal.ts';
-import { UI_TONES } from '../../renderer/ui-primitives.ts';
+import { activeUiTones } from '../../renderer/theme.ts';
 import { linesToText } from '../setup.ts';
 
 const W = 100;
@@ -136,8 +136,8 @@ describe('renderProcessModal', () => {
     const lines = renderProcessModal(modal, W);
     const text = linesToText(lines).join('\n');
     expect(text).toContain('Task B');
-    const selectedCell = lines.flat().find((cell) => cell.bg === UI_TONES.bg.selected);
-    expect(selectedCell).toEqual(expect.objectContaining({ bg: UI_TONES.bg.selected }));
+    const selectedCell = lines.flat().find((cell) => cell.bg === activeUiTones().bg.selected);
+    expect(selectedCell).toEqual(expect.objectContaining({ bg: activeUiTones().bg.selected }));
   });
 
   test('footer contains process-specific hint text', () => {

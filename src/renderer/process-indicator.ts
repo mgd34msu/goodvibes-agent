@@ -1,8 +1,8 @@
 import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { UIFactory } from './ui-factory.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
-import { GLYPHS, UI_TONES } from './ui-primitives.ts';
-import { activeUiTones } from './theme.ts';
+import { GLYPHS } from './ui-primitives.ts';
+import { activeTokens, activeUiTones } from './theme.ts';
 import { voiceCaptureRowVisible, type VoiceCaptureIndicatorState } from '../core/voice-capture-status.ts';
 
 /** Truncate a string to fit within maxWidth display columns. */
@@ -39,12 +39,13 @@ export function renderProcessIndicator(
     [UIFactory.stringToLine(`   ${text}`, width, style)]
   );
   const renderFocusedStatus = (text: string): Line[] => {
-    const bg = '#31506f';
-    const fg = '#eefaff';
+    const p = activeTokens();
+    const bg = p.backgroundSelected;
+    const fg = p.text;
     // Opaque highlight bar (bg/fg fixed), marker sourced from the shared
     // browser accent token (dark == the prior browser-cyan marker).
-    const markerFg = UI_TONES.accent.browser;
-    const line = UIFactory.stringToLine(' '.repeat(width), width, { fg: '238' });
+    const markerFg = activeUiTones().accent.browser;
+    const line = UIFactory.stringToLine(' '.repeat(width), width, { fg: p.textFaint });
     const prefix = `${GLYPHS.navigation.selected} `;
     const body = truncateToWidth(text, Math.max(0, width - 8));
     const highlighted = ` ${prefix}${body} `;
@@ -73,7 +74,7 @@ export function renderProcessIndicator(
   }
 
   if (total === 0) {
-    return renderPlainStatus('No runtime activity', { fg: '238', dim: true });
+    return renderPlainStatus('No runtime activity', { fg: activeTokens().textFaint });
   }
 
   // Build the label: "2 delegations | Turn 3 | write - src/foo.ts"

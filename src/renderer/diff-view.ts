@@ -1,19 +1,22 @@
 import { type Line, type Cell, createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { UIFactory } from './ui-factory.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
+import { activeTokens } from './theme.ts';
 
 /**
  * renderDiffView - Render a unified diff string as styled Line[].
- * '+' lines in green, '-' lines in red, '@@' hunks in cyan.
+ * Colours come from the active theme's diff tokens (diffAdded/diffRemoved/
+ * diffHunkHeader, the matching backgrounds and the line-number tokens).
  */
 export function renderDiffView(diffText: string, width: number, filename?: string): Line[] {
   const lines: Line[] = [];
-  const BG = '#0a0a0a';
+  const p = activeTokens();
+  const BG = p.diffContextBg;
 
   // Filename header
   if (filename) {
     const header = ` ≡ ${filename} `;
-    lines.push(UIFactory.stringToLine(header.padEnd(width), width, { fg: '#1a1a1a', bg: '#569cd6', bold: true }));
+    lines.push(UIFactory.stringToLine(header.padEnd(width), width, { fg: p.selectedListItemText, bg: p.diffHunkHeader, bold: true }));
   }
 
   const diffLines = diffText.split('\n');
@@ -34,13 +37,13 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
         oldLineNo = parseInt(hunkMatch[1], 10) - 1;
         newLineNo = parseInt(hunkMatch[2], 10) - 1;
       }
-      lines.push(makeStyledLine(raw, width, '#00bcd4', '#0f1f1f', false));
+      lines.push(makeStyledLine(raw, width, p.diffHunkHeader, p.backgroundElement, false));
       continue;
     }
 
     // File headers: --- and +++
     if (raw.startsWith('--- ') || raw.startsWith('+++ ')) {
-      lines.push(makeStyledLine(raw, width, '244', BG, false));
+      lines.push(makeStyledLine(raw, width, p.textMuted, BG, false));
       continue;
     }
 
@@ -49,7 +52,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
       newLineNo++;
       const lineLabel = `${String(newLineNo).padStart(4)} `;
       const content = raw.slice(1);
-      lines.push(makeGutterLine('+', lineLabel, content, width, '#22c55e', '#0a1a0a'));
+      lines.push(makeGutterLine('+', lineLabel, content, width, p.diffAdded, p.diffAddedBg, p.diffAddedLineNumberBg));
       continue;
     }
 
@@ -58,7 +61,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
       oldLineNo++;
       const lineLabel = `${String(oldLineNo).padStart(4)} `;
       const content = raw.slice(1);
-      lines.push(makeGutterLine('-', lineLabel, content, width, '#ef4444', '#1a0a0a'));
+      lines.push(makeGutterLine('-', lineLabel, content, width, p.diffRemoved, p.diffRemovedBg, p.diffRemovedLineNumberBg));
       continue;
     }
 
@@ -68,7 +71,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
       newLineNo++;
       const lineLabel = `${String(oldLineNo).padStart(4)} `;
       const content = raw.startsWith(' ') ? raw.slice(1) : raw;
-      lines.push(makeGutterLine(' ', lineLabel, content, width, '244', BG));
+      lines.push(makeGutterLine(' ', lineLabel, content, width, p.diffContext, BG, BG));
     }
   }
 
@@ -82,7 +85,8 @@ function makeGutterLine(
   content: string,
   width: number,
   fg: string,
-  bg: string
+  bg: string,
+  lineNumBg: string,
 ): Line {
   const line = makeFilledLine(width, bg);
   let cx = 0;
@@ -93,7 +97,7 @@ function makeGutterLine(
   // Line number
   for (const ch of lineLabel) {
     if (cx >= width) break;
-    line[cx++] = createStyledCell(ch, { fg: '238', bg, dim: true });
+    line[cx++] = createStyledCell(ch, { fg: activeTokens().diffLineNumber, bg: lineNumBg });
   }
 
   // Content

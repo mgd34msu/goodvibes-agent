@@ -1,20 +1,22 @@
 import { type Line, createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { UIFactory } from './ui-factory.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
+import { activeTokens } from './theme.ts';
 
-/** Color by file extension category. */
+/** Color by file extension category, from the active theme's syntax and status tokens. */
 function getFileColor(name: string): string {
-  if (name.endsWith('/')) return '#00ffff'; // directory
+  const p = activeTokens();
+  if (name.endsWith('/')) return p.primary; // directory
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  if (['ts', 'tsx', 'js', 'jsx', 'mjs'].includes(ext)) return '#dcdcaa';
-  if (['json', 'yaml', 'yml', 'toml'].includes(ext)) return '#ce9178';
-  if (['md', 'txt', 'rst'].includes(ext)) return '252';
-  if (['sh', 'bash', 'zsh'].includes(ext)) return '#22c55e';
-  if (['css', 'scss', 'less'].includes(ext)) return '#569cd6';
-  if (['html', 'htm', 'xml', 'svg'].includes(ext)) return '#f97316';
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'].includes(ext)) return '#a855f7';
-  if (['lock', 'env', 'gitignore'].includes(name)) return '238';
-  return '252';
+  if (['ts', 'tsx', 'js', 'jsx', 'mjs'].includes(ext)) return p.syntaxFunction;
+  if (['json', 'yaml', 'yml', 'toml'].includes(ext)) return p.syntaxString;
+  if (['md', 'txt', 'rst'].includes(ext)) return p.text;
+  if (['sh', 'bash', 'zsh'].includes(ext)) return p.success;
+  if (['css', 'scss', 'less'].includes(ext)) return p.syntaxKeyword;
+  if (['html', 'htm', 'xml', 'svg'].includes(ext)) return p.syntaxNumber;
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico'].includes(ext)) return p.secondary;
+  if (['lock', 'env', 'gitignore'].includes(name)) return p.textFaint;
+  return p.text;
 }
 
 export interface FileTreeEntry {
@@ -39,8 +41,8 @@ export function renderFileTree(
 
   // Optional header
   if (title) {
-    lines.push(UIFactory.stringToLine(` [dir] ${title}`, width, { fg: '#00ffff', bold: true }));
-    lines.push(UIFactory.stringToLine(' ' + '-'.repeat(width - 2), width, { fg: '240' }));
+    lines.push(UIFactory.stringToLine(` [dir] ${title}`, width, { fg: activeTokens().primary, bold: true }));
+    lines.push(UIFactory.stringToLine(' ' + '-'.repeat(width - 2), width, { fg: activeTokens().textFaint }));
   }
 
   for (const entry of entries) {
@@ -91,7 +93,7 @@ export function renderFileTree(
       for (const ch of sizeStr) {
         if (cx >= width) break;
         const cw = getDisplayWidth(ch);
-        line[cx] = createStyledCell(ch, { fg: '240', dim: true });
+        line[cx] = createStyledCell(ch, { fg: activeTokens().textFaint });
         if (cw === 2 && cx + 1 < width) line[cx + 1] = { ...line[cx], char: '' };
         cx += cw;
       }

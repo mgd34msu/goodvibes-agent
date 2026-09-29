@@ -14,7 +14,7 @@ import type { ServiceInspectionQuery } from '@/runtime/index.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { buildLocalFitRecommendations, buildSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
-import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
+import { applyThemeModeSettingChange, applyThemeNameSettingChange, THEME_MODE_CONFIG_KEY, THEME_NAME_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
 
 type WireShellUiOpenersOptions = {
   commandContext: CommandContext;
@@ -451,6 +451,10 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
         // so it takes effect next launch (stated honestly).
         if (String(change.key) === THEME_MODE_CONFIG_KEY) {
           return applyThemeModeSettingChange(change.value, () => commandContext.clearScreen?.());
+        }
+        // Theme changes apply immediately: rebuild palettes + full repaint.
+        if (String(change.key) === THEME_NAME_CONFIG_KEY) {
+          return applyThemeNameSettingChange(change.value, () => commandContext.clearScreen?.());
         }
         // The owner keep-awake toggle no longer needs a bespoke live-apply
         // here: services.ts wires wireRuntimePower's subscribeConfig option

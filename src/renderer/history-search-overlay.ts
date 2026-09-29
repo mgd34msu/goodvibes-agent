@@ -2,6 +2,7 @@ import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import type { HistorySearch } from '../input/input-history.ts';
 import { createBottomBarLine, writeBottomBarText } from '@pellux/goodvibes-terminal-shell';
+import { activeTokens } from './theme.ts';
 
 const HISTORY_SEARCH_PREFIX = '(reverse-i-search)`';
 const HISTORY_SEARCH_FAILED_PREFIX = '(failed reverse-i-search)`';
@@ -65,8 +66,9 @@ export function renderHistorySearchOverlay(
   const label = historySearchLabel(prefix, historySearch.query);
   const full = truncateToWidth(label + matchText, width);
 
-  const line = createBottomBarLine(width, { fg: '#000000', bg: '#00ffcc' });
-  writeBottomBarText(line, 0, width, full, { fg: '#000000', bg: '#00ffcc' });
+  const p = activeTokens();
+  const line = createBottomBarLine(width, { fg: p.selectedListItemText, bg: p.accent });
+  writeBottomBarText(line, 0, width, full, { fg: p.selectedListItemText, bg: p.accent });
 
   // Highlight the matched region in the match text with dim styling
   if (hasMatch && match) {
@@ -76,8 +78,8 @@ export function renderHistorySearchOverlay(
     const highlightWidth = Math.max(0, matchEndCol - matchStartCol);
     const matchedSlice = truncateToWidth(match.entry.slice(match.matchStart, match.matchStart + match.matchLength), highlightWidth);
     writeBottomBarText(line, matchStartCol, highlightWidth, matchedSlice, {
-      fg: '#000000',
-      bg: '#00ffcc',
+      fg: p.selectedListItemText,
+      bg: p.accent,
       bold: true,
       underline: true,
     });

@@ -14,6 +14,7 @@ import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { readConversationMessageSnapshots } from '../core/conversation-message-snapshot.ts';
+import { activeTokens } from '../renderer/theme.ts';
 
 export interface ResumeSessionOptions {
   readonly runtimeBus: RuntimeEventBus;
@@ -57,7 +58,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
       // Mirror the reopen into the daemon spine, reopen:true is sent ONLY on
       // this explicit user resume verb (fire-and-forget; never blocks the resume).
       options.sessionSpineClient.reopen({ sessionId, project: options.projectRoot });
-      options.conversation.log(`Resumed session: ${sessionId}`, { fg: '135' });
+      options.conversation.log(`Resumed session: ${sessionId}`, { fg: activeTokens().secondary });
       const returnContextMode = getReturnContextMode(options.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
         // N1 fix: compute ignoredPanels inside the guard so it is only evaluated
@@ -65,13 +66,13 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
         const ignoredPanels = meta.returnContext.openPanels?.slice(0, 4) ?? [];
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {
           if (line.startsWith('Open panels:')) continue;
-          options.conversation.log(`Resume: ${line}`, { fg: '244' });
+          options.conversation.log(`Resume: ${line}`, { fg: activeTokens().textMuted });
         }
         if (ignoredPanels.length > 0) {
-          options.conversation.log(`Resume: Saved panel state ignored: ${ignoredPanels.join(', ')}. Open the Agent workspace for current operator controls.`, { fg: '244' });
+          options.conversation.log(`Resume: Saved panel state ignored: ${ignoredPanels.join(', ')}. Open the Agent workspace for current operator controls.`, { fg: activeTokens().textMuted });
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
-          options.conversation.log('Resume: Remote build-host recovery belongs outside Agent; delegate explicit build/fix/review recovery from Agent.', { fg: '244' });
+          options.conversation.log('Resume: Remote build-host recovery belongs outside Agent; delegate explicit build/fix/review recovery from Agent.', { fg: activeTokens().textMuted });
         }
         if (returnContextMode === 'assisted') {
           const helperModel = new HelperModel({
@@ -80,7 +81,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
           });
           void maybeAssistReturnContextSummary(options.configManager, helperModel, meta.returnContext).then((assisted) => {
             if (!assisted.assistedNarrative) return;
-            options.conversation.log(`Resume: ${assisted.assistedNarrative}`, { fg: '244' });
+            options.conversation.log(`Resume: ${assisted.assistedNarrative}`, { fg: activeTokens().textMuted });
             options.requestRender();
           });
         }
@@ -99,7 +100,7 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
       }));
     } catch (error) {
       logger.debug('resumeSession failed', { error: summarizeError(error) });
-      options.conversation.log('Failed to resume session.', { fg: '#ef4444' });
+      options.conversation.log('Failed to resume session.', { fg: activeTokens().error });
     }
     options.requestRender();
   };

@@ -3,6 +3,7 @@ import { clearModalStack, handleEscape, modalOpened } from './handler-modal-stac
 import type { ClipboardPasteResult } from './handler-content-actions.ts';
 import { missingClipboardReaderHint } from '../utils/clipboard.ts';
 import type { InputHandler } from './handler.ts';
+import { activeTokens } from '../renderer/theme.ts';
 
 /**
  * handlePasteForHandler - Shared paste path for Ctrl+V and middle-click.
@@ -40,7 +41,7 @@ export function handlePasteForHandler(handler: InputHandler): ClipboardPasteResu
     const hint = missingClipboardReaderHint();
     handler.conversationManager?.log(
       hint ? `[Paste] ${hint}` : '[Paste: clipboard does not contain supported text or image data]',
-      { fg: '240' },
+      { fg: activeTokens().textFaint },
     );
     handler.requestRender();
   }

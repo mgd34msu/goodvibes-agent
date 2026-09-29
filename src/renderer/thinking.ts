@@ -6,11 +6,9 @@ import { activeUiTones } from './theme.ts';
 export function renderThinkingBlock(text: string, width: number): Line[] {
   // Thinking notices paint the ▌ marker and italic body on the TRANSPARENT
   // terminal background (renderConversationNotice passes no bodyBg), so both
-  // colours resolve per-render through activeUiTones() to stay legible on a
-  // light terminal. In dark mode the accent adopts the shared reasoning purple
-  // (state.reasoning) and the body adopts chrome.faint (== fg.dim), a small,
-  // deliberate convergence to the reference tokens from the agent's prior local
-  // BORDERS.THINKING.color / COLORS.DIM_TEXT (see the visible-changes note).
+  // colours resolve per render from the active theme: the accent is the
+  // theme's reasoning token and the body its faint text token (which replaces
+  // the SGR dim this block used to apply).
   const t = activeUiTones();
   return renderConversationNotice(
     text,
@@ -18,7 +16,6 @@ export function renderThinkingBlock(text: string, width: number): Line[] {
     {
       accent: t.state.reasoning,
       text: t.chrome.faint,
-      dim: true,
       italic: true,
     },
     BORDERS.THINKING.char,

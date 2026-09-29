@@ -100,7 +100,8 @@ function buildModalStyle(): Required<ModalStyle> {
   return {
     titleFg: t.fg.primary,
     borderFg: t.fg.dim,
-    hintFg: t.fg.muted,
+    // Hints read faint via the faint token (no SGR dim).
+    hintFg: t.fg.dim,
     selectedFg: t.fg.primary,
     selectedBg: t.bg.selected,
     textFg: t.fg.primary,
@@ -260,7 +261,6 @@ export class ModalFactory {
     if (hints.length > 0) {
       putOverlayText(line, layout.margin + 2, layout.width - 4, truncateDisplay(hints, layout.width - 4), {
         fg: s.hintFg,
-        dim: true,
       });
     }
     return line;
@@ -446,7 +446,6 @@ export class ModalFactory {
     const helperText = fitDisplay(`${prefix}${helper.content}`, layout.innerWidth);
     putOverlayText(row, layout.margin + 2, layout.innerWidth, helperText, {
       fg: helper.accent ? style.accentFg : style.hintFg,
-      dim: !helper.accent,
     });
     return row;
   }

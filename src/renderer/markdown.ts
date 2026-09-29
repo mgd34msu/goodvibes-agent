@@ -3,7 +3,7 @@ import { UIFactory } from './ui-factory.ts';
 import { renderCodeBlock } from './code-block.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { LAYOUT } from './layout.ts';
-import { activeTheme } from './theme.ts';
+import { activeTheme, activeTokens } from './theme.ts';
 import { renderInlineMarkdown, type InlineToken } from './markdown-inline.ts';
 import { isLikelyTableHeaderRow, isLikelyTableSeparatorRow, renderTable } from './markdown-table.ts';
 
@@ -100,12 +100,12 @@ export function renderMarkdownTracked(
     const h1 = raw.match(/^# (.+)/);
     if (h1) {
       lines.push(UIFactory.stringToLine(' '.repeat(indent) + h1[1].toUpperCase(), width, { fg: T.heading1, bold: true }));
-      lines.push(UIFactory.stringToLine(' '.repeat(indent) + '━'.repeat(Math.min(getDisplayWidth(h1[1]), contentWidth)), width, { fg: '244' }));
+      lines.push(UIFactory.stringToLine(' '.repeat(indent) + '━'.repeat(Math.min(getDisplayWidth(h1[1]), contentWidth)), width, { fg: activeTokens().textMuted }));
       continue;
     }
     if (h2) {
       lines.push(UIFactory.stringToLine(' '.repeat(indent) + h2[1], width, { fg: T.heading2, bold: true }));
-      lines.push(UIFactory.stringToLine(' '.repeat(indent) + '─'.repeat(Math.min(getDisplayWidth(h2[1]), contentWidth)), width, { fg: '240' }));
+      lines.push(UIFactory.stringToLine(' '.repeat(indent) + '─'.repeat(Math.min(getDisplayWidth(h2[1]), contentWidth)), width, { fg: activeTokens().textFaint }));
       continue;
     }
     if (h3) {
@@ -122,8 +122,8 @@ export function renderMarkdownTracked(
       const checkbox = checked ? '\u2611 ' : '\u2610 ';
       const rendered = renderInlineMarkdown(taskMatch[3]);
       const prefix = ' '.repeat(bulletX) + checkbox;
-      const style = checked ? { fg: '244', strikethrough: true } : {};
-      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: checked ? T.checkboxChecked : '252', ...style }, textStartX));
+      const style = checked ? { fg: activeTokens().textMuted, strikethrough: true } : {};
+      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: checked ? T.checkboxChecked : activeTokens().text, ...style }, textStartX));
       continue;
     }
 
@@ -134,7 +134,7 @@ export function renderMarkdownTracked(
       const textStartX = bulletX + 2;
       const rendered = renderInlineMarkdown(ulMatch[2]);
       const prefix = ' '.repeat(bulletX) + '• ';
-      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: '135', bold: false }, textStartX));
+      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: activeTokens().secondary, bold: false }, textStartX));
       continue;
     }
 
@@ -146,12 +146,12 @@ export function renderMarkdownTracked(
       const textStartX = bulletX + numStr.length;
       const rendered = renderInlineMarkdown(olMatch[3]);
       const prefix = ' '.repeat(bulletX) + numStr;
-      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: '135', bold: false }, textStartX));
+      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: activeTokens().secondary, bold: false }, textStartX));
       continue;
     }
 
     if (/^[-*_]{3,}$/.test(raw.trim())) {
-      lines.push(UIFactory.stringToLine(' '.repeat(indent) + '─'.repeat(contentWidth), width, { fg: '240' }));
+      lines.push(UIFactory.stringToLine(' '.repeat(indent) + '─'.repeat(contentWidth), width, { fg: activeTokens().textFaint }));
       continue;
     }
 
@@ -159,7 +159,7 @@ export function renderMarkdownTracked(
     if (bqMatch) {
       const rendered = renderInlineMarkdown(bqMatch[1]);
       const prefix = ' '.repeat(indent) + '┃ ';
-      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: '244', italic: true }, indent + 3));
+      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: T.blockquote, italic: true }, indent + 3));
       continue;
     }
 

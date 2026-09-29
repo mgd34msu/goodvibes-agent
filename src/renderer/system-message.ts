@@ -1,7 +1,7 @@
 import { type Line } from '@pellux/goodvibes-sdk/platform/types';
-import { BORDERS, COLORS } from './layout.ts';
+import { BORDERS } from './layout.ts';
 import { renderConversationNotice } from './conversation-surface.ts';
-import { activeUiTones, getActiveThemeMode } from './theme.ts';
+import { activeUiTones } from './theme.ts';
 
 /** Exported for use by typeOverride callers and tests. */
 export type SystemMessageType = 'error' | 'warning' | 'info';
@@ -76,23 +76,17 @@ export function renderSystemMessage(
     : msgType === 'warning' ? BORDERS.WARNING
     : BORDERS.INFO;
   // System-message notices paint the ▌ marker and body on the TRANSPARENT
-  // terminal background, so the accent/body must resolve per render to stay
-  // legible on a light terminal. Dark is byte-identical to today: the agent's
-  // BORDERS.* accents (which include a yellow/cyan that are unreadable on light)
-  // are preserved in dark and only swapped for the legible chrome/state tones in
-  // light mode. (chrome.bad dark == BORDERS.ERROR.color; only warn/info/faint
-  // differ, and only in light.)
+  // terminal background, so the accent and body text resolve per render from
+  // the active theme (activeUiTones()). The info body reads in the theme's
+  // faint text token, which replaces the SGR dim this notice used to apply.
+  // The ▌ marker glyph is still sourced from the BORDERS table.
   const t = activeUiTones();
-  const light = getActiveThemeMode() === 'light';
-  const accent = light
-    ? (msgType === 'error' ? t.chrome.bad : msgType === 'warning' ? t.chrome.warn : t.state.info)
-    : border.color;
-  const textColor = msgType === 'info'
-    ? (light ? t.chrome.faint : COLORS.DIM_TEXT)
-    : accent;
+  const accent = msgType === 'error' ? t.chrome.bad
+    : msgType === 'warning' ? t.chrome.warn
+    : t.state.info;
+  const textColor = msgType === 'info' ? t.chrome.faint : accent;
   return renderConversationNotice(content, width, {
     accent,
     text: textColor,
-    dim: msgType === 'info',
   }, border.char);
 }

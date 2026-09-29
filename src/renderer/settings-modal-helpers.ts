@@ -7,6 +7,7 @@
 import type { SettingEntry, McpEntry, SubscriptionEntry } from '../input/settings-modal.ts';
 import { SETTINGS_CATEGORIES } from '../input/settings-modal.ts';
 import { isSecretConfigKey, isSecretReferenceValue } from '../config/secret-config.ts';
+import { activeTokens } from './theme.ts';
 
 function maskSecretValue(value: string): string {
   if (value.length === 0) return '(empty)';
@@ -24,42 +25,47 @@ export function formatValue(entry: SettingEntry): string {
   return String(val);
 }
 
+// Row colours come from the active theme: the accent marks modified or active
+// values, status tokens mark risk, and neutral values read muted.
 export function valueColor(entry: SettingEntry): string {
-  if (!entry.isDefault) return '#00ffcc'; // cyan-green = modified
-  return '244';                            // dim = default
+  if (!entry.isDefault) return activeTokens().accent; // modified
+  return activeTokens().textMuted;                    // default
 }
 
 export function flagStateColor(state: string, killed: boolean): string {
-  if (killed) return '#ef4444'; // red
-  if (state === 'enabled') return '#00ffcc'; // cyan-green
-  return '244'; // dim
+  const p = activeTokens();
+  if (killed) return p.error;
+  if (state === 'enabled') return p.accent;
+  return p.textMuted;
 }
 
 export function mcpTrustColor(mode: McpEntry['trustMode']): string {
+  const p = activeTokens();
   switch (mode) {
     case 'allow-all':
-      return '#ef4444';
+      return p.error;
     case 'ask-on-risk':
-      return '#eab308';
+      return p.warning;
     case 'constrained':
-      return '#00ffcc';
+      return p.accent;
     case 'blocked':
-      return '244';
+      return p.textMuted;
     default:
-      return '244';
+      return p.textMuted;
   }
 }
 
 export function subscriptionStateColor(state: SubscriptionEntry['state']): string {
+  const p = activeTokens();
   switch (state) {
     case 'active':
-      return '#00ffcc';
+      return p.accent;
     case 'pending':
-      return '#eab308';
+      return p.warning;
     case 'available':
-      return '#38bdf8';
+      return p.info;
     default:
-      return '244';
+      return p.textMuted;
   }
 }
 

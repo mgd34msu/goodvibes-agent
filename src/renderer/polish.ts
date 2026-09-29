@@ -2,7 +2,8 @@ import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { createEmptyLine, createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { getSurfaceContentRows, getTrackedVisibleWindow, getVisibleWindow, type VisibleWindow } from '@pellux/goodvibes-terminal-shell';
-import { GLYPHS, UI_TONES } from './ui-primitives.ts';
+import { GLYPHS } from './ui-primitives.ts';
+import { activeUiTones, registerThemeRefresh } from './theme.ts';
 import { type StatusState, STATE_GLYPHS } from './status-glyphs.ts';
 
 export interface PanelPalette {
@@ -24,44 +25,63 @@ export interface PanelPalette {
   readonly selectBg?: string;
 }
 
-export const DEFAULT_PANEL_PALETTE: Readonly<Required<PanelPalette>> = {
-  header: UI_TONES.fg.primary,
-  headerBg: UI_TONES.bg.title,
-  label: UI_TONES.fg.muted,
-  value: UI_TONES.fg.primary,
-  dim: UI_TONES.fg.dim,
-  info: UI_TONES.state.info,
-  good: UI_TONES.state.good,
-  warn: UI_TONES.state.warn,
-  bad: UI_TONES.state.bad,
-  empty: '#334155',
-  surfaceBg: UI_TONES.bg.surface,
-  sectionBg: UI_TONES.bg.section,
-  summaryBg: UI_TONES.bg.summary,
-  inputBg: UI_TONES.bg.input,
-  accent: UI_TONES.fg.secondary,
-  selectBg: UI_TONES.bg.selected,
-} as const;
+// Built from the active theme's chrome tones (activeUiTones). Because many
+// call sites read this object by reference, theme and mode changes rebuild it
+// IN PLACE via the registered refresher below rather than re-resolving per
+// call, see theme.ts's active-theme runtime note. This refresher registers at
+// this module's evaluation, before any extendPalette() call, so on a change the
+// base is rebuilt before the extended palettes re-merge from it.
+function buildPanelPalette(): Required<PanelPalette> {
+  const t = activeUiTones();
+  return {
+    header: t.fg.primary,
+    headerBg: t.bg.title,
+    label: t.fg.muted,
+    value: t.fg.primary,
+    dim: t.fg.dim,
+    info: t.state.info,
+    good: t.state.good,
+    warn: t.state.warn,
+    bad: t.state.bad,
+    empty: t.fg.empty,
+    surfaceBg: t.bg.surface,
+    sectionBg: t.bg.section,
+    summaryBg: t.bg.summary,
+    inputBg: t.bg.input,
+    accent: t.fg.secondary,
+    selectBg: t.bg.selected,
+  };
+}
+
+export const DEFAULT_PANEL_PALETTE: Readonly<Required<PanelPalette>> = buildPanelPalette();
+registerThemeRefresh(() => Object.assign(DEFAULT_PANEL_PALETTE as Required<PanelPalette>, buildPanelPalette()));
 
 /**
  * Extend the base panel palette with domain-specific colors.
  *
- * Convention: raw hex colors may only live inside a palette constant declared
- * at the top of a panel file, not inline in render calls.
+ * `extras` is a builder that reads theme tokens (activeTokens() /
+ * activeUiTones()); it runs now and again on every theme or mode change, so
+ * the domain colors follow the active theme. Raw hex literals do not belong
+ * in extras: map each domain color onto a theme token.
  *
  * @example
  * ```ts
- * const C = extendPalette(DEFAULT_PANEL_PALETTE, {
- *   decision: '#38bdf8',
- *   incident: '#ef4444',
+ * const C = extendPalette(DEFAULT_PANEL_PALETTE, () => {
+ *   const p = activeTokens();
+ *   return { decision: p.info, incident: p.error };
  * });
  * ```
  */
 export function extendPalette<T extends Record<string, string>>(
   base: typeof DEFAULT_PANEL_PALETTE,
-  extras: T,
+  extras: () => T,
 ): typeof DEFAULT_PANEL_PALETTE & T {
-  return { ...base, ...extras };
+  const merged = { ...base, ...extras() } as typeof DEFAULT_PANEL_PALETTE & T;
+  // Self-register an in-place rebuild so every derived palette tracks the
+  // active theme. Runs AFTER the base refresher, so `base` already carries the
+  // new values when the extras are rebuilt.
+  registerThemeRefresh(() => Object.assign(merged as Record<string, string>, base, extras()));
+  return merged;
 }
 
 export function buildPanelLine(

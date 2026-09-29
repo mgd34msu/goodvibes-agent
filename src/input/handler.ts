@@ -344,6 +344,7 @@ export class InputHandler {
       preSelectId?: string;
       allowSearch?: boolean;
       customActions?: Map<string, SelectionAction>;
+      onHighlight?: (item: import('./selection-modal.ts').SelectionItem | null) => void;
     } | undefined,
     callback: SelectionModalCallback,
   ): void {

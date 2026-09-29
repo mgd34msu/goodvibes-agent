@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'bun:test';
+import { activeUiTones } from '../../renderer/theme.ts';
 import { ModalFactory } from '../../renderer/modal-factory.ts';
 import { lineToString, linesToText } from '../setup.ts';
 
@@ -68,10 +69,10 @@ describe('ModalFactory.createModal', () => {
     const rightX = top.findLastIndex((cell) => cell.char === '┐');
     expect(leftX).toBeGreaterThanOrEqual(0);
     expect(rightX).toBeGreaterThan(leftX);
-    expect(top[leftX].fg).toBe('#475569');
-    expect(top[rightX].fg).toBe('#475569');
-    expect(bottom[leftX].fg).toBe('#475569');
-    expect(bottom[rightX].fg).toBe('#475569');
+    expect(top[leftX].fg).toBe(activeUiTones().fg.dim);
+    expect(top[rightX].fg).toBe(activeUiTones().fg.dim);
+    expect(bottom[leftX].fg).toBe(activeUiTones().fg.dim);
+    expect(bottom[rightX].fg).toBe(activeUiTones().fg.dim);
   });
 
   test('content rows use box-drawing vertical borders', () => {

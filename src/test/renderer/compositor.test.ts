@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
+import { activeTokens } from '../../renderer/theme.ts';
 import { Compositor } from '../../renderer/compositor.ts';
 import { createStyledCell, createEmptyLine } from '@pellux/goodvibes-sdk/platform/types';
 import type { Line, Cell } from '@pellux/goodvibes-sdk/platform/types';
@@ -273,6 +274,6 @@ describe('Compositor: degenerate sidebarWidth >= width', () => {
       compositor.composite(makeBaseRequest({ sidebar, sidebarWidth: WIDTH - 2, selection }));
     }).not.toThrow();
     const cell = cellAt(compositor, 0, 2);
-    expect(cell?.bg).toBe('4');
+    expect(cell?.bg).toBe(activeTokens().backgroundSelected);
   });
 });

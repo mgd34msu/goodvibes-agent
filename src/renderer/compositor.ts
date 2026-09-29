@@ -4,7 +4,7 @@ import { type Line, createEmptyCell, createEmptyLine, createStyledCell } from '@
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import type { SearchManager } from '../input/search.ts';
 import { allowTerminalWrite, probeTermCaps, type TermColorCaps } from '@pellux/goodvibes-terminal-shell';
-import { activeTheme } from './theme.ts';
+import { activeTheme, activeTokens } from './theme.ts';
 
 export interface SelectionInfo {
   isCellSelected: (col: number, absoluteRow: number) => boolean;
@@ -104,11 +104,10 @@ export class Compositor {
 
     // R4 tone-read region (the compositor is the pre-ruled R2→R4 shared file;
     // R2 owns the DiffEngine caps wiring above, R4 owns these live theme reads).
-    // Read the search-highlight tones live per frame so they flip in light mode;
-    // dark is byte-identical (the searchCurrent/searchMatch tones resolve to the
-    // prior hardcoded yellow/gold pair). The separator stays a neutral dim grey.
+    // Read the search-highlight tones and the separator colour live per frame
+    // so they follow the active theme.
     const T = activeTheme();
-    const sepFg = '238';
+    const sepFg = activeTokens().textFaint;
 
     viewport.forEach((line, i) => {
       const screenY = viewportStartY + i;
@@ -156,7 +155,10 @@ export class Compositor {
         const absoluteRow = selection.scrollTop + (i - offset);
         for (let x = 0; x < leftWidth; x++) {
           if (selection.isCellSelected(x, absoluteRow)) {
-            newBuffer.setCell(x, screenY, { bg: '4', fg: '0', bold: false, dim: false });
+            // Mouse selection: the theme's selection fill with body text (the
+            // inverse selectedListItemText is unreadable on this fill).
+            const sel = activeTokens();
+            newBuffer.setCell(x, screenY, { bg: sel.backgroundSelected, fg: sel.text, bold: false, dim: false });
           }
         }
       }

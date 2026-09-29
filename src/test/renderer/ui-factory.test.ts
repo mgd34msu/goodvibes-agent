@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { UIFactory, composeSafetyNoticeSegments } from '../../renderer/ui-factory.ts';
 import { lineToString } from '../setup.ts';
+import { activeTokens } from '../../renderer/theme.ts';
 
 describe('UIFactory', () => {
   test('header is branded as GoodVibes Agent', () => {
@@ -17,14 +18,14 @@ describe('composeSafetyNoticeSegments', () => {
     const segments = composeSafetyNoticeSegments(true, undefined, 60);
     expect(segments).toHaveLength(1);
     expect(segments[0]!.text).toContain('auto-approve');
-    expect(segments[0]!.fg).toBe('#ef4444');
+    expect(segments[0]!.fg).toBe(activeTokens().error);
   });
 
   test('each-alone: powerNote only produces the sleep/power segment', () => {
     const segments = composeSafetyNoticeSegments(false, 'sleep disabled', 60);
     expect(segments).toHaveLength(1);
     expect(segments[0]!.text).toContain('sleep disabled');
-    expect(segments[0]!.fg).toBe('#f59e0b');
+    expect(segments[0]!.fg).toBe(activeTokens().warning);
   });
 
   test('both-on: neither notice suppresses the other at a comfortable width', () => {

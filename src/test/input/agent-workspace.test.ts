@@ -26,7 +26,7 @@ import { readOnboardingCheckMarker, readOnboardingCompletionMarker, writeOnboard
 import { connectedHostOperatorTokenPath } from '../../runtime/connected-host-auth.ts';
 import { ConfigManager } from '../../config/index.ts';
 import { THEME_MODE_CONFIG_KEY } from '../../renderer/theme-mode-config.ts';
-import { getActiveThemeMode, setActiveThemeMode } from '../../renderer/theme.ts';
+import { getActiveThemeMode, getActiveThemeName, listThemeChoices, setActiveThemeMode, setActiveThemeName } from '../../renderer/theme.ts';
 import { isAgentHiddenSettingKey } from '../../config/agent-settings-policy.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
@@ -746,6 +746,36 @@ describe('AgentWorkspace', () => {
       expect(workspace.status).toContain('next startup');
     } finally {
       setActiveThemeMode('dark'); // restore the shared test-process default
+    }
+  });
+
+  test('workspace Interface page cycles the theme through the selectable themes and applies it now', async () => {
+    const { context, configManager } = persistentConfigContext();
+    const workspace = new AgentWorkspace();
+    workspace.open(context, () => undefined);
+
+    try {
+      workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-display');
+      workspace.selectedActionIndex = workspace.actions.findIndex((entry) => entry.id === 'display-theme');
+      expect(workspace.actions[workspace.selectedActionIndex]?.settingKey).toBe('display.theme');
+
+      const names = listThemeChoices().map((choice) => choice.name);
+      expect(names).not.toContain('vaporwave');
+      const start = names.indexOf('goodvibes');
+      const visited: string[] = [];
+      for (let step = 0; step < names.length; step++) {
+        workspace.activateSelected();
+        // The write goes through setHarnessSetting (async): let it settle.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const stored = String(configManager.get('display.theme' as ConfigKey));
+        visited.push(stored);
+        expect(getActiveThemeName()).toBe(stored);
+        expect(workspace.status).toContain('applied now');
+      }
+      // One full lap from the default: every selectable theme once, never the legacy alias.
+      expect(visited).toEqual([...names.slice(start + 1), ...names.slice(0, start + 1)]);
+    } finally {
+      setActiveThemeName('goodvibes');
     }
   });
 

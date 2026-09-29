@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import type { ConfigKey, ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { PendingSubscriptionLogin, ProviderSubscription } from '@pellux/goodvibes-sdk/platform/config';
 import { setHarnessSetting } from '../agent/harness-control.ts';
-import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
+import { applyThemeModeSettingChange, applyThemeNameSettingChange, THEME_MODE_CONFIG_KEY, THEME_NAME_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
+import { listThemeChoices, normalizeThemeName } from '../renderer/theme.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { CommandContext } from './command-registry.ts';
 import type {
@@ -380,6 +381,14 @@ export function buildAgentWorkspaceSettingActionEffect(
   }
 
   const currentValue = configManager.get(setting.key as ConfigKey);
+  // The theme cycles through the selectable themes ('system', then the
+  // bundled catalog), not the raw schema enum, which also carries the legacy
+  // 'vaporwave' alias of goodvibes-neon.
+  if (String(setting.key) === THEME_NAME_CONFIG_KEY) {
+    const names = listThemeChoices().map((choice) => choice.name);
+    const currentIndex = Math.max(0, names.indexOf(normalizeThemeName(currentValue)));
+    return { kind: 'apply', setting, value: names[(currentIndex + 1) % names.length]! };
+  }
   if (setting.type === 'boolean') {
     return { kind: 'apply', setting, value: !Boolean(currentValue) };
   }
@@ -436,6 +445,35 @@ export async function applyAgentWorkspaceSettingValue(
         safety: 'safe',
       },
     };
+  }
+  if (String(setting.key) === THEME_NAME_CONFIG_KEY) {
+    try {
+      // Written through the same path as every other key, then applied to
+      // this process now (palettes rebuild, full repaint); this surface has no
+      // onSettingApplied hook, so it runs the shared apply hook directly.
+      const written = await setHarnessSetting(configManager, context?.platform?.secretsManager, setting.key, value);
+      const { message } = applyThemeNameSettingChange(written.current, () => context?.clearScreen?.());
+      return {
+        status: message,
+        result: {
+          kind: 'refreshed',
+          title: `${setting.key} updated`,
+          detail: message,
+          safety: 'safe',
+        },
+      };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return {
+        status: detail,
+        result: {
+          kind: 'error',
+          title: `${setting.key} update failed`,
+          detail,
+          safety: 'safe',
+        },
+      };
+    }
   }
   if (String(setting.key) === THEME_MODE_CONFIG_KEY) {
     try {

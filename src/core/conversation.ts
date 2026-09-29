@@ -369,6 +369,15 @@ export class ConversationManager extends SdkConversationManager {
     this.rebuildHistory();
   }
 
+  /**
+   * Mark every rendered line stale so the next flush re-renders the transcript.
+   * Registered as a theme refresher (main.ts): rendered lines carry concrete
+   * colours, so a theme or mode change must redraw them in the new colours.
+   */
+  public invalidateRenderedLines(): void {
+    this.markDirty();
+  }
+
   private markDirty(): void {
     this.dirty = true;
   }

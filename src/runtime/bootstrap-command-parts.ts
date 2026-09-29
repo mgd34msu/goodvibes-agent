@@ -51,6 +51,7 @@ import type { ApprovalsView } from './client/approvals-view.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ConsolidationReceiptSource } from '../agent/memory-consolidation-proposals.ts';
 import { listPendingConsolidationProposals } from '../agent/memory-consolidation-proposals.ts';
+import { activeTokens } from '../renderer/theme.ts';
 
 export type BootstrapCommandSessionSection = CommandContext['session'];
 export type BootstrapCommandProviderSection = CommandContext['provider'];
@@ -192,7 +193,7 @@ export function createBootstrapCommandActions(
   } = options;
 
   const pointToWorkspace = (what: string) => {
-    conversation.log(`${what} lives in the Agent workspace, press Ctrl+P or run /agent.`, { fg: '214' });
+    conversation.log(`${what} lives in the Agent workspace, press Ctrl+P or run /agent.`, { fg: activeTokens().warning });
     requestRender();
   };
 
@@ -215,17 +216,17 @@ export function createBootstrapCommandActions(
           configManager.set('helper.globalProvider', def.provider);
           configManager.set('helper.globalModel', key);
           configManager.set('helper.enabled', true);
-          conversation.log(`Helper model set to: ${def.displayName} (${def.provider})`, { fg: '135' });
+          conversation.log(`Helper model set to: ${def.displayName} (${def.provider})`, { fg: activeTokens().secondary });
         } else if (resolvedTarget === 'tool') {
           // Write to tool LLM config keys and enable the tool LLM
           configManager.set('tools.llmProvider', def.provider);
           configManager.set('tools.llmModel', key);
           configManager.setDynamic('tools.llmEnabled', true);
-          conversation.log(`Tool LLM set to: ${def.displayName} (${def.provider})`, { fg: '135' });
+          conversation.log(`Tool LLM set to: ${def.displayName} (${def.provider})`, { fg: activeTokens().secondary });
         } else if (resolvedTarget === 'tts') {
           configManager.set('tts.llmProvider', def.provider);
           configManager.set('tts.llmModel', key);
-          conversation.log(`TTS LLM set to: ${def.displayName} (${def.provider})`, { fg: '135' });
+          conversation.log(`TTS LLM set to: ${def.displayName} (${def.provider})`, { fg: activeTokens().secondary });
         } else {
           // Default: main provider/model
           if (contextCap != null && contextCap > 0) {
@@ -264,11 +265,11 @@ export function createBootstrapCommandActions(
             ? `, context cap: ${contextCap.toLocaleString()}`
             : '';
           const effortNote = serving.requested !== '' ? `, effort: ${describeServingEffort(serving, switchedTo)}` : '';
-          conversation.log(`Switched to model: ${def.displayName} (${def.provider})${effortNote}${ctxNote}`, { fg: '135' });
-          if (serving.note) conversation.log(serving.note, { fg: '135' });
+          conversation.log(`Switched to model: ${def.displayName} (${def.provider})${effortNote}${ctxNote}`, { fg: activeTokens().secondary });
+          if (serving.note) conversation.log(serving.note, { fg: activeTokens().secondary });
         }
       } catch (e) {
-        conversation.log(`Error switching model: ${summarizeError(e)}`, { fg: '#ef4444' });
+        conversation.log(`Error switching model: ${summarizeError(e)}`, { fg: activeTokens().error });
       }
       completeModelSelectionSideEffect?.();
       requestRender();
@@ -276,7 +277,7 @@ export function createBootstrapCommandActions(
     jumpToBookmark: () => unwiredShellAction('jumpToBookmark'),
     scrollToLine: () => unwiredShellAction('scrollToLine'),
     print: (text: string) => {
-      conversation.log(text, { fg: '252' });
+      conversation.log(text, { fg: activeTokens().text });
       requestRender();
     },
     exit: () => unwiredShellAction('exit'),

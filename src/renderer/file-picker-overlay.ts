@@ -10,6 +10,7 @@ import {
   putOverlayText,
 } from './overlay-box.ts';
 import { getOverlaySurfaceMetrics } from '@pellux/goodvibes-terminal-shell';
+import { activeTokens } from './theme.ts';
 
 const FILE_PICKER_TITLE = 'Select File';
 const FILE_PICKER_SEARCH_PREFIX = '@ ';
@@ -69,7 +70,7 @@ export function renderFilePickerOverlay(
   // Results
   if (picker.results.length === 0) {
     const noResults = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    putOverlayText(noResults, layout.margin + 2, contentW, fitDisplay(FILE_PICKER_EMPTY_MESSAGE, contentW), { fg: '244', dim: true });
+    putOverlayText(noResults, layout.margin + 2, contentW, fitDisplay(FILE_PICKER_EMPTY_MESSAGE, contentW), { fg: activeTokens().textFaint });
     lines.push(noResults);
   } else {
     const maxVisible = metrics.contentRows;
@@ -107,7 +108,7 @@ export function renderFilePickerOverlay(
 
   // Bottom border with hints
   const bottomLine = createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.bottomLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.bottomRight, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-  putOverlayText(bottomLine, layout.margin + 2, layout.width - 4, truncateDisplay(FILE_PICKER_HINTS, layout.width - 4), { fg: mutedFg, dim: true });
+  putOverlayText(bottomLine, layout.margin + 2, layout.width - 4, truncateDisplay(FILE_PICKER_HINTS, layout.width - 4), { fg: mutedFg });
   lines.push(bottomLine);
 
   return lines;

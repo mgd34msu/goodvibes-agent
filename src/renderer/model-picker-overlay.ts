@@ -12,6 +12,7 @@ import {
   putOverlayText,
 } from './overlay-box.ts';
 import { getOverlaySurfaceMetrics } from '@pellux/goodvibes-terminal-shell';
+import { activeTokens } from './theme.ts';
 
 /** Format a context window number into a short human-readable string. */
 function fmtContext(n: number): string {
@@ -50,7 +51,9 @@ function formatContextWindowSource(value: string | undefined): string {
  */
 export const MODEL_PICKER_CHROME_LINES = 7;
 
-const renderCache = new WeakMap<ModelPickerModal, { key: string; lines: Line[] }>();
+// The cache also records the token table it was painted with, so a theme
+// change never serves lines in the previous theme's colours.
+const renderCache = new WeakMap<ModelPickerModal, { key: string; tokens: object; lines: Line[] }>();
 const objectIds = new WeakMap<object, number>();
 let nextObjectId = 1;
 
@@ -113,7 +116,7 @@ export function renderModelPickerOverlay(
 ): Line[] {
   const cacheKey = getRenderCacheKey(picker, width, maxVisible, viewportHeight);
   const cached = renderCache.get(picker);
-  if (cached?.key === cacheKey) return cached.lines;
+  if (cached?.key === cacheKey && cached.tokens === activeTokens()) return cached.lines;
 
   const lines: Line[] = [];
   const metrics = getOverlaySurfaceMetrics(width, viewportHeight ?? 24, {
@@ -167,7 +170,7 @@ export function renderModelPickerOverlay(
     const queryAreaWidth = filterTag
       ? Math.max(0, contentW - getDisplayWidth(searchPrefix) - filterTagW - 1)
       : Math.max(0, contentW - getDisplayWidth(searchPrefix));
-    putRowText(searchLine, rowX, queryAreaWidth, fitDisplay(queryTrunc, queryAreaWidth), picker.query.length > 0 || picker.searchFocused ? '#ffffff' : mutedFg);
+    putRowText(searchLine, rowX, queryAreaWidth, fitDisplay(queryTrunc, queryAreaWidth), picker.query.length > 0 || picker.searchFocused ? bodyFg : mutedFg);
     if (filterTag) {
       putRowText(
         searchLine,
@@ -193,7 +196,7 @@ export function renderModelPickerOverlay(
         ? `No models match "${picker.query.length > 20 ? picker.query.slice(0, 20) + '...' : picker.query}"`
         : 'No models available';
       const noModels = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-      putRowText(noModels, layout.margin + 2, contentW, fitDisplay(truncateDisplay(msg, contentW), contentW), '244', '', false, true);
+      putRowText(noModels, layout.margin + 2, contentW, fitDisplay(truncateDisplay(msg, contentW), contentW), activeTokens().textFaint);
       lines.push(noModels);
     } else {
       // Determine the visible slice [scrollOffset, scrollOffset + maxVisible)
@@ -220,7 +223,7 @@ export function renderModelPickerOverlay(
         const groupKey = picker.getModelGroupKey(model);
         if (groupKey !== lastGroupKey) {
           const headerRow = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-          putRowText(headerRow, layout.margin + 2, contentW, fitDisplay(`[${groupKey}]`, contentW), '#4488cc');
+          putRowText(headerRow, layout.margin + 2, contentW, fitDisplay(`[${groupKey}]`, contentW), activeTokens().textMuted);
           lines.push(headerRow);
           lastGroupKey = groupKey;
         }
@@ -287,7 +290,7 @@ export function renderModelPickerOverlay(
     const selected = picker.getSelected();
     if (selected) {
       const providerLine = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-      putRowText(providerLine, layout.margin + 2, contentW, fitDisplay(`Provider: ${selected.provider}`, contentW), '244');
+      putRowText(providerLine, layout.margin + 2, contentW, fitDisplay(`Provider: ${selected.provider}`, contentW), activeTokens().textMuted);
       lines.push(providerLine);
 
       const caps = selected.capabilities ?? { reasoning: false, multimodal: false, toolCalling: false, codeEditing: false };
@@ -298,7 +301,7 @@ export function renderModelPickerOverlay(
       if (caps.toolCalling) capParts.push('Tools: \u2713');
       const capText = capParts.join('  ');
       const capLine = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-      putRowText(capLine, layout.margin + 2, contentW, fitDisplay(truncateDisplay(capText, contentW), contentW), '244');
+      putRowText(capLine, layout.margin + 2, contentW, fitDisplay(truncateDisplay(capText, contentW), contentW), activeTokens().textMuted);
       lines.push(capLine);
     } else {
       lines.push(createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg));
@@ -313,7 +316,7 @@ export function renderModelPickerOverlay(
         ? `No providers match "${picker.query.length > 20 ? picker.query.slice(0, 20) + '...' : picker.query}"`
         : 'No providers available';
       const noProviders = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-      putRowText(noProviders, layout.margin + 2, contentW, fitDisplay(truncateDisplay(msg, contentW), contentW), '244', '', false, true);
+      putRowText(noProviders, layout.margin + 2, contentW, fitDisplay(truncateDisplay(msg, contentW), contentW), activeTokens().textFaint);
       lines.push(noProviders);
     } else {
       // Build the flat selectable index → item-list-index mapping for scroll tracking
@@ -349,7 +352,7 @@ export function renderModelPickerOverlay(
         // Emit pending group header before first visible item in the group
         if (pendingHeader !== null) {
           const headerRow = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-          putRowText(headerRow, layout.margin + 2, contentW, fitDisplay(`[${pendingHeader}]`, contentW), '#4488cc');
+          putRowText(headerRow, layout.margin + 2, contentW, fitDisplay(`[${pendingHeader}]`, contentW), activeTokens().textMuted);
           lines.push(headerRow);
           pendingHeader = null;
         }
@@ -386,7 +389,7 @@ export function renderModelPickerOverlay(
     // ── Divider + hint ──────────────────────────────────────────────────────────────────
     lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.teeLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.teeRight, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
     const hintLine = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    putRowText(hintLine, layout.margin + 2, contentW, fitDisplay('Select a provider to browse its models', contentW), '244');
+    putRowText(hintLine, layout.margin + 2, contentW, fitDisplay('Select a provider to browse its models', contentW), activeTokens().textMuted);
     lines.push(hintLine);
     lines.push(createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg));
   } else if (picker.mode === 'contextCap') {
@@ -400,7 +403,7 @@ export function renderModelPickerOverlay(
     const cursorChar = OVERLAY_GLYPHS.cursor;
     const inputDisplay = picker.contextCapQuery + cursorChar;
     const promptRow = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.inputBg);
-    putRowText(promptRow, layout.margin + 2, contentW, fitDisplay(`${promptLabel} ${inputDisplay}`, contentW), '#ffffff');
+    putRowText(promptRow, layout.margin + 2, contentW, fitDisplay(`${promptLabel} ${inputDisplay}`, contentW), bodyFg);
     lines.push(promptRow);
 
     lines.push(createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg));
@@ -410,13 +413,13 @@ export function renderModelPickerOverlay(
       ? hintText.slice(0, contentW - 3) + '...'
       : hintText;
     const hintRow = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    putRowText(hintRow, layout.margin + 2, contentW, fitDisplay(hintTrunc, contentW), '244', '', false, true);
+    putRowText(hintRow, layout.margin + 2, contentW, fitDisplay(hintTrunc, contentW), activeTokens().textFaint);
     lines.push(hintRow);
 
     // Divider + model info
     lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.teeLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.teeRight, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
     const modelInfoLine = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    putRowText(modelInfoLine, layout.margin + 2, contentW, fitDisplay(`Model: ${modelName}`, contentW), '244');
+    putRowText(modelInfoLine, layout.margin + 2, contentW, fitDisplay(`Model: ${modelName}`, contentW), activeTokens().textMuted);
     lines.push(modelInfoLine);
     lines.push(createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg));
   } else {
@@ -440,7 +443,7 @@ export function renderModelPickerOverlay(
     lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.teeLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.teeRight, borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
     const modelName = picker.pendingModel ? picker.pendingModel.displayName : 'unknown';
     const modelLine = createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    putRowText(modelLine, layout.margin + 2, contentW, fitDisplay(`Model: ${modelName}`, contentW), '244');
+    putRowText(modelLine, layout.margin + 2, contentW, fitDisplay(`Model: ${modelName}`, contentW), activeTokens().textMuted);
     lines.push(modelLine);
     lines.push(createOverlayContentLine(width, layout, borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg));
   }
@@ -462,7 +465,7 @@ export function renderModelPickerOverlay(
   putRowText(footerLine, layout.margin + 2, contentW, fitDisplay(truncateDisplay(hints, contentW), contentW), mutedFg, '', false, true);
   lines.push(footerLine);
 
-  renderCache.set(picker, { key: cacheKey, lines });
+  renderCache.set(picker, { key: cacheKey, tokens: activeTokens(), lines });
   return lines;
 }
 

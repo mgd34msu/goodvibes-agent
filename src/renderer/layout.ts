@@ -1,4 +1,5 @@
 import { GLYPHS } from './ui-primitives.ts';
+import { activeUiTones } from './theme.ts';
 
 /**
  * Layout constants, single source of truth for margins and content width.
@@ -17,13 +18,10 @@ export const TOOL_STATUS = {
   TOOL_NAME_PAD: 8,
 } as const;
 
-export const COLORS = {
-  DIM_TEXT: '244',
-} as const;
-
+// `color` is a getter so it always reads the active theme.
 export const BORDERS = {
-  THINKING: { char: '▌', color: '#9945FF' },
-  ERROR:    { char: '▌', color: '#ef4444' },
-  WARNING:  { char: '▌', color: '#eab308' },
-  INFO:     { char: '▌', color: '#22d3ee' },
+  THINKING: { char: '▌', get color(): string { return activeUiTones().state.reasoning; } },
+  ERROR:    { char: '▌', get color(): string { return activeUiTones().state.bad; } },
+  WARNING:  { char: '▌', get color(): string { return activeUiTones().state.warn; } },
+  INFO:     { char: '▌', get color(): string { return activeUiTones().state.info; } },
 } as const;

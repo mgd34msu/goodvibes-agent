@@ -4,7 +4,7 @@ import { VERSION } from '../version.ts';
 import { fitDisplay, getDisplayWidth, truncateDisplay, wrapText, interpolateColor } from '../utils/terminal-width.ts';
 import { renderConversationFragment, renderConversationStatusLine, type ConversationStatusSegment } from './conversation-surface.ts';
 import { GLYPHS } from './ui-primitives.ts';
-import { activeUiTones } from './theme.ts';
+import { activeTheme, activeTokens, activeUiTones } from './theme.ts';
 import {
   THINKING_PHRASES,
   waitingPhrase,
@@ -41,12 +41,15 @@ export interface RightNoticeSegment {
 }
 
 const RIGHT_NOTICE_SEPARATOR = ' · ';
-const RIGHT_NOTICE_SEPARATOR_FG = '238';
+// Notice colours are getters over the active theme (read at each paint).
+const NOTICE_FG = {
+  get separator(): string { return activeTokens().textFaint; },
+  get danger(): string { return activeTokens().error; },
+  get power(): string { return activeTokens().warning; },
+};
 const DANGER_MODE_FULL_TEXT = '⚠ auto-approve is on';
 const DANGER_MODE_COMPACT_TEXT = '⚠ auto-approve';
 const DANGER_MODE_ICON_TEXT = '⚠';
-const DANGER_MODE_FG = '#ef4444';
-const POWER_NOTE_FG = '#f59e0b';
 
 /**
  * Compose the danger-mode (auto-approve) and power (sleep/keep-awake) safety
@@ -77,9 +80,9 @@ export function composeSafetyNoticeSegments(
       const combinedWidth = getDisplayWidth(dangerText) + getDisplayWidth(RIGHT_NOTICE_SEPARATOR) + getDisplayWidth(powerText);
       if (combinedWidth <= availableWidth) {
         return [
-          { text: dangerText, fg: DANGER_MODE_FG, bold: true },
-          { text: RIGHT_NOTICE_SEPARATOR, fg: RIGHT_NOTICE_SEPARATOR_FG },
-          { text: powerText, fg: POWER_NOTE_FG },
+          { text: dangerText, fg: NOTICE_FG.danger, bold: true },
+          { text: RIGHT_NOTICE_SEPARATOR, fg: NOTICE_FG.separator },
+          { text: powerText, fg: NOTICE_FG.power },
         ];
       }
     }
@@ -88,15 +91,15 @@ export function composeSafetyNoticeSegments(
     // still represented rather than one vanishing.
     const minimal = `${DANGER_MODE_ICON_TEXT}${RIGHT_NOTICE_SEPARATOR}${powerText}`;
     const fitted = truncateDisplay(minimal, availableWidth);
-    return fitted ? [{ text: fitted, fg: DANGER_MODE_FG, bold: true }] : [];
+    return fitted ? [{ text: fitted, fg: NOTICE_FG.danger, bold: true }] : [];
   }
   if (dangerMode) {
     const fitted = truncateDisplay(DANGER_MODE_FULL_TEXT, availableWidth);
-    return fitted ? [{ text: fitted, fg: DANGER_MODE_FG, bold: true }] : [];
+    return fitted ? [{ text: fitted, fg: NOTICE_FG.danger, bold: true }] : [];
   }
   if (powerText) {
     const fitted = truncateDisplay(powerText, availableWidth);
-    return fitted ? [{ text: fitted, fg: POWER_NOTE_FG }] : [];
+    return fitted ? [{ text: fitted, fg: NOTICE_FG.power }] : [];
   }
   return [];
 }
@@ -116,9 +119,11 @@ function fmtNum(n: number): string {
 export class UIFactory {
   public static createHeader(width: number, model: string, provider: string, title?: string): Line[] {
     const lines: Line[] = [];
-    const CYAN = '#00ffff';
-    const GREY = '244';
-    const TITLE_COLOR = '250';
+    const t = activeUiTones();
+    const CYAN = t.accent.brand;
+    const GREY = t.chrome.faint;
+    // The title used a light grey under SGR dim; the faint token replaces that pairing.
+    const TITLE_COLOR = t.chrome.faint;
     const brand = ` GoodVibes Agent `;
     const ver = `v${VERSION} `;
     const stats = ` ${model} `;
@@ -126,7 +131,7 @@ export class UIFactory {
     const line = createEmptyLine(width);
     let curX = 0;
     for (const char of brand) { line[curX++] = { char, fg: CYAN, bg: '', bold: true, dim: false, underline: false, italic: false, strikethrough: false }; }
-    for (const char of ver) { line[curX++] = { char, fg: GREY, bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false }; }
+    for (const char of ver) { line[curX++] = { char, fg: GREY, bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false }; }
     // Optional conversation title, shown after brand/ver, truncated to fit
     if (title) {
       const titleStr = `│ ${title} `;
@@ -147,15 +152,15 @@ export class UIFactory {
         }
         displayTitle = truncated;
       }
-      for (const char of displayTitle) { if (curX < width) line[curX++] = { char, fg: TITLE_COLOR, bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false }; }
+      for (const char of displayTitle) { if (curX < width) line[curX++] = { char, fg: TITLE_COLOR, bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false }; }
     }
     const rightSideText = stats + prov;
     const rightSideW = getDisplayWidth(rightSideText);
     let rightX = width - rightSideW;
     for (const char of stats) { if (rightX < width) line[rightX++] = { char, fg: CYAN, bg: '', bold: true, dim: false, underline: false, italic: false, strikethrough: false }; }
-    for (const char of prov) { if (rightX < width) line[rightX++] = { char, fg: GREY, bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false }; }
+    for (const char of prov) { if (rightX < width) line[rightX++] = { char, fg: GREY, bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false }; }
     lines.push(line);
-    lines.push(this.stringToLine('━'.repeat(width), width, { fg: '244' }));
+    lines.push(this.stringToLine('━'.repeat(width), width, { fg: activeTokens().textMuted }));
     return lines;
   }
 
@@ -165,12 +170,12 @@ export class UIFactory {
    */
   public static createMessageBar(
     width: number, text: string,
-    bgColor = '#2a2a2a', textColor = '252', prefixStr = ' › ',
+    bgColor: string = activeTokens().backgroundElement, textColor: string = activeTokens().text, prefixStr = ' › ',
     strikethrough = false
   ): Line[] {
     return renderConversationFragment(text, width, {
       prefix: prefixStr,
-      prefixFg: '135',
+      prefixFg: activeTokens().secondary,
       text: textColor,
       bodyBg: bgColor,
       strikethrough,
@@ -183,10 +188,9 @@ export class UIFactory {
   public static createQueuedMessageFragment(width: number, text: string): Line[] {
     return renderConversationFragment(text, width, {
       prefix: ' (...) ',
-      prefixFg: '135',
-      text: '240',
-      bodyBg: '#1a1a1a',
-      dim: true,
+      prefixFg: activeTokens().secondary,
+      text: activeTokens().textFaint,
+      bodyBg: activeTheme().collapsedBodyBg,
     });
   }
 
@@ -216,8 +220,11 @@ export class UIFactory {
   ): Line[] {
     const lines: Line[] = [];
     const promptLines = prompt.split('\n');
-    const TEXT_COLOR = promptFocused ? '252' : '246';
-    const BG_COLOR = promptFocused ? '#2a2a2a' : '#1f2430';
+    // Unfocused, the composer text reads faint (the faint token replaces the
+    // SGR dim this box used to apply).
+    const tk = activeTokens();
+    const TEXT_COLOR = promptFocused ? tk.text : tk.textFaint;
+    const BG_COLOR = promptFocused ? tk.backgroundInput : tk.backgroundPanel;
     const BORDER_COLOR = BG_COLOR;
     const boxMargin = 2; const boxWidth = width - (boxMargin * 2); const boxStartX = boxMargin;
     const createBaseLine = () => {
@@ -239,7 +246,7 @@ export class UIFactory {
         const char = (x >= 2 && x < boxWidth - 2) ? paddedText[x - 2] || ' ' : ' ';
         contentLine[boxStartX + x] = {
           char,
-          fg: (x < 5 && i === 0) ? (promptFocused ? '135' : '244') : TEXT_COLOR,
+          fg: (x < 5 && i === 0) ? (promptFocused ? tk.secondary : tk.textFaint) : TEXT_COLOR,
           bg: BG_COLOR,
           bold: false,
           dim: !promptFocused,
@@ -262,8 +269,10 @@ export class UIFactory {
             // Invert: bright fg on the text bg, swap to make cursor visible
             contentLine[cursorX] = {
               char: cell.char === ' ' ? GLYPHS.surface.cursor : cell.char,
-              fg: cell.char === ' ' ? '252' : '#000000',
-              bg: cell.char === ' ' ? (promptFocused ? BG_COLOR : '#334155') : '#ffffff',
+              // Block cursor: the glyph on the box fill, or the character
+              // inverted (box fill on the text colour).
+              fg: cell.char === ' ' ? tk.text : BG_COLOR,
+              bg: cell.char === ' ' ? (promptFocused ? BG_COLOR : tk.borderSubtle) : tk.text,
               bold: false, dim: false, underline: false, italic: false, strikethrough: false
             };
           }
@@ -272,7 +281,7 @@ export class UIFactory {
         // No cursorPos provided, show block at end (fallback)
         const endX = boxStartX + 2 + prefix.length + text.length;
         if (endX < boxStartX + boxWidth - 2) {
-          contentLine[endX] = { char: GLYPHS.surface.cursor, fg: '252', bg: promptFocused ? BG_COLOR : '#334155', bold: false, dim: false, underline: false, italic: false, strikethrough: false };
+          contentLine[endX] = { char: GLYPHS.surface.cursor, fg: tk.text, bg: promptFocused ? BG_COLOR : tk.borderSubtle, bold: false, dim: false, underline: false, italic: false, strikethrough: false };
         }
       }
 
@@ -296,7 +305,7 @@ export class UIFactory {
           let hx = hintStartX;
           for (const ch of hintText) {
             if (hx >= boxStartX + boxWidth - 2) break;
-            contentLine[hx] = { char: ch, fg: '238', bg: BG_COLOR, bold: false, dim: true, underline: false, italic: false, strikethrough: false };
+            contentLine[hx] = { char: ch, fg: tk.textFaint, bg: BG_COLOR, bold: false, dim: false, underline: false, italic: false, strikethrough: false };
             hx++;
           }
         }
@@ -315,18 +324,18 @@ export class UIFactory {
     const out = u.output ?? u.down ?? 0;
     const statusTokens: Array<{ text: string; fg: string; bold?: boolean }> = [];
     if (model) {
-      statusTokens.push({ text: provider ? `${model} · ${provider}` : model, fg: '245' });
+      statusTokens.push({ text: provider ? `${model} · ${provider}` : model, fg: tk.textMuted });
     }
     if (contextWindow && contextWindow > 0) {
       const ctxTokens = lastInputTokens ?? 0;
       const pct = Math.min(100, Math.round((ctxTokens / contextWindow) * 100));
       const filled = Math.round((pct / 100) * 6);
       const meter = GLYPHS.meter.filled.repeat(filled) + GLYPHS.meter.empty.repeat(6 - filled);
-      const meterFg = pct >= 85 ? '#ef4444' : pct >= 65 ? '#f59e0b' : '240';
+      const meterFg = pct >= 85 ? tk.error : pct >= 65 ? tk.warning : tk.textFaint;
       statusTokens.push({ text: `context ${meter} ${pct}%`, fg: meterFg, bold: pct >= 85 });
     }
     if (inp > 0 || out > 0) {
-      statusTokens.push({ text: `↑${fmtNum(inp)} ↓${fmtNum(out)}`, fg: '240' });
+      statusTokens.push({ text: `↑${fmtNum(inp)} ↓${fmtNum(out)}`, fg: tk.textFaint });
     }
     // The attachment chip, the ONE composer flag this row renders.
     //
@@ -338,7 +347,7 @@ export class UIFactory {
     // [IMAGE: ...] marker sitting in the prompt, which reads as text you typed,
     // not as a picture that is going to be sent. Every other flag stays silent.
     if (composerFlags?.includes('attachments')) {
-      statusTokens.push({ text: `${GLYPHS.status.active} image attached`, fg: '81', bold: true });
+      statusTokens.push({ text: `${GLYPHS.status.active} image attached`, fg: tk.info, bold: true });
     }
     // The disconnected footer 'waiting for your approval' token is retired
     // here, the approval-wait truth now lives in the unified waiting state of the
@@ -361,13 +370,13 @@ export class UIFactory {
       }
     };
     statusTokens.forEach((token, index) => {
-      if (index > 0) writeStatusText(`  ${GLYPHS.navigation.pipeSeparator}  `, '238');
+      if (index > 0) writeStatusText(`  ${GLYPHS.navigation.pipeSeparator}  `, tk.textFaint);
       writeStatusText(token.text, token.fg, token.bold ?? false);
     });
     const rightAreaStart = sx + 2;
     const availableNoticeWidth = Math.max(0, width - rightAreaStart);
     const rightNoticeSegments: RightNoticeSegment[] = isRecentlyCopied
-      ? [{ text: `copied ${GLYPHS.status.success} `, fg: '81', bold: true }]
+      ? [{ text: `copied ${GLYPHS.status.success} `, fg: tk.info, bold: true }]
       : composeSafetyNoticeSegments(dangerMode, powerNote, availableNoticeWidth);
     if (rightNoticeSegments.length > 0) {
       const totalWidth = rightNoticeSegments.reduce((sum, seg) => sum + getDisplayWidth(seg.text), 0);
@@ -390,10 +399,10 @@ export class UIFactory {
 
     // ── Hints line ──
     if (showExitNotice) {
-      lines.push(this.stringToLine(fitDisplay('   Press Ctrl+C again to exit ', width), width, { fg: '196', bold: true }));
+      lines.push(this.stringToLine(fitDisplay('   Press Ctrl+C again to exit ', width), width, { fg: tk.error, bold: true }));
     } else {
       const hints = `   /help commands  ${GLYPHS.navigation.pipeSeparator}  Ctrl+P settings  ${GLYPHS.navigation.pipeSeparator}  Ctrl+O activity `;
-      lines.push(this.stringToLine(truncateDisplay(hints, width), width, { fg: '240', dim: true }));
+      lines.push(this.stringToLine(truncateDisplay(hints, width), width, { fg: tk.textFaint }));
     }
     return lines;
   }
@@ -477,7 +486,7 @@ export class UIFactory {
     if (inputTokens !== undefined || outputTokens !== undefined) {
       const inTok = inputTokens ?? 0;
       const outTok = outputTokens ?? 0;
-      segments.push({ text: ` in ${fmtNum(inTok)} `, fg: '243', dim: true });
+      segments.push({ text: ` in ${fmtNum(inTok)} `, fg: activeTokens().textFaint });
       segments.push({ text: `out ${fmtNum(outTok)}`, fg: tones.accent.brand });
     }
     const line = createEmptyLine(width);
@@ -518,7 +527,7 @@ export class UIFactory {
         if (px >= width) break;
         previewLine[px] = {
           char: ch,
-          fg: '#38bdf8',
+          fg: tones.state.info,
           bg: '',
           bold: true,
           dim: false,
@@ -534,10 +543,10 @@ export class UIFactory {
         if (charWidth <= 0 || px + charWidth > width) break;
         previewLine[px] = {
           char: ch,
-          fg: '243',
+          fg: activeTokens().textFaint,
           bg: '',
           bold: false,
-          dim: true,
+          dim: false,
           underline: false,
           italic: false,
           strikethrough: false,
@@ -564,7 +573,8 @@ export class UIFactory {
   private static createProgressBarLine(label: string, pct: number, barWidth: number, lineWidth: number, suffix?: string): Line {
     const pctDisplay = Math.round(pct * 100);
     const filled = Math.round(pct * barWidth);
-    const color = pct < 0.6 ? '82' : pct < 0.85 ? '220' : '196';
+    const tk = activeTokens();
+    const color = pct < 0.6 ? tk.success : pct < 0.85 ? tk.warning : tk.error;
     const bar = GLYPHS.meter.filled.repeat(filled) + GLYPHS.meter.empty.repeat(barWidth - filled);
     const pctStr = `  ${pctDisplay}%`;
     const full = label + bar + pctStr + (suffix ?? '');

@@ -20,12 +20,10 @@ import { type StatusState, STATE_GLYPHS } from './status-glyphs.ts';
 export type { StatusState } from './status-glyphs.ts';
 export { STATE_GLYPHS } from './status-glyphs.ts';
 
-const STATE_COLORS: Record<StatusState, string> = {
-  good: DEFAULT_PANEL_PALETTE.good,
-  warn: DEFAULT_PANEL_PALETTE.warn,
-  bad:  DEFAULT_PANEL_PALETTE.bad,
-  info: DEFAULT_PANEL_PALETTE.info,
-};
+/** State colour, read per call so it follows the active theme (the palette is rebuilt in place). */
+function stateColor(state: StatusState): string {
+  return DEFAULT_PANEL_PALETTE[state];
+}
 
 export interface StatusTokenOpts {
   /** Append a numeric count after the label, e.g. "label (3)". */
@@ -51,7 +49,7 @@ export function buildStatusToken(
   opts?: StatusTokenOpts,
 ): Cell[] {
   const glyph = opts?.glyph ?? STATE_GLYPHS[state];
-  const color = STATE_COLORS[state];
+  const color = stateColor(state);
   const suffix = opts?.count !== undefined ? ` (${opts.count})` : '';
   const text = `${glyph} ${label}${suffix}`;
 

@@ -1,136 +1,210 @@
 /**
- * theme.test.ts, the ported theme system.
+ * theme.test.ts, the token layers the renderer reads.
  *
  * Covers:
- *   - resolveTheme() returns the correct transcript token set per mode
- *   - Dark values are byte-identical to the agent's prior static reads
- *   - Light values differ from dark (actually light-friendly)
- *   - resolveUiTones() is the SDK presentation contract: dark is byte-identical
- *     (same reference) to UI_TONES / resolveTones('dark'); light is type-complete
- *
- * The call-site hex-literal guards (markdown/tool-call/system-message/
- * process-indicator/conversation-rendering/compositor no longer carry the moved
- * hexes) live in theme-call-sites.test.ts, alongside those conversions.
+ *   - resolveTheme / resolveUiTones: stable per (theme, mode), complete, and
+ *     light differs from dark
+ *   - transcript tokens map onto the SDK theme tokens (one source)
+ *   - goodvibes-neon reproduces the historical transcript and chrome values,
+ *     except the documented textFaint nudge (#475569 -> #4e5c6f)
+ *   - raw colours live only in the theme layer (the QR module colours) and the
+ *     protected splash gradient: no other agent source file holds a hex
+ *     literal or a quoted ANSI-256 index as a colour
  */
 
-import { describe, test, expect } from 'bun:test';
-import { resolveTheme, resolveUiTones, DARK_THEME, type ThemeTokens } from '../../renderer/theme.ts';
-import { UI_TONES } from '../../renderer/ui-primitives.ts';
-import { resolveTones } from '@pellux/goodvibes-sdk/platform/presentation';
+import { afterEach, describe, expect, test } from 'bun:test';
+import { readdirSync, readFileSync, statSync } from 'fs';
+import path from 'path';
+import { TONE_TOKENS } from '@pellux/goodvibes-sdk/platform/presentation';
+import {
+  activeTokens,
+  listThemeChoices,
+  resolveTheme,
+  resolveUiTones,
+  setActiveThemeMode,
+  setActiveThemeName,
+  type ThemeTokens,
+} from '../../renderer/theme.ts';
 
-// ---------------------------------------------------------------------------
-// resolveTheme(), transcript tokens
-// ---------------------------------------------------------------------------
-
-describe('resolveTheme', () => {
-  test('dark mode returns the DARK_THEME reference', () => {
-    expect(resolveTheme('dark')).toBe(DARK_THEME);
-  });
-
-  test('light mode is a distinct object; heading1 differs', () => {
-    const dark = resolveTheme('dark');
-    const light = resolveTheme('light');
-    expect(light).not.toBe(dark);
-    expect(light.heading1).not.toBe(dark.heading1);
-  });
+afterEach(() => {
+  setActiveThemeName('goodvibes');
+  setActiveThemeMode('dark');
 });
 
-describe('ThemeTokens completeness', () => {
-  const TOKEN_KEYS: (keyof ThemeTokens)[] = [
-    'heading1', 'heading2', 'heading3', 'inlineCodeFg', 'link',
-    'searchMatchBg', 'searchMatchFg', 'searchCurrentBg', 'searchCurrentFg',
-    'strikethrough', 'blockquote', 'assistantHeader', 'reasoningAccent',
-    'toolAccent', 'collapsedBodyBg', 'checkboxChecked', 'errorBarBg',
-    'modelNameDim', 'toolNameFg', 'diffAccent',
-  ];
-  for (const mode of ['dark', 'light'] as const) {
-    for (const key of TOKEN_KEYS) {
-      test(`mode=${mode} ${key} is a non-empty string`, () => {
-        expect(typeof resolveTheme(mode)[key]).toBe('string');
-        expect((resolveTheme(mode)[key] as string).length).toBeGreaterThan(0);
-      });
-    }
+const TOKEN_KEYS: (keyof ThemeTokens)[] = [
+  'heading1', 'heading2', 'heading3', 'inlineCodeFg', 'link',
+  'searchMatchBg', 'searchMatchFg', 'searchCurrentBg', 'searchCurrentFg',
+  'strikethrough', 'blockquote', 'assistantHeader', 'reasoningAccent',
+  'toolAccent', 'collapsedBodyBg', 'checkboxChecked', 'errorBarBg',
+  'modelNameDim', 'toolNameFg', 'diffAccent',
+];
+
+function collectStringLeaves(value: unknown, prefix: string, out: Array<[string, unknown]>): void {
+  if (typeof value === 'string') {
+    out.push([prefix, value]);
+    return;
   }
-});
-
-describe('dark transcript token values (byte-identical to the prior static reads)', () => {
-  const d = resolveTheme('dark');
-  test('heading1 #00ffff', () => expect(d.heading1).toBe('#00ffff'));
-  test('inlineCodeFg #ffcc00', () => expect(d.inlineCodeFg).toBe('#ffcc00'));
-  test('link #00aaff', () => expect(d.link).toBe('#00aaff'));
-  test('searchCurrentBg #ffff00', () => expect(d.searchCurrentBg).toBe('#ffff00'));
-  test('searchMatchBg #806600', () => expect(d.searchMatchBg).toBe('#806600'));
-  test('assistantHeader #22d3ee', () => expect(d.assistantHeader).toBe('#22d3ee'));
-  test('reasoningAccent #a855f7', () => expect(d.reasoningAccent).toBe('#a855f7'));
-  test('toolAccent #38bdf8', () => expect(d.toolAccent).toBe('#38bdf8'));
-  test('checkboxChecked #22c55e', () => expect(d.checkboxChecked).toBe('#22c55e'));
-  test('diffAccent #f59e0b', () => expect(d.diffAccent).toBe('#f59e0b'));
-});
-
-describe('light transcript token values differ from dark', () => {
-  const dark = resolveTheme('dark');
-  const light = resolveTheme('light');
-  const lighterKeys: (keyof ThemeTokens)[] = [
-    'heading1', 'heading2', 'inlineCodeFg', 'link', 'searchMatchBg',
-    'searchCurrentBg', 'assistantHeader', 'reasoningAccent', 'toolAccent',
-    'collapsedBodyBg', 'checkboxChecked', 'errorBarBg', 'modelNameDim',
-    'toolNameFg', 'diffAccent',
-  ];
-  for (const key of lighterKeys) {
-    test(`${key} differs between dark and light`, () => {
-      expect(light[key]).not.toBe(dark[key]);
-    });
-  }
-});
-
-// ---------------------------------------------------------------------------
-// resolveUiTones(), the SDK presentation contract (chrome tones)
-// ---------------------------------------------------------------------------
-
-function collectStringLeaves(value: unknown, p: string, out: Array<[string, unknown]>): void {
-  if (typeof value === 'string') { out.push([p, value]); return; }
   if (value && typeof value === 'object') {
     for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-      collectStringLeaves(nested, p ? `${p}.${key}` : key, out);
+      collectStringLeaves(nested, prefix ? `${prefix}.${key}` : key, out);
     }
   }
 }
 
-describe('resolveUiTones (SDK presentation contract)', () => {
-  test('dark is byte-identical to UI_TONES and to the SDK resolveTones(dark)', () => {
-    expect(resolveUiTones('dark')).toBe(UI_TONES);
-    expect(resolveUiTones('dark')).toBe(resolveTones('dark'));
+describe('resolveTheme', () => {
+  test('is stable per (theme, mode): same object on repeat reads', () => {
+    expect(resolveTheme('dark')).toBe(resolveTheme('dark'));
+    expect(resolveTheme('light')).toBe(resolveTheme('light'));
   });
 
-  test('dark roles carry the hoisted chrome/brand values', () => {
-    const dark = resolveUiTones('dark');
-    expect(dark.accent.brand).toBe('#00ffff');
-    expect(dark.accent.gradientEnd).toBe('#d000ff');
-    expect(dark.state.reasoning).toBe('#a855f7');
-    expect(dark.border).toBe('#64748b');
-    expect(dark.chrome.label).toBe('#94a3b8');
+  test('light differs from dark', () => {
+    expect(resolveTheme('light')).not.toBe(resolveTheme('dark'));
+    expect(resolveTheme('light').heading1).not.toBe(resolveTheme('dark').heading1);
   });
 
-  test('light is a distinct object and matches the SDK resolveTones(light)', () => {
-    expect(resolveUiTones('light')).not.toBe(resolveUiTones('dark'));
-    expect(resolveUiTones('light')).toBe(resolveTones('light'));
+  for (const choice of listThemeChoices()) {
+    for (const mode of ['dark', 'light'] as const) {
+      test(`${choice.name}/${mode}: every transcript token is a #rrggbb colour`, () => {
+        setActiveThemeName(choice.name);
+        const tokens = resolveTheme(mode);
+        for (const key of TOKEN_KEYS) expect(tokens[key]).toMatch(/^#[0-9a-f]{6}$/);
+      });
+    }
+  }
+
+  test('transcript tokens come from the theme tokens (one source)', () => {
+    const p = activeTokens();
+    const t = resolveTheme('dark');
+    expect(t.heading1).toBe(p.markdownHeading);
+    expect(t.heading3).toBe(p.markdownHeading);
+    expect(t.inlineCodeFg).toBe(p.markdownCode);
+    expect(t.link).toBe(p.markdownLink);
+    expect(t.blockquote).toBe(p.markdownBlockQuote);
+    expect(t.strikethrough).toBe(p.textMuted);
+    expect(t.searchMatchBg).toBe(p.searchMatchBg);
+    expect(t.searchCurrentBg).toBe(p.searchCurrentBg);
+    expect(t.errorBarBg).toBe(p.backgroundError);
+    expect(t.checkboxChecked).toBe(p.success);
+    expect(t.diffAccent).toBe(p.warning);
+  });
+});
+
+describe('goodvibes-neon reproduces the historical look', () => {
+  test('transcript tokens keep their historical dark values', () => {
+    setActiveThemeName('goodvibes-neon');
+    const dark = resolveTheme('dark');
+    expect(dark.heading1).toBe('#00ffff');
+    expect(dark.inlineCodeFg).toBe('#ffcc00');
+    expect(dark.link).toBe('#00aaff');
+    expect(dark.assistantHeader).toBe('#22d3ee');
+    expect(dark.reasoningAccent).toBe('#a855f7');
+    expect(dark.toolAccent).toBe('#38bdf8');
+    expect(dark.checkboxChecked).toBe('#22c55e');
+    expect(dark.modelNameDim).toBe('#94a3b8');
+    expect(dark.toolNameFg).toBe('#e2e8f0');
+    expect(dark.diffAccent).toBe('#f59e0b');
   });
 
-  test('light chrome inverts toward dark-on-light legibility', () => {
-    const light = resolveUiTones('light');
-    expect(light.chrome.label).toBe('#64748b');
-    expect(light.state.reasoning).not.toBe(resolveUiTones('dark').state.reasoning);
+  test('the legacy vaporwave name resolves to the same tokens', () => {
+    setActiveThemeName('goodvibes-neon');
+    const neon = activeTokens();
+    setActiveThemeName('vaporwave');
+    expect(activeTokens()).toBe(neon);
   });
 
-  test('light is type-complete and shape-identical to dark', () => {
+  test('dark chrome equals the historical TONE_TOKENS except the textFaint nudge', () => {
+    setActiveThemeName('goodvibes-neon');
+    const expected: Array<[string, unknown]> = [];
+    const actual: Array<[string, unknown]> = [];
+    collectStringLeaves(TONE_TOKENS, '', expected);
+    collectStringLeaves(resolveUiTones('dark'), '', actual);
+    const actualMap = new Map(actual);
+    for (const [leaf, value] of expected) {
+      if (leaf === 'fg.dim' || leaf === 'chrome.faint') {
+        expect(value).toBe('#475569');
+        expect(actualMap.get(leaf)).toBe('#4e5c6f');
+      } else {
+        expect([leaf, actualMap.get(leaf)]).toEqual([leaf, value]);
+      }
+    }
+  });
+});
+
+describe('resolveUiTones', () => {
+  test('light has the same leaf shape as dark, every leaf a colour', () => {
     const darkLeaves: Array<[string, unknown]> = [];
     const lightLeaves: Array<[string, unknown]> = [];
     collectStringLeaves(resolveUiTones('dark'), '', darkLeaves);
     collectStringLeaves(resolveUiTones('light'), '', lightLeaves);
-    expect(lightLeaves.map(([p]) => p).sort()).toEqual(darkLeaves.map(([p]) => p).sort());
-    for (const [, value] of lightLeaves) {
-      expect(typeof value).toBe('string');
-      expect((value as string).length).toBeGreaterThan(0);
+    expect(lightLeaves.map(([leaf]) => leaf).sort()).toEqual(darkLeaves.map(([leaf]) => leaf).sort());
+    for (const [, value] of lightLeaves) expect(value).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  test('light substitutes roles away from dark', () => {
+    expect(resolveUiTones('light').state.reasoning).not.toBe(resolveUiTones('dark').state.reasoning);
+    expect(resolveUiTones('light').accent.brand).not.toBe(resolveUiTones('dark').accent.brand);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Raw colours live only in the theme layer and the protected splash.
+// ---------------------------------------------------------------------------
+
+const SRC_ROOT = path.resolve(import.meta.dir, '../..');
+
+function listSourceFiles(dir: string, out: string[]): void {
+  for (const entry of readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      if (entry === 'test') continue;
+      listSourceFiles(full, out);
+    } else if (entry.endsWith('.ts') && !entry.endsWith('.test.ts')) {
+      out.push(full);
     }
+  }
+}
+
+/** The only raw colour literals allowed in agent source, by file. */
+const ALLOWED_HEX: Readonly<Record<string, readonly string[]>> = {
+  // QR modules: fixed black-on-white so a camera can scan them.
+  'renderer/theme.ts': ['#000000', '#ffffff'],
+  // The protected splash gradient (byte-identical to the TUI's SPLASH_GRADIENT).
+  'utils/splash-lines.ts': ['#00ffff', '#d000ff'],
+};
+
+const HEX_RE = /#[0-9a-fA-F]{8}(?![0-9a-fA-F])|#[0-9a-fA-F]{6}(?![0-9a-fA-F])|#[0-9a-fA-F]{3}(?![0-9a-fA-F])/g;
+// A quoted ANSI-256 index assigned to a colour slot: `fg: '244'`, `bgColor = '240'`, `color: '196'`.
+// NO_COLOR is the environment switch, not a colour.
+const ANSI_INDEX_RE = /\b(?!NO_COLOR\b)(?:fg|bg|\w*(?:Fg|Bg|FG|BG|Color|COLOR))\s*[:=]\s*'\d{1,3}'/g;
+
+describe('raw colours stay in the theme layer', () => {
+  const files: string[] = [];
+  listSourceFiles(SRC_ROOT, files);
+
+  test('the scan sees the renderer', () => {
+    expect(files.some((f) => f.endsWith(path.join('renderer', 'ui-factory.ts')))).toBe(true);
+  });
+
+  test('no hex colour literal outside the allowed files', () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const rel = path.relative(SRC_ROOT, file).split(path.sep).join('/');
+      const text = readFileSync(file, 'utf-8');
+      const allowed = ALLOWED_HEX[rel] ?? [];
+      for (const match of text.match(HEX_RE) ?? []) {
+        if (!allowed.includes(match.toLowerCase())) offenders.push(`${rel}: ${match}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test('no quoted ANSI-256 index used as a colour', () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const rel = path.relative(SRC_ROOT, file).split(path.sep).join('/');
+      const text = readFileSync(file, 'utf-8');
+      for (const match of text.match(ANSI_INDEX_RE) ?? []) offenders.push(`${rel}: ${match}`);
+    }
+    expect(offenders).toEqual([]);
   });
 });

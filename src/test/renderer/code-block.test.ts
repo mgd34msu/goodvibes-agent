@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'bun:test';
+import { activeTokens } from '../../renderer/theme.ts';
 import { renderCodeBlock } from '../../renderer/code-block.ts';
 import { LAYOUT } from '../../renderer/layout.ts';
 import { lineToString } from '../setup.ts';
@@ -93,11 +94,11 @@ describe('renderCodeBlock', () => {
 
   test('code lines have dark background color', () => {
     const result = renderCodeBlock(['const x = 1;'], 'ts', WIDTH);
-    // Body lines (index 1) have bg #0d0d0d
+    // Body lines (index 1) use the theme's code background
     const bodyLine = result[1];
     const codeCells = bodyLine.filter((c) => c.char !== ' ');
     if (codeCells.length > 0) {
-      expect(codeCells[0].bg).toBe('#0d0d0d');
+      expect(codeCells[0].bg).toBe(activeTokens().backgroundCode);
     }
   });
 
@@ -115,8 +116,8 @@ describe('renderCodeBlock', () => {
     const result = renderCodeBlock(['x'], 'ts', WIDTH);
     const headerCells = result[0].filter((c) => c.char !== ' ');
     if (headerCells.length > 0) {
-      // Header uses #4ec9b0 teal background
-      expect(headerCells[0].bg).toBe('#4ec9b0');
+      // Header uses the theme accent as its background
+      expect(headerCells[0].bg).toBe(activeTokens().accent);
     }
   });
 });

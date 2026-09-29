@@ -717,10 +717,10 @@ async function main() {
   stdin.setRawMode(true); stdin.resume(); stdin.setEncoding('utf8'); // one line, as in the TUI's identical boot statement
   paintWindow.open();
 
-  // Forced dark/light before first paint; auto (TTY) probes + repaints once if light.
+  // Theme + forced dark/light before first paint; auto (TTY) probes + repaints once if light; the palette feeds `system`.
   const themeProbe = installStartupThemeProbe({
     configManager, stdout, writeAllowed: allowTerminalWrite,
-    resetDiff: () => compositor.resetDiff(), render,
+    resetDiff: () => compositor.resetDiff(), render, invalidateTranscript: () => conversation.invalidateRenderedLines(),
   });
 
   applyInitialTuiCliState({
@@ -734,7 +734,7 @@ async function main() {
   });
 
   stdin.on('data', (raw: string) => {
-    // Strip any OSC 11 background-probe reply before the input pipeline sees it.
+    // Strip the terminal probe replies (OSC 11, and OSC 10 / OSC 4 for the palette) before the input pipeline sees them.
     const data = themeProbe.filterInput(raw);
     if (data.length === 0) return;
     const blocking = handleBlockingShellInput({

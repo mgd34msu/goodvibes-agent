@@ -5,6 +5,7 @@ import type { AutocompleteEngine } from './autocomplete.ts';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { ConversationManager } from '../core/conversation';
 import type { ClipboardPasteSource } from './handler-content-actions.ts';
+import { activeTokens } from '../renderer/theme.ts';
 
 export type CommandModeRouteState = {
   commandMode: boolean;
@@ -104,13 +105,13 @@ export function handleCommandModeToken(state: CommandModeRouteState, token: Inpu
           if (skillContent) {
             state.commandContext?.submitInput?.(skillContent);
           } else {
-            state.conversationManager?.log(`Unknown command /${name}. Type /help for available commands.`, { fg: '#ef4444' });
+            state.conversationManager?.log(`Unknown command /${name}. Type /help for available commands.`, { fg: activeTokens().error });
             state.requestRender();
           }
         }
       }).catch((error: unknown) => {
         const message = summarizeCommandError(error);
-        state.conversationManager?.log(message, { fg: '#ef4444' });
+        state.conversationManager?.log(message, { fg: activeTokens().error });
         state.requestRender();
       });
     } else {

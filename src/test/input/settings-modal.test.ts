@@ -6,7 +6,9 @@ import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { isAgentHiddenSettingKey, SettingsModal, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../../input/settings-modal.ts';
 import { CROSS_LISTED_SETTING_ROOTS } from '../../input/settings-modal-types.ts';
-import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { ConfigManager, type ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
+import { modelPickerLaunchForKey } from '../../input/settings-modal-behavior.ts';
+import { isSecretConfigKey } from '../../config/secret-config.ts';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
 import { buildGoodVibesSecretKey, buildGoodVibesSecretRef } from '../../config/secret-config.ts';
@@ -16,6 +18,30 @@ import { createFeatureFlagManager } from '@/runtime/index.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+
+/**
+ * Move the modal onto the first plain string setting: one edited inline (not
+ * a secret, not handed to a model/TTS/timezone/theme picker), unvalidated,
+ * with a non-empty current value. Returns false when none exists.
+ * (display.theme used to serve here; it is now an enum opening the theme picker.)
+ */
+function selectPlainStringSetting(modal: SettingsModal): boolean {
+  const plain = (key: string, type: string): boolean =>
+    type === 'string' && !isSecretConfigKey(key) && !key.startsWith('tts.') && key !== 'daemon.timezone'
+    && modelPickerLaunchForKey(key) === null;
+  for (let pass = 0; pass < SETTINGS_CATEGORIES.length; pass++) {
+    const index = modal.currentItems.findIndex((entry) =>
+      plain(String(entry.setting.key), entry.setting.type)
+      && typeof entry.currentValue === 'string' && entry.currentValue.length > 0
+      && entry.setting.validate === undefined);
+    if (index >= 0) {
+      modal.selectedIndex = index;
+      return true;
+    }
+    modal.nextCategory();
+  }
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -350,11 +376,8 @@ describe('SettingsModal', () => {
 
   test('activateSelected enters editingMode for string setting', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
-    // Navigate to a string setting (display.theme)
-    const items = modal.currentItems;
-    const strIdx = items.findIndex(e => e.setting.type === 'string');
-    expect(strIdx).toBeGreaterThanOrEqual(0);
-    for (let i = 0; i < strIdx; i++) modal.moveDown();
+    // Navigate to a plain (inline-edited) string setting
+    expect(selectPlainStringSetting(modal)).toBe(true);
 
     const selected = modal.getSelected();
     expect(selected).toEqual(expect.objectContaining({
@@ -397,9 +420,7 @@ describe('SettingsModal', () => {
 
   test('editChar appends to editBuffer', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
-    const items = modal.currentItems;
-    const strIdx = items.findIndex(e => e.setting.type === 'string');
-    for (let i = 0; i < strIdx; i++) modal.moveDown();
+    expect(selectPlainStringSetting(modal)).toBe(true);
     modal.activateSelected();
     const before = modal.editBuffer;
     modal.editChar('x');
@@ -408,9 +429,7 @@ describe('SettingsModal', () => {
 
   test('editBackspace removes last char', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
-    const items = modal.currentItems;
-    const strIdx = items.findIndex(e => e.setting.type === 'string');
-    for (let i = 0; i < strIdx; i++) modal.moveDown();
+    expect(selectPlainStringSetting(modal)).toBe(true);
     modal.activateSelected();
     modal.editBuffer = 'hello';
     modal.editBackspace();
@@ -419,9 +438,7 @@ describe('SettingsModal', () => {
 
   test('cancelEdit exits editingMode without saving', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
-    const items = modal.currentItems;
-    const strIdx = items.findIndex(e => e.setting.type === 'string');
-    for (let i = 0; i < strIdx; i++) modal.moveDown();
+    expect(selectPlainStringSetting(modal)).toBe(true);
     const entry = modal.getSelected()!;
     const originalValue = entry.currentValue;
     modal.activateSelected();
@@ -429,17 +446,14 @@ describe('SettingsModal', () => {
     modal.cancelEdit();
     expect(modal.editingMode).toBe(false);
     // Value should not have changed
-    expect(String(cm.get(entry.setting.key as 'display.theme'))).toBe(String(originalValue));
+    expect(String(cm.get(entry.setting.key as ConfigKey))).toBe(String(originalValue));
   });
 
   test('commitEdit saves string value', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
-    while (modal.currentCategory !== 'display') modal.nextCategory();
-    const items = modal.currentItems;
-    const strIdx = items.findIndex(e => e.setting.key === 'display.theme');
-    for (let i = 0; i < strIdx; i++) modal.moveDown();
+    expect(selectPlainStringSetting(modal)).toBe(true);
     modal.activateSelected();
-    modal.editBuffer = 'new-model-name';
+    modal.editBuffer = `${modal.editBuffer}-edited`;
     const editResult = modal.commitEdit();
     expect(editResult).toBe(true);
     expect(modal.editingMode).toBe(false);

@@ -7,9 +7,9 @@
  * The opaque-surface chrome palettes (modal DEFAULT_STYLE, overlay
  * DEFAULT_OVERLAY_PALETTE, FULLSCREEN_PALETTE) register an in-place rebuild via
  * registerThemeRefresh, so setActiveThemeMode rebuilds them without replacing
- * the object reference (read by reference across many call sites). These paint
- * OPAQUE dark surfaces, so in the SDK light tones only state.* roles flip
- * (fg/bg stay dark), dark is byte-identical and reversible.
+ * the object reference (read by reference across many call sites). Every role,
+ * surface fills included, follows the active theme and mode, and a flip is
+ * reversible.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
@@ -83,11 +83,14 @@ describe('opaque-surface chrome palettes rebuild in place (the trio port)', () =
     expect(FULLSCREEN_PALETTE.info).toBe(darkInfo);
   });
 
-  test('fullscreen agent-local opaque bg forks stay dark in both modes', () => {
-    const darkCategoryBg = FULLSCREEN_PALETTE.categoryBg;
+  test('fullscreen surface fills and title follow the theme in both modes', () => {
+    expect(FULLSCREEN_PALETTE.categoryBg).toBe(resolveUiTones('dark').bg.section);
+    expect(FULLSCREEN_PALETTE.controlsBg).toBe(resolveUiTones('dark').bg.base);
+    expect(FULLSCREEN_PALETTE.title).toBe(resolveUiTones('dark').accent.browser);
     setActiveThemeMode('light');
-    expect(FULLSCREEN_PALETTE.categoryBg).toBe(darkCategoryBg); // opaque panel bg never flips
-    expect(FULLSCREEN_PALETTE.title).toBe('#67e8f9');
+    expect(FULLSCREEN_PALETTE.categoryBg).toBe(resolveUiTones('light').bg.section);
+    expect(FULLSCREEN_PALETTE.contextBg).toBe(resolveUiTones('light').bg.surface);
+    expect(FULLSCREEN_PALETTE.title).toBe(resolveUiTones('light').accent.browser);
   });
 });
 

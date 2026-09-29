@@ -34,13 +34,18 @@ import {
  */
 const ACTION_CHROME_ROWS = 5;
 
-/** The subset of the workspace palette the result block draws with. */
-const RESULT_PALETTE = {
-  text: PALETTE.text,
-  good: PALETTE.good,
-  muted: PALETTE.muted,
-  dim: PALETTE.dim,
-};
+/**
+ * The subset of the workspace palette the result block draws with, read per
+ * call so it follows the active theme (PALETTE itself is rebuilt in place).
+ */
+function resultPalette(): { text: string; good: string; muted: string; dim: string } {
+  return {
+    text: PALETTE.text,
+    good: PALETTE.good,
+    muted: PALETTE.muted,
+    dim: PALETTE.dim,
+  };
+}
 import { actionResultColor, type AgentWorkspaceContextLine as ContextLine } from './agent-workspace-style.ts';
 import { compactText, reviewerReadinessContextLines, snapshotLines } from './agent-workspace-context-lines.ts';
 import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, ONBOARDING_CRITICAL_STEP_IDS } from '../input/agent-workspace-onboarding-finish.ts';
@@ -644,7 +649,7 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
       onboarding,
       width,
       titleColor: actionResultColor(workspace.lastActionResult),
-      palette: RESULT_PALETTE,
+      palette: resultPalette(),
       moreAbove: GLYPHS.navigation.moreAbove,
       moreBelow: GLYPHS.navigation.moreBelow,
     })
@@ -729,7 +734,7 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   // final slice can never be the thing that cuts the result.
   const availableForResult = Math.max(0, height - rows.length);
   for (const row of windowResultRows(resultRows, availableForResult, resultScroll, {
-    palette: RESULT_PALETTE,
+    palette: resultPalette(),
     moreAbove: GLYPHS.navigation.moreAbove,
     moreBelow: GLYPHS.navigation.moreBelow,
   })) {

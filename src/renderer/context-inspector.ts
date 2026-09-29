@@ -2,6 +2,7 @@ import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import type { ConversationManager } from '../core/conversation';
 import { getOverlayContentBudget, getOverlaySurfaceMetrics, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
+import { activeTokens, activeUiTones } from './theme.ts';
 
 const CONTEXT_INSPECTOR_TITLE = 'Context Inspector';
 const CONTEXT_INSPECTOR_EMPTY_MESSAGE = 'No messages in conversation yet.';
@@ -189,7 +190,7 @@ export function renderContextInspector(
     sections.push({
       type: 'text',
       content: CONTEXT_INSPECTOR_FULL_WARNING,
-      style: { fg: '#ff9900', bold: true },
+      style: { fg: activeUiTones().state.warn, bold: true },
     });
   }
 
@@ -207,7 +208,7 @@ export function renderContextInspector(
     sections.push({
       type: 'text',
       content: contextInspectorOlderMessagesText(startOffset),
-      style: { dim: true },
+      style: { fg: activeTokens().textFaint },
     });
   }
 
@@ -222,7 +223,7 @@ export function renderContextInspector(
     sections.push({
       type: 'text',
       content: line,
-      style: isLarge ? { fg: '#ffcc00', bold: true } : {},
+      style: isLarge ? { fg: activeUiTones().state.warn, bold: true } : {},
     });
   }
 
@@ -236,12 +237,12 @@ export function renderContextInspector(
     sections.push({
       type: 'text',
       content: contextInspectorCompactionHintText(largeMsgs.length, largePct),
-      style: { fg: '#00ffcc' },
+      style: { fg: activeTokens().accent },
     });
     sections.push({
       type: 'text',
       content: CONTEXT_INSPECTOR_COMPACT_GUIDANCE,
-      style: { dim: true },
+      style: { fg: activeTokens().textFaint },
     });
   }
 

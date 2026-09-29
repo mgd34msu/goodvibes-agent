@@ -2,6 +2,7 @@ import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { createEmptyLine, createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { generateQrMatrix } from '@pellux/goodvibes-sdk/platform/pairing';
+import { QR_MODULE_COLORS } from './theme.ts';
 
 export { generateQrMatrix };
 
@@ -23,8 +24,9 @@ export function renderQrMatrix(
   width: number,
   options?: { fg?: string; bg?: string },
 ): Line[] {
-  const fg = options?.fg ?? '#000000';
-  const bg = options?.bg ?? '#ffffff';
+  // Fixed black-on-white by default: scannability, not theme (see QR_MODULE_COLORS).
+  const fg = options?.fg ?? QR_MODULE_COLORS.dark;
+  const bg = options?.bg ?? QR_MODULE_COLORS.light;
 
   const rows = modules.length;
   const cols = modules[0]?.length ?? 0;

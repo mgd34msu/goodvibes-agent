@@ -4,25 +4,23 @@ import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { GLYPHS } from './ui-primitives.ts';
 import { activeUiTones, registerThemeRefresh } from './theme.ts';
 
-// Built from the mode-resolved chrome tones (activeUiTones) and rebuilt IN PLACE
-// on a mode flip via the registered refresher (read by reference across the
-// fullscreen workspace surfaces). This is an OPAQUE dark panel: fg/bg roles stay
-// dark in the SDK light tones (only state.* flips), so dark is byte-identical.
-// title / categoryBg / contextBg / controlsBg are agent-local fullscreen values
-// with no shared tone equivalent, kept as-is (opaque dark panel surfaces).
+// Built from the active theme's chrome tones (activeUiTones) and rebuilt IN
+// PLACE on every theme or mode change via the registered refresher (read by
+// reference across the fullscreen workspace surfaces, see theme.ts's
+// active-theme runtime note).
 function buildFullscreenPalette(): Record<string, string> {
   const t = activeUiTones();
   return {
     border: t.border,
-    title: '#67e8f9',
+    title: t.accent.browser,
     subtitle: t.accent.conversation,
     text: t.fg.primary,
     muted: t.fg.muted,
     dim: t.border,
     selectedBg: t.bg.selected,
-    categoryBg: '#141b25',
-    contextBg: '#121923',
-    controlsBg: '#0f141d',
+    categoryBg: t.bg.section,
+    contextBg: t.bg.surface,
+    controlsBg: t.bg.base,
     footerBg: t.bg.footer,
     good: t.state.good,
     warn: t.state.warn,

@@ -11,6 +11,7 @@ import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import { BookmarkModal, getOverlayContentBudget, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
 import type { BookmarkEntry } from '@pellux/goodvibes-sdk/platform/bookmarks';
+import { activeTokens } from './theme.ts';
 const BOOKMARK_MODAL_TITLE = 'Bookmarks';
 const BOOKMARK_MODAL_EMPTY_MESSAGE = 'No bookmarks - use Ctrl+B to bookmark a block';
 const BOOKMARK_MODAL_COLUMNS = '  Key                            Label                           Time';
@@ -82,7 +83,7 @@ export function renderBookmarkModal(
     {
       type: 'text',
       content: BOOKMARK_MODAL_COLUMNS,
-      style: { dim: true },
+      style: { fg: activeTokens().textFaint },
     },
     { type: 'separator' },
     { type: 'list', items },
@@ -92,7 +93,7 @@ export function renderBookmarkModal(
     sections.push({
       type: 'text',
       content: `[${modal.scrollOffset + 1}-${Math.min(modal.entries.length, modal.scrollOffset + visRows)} of ${modal.entries.length}]`,
-      style: { fg: '244', dim: true },
+      style: { fg: activeTokens().textFaint },
     });
   }
 

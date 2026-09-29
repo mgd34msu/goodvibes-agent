@@ -1,5 +1,6 @@
 import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { UIFactory } from '../renderer/ui-factory.ts';
+import { activeTokens } from '../renderer/theme.ts';
 import type { PermissionCategory, PermissionRequestAnalysis } from '@pellux/goodvibes-sdk/platform/permissions';
 import { buildPermissionApprovalBrief, getDisplayArg } from '@pellux/goodvibes-sdk/platform/permissions';
 
@@ -67,13 +68,14 @@ export class PermissionPromptUI {
     return getDisplayArg(tool, args);
   }
 
-  /** Returns the category label and ANSI 256-color code for display. */
+  /** Returns the category label and the active-theme color for display. */
   static getCategoryLabel(category: PermissionCategory): { label: string; color: string } {
+    const p = activeTokens();
     switch (category) {
-      case 'write':    return { label: 'WRITE',    color: '220' }; // yellow
-      case 'execute':  return { label: 'EXECUTE',  color: '196' }; // red
-      case 'delegate': return { label: 'DELEGATE', color: '208' }; // orange
-      default:         return { label: 'PERMISSION', color: '244' };
+      case 'write':    return { label: 'WRITE',    color: p.warning };
+      case 'execute':  return { label: 'EXECUTE',  color: p.error };
+      case 'delegate': return { label: 'DELEGATE', color: p.blocked };
+      default:         return { label: 'PERMISSION', color: p.textMuted };
     }
   }
 
@@ -97,10 +99,11 @@ export class PermissionPromptUI {
     const displayArg = this.getDisplayArg(tool, args);
     const { label, color } = this.getCategoryLabel(category);
 
-    const ACCENT = '135'; // purple
+    const tokens = activeTokens();
+    const ACCENT = tokens.secondary;
     const WARN   = color;
-    const TEXT   = '252';
-    const DIM    = '244';
+    const TEXT   = tokens.text;
+    const DIM    = tokens.textMuted;
 
     // Top separator
     lines.push(UIFactory.stringToLine('─'.repeat(width), width, { fg: ACCENT, dim: true }));

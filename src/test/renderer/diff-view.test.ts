@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'bun:test';
+import { activeDiffTones, activeTokens } from '../../renderer/theme.ts';
 import { renderDiffView } from '../../renderer/diff-view.ts';
 import { lineToString } from '../setup.ts';
 
@@ -73,30 +74,28 @@ describe('renderDiffView', () => {
 
   test('added lines have green foreground color', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    // Actual added code lines have gutter '+' AND green background '#0a1a0a'
-    // (file headers with +++ have bg '#0a0a0a' and fg '244')
+    // Actual added code lines have gutter '+' AND the diffAddedBg fill
+    // (file headers with +++ have the context fill and muted fg)
     const addedLines = result.filter((line) =>
-      line[0]?.char === '+' && line[0]?.bg === '#0a1a0a'
+      line[0]?.char === '+' && line[0]?.bg === activeTokens().diffAddedBg
     );
     expect(addedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 42;'),
     ]);
-    // Green: #22c55e
-    expect(addedLines[0]?.[0].fg).toContain('22c55e');
+    expect(addedLines[0]?.[0].fg).toContain(activeDiffTones().add.slice(1));
   });
 
   test('removed lines have red foreground color', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    // Actual removed code lines have gutter '-' AND red background '#1a0a0a'
-    // (file headers with --- have bg '#0a0a0a' and fg '244')
+    // Actual removed code lines have gutter '-' AND the diffRemovedBg fill
+    // (file headers with --- have the context fill and muted fg)
     const removedLines = result.filter((line) =>
-      line[0]?.char === '-' && line[0]?.bg === '#1a0a0a'
+      line[0]?.char === '-' && line[0]?.bg === activeTokens().diffRemovedBg
     );
     expect(removedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 2;'),
     ]);
-    // Red: #ef4444
-    expect(removedLines[0]?.[0].fg).toContain('ef4444');
+    expect(removedLines[0]?.[0].fg).toContain(activeDiffTones().del.slice(1));
   });
 
   test('handles empty diff string', () => {
@@ -107,9 +106,9 @@ describe('renderDiffView', () => {
 
   test('renders content from added lines', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    // Actual added code lines have green bg '#0a1a0a' (not the +++ header with bg '#0a0a0a')
+    // Actual added code lines have the diffAddedBg fill (not the +++ header with the context fill)
     const addedLines = result.filter((line) =>
-      line[0]?.char === '+' && line[0]?.bg === '#0a1a0a'
+      line[0]?.char === '+' && line[0]?.bg === activeTokens().diffAddedBg
     );
     expect(addedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 42;'),
@@ -118,9 +117,9 @@ describe('renderDiffView', () => {
 
   test('renders content from removed lines', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    // Actual removed code lines have red bg '#1a0a0a' (not the --- header with bg '#0a0a0a')
+    // Actual removed code lines have the diffRemovedBg fill (not the --- header with the context fill)
     const removedLines = result.filter((line) =>
-      line[0]?.char === '-' && line[0]?.bg === '#1a0a0a'
+      line[0]?.char === '-' && line[0]?.bg === activeTokens().diffRemovedBg
     );
     // The removed line contains 'const b = 2;'
     expect(removedLines.map(lineText)).toEqual([

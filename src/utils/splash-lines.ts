@@ -20,6 +20,14 @@ const SEPARATOR = '━'.repeat(ART_W);
  */
 const TAGLINE = '[ ｇｏｏｄ ｖｉｂｅｓ ・ Ａ Ｉ ・ いい雰囲気 ]';
 
+/**
+ * The splash wordmark gradient, protected: it is part of the GoodVibes mark,
+ * identical under every theme and mode, and must never be routed through the
+ * theme tokens. conversation-rendering.ts interpolates start to end across
+ * each wordmark row. Byte-identical to the TUI's SPLASH_GRADIENT.
+ */
+export const SPLASH_GRADIENT = Object.freeze({ start: '#00ffff', end: '#d000ff' } as const);
+
 const VERSION_LINE = `　✦　v${VERSION}　█　terminal AI assistant　█　自動ｺｰﾄﾞ 　✦`;
 
 export interface SplashOptions {

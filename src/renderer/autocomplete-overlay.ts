@@ -8,13 +8,9 @@ import {
   DEFAULT_OVERLAY_PALETTE,
   putOverlayText,
 } from './overlay-box.ts';
+import { activeTokens } from './theme.ts';
 import { getOverlaySurfaceMetrics } from '@pellux/goodvibes-terminal-shell';
 
-const BORDER_FG = DEFAULT_OVERLAY_PALETTE.borderFg;
-const TITLE_FG = DEFAULT_OVERLAY_PALETTE.titleFg;
-const BODY_FG = DEFAULT_OVERLAY_PALETTE.bodyFg;
-const MUTED_FG = DEFAULT_OVERLAY_PALETTE.mutedFg;
-const SELECTED_BG = DEFAULT_OVERLAY_PALETTE.selectedBg;
 const AUTOCOMPLETE_TITLE = ' Commands';
 const AUTOCOMPLETE_EMPTY_QUERY = '/';
 const AUTOCOMPLETE_HINTS = '[Tab] Complete  [Up/Down] Navigate  [Enter] Execute  [Esc] Cancel';
@@ -68,7 +64,7 @@ export function renderAutocompleteOverlay(
   });
   const layout = createOverlayBoxLayout(width, metrics.margin, metrics.boxWidth);
 
-  lines.push(createOverlayBorderLine(width, layout, '┌', '─', '┐', BORDER_FG));
+  lines.push(createOverlayBorderLine(width, layout, '┌', '─', '┐', DEFAULT_OVERLAY_PALETTE.borderFg));
 
   const titleLine = createOverlayContentLine(width, layout);
   const titleText = AUTOCOMPLETE_TITLE;
@@ -76,13 +72,13 @@ export function renderAutocompleteOverlay(
   const queryWidth = Math.min(Math.floor(layout.innerWidth / 2), Math.max(8, layout.innerWidth - getDisplayWidth(titleText) - 2));
   const leftText = fitDisplay(titleText, Math.max(0, layout.innerWidth - queryWidth));
   const rightText = truncateDisplay(queryText, queryWidth);
-  putText(titleLine, layout.margin + 2, layout.innerWidth - queryWidth, leftText, { fg: TITLE_FG, bold: true });
+  putText(titleLine, layout.margin + 2, layout.innerWidth - queryWidth, leftText, { fg: DEFAULT_OVERLAY_PALETTE.titleFg, bold: true });
   putText(
     titleLine,
     layout.margin + 2 + layout.innerWidth - queryWidth,
     queryWidth,
     fitDisplay(rightText, queryWidth),
-    { fg: TITLE_FG, dim: true },
+    { fg: activeTokens().textMuted },
   );
   lines.push(titleLine);
 
@@ -109,7 +105,7 @@ export function renderAutocompleteOverlay(
   for (let i = startIdx; i < endIdx; i++) {
     const { command } = results[i];
     const isSelected = i === state.selectedIndex;
-    const line = createOverlayContentLine(width, layout, BORDER_FG, isSelected ? SELECTED_BG : '');
+    const line = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : '');
     const indicator = isSelected ? '▸ ' : '  ';
     const commandText = fitDisplay(
       truncateDisplay(`/${command.name}`, maxCommandWidth),
@@ -121,25 +117,25 @@ export function renderAutocompleteOverlay(
     );
     let x = layout.margin + 2;
     putText(line, x, indicatorWidth, indicator, {
-      fg: isSelected ? TITLE_FG : MUTED_FG,
-      bg: isSelected ? SELECTED_BG : '',
+      fg: isSelected ? DEFAULT_OVERLAY_PALETTE.titleFg : DEFAULT_OVERLAY_PALETTE.mutedFg,
+      bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : '',
       bold: isSelected,
     });
     x += indicatorWidth;
     putText(line, x, maxCommandWidth, commandText, {
-      fg: isSelected ? TITLE_FG : BODY_FG,
-      bg: isSelected ? SELECTED_BG : '',
+      fg: isSelected ? DEFAULT_OVERLAY_PALETTE.titleFg : DEFAULT_OVERLAY_PALETTE.bodyFg,
+      bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : '',
       bold: isSelected,
     });
     x += maxCommandWidth;
     putText(line, x, gapWidth, '  ', {
-      fg: BODY_FG,
-      bg: isSelected ? SELECTED_BG : '',
+      fg: DEFAULT_OVERLAY_PALETTE.bodyFg,
+      bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : '',
     });
     x += gapWidth;
     putText(line, x, descWidth, descriptionText, {
-      fg: isSelected ? BODY_FG : MUTED_FG,
-      bg: isSelected ? SELECTED_BG : '',
+      fg: isSelected ? DEFAULT_OVERLAY_PALETTE.bodyFg : DEFAULT_OVERLAY_PALETTE.mutedFg,
+      bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : '',
       bold: false,
     });
     lines.push(line);
@@ -153,7 +149,7 @@ export function renderAutocompleteOverlay(
       layout.margin + 2 + Math.max(0, layout.innerWidth - getDisplayWidth(scrollText)),
       getDisplayWidth(scrollText),
       scrollText,
-      { fg: MUTED_FG, dim: true },
+      { fg: DEFAULT_OVERLAY_PALETTE.mutedFg },
     );
     lines.push(scrollLine);
   }
@@ -164,10 +160,10 @@ export function renderAutocompleteOverlay(
     layout.margin + 2,
     layout.innerWidth,
     fitDisplay(truncateDisplay(AUTOCOMPLETE_HINTS, layout.innerWidth), layout.innerWidth),
-    { fg: MUTED_FG, dim: true },
+    { fg: DEFAULT_OVERLAY_PALETTE.mutedFg },
   );
   lines.push(footerLine);
 
-  lines.push(createOverlayBorderLine(width, layout, '└', '─', '┘', BORDER_FG));
+  lines.push(createOverlayBorderLine(width, layout, '└', '─', '┘', DEFAULT_OVERLAY_PALETTE.borderFg));
   return lines;
 }

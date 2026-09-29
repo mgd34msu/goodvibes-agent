@@ -14,6 +14,7 @@ import { renderProfilePickerStatePackageText } from '../input/profile-picker-mod
 import { formatTimestamp } from './modal-utils.ts';
 import { fitDisplay } from '../utils/terminal-width.ts';
 import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
+import { activeTokens } from './theme.ts';
 
 // ---------------------------------------------------------------------------
 // Renderer
@@ -65,12 +66,12 @@ export function renderProfilePickerModal(
     sections.push({
       type: 'text',
       content: 'No saved profiles.',
-      style: { fg: '244', dim: true },
+      style: { fg: activeTokens().textFaint },
     });
     sections.push({
       type: 'text',
       content: 'Open Agent Workspace -> Profiles to create and manage isolated Agent profile homes.',
-      style: { fg: '240', dim: true },
+      style: { fg: activeTokens().textFaint },
     });
   } else {
     // Column widths: name(24) | timestamp(16) | preview(remaining)
@@ -85,7 +86,7 @@ export function renderProfilePickerModal(
     sections.push({
       type: 'text',
       content: `${nameHdr}  ${tsHdr}  ${previewHdr}`,
-      style: { fg: '240', dim: true },
+      style: { fg: activeTokens().textFaint },
     });
     sections.push({ type: 'separator' });
 
@@ -109,7 +110,7 @@ export function renderProfilePickerModal(
       sections.push({
         type: 'text',
         content: `[${modal.scrollOffset + 1}-${Math.min(modal.profiles.length, modal.scrollOffset + visibleRows)} of ${modal.profiles.length}]`,
-        style: { fg: '244', dim: true },
+        style: { fg: activeTokens().textFaint },
       });
     }
   }
@@ -120,7 +121,7 @@ export function renderProfilePickerModal(
     sections.push({
       type: 'text',
       content: modal.statusMessage,
-      style: { fg: '#00ffcc' },
+      style: { fg: activeTokens().accent },
     });
   }
   return ModalFactory.createModal(

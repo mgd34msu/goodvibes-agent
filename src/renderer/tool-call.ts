@@ -4,7 +4,7 @@ import { getDisplayWidth, truncateDisplay } from '../utils/terminal-width.ts';
 import type { ToolCall } from '@pellux/goodvibes-sdk/platform/types';
 import { stripDangerousAnsi } from '@pellux/goodvibes-terminal-shell';
 import { friendlyToolLabel } from './tool-labels.ts';
-import { activeUiTones } from './theme.ts';
+import { activeTokens, activeUiTones } from './theme.ts';
 import { GLYPHS } from '@pellux/goodvibes-sdk/platform/presentation';
 import { treeContentCol, treeTextCol, writeTreeStatusMarker } from '@pellux/goodvibes-terminal-shell';
 
@@ -76,8 +76,7 @@ function buildLeftSegments(
     return buildLeftSegments(keyArg, '', suffixText, leftBudget, false);
   }
 
-  // Read live tones so the tool-call row is legible in light mode. Dark values
-  // are byte-identical (t.fg.primary == #e2e8f0, t.chrome.bad == #ef4444).
+  // Read live tones so the tool-call row follows the active theme.
   const t = activeUiTones();
   const segments: Array<{ text: string; fg: string; bold?: boolean; dim?: boolean }> = [];
   const suffixBudget = suffixText ? Math.min(Math.max(12, Math.floor(leftBudget * 0.3)), 20) : 0;
@@ -104,18 +103,20 @@ function buildLeftSegments(
   }
 
   if (toolNameDisplay) {
-    segments.push({ text: toolNameDisplay, fg: '#00ffcc', bold: true });
+    segments.push({ text: toolNameDisplay, fg: activeTokens().accent, bold: true });
   }
   if (keyArgDisplay) {
     segments.push({ text: '  ', fg: t.fg.primary });
-    segments.push({ text: keyArgDisplay, fg: '252' });
+    segments.push({ text: keyArgDisplay, fg: activeTokens().text });
   }
   if (suffixDisplay) {
     segments.push({ text: '  ', fg: t.fg.primary });
     segments.push({
       text: suffixDisplay,
-      fg: suffixText.startsWith('- ') ? t.chrome.bad : '244',
-      dim: true,
+      // An error suffix stays dimmed red (deliberate de-emphasis of a status
+      // colour); the neutral suffix uses the faint token instead of SGR dim.
+      fg: suffixText.startsWith('- ') ? t.chrome.bad : activeTokens().textFaint,
+      dim: suffixText.startsWith('- '),
     });
   }
   return segments;
@@ -219,10 +220,11 @@ export function renderToolCallBlock(
     : status === 'cancelled' ? GLYPHS.status.blocked
     : status === 'pending' ? GLYPHS.status.idle
     : TOOL_STATUS.SPINNER_FRAMES[(frameIndex ?? 0) % TOOL_STATUS.SPINNER_FRAMES.length];
-  const iconColor = status === 'done' ? '#22c55e'
-    : status === 'error' ? '#ef4444'
-    : status === 'cancelled' ? '#f59e0b'
-    : '244';
+  const tones = activeUiTones();
+  const iconColor = status === 'done' ? tones.chrome.good
+    : status === 'error' ? tones.chrome.bad
+    : status === 'cancelled' ? tones.chrome.warn
+    : activeTokens().textMuted;
   const rightText = (() => {
     if (durationMs !== undefined && status === 'done') {
       return durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`;
@@ -273,7 +275,7 @@ export function renderToolCallBlock(
   }
 
   if (rightText) {
-    writeStyledText(line, rightStart, contentEnd, rightText, { fg: '238', dim: true });
+    writeStyledText(line, rightStart, contentEnd, rightText, { fg: activeTokens().textFaint });
   }
 
   return [line];

@@ -93,7 +93,7 @@ export class SettingsModal {
   /** Set when the highlighted setting should open provider selection before model selection. */
   public pendingProviderModelPickerTarget: ModelPickerTarget | null = null;
   /** Set when a highlighted setting needs an external picker owned by the shell route. */
-  public pendingSettingsPickerAction: 'tts-provider' | 'tts-voice' | 'daemon-timezone' | null = null;
+  public pendingSettingsPickerAction: 'tts-provider' | 'tts-voice' | 'daemon-timezone' | 'theme' | null = null;
   /** Provider awaiting explicit logout confirmation, if any. */
   public subscriptionLogoutConfirmationTarget: string | null = null;
 
@@ -366,6 +366,11 @@ export class SettingsModal {
     }
     if (setting.key === 'daemon.timezone') {
       this.pendingSettingsPickerAction = 'daemon-timezone';
+      return;
+    }
+    // The theme row opens a picker with live preview instead of cycling values.
+    if (setting.key === 'display.theme') {
+      this.pendingSettingsPickerAction = 'theme';
       return;
     }
 

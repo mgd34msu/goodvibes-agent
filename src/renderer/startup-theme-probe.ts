@@ -1,16 +1,21 @@
 /**
- * startup-theme-probe.ts, install the OSC-11 background probe at
- * startup and wire its resolved mode to the ported theme system.
+ * startup-theme-probe.ts, apply the configured theme and install the
+ * terminal probe at startup.
  *
- * Thin composition seam extracted from main.ts: it binds R2's
- * installBackgroundThemeProbe to theme.ts's setActiveThemeMode (applyThemeMode)
- * so forced dark/light applies before first paint and auto (TTY only) probes and
- * repaints once if light wins. The returned handle's filterInput() must gate the
- * stdin data handler so the OSC-11 reply never reaches the tokenizer.
+ * Thin composition seam extracted from main.ts. The configured `display.theme`
+ * applies before the first paint; then it binds installBackgroundThemeProbe to
+ * theme.ts: setActiveThemeMode (applyThemeMode) so forced dark/light applies
+ * before first paint and auto (TTY only) probes and repaints once if light wins,
+ * and refreshForTerminalPalette (onTerminalPalette) so the `system` theme is
+ * regenerated from the terminal's own colours (OSC 10 + OSC 4;0..15, read in
+ * the same write on any TTY) and repainted once. The returned handle's
+ * filterInput() must gate the stdin data handler so the replies never reach the
+ * tokenizer.
  */
 
 import { installBackgroundThemeProbe, type ThemeProbeHandle } from './terminal-bg-probe.ts';
-import { setActiveThemeMode } from './theme.ts';
+import { refreshForTerminalPalette, registerThemeRefresh, setActiveThemeMode, setActiveThemeName } from './theme.ts';
+import { resolveConfiguredThemeName } from './theme-mode-config.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 
 export interface StartupThemeProbeDeps {
@@ -21,12 +26,23 @@ export interface StartupThemeProbeDeps {
   /** Reset the compositor diff so the repaint after a light reply is full. */
   readonly resetDiff: () => void;
   readonly render: () => void;
+  /**
+   * Mark the rendered transcript stale. Rendered lines carry concrete colours,
+   * so every theme or mode change must re-render them on the next paint.
+   */
+  readonly invalidateTranscript: () => void;
 }
 
 export function installStartupThemeProbe(deps: StartupThemeProbeDeps): ThemeProbeHandle {
+  registerThemeRefresh(deps.invalidateTranscript);
+  // The configured theme applies before the first paint; the probe below
+  // completes the resolution (mode, and the palette for `system`).
+  setActiveThemeName(resolveConfiguredThemeName(deps.configManager));
   return installBackgroundThemeProbe({
     configManager: deps.configManager,
     applyThemeMode: setActiveThemeMode,
+    probePalette: true,
+    onTerminalPalette: refreshForTerminalPalette,
     isTTY: Boolean(deps.stdout.isTTY),
     env: process.env,
     writeQuery: (b) => deps.writeAllowed(() => deps.stdout.write(b)),

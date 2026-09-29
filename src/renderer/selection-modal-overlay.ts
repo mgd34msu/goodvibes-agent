@@ -10,13 +10,8 @@ import {
   OVERLAY_GLYPHS,
   putOverlayText,
 } from './overlay-box.ts';
+import { activeTokens } from './theme.ts';
 
-const BORDER_FG = DEFAULT_OVERLAY_PALETTE.borderFg;
-const TITLE_FG = DEFAULT_OVERLAY_PALETTE.titleFg;
-const BODY_FG = DEFAULT_OVERLAY_PALETTE.bodyFg;
-const MUTED_FG = DEFAULT_OVERLAY_PALETTE.mutedFg;
-const CATEGORY_FG = '#4488cc';
-const SELECTED_BG = DEFAULT_OVERLAY_PALETTE.selectedBg;
 const SELECTION_MODAL_SEARCH_LABEL = ' Search';
 const SELECTION_MODAL_RESULTS_LABEL = ' Results';
 const SELECTION_MODAL_NO_MATCHING_ITEMS = 'No matching items';
@@ -85,26 +80,25 @@ export function renderSelectionModalOverlay(
   });
   const layout = createOverlayBoxLayout(width, metrics.margin, metrics.boxWidth);
 
-  lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.topLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.topRight, BORDER_FG, DEFAULT_OVERLAY_PALETTE.titleBg));
+  lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.topLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.topRight, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.titleBg));
 
-  const titleLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.titleBg);
+  const titleLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.titleBg);
   putText(
     titleLine,
     layout.margin + 2,
     layout.innerWidth,
     fitDisplay(truncateDisplay(modal.title, layout.innerWidth), layout.innerWidth),
-    { fg: TITLE_FG, bold: true },
+    { fg: DEFAULT_OVERLAY_PALETTE.titleFg, bold: true },
   );
   lines.push(titleLine);
 
   if (modal.allowSearch) {
-    const labelLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
+    const labelLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
     putText(labelLine, layout.margin + 2, layout.innerWidth, fitDisplay(SELECTION_MODAL_SEARCH_LABEL, layout.innerWidth), {
-      fg: CATEGORY_FG,
-      dim: true,
+      fg: activeTokens().textMuted,
     });
     lines.push(labelLine);
-    const searchLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.inputBg);
+    const searchLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.inputBg);
     const prefix = '/ ';
     const queryAreaWidth = layout.innerWidth - getDisplayWidth(prefix);
     const queryValue = modal.query + (modal.searchFocused ? OVERLAY_GLYPHS.cursor : '');
@@ -112,28 +106,27 @@ export function renderSelectionModalOverlay(
       truncateDisplay(queryValue, queryAreaWidth),
       queryAreaWidth,
     );
-    putText(searchLine, layout.margin + 2, getDisplayWidth(prefix), prefix, { fg: modal.searchFocused ? BODY_FG : MUTED_FG });
+    putText(searchLine, layout.margin + 2, getDisplayWidth(prefix), prefix, { fg: modal.searchFocused ? DEFAULT_OVERLAY_PALETTE.bodyFg : DEFAULT_OVERLAY_PALETTE.mutedFg });
     putText(searchLine, layout.margin + 2 + getDisplayWidth(prefix), queryAreaWidth, queryText, {
-      fg: modal.query.length > 0 || modal.searchFocused ? BODY_FG : MUTED_FG,
+      fg: modal.query.length > 0 || modal.searchFocused ? DEFAULT_OVERLAY_PALETTE.bodyFg : DEFAULT_OVERLAY_PALETTE.mutedFg,
     });
     lines.push(searchLine);
-    lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.teeLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.teeRight, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg));
+    lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.teeLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.teeRight, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
   } else {
-    lines.push(createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg));
+    lines.push(createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
   }
 
-  const listTitle = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
+  const listTitle = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
   putText(listTitle, layout.margin + 2, layout.innerWidth, fitDisplay(SELECTION_MODAL_RESULTS_LABEL, layout.innerWidth), {
-    fg: CATEGORY_FG,
-    dim: true,
+    fg: activeTokens().textMuted,
   });
   lines.push(listTitle);
 
   const items = modal.filteredItems;
   if (items.length === 0) {
-    const line = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.bodyBg);
+    const line = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
     const message = modal.query ? SELECTION_MODAL_NO_MATCHING_ITEMS : SELECTION_MODAL_NO_ITEMS;
-    putText(line, layout.margin + 2, layout.innerWidth, fitDisplay(message, layout.innerWidth), { fg: MUTED_FG, dim: true });
+    putText(line, layout.margin + 2, layout.innerWidth, fitDisplay(message, layout.innerWidth), { fg: DEFAULT_OVERLAY_PALETTE.mutedFg });
     lines.push(line);
   } else {
     const maxVisible = metrics.contentRows;
@@ -153,10 +146,9 @@ export function renderSelectionModalOverlay(
 
       if (item.category && item.category !== lastCategory) {
         lastCategory = item.category;
-        const categoryLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
+        const categoryLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
         putText(categoryLine, layout.margin + 2, layout.innerWidth, fitDisplay(`  ${item.category}`, layout.innerWidth), {
-          fg: CATEGORY_FG,
-          dim: true,
+          fg: activeTokens().textMuted,
         });
         lines.push(categoryLine);
       }
@@ -164,43 +156,42 @@ export function renderSelectionModalOverlay(
       const indicator = isSelected ? `${OVERLAY_GLYPHS.selected} ` : '  ';
       const indicatorWidth = 2;
       const remaining = layout.innerWidth - indicatorWidth;
-      const labelColor = isSelected ? TITLE_FG : (item.fg ?? BODY_FG);
-      const detailColor = isSelected ? BODY_FG : MUTED_FG;
+      const labelColor = isSelected ? DEFAULT_OVERLAY_PALETTE.titleFg : (item.fg ?? DEFAULT_OVERLAY_PALETTE.bodyFg);
+      const detailColor = isSelected ? DEFAULT_OVERLAY_PALETTE.bodyFg : DEFAULT_OVERLAY_PALETTE.mutedFg;
       const labelWidth = item.detail
         ? fitLabelDetailColumns(item.label, item.detail, remaining).labelWidth
         : remaining;
-      const labelLine = createOverlayContentLine(width, layout, BORDER_FG, isSelected ? SELECTED_BG : DEFAULT_OVERLAY_PALETTE.bodyBg);
+      const labelLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg);
         putText(labelLine, layout.margin + 2, indicatorWidth, indicator, {
-          fg: isSelected ? TITLE_FG : MUTED_FG,
-          bg: isSelected ? SELECTED_BG : DEFAULT_OVERLAY_PALETTE.bodyBg,
+          fg: isSelected ? DEFAULT_OVERLAY_PALETTE.titleFg : DEFAULT_OVERLAY_PALETTE.mutedFg,
+          bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
           bold: isSelected,
         });
       putText(labelLine, layout.margin + 2 + indicatorWidth, labelWidth, fitDisplay(truncateDisplay(item.label, labelWidth), labelWidth), {
         fg: labelColor,
-        bg: isSelected ? SELECTED_BG : DEFAULT_OVERLAY_PALETTE.bodyBg,
+        bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
         bold: isSelected,
       });
       if (item.detail) {
           const detailWidth = fitLabelDetailColumns(item.label, item.detail, remaining).detailWidth;
         if (detailWidth >= 12) {
           putText(labelLine, layout.margin + 2 + indicatorWidth + labelWidth, 2, '  ', {
-            fg: BODY_FG,
-            bg: isSelected ? SELECTED_BG : DEFAULT_OVERLAY_PALETTE.bodyBg,
+            fg: DEFAULT_OVERLAY_PALETTE.bodyFg,
+            bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
           });
           putText(labelLine, layout.margin + 2 + indicatorWidth + labelWidth + 2, detailWidth, fitDisplay(truncateDisplay(item.detail, detailWidth), detailWidth), {
             fg: detailColor,
-            bg: isSelected ? SELECTED_BG : DEFAULT_OVERLAY_PALETTE.bodyBg,
+            bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
           });
           lines.push(labelLine);
         } else {
           lines.push(labelLine);
           const wrappedDetails = wrapWithHangingIndent(item.detail, Math.max(8, remaining), '', 2);
           for (const detailLineText of wrappedDetails) {
-            const detailLine = createOverlayContentLine(width, layout, BORDER_FG, isSelected ? SELECTED_BG : DEFAULT_OVERLAY_PALETTE.bodyBg);
+            const detailLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg);
             putText(detailLine, layout.margin + 2 + indicatorWidth, remaining, fitDisplay(truncateDisplay(detailLineText, remaining), remaining), {
               fg: detailColor,
-              bg: isSelected ? SELECTED_BG : DEFAULT_OVERLAY_PALETTE.bodyBg,
-              dim: !isSelected,
+              bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
             });
             lines.push(detailLine);
           }
@@ -218,13 +209,13 @@ export function renderSelectionModalOverlay(
         : below > 0
         ? `(${below} below)`
         : `(${above} above)`;
-      const hintLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
-      putText(hintLine, layout.margin + 2, layout.innerWidth, fitDisplay(scrollHint, layout.innerWidth), { fg: MUTED_FG, dim: true });
+      const hintLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
+      putText(hintLine, layout.margin + 2, layout.innerWidth, fitDisplay(scrollHint, layout.innerWidth), { fg: DEFAULT_OVERLAY_PALETTE.mutedFg });
       lines.push(hintLine);
     }
   }
 
-  const footerLine = createOverlayContentLine(width, layout, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg);
+  const footerLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
   const selectedItem = modal.getSelected();
   const primaryVerb = primaryVerbForAction(selectedItem?.primaryAction);
   let hints = `${SELECTION_MODAL_NAVIGATION_HINT}  ${primaryVerb}  ${SELECTION_MODAL_CLOSE_HINT}`;
@@ -236,10 +227,10 @@ export function renderSelectionModalOverlay(
     layout.margin + 2,
     layout.innerWidth,
     fitDisplay(truncateDisplay(hints, layout.innerWidth), layout.innerWidth),
-    { fg: MUTED_FG, dim: true },
+    { fg: DEFAULT_OVERLAY_PALETTE.mutedFg },
   );
   lines.push(footerLine);
-  lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.bottomLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.bottomRight, BORDER_FG, DEFAULT_OVERLAY_PALETTE.sectionBg));
+  lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.bottomLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.bottomRight, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
 
   return lines;
 }

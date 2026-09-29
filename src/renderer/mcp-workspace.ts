@@ -171,7 +171,7 @@ function buildLeftRows(workspace: McpWorkspace, height: number): WorkspaceRow[] 
     }
     if (row.type === 'action' && !sawActionGroup) {
       if (!sawServerGroup) rendered.push({ text: MCP_WORKSPACE_GROUP_SERVERS, kind: 'group', bold: true });
-      if (workspace.servers.length === 0) rendered.push({ text: MCP_WORKSPACE_NO_CONFIGURED_SERVERS, kind: 'item', fg: PALETTE.dim, dim: true });
+      if (workspace.servers.length === 0) rendered.push({ text: MCP_WORKSPACE_NO_CONFIGURED_SERVERS, kind: 'item', fg: PALETTE.dim });
       rendered.push({ text: MCP_WORKSPACE_GROUP_ACTIONS, kind: 'group', bold: true });
       sawActionGroup = true;
     }
@@ -192,10 +192,10 @@ function buildLeftRows(workspace: McpWorkspace, height: number): WorkspaceRow[] 
   const window = stableWindow(rendered.length, selectedRenderedIndex, visible);
   const rows = rendered.slice(window.start, window.end);
   if (window.start > 0 && rows.length > 0) {
-    rows[0] = { text: `${GLYPHS.navigation.moreAbove} ${window.start} more row(s) above`, kind: 'more', fg: PALETTE.dim, dim: true };
+    rows[0] = { text: `${GLYPHS.navigation.moreAbove} ${window.start} more row(s) above`, kind: 'more', fg: PALETTE.dim };
   }
   if (window.end < rendered.length && rows.length > 0) {
-    rows[rows.length - 1] = { text: `${GLYPHS.navigation.moreBelow} ${rendered.length - window.end} more row(s) below`, kind: 'more', fg: PALETTE.dim, dim: true };
+    rows[rows.length - 1] = { text: `${GLYPHS.navigation.moreBelow} ${rendered.length - window.end} more row(s) below`, kind: 'more', fg: PALETTE.dim };
   }
   while (rows.length < height) rows.push({ text: '', kind: 'empty' });
   return rows.slice(0, height);
@@ -266,7 +266,7 @@ function buildFormRows(workspace: McpWorkspace, width: number, height: number): 
 
   const visible = Math.max(1, height - 2);
   const window = stableWindow(fields.length, workspace.formIndex, visible);
-  if (window.start > 0) rows.push({ text: `${GLYPHS.navigation.moreAbove} ${window.start} more field(s) above`, kind: 'more', fg: PALETTE.dim, dim: true });
+  if (window.start > 0) rows.push({ text: `${GLYPHS.navigation.moreAbove} ${window.start} more field(s) above`, kind: 'more', fg: PALETTE.dim });
   for (let index = window.start; index < window.end; index += 1) {
     const field = fields[index]!;
     const selected = index === workspace.formIndex;
@@ -281,7 +281,7 @@ function buildFormRows(workspace: McpWorkspace, width: number, height: number): 
       bold: selected,
     });
   }
-  if (window.end < fields.length) rows.push({ text: `${GLYPHS.navigation.moreBelow} ${fields.length - window.end} more field(s) below`, kind: 'more', fg: PALETTE.dim, dim: true });
+  if (window.end < fields.length) rows.push({ text: `${GLYPHS.navigation.moreBelow} ${fields.length - window.end} more field(s) below`, kind: 'more', fg: PALETTE.dim });
   while (rows.length < height) rows.push({ text: '', kind: 'empty' });
   return rows.slice(0, height);
 }
@@ -301,8 +301,7 @@ function buildToolRows(workspace: McpWorkspace, width: number, height: number): 
   if (tools.length === 0) {
     rows.push({
       text: workspace.loadingTools ? MCP_WORKSPACE_TOOLS_LOADING_DETAIL : MCP_WORKSPACE_TOOLS_EMPTY,
-      fg: PALETTE.muted,
-      dim: true,
+      fg: PALETTE.dim,
     });
   } else {
     for (const tool of tools.slice(0, Math.max(0, height - rows.length))) {

@@ -22,7 +22,8 @@
  * data layer can import it without pulling in the stateful probe class.
  */
 
-import { setActiveThemeMode } from './theme.ts';
+import type { ConfigKey, ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { normalizeThemeName, setActiveThemeMode, setActiveThemeName } from './theme.ts';
 import { coerceThemeModeSetting } from './terminal-bg-probe.ts';
 
 export {
@@ -49,4 +50,34 @@ export function applyThemeModeSettingChange(
     return { message: `Theme mode: ${next} (applied now)` };
   }
   return { message: 'Theme mode: auto (probes terminal on next startup)' };
+}
+
+/** Config key backing the color theme (bundled name, 'system', or legacy 'vaporwave'). */
+export const THEME_NAME_CONFIG_KEY: ConfigKey = 'display.theme';
+
+/**
+ * Read the configured theme name, normalized: 'vaporwave' maps to
+ * 'goodvibes-neon' and an unset or unknown value maps to the default theme.
+ */
+export function resolveConfiguredThemeName(configManager: Pick<ConfigManager, 'get'>): string {
+  try {
+    return normalizeThemeName(configManager.get(THEME_NAME_CONFIG_KEY));
+  } catch {
+    return normalizeThemeName(undefined);
+  }
+}
+
+/**
+ * Apply a display.theme settings change: the theme switches now (every
+ * registered palette rebuilds) and the caller's full-repaint hook runs. Called
+ * by the settings-modal onSettingApplied hook (ui-openers) and the Agent
+ * workspace settings surface.
+ */
+export function applyThemeNameSettingChange(
+  value: unknown,
+  requestFullRepaint?: () => void,
+): { message: string } {
+  const applied = setActiveThemeName(value);
+  requestFullRepaint?.();
+  return { message: `Theme: ${applied} (applied now)` };
 }

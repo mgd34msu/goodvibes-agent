@@ -1,6 +1,7 @@
 import { type Line } from '@pellux/goodvibes-sdk/platform/types';
 import { UIFactory } from './ui-factory.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
+import { activeTokens } from './theme.ts';
 
 // Rich spinner frames (used by progress indicators)
 export const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -14,7 +15,7 @@ export function renderSpinner(
   frame: string,
   label: string,
   width: number,
-  fg: string = '135'
+  fg: string = activeTokens().secondary,
 ): Line {
   const text = ` ${frame} ${label}`;
   return UIFactory.stringToLine(text.padEnd(width), width, { fg, bold: true });
@@ -33,7 +34,7 @@ export function renderToolProgress(
   const counter = `[${current}/${total}]`;
   const text = ` ${counter} ${label}`;
   return [
-    UIFactory.stringToLine(text.padEnd(width), width, { fg: '#ffcc00', bold: true }),
+    UIFactory.stringToLine(text.padEnd(width), width, { fg: activeTokens().warning, bold: true }),
   ];
 }
 
@@ -65,7 +66,8 @@ export function renderTokenBar(
   const empty = barW - filled;
 
   // Color based on usage
-  const barFg = pct > 85 ? '#ef4444' : pct > 60 ? '#ffcc00' : '#22c55e';
+  const p = activeTokens();
+  const barFg = pct > 85 ? p.error : pct > 60 ? p.warning : p.success;
 
   const bar = '#'.repeat(filled) + '-'.repeat(empty);
   const barText = barLabel + bar;
@@ -75,14 +77,14 @@ export function renderTokenBar(
   const spacingW = Math.max(1, width - statsW - barTextW - 2);
 
   // Build with mixed colors
-  const line = UIFactory.stringToLine(statsText + ' '.repeat(spacingW), width, { fg: '244', dim: true });
+  const line = UIFactory.stringToLine(statsText + ' '.repeat(spacingW), width, { fg: p.textFaint });
 
   // Overlay the bar with color
   let barStartX = getDisplayWidth(statsText) + spacingW;
   for (const ch of barLabel) {
     if (barStartX >= width) break;
     const cw = getDisplayWidth(ch);
-    line[barStartX] = { char: ch, fg: '244', bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false };
+    line[barStartX] = { char: ch, fg: p.textFaint, bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false };
     if (cw === 2 && barStartX + 1 < width) line[barStartX + 1] = { ...line[barStartX], char: '' };
     barStartX += cw;
   }
@@ -90,7 +92,7 @@ export function renderTokenBar(
     line[barStartX + i] = { char: '#', fg: barFg, bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false };
   }
   for (let i = 0; i < empty && barStartX + filled + i < width; i++) {
-    line[barStartX + filled + i] = { char: '-', fg: '238', bg: '', bold: false, dim: true, underline: false, italic: false, strikethrough: false };
+    line[barStartX + filled + i] = { char: '-', fg: p.textFaint, bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false };
   }
 
   lines.push(line);

@@ -6,8 +6,11 @@
  *      converted files (they'd re-introduce a frozen-dark colour). This is the
  *      grep-gate the R4 brief calls for.
  *  (2) An end-to-end flip proof: renderMarkdown swaps its heading/inline-code/
- *      link colours from dark to the reviewed light tokens when the active mode
- *      flips, dark stays byte-identical to today.
+ *      link colours from the dark to the light tokens of the active theme when
+ *      the active mode flips.
+ *
+ * The source-wide guard (no raw colour anywhere outside the theme layer and
+ * the protected splash) lives in theme.test.ts.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
@@ -38,10 +41,10 @@ const GUARDS: Array<{ file: string; blockedHex: string[] }> = [
     blockedHex: ['#ffff00', '#806600', '#ffffff', '#000000'],
   },
   {
-    // conversation-rendering assistant/tool/error accents → transcript tokens.
-    // NOTE: '#00ffff' is intentionally NOT blocked, the splash gradient keeps it.
+    // conversation-rendering assistant/tool/error accents → transcript tokens;
+    // the splash gradient reads SPLASH_GRADIENT (splash-lines.ts).
     file: path.join(root, 'core/conversation-rendering.ts'),
-    blockedHex: ['#22d3ee', '#a855f7', '#38bdf8', '#3a1a1a', '#94a3b8', '#e2e8f0', '#f59e0b'],
+    blockedHex: ['#00ffff', '#d000ff', '#22d3ee', '#a855f7', '#38bdf8', '#3a1a1a', '#94a3b8', '#e2e8f0', '#f59e0b'],
   },
   {
     // process-indicator active-status label → live brand accent.
@@ -75,19 +78,20 @@ function fgSet(lines: Line[]): Set<string> {
 describe('markdown transcript renders in the active mode', () => {
   const MD = '# Heading One\n\nA `code` span and a [link](https://example.com).';
 
-  test('dark uses the historical heading cyan (#00ffff): byte-identical', () => {
+  test('dark uses the dark heading token', () => {
     const fgs = fgSet(renderMarkdown(MD, 80));
-    expect(fgs.has('#00ffff')).toBe(true);   // DARK.heading1
-    expect(fgs.has('#0077aa')).toBe(false);  // no light heading leaks
+    expect(fgs.has(resolveTheme('dark').heading1)).toBe(true);
+    expect(fgs.has(resolveTheme('light').heading1)).toBe(false); // no light heading leaks
   });
 
-  test('light swaps heading/inline-code/link to the reviewed light tokens', () => {
+  test('light swaps heading/inline-code/link to the light tokens', () => {
+    const dark = resolveTheme('dark');
     setActiveThemeMode('light');
     const light = resolveTheme('light');
     const fgs = fgSet(renderMarkdown(MD, 80));
-    expect(fgs.has(light.heading1)).toBe(true);      // #0077aa
-    expect(fgs.has('#00ffff')).toBe(false);          // dark heading gone
-    expect(fgs.has(light.inlineCodeFg)).toBe(true);  // #b45309
-    expect(fgs.has(light.link)).toBe(true);          // #0055cc
+    expect(fgs.has(light.heading1)).toBe(true);
+    expect(fgs.has(dark.heading1)).toBe(false);      // dark heading gone
+    expect(fgs.has(light.inlineCodeFg)).toBe(true);
+    expect(fgs.has(light.link)).toBe(true);
   });
 });

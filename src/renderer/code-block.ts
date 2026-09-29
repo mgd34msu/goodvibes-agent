@@ -2,6 +2,8 @@ import { type Line, type Cell, createStyledCell, createEmptyLine } from '@pellux
 import { UIFactory } from './ui-factory.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { LAYOUT } from './layout.ts';
+import { activeTokens } from './theme.ts';
+import { syntaxStyles } from './syntax-theme.ts';
 
 // ─── Language Keyword Maps ───────────────────────────────────────────────────
 
@@ -53,14 +55,38 @@ type SyntaxToken = { text: string; fg: string; bold?: boolean; italic?: boolean 
 
 // ─── Tokenizers ──────────────────────────────────────────────────────────────
 
+/**
+ * Tokenizer colours. The syntax hues come from the shared role map
+ * (syntax-theme.ts), so code follows the active theme. Text with no role uses
+ * the theme's text colour (never the terminal default, which can vanish on the
+ * themed body fill).
+ */
+function fallbackTheme() {
+  const styles = syntaxStyles();
+  const tokens = activeTokens();
+  return {
+    string: styles.string.fg,
+    number: styles.number.fg,
+    keyword: styles.keyword.fg,
+    type: styles.type.fg,
+    function: styles.function.fg,
+    operator: styles.operator.fg,
+    property: styles.property.fg,
+    comment: styles.comment.fg,
+    plain: styles.plain.fg,
+    punctuation: tokens.textMuted,
+  };
+}
+
 function tokenizeTsJs(line: string): SyntaxToken[] {
+  const th = fallbackTheme();
   const tokens: SyntaxToken[] = [];
   let i = 0;
 
   while (i < line.length) {
     // Line comment
     if (line.slice(i, i + 2) === '//') {
-      tokens.push({ text: line.slice(i), fg: '65', italic: true });
+      tokens.push({ text: line.slice(i), fg: th.comment, italic: true });
       break;
     }
     // String (single, double, template)
@@ -71,7 +97,7 @@ function tokenizeTsJs(line: string): SyntaxToken[] {
         if (line[j] === '\\') j++;
         j++;
       }
-      tokens.push({ text: line.slice(i, j + 1), fg: '#ce9178' });
+      tokens.push({ text: line.slice(i, j + 1), fg: th.string });
       i = j + 1;
       continue;
     }
@@ -79,7 +105,7 @@ function tokenizeTsJs(line: string): SyntaxToken[] {
     if (/[0-9]/.test(line[i])) {
       let j = i;
       while (j < line.length && /[0-9._xXbBoO]/.test(line[j])) j++;
-      tokens.push({ text: line.slice(i, j), fg: '#b5cea8' });
+      tokens.push({ text: line.slice(i, j), fg: th.number });
       i = j;
       continue;
     }
@@ -89,13 +115,13 @@ function tokenizeTsJs(line: string): SyntaxToken[] {
       while (j < line.length && /[\w$]/.test(line[j])) j++;
       const word = line.slice(i, j);
       if (TS_JS_KEYWORDS.has(word)) {
-        tokens.push({ text: word, fg: '#569cd6', bold: true });
+        tokens.push({ text: word, fg: th.keyword });
       } else if (TS_TYPES.has(word)) {
-        tokens.push({ text: word, fg: '#4ec9b0' });
+        tokens.push({ text: word, fg: th.type });
       } else if (line[j] === '(') {
-        tokens.push({ text: word, fg: '#dcdcaa' });
+        tokens.push({ text: word, fg: th.function });
       } else {
-        tokens.push({ text: word, fg: '' });
+        tokens.push({ text: word, fg: th.plain });
       }
       i = j;
       continue;
@@ -103,7 +129,7 @@ function tokenizeTsJs(line: string): SyntaxToken[] {
     // Operators and punctuation
     const ch = line[i];
     const isOp = '=<>!&|+-*/%^~?:'.includes(ch);
-    tokens.push({ text: ch, fg: isOp ? '#d4d4d4' : '' });
+    tokens.push({ text: ch, fg: isOp ? th.operator : th.plain });
     i++;
   }
 
@@ -111,26 +137,27 @@ function tokenizeTsJs(line: string): SyntaxToken[] {
 }
 
 function tokenizePython(line: string): SyntaxToken[] {
+  const th = fallbackTheme();
   const tokens: SyntaxToken[] = [];
   let i = 0;
 
   while (i < line.length) {
     if (line[i] === '#') {
-      tokens.push({ text: line.slice(i), fg: '65', italic: true });
+      tokens.push({ text: line.slice(i), fg: th.comment, italic: true });
       break;
     }
     if (line[i] === '"' || line[i] === "'") {
       const q = line[i];
       let j = i + 1;
       while (j < line.length && line[j] !== q) { if (line[j] === '\\') j++; j++; }
-      tokens.push({ text: line.slice(i, j + 1), fg: '#ce9178' });
+      tokens.push({ text: line.slice(i, j + 1), fg: th.string });
       i = j + 1;
       continue;
     }
     if (/[0-9]/.test(line[i])) {
       let j = i;
       while (j < line.length && /[0-9._]/.test(line[j])) j++;
-      tokens.push({ text: line.slice(i, j), fg: '#b5cea8' });
+      tokens.push({ text: line.slice(i, j), fg: th.number });
       i = j;
       continue;
     }
@@ -139,44 +166,45 @@ function tokenizePython(line: string): SyntaxToken[] {
       while (j < line.length && /[\w]/.test(line[j])) j++;
       const word = line.slice(i, j);
       if (PYTHON_KEYWORDS.has(word)) {
-        tokens.push({ text: word, fg: '#569cd6', bold: true });
+        tokens.push({ text: word, fg: th.keyword });
       } else if (/^[A-Z]/.test(word)) {
-        tokens.push({ text: word, fg: '#4ec9b0' });
+        tokens.push({ text: word, fg: th.type });
       } else if (line[j] === '(') {
-        tokens.push({ text: word, fg: '#dcdcaa' });
+        tokens.push({ text: word, fg: th.function });
       } else {
-        tokens.push({ text: word, fg: '' });
+        tokens.push({ text: word, fg: th.plain });
       }
       i = j;
       continue;
     }
-    tokens.push({ text: line[i], fg: '' });
+    tokens.push({ text: line[i], fg: th.plain });
     i++;
   }
   return tokens;
 }
 
 function tokenizeBash(line: string): SyntaxToken[] {
+  const th = fallbackTheme();
   const tokens: SyntaxToken[] = [];
   let i = 0;
 
   while (i < line.length) {
     if (line[i] === '#') {
-      tokens.push({ text: line.slice(i), fg: '65', italic: true });
+      tokens.push({ text: line.slice(i), fg: th.comment, italic: true });
       break;
     }
     if (line[i] === '"' || line[i] === "'") {
       const q = line[i];
       let j = i + 1;
       while (j < line.length && line[j] !== q) { if (line[j] === '\\') j++; j++; }
-      tokens.push({ text: line.slice(i, j + 1), fg: '#ce9178' });
+      tokens.push({ text: line.slice(i, j + 1), fg: th.string });
       i = j + 1;
       continue;
     }
     if (line[i] === '$') {
       let j = i + 1;
       while (j < line.length && /[\w{}_]/.test(line[j])) j++;
-      tokens.push({ text: line.slice(i, j), fg: '#9cdcfe' });
+      tokens.push({ text: line.slice(i, j), fg: th.property });
       i = j;
       continue;
     }
@@ -185,20 +213,21 @@ function tokenizeBash(line: string): SyntaxToken[] {
       while (j < line.length && /[\w-]/.test(line[j])) j++;
       const word = line.slice(i, j);
       if (BASH_KEYWORDS.has(word)) {
-        tokens.push({ text: word, fg: '#569cd6', bold: true });
+        tokens.push({ text: word, fg: th.keyword });
       } else {
-        tokens.push({ text: word, fg: '' });
+        tokens.push({ text: word, fg: th.plain });
       }
       i = j;
       continue;
     }
-    tokens.push({ text: line[i], fg: '' });
+    tokens.push({ text: line[i], fg: th.plain });
     i++;
   }
   return tokens;
 }
 
 function tokenizeJson(line: string): SyntaxToken[] {
+  const th = fallbackTheme();
   const tokens: SyntaxToken[] = [];
   let i = 0;
 
@@ -210,9 +239,9 @@ function tokenizeJson(line: string): SyntaxToken[] {
       // JSON key: followed by :
       const rest = line.slice(j + 1).trimStart();
       if (rest.startsWith(':')) {
-        tokens.push({ text: str, fg: '#9cdcfe' });
+        tokens.push({ text: str, fg: th.property });
       } else {
-        tokens.push({ text: str, fg: '#ce9178' });
+        tokens.push({ text: str, fg: th.string });
       }
       i = j + 1;
       continue;
@@ -220,32 +249,33 @@ function tokenizeJson(line: string): SyntaxToken[] {
     if (/[0-9-]/.test(line[i])) {
       let j = i;
       while (j < line.length && /[0-9.eE+-]/.test(line[j])) j++;
-      tokens.push({ text: line.slice(i, j), fg: '#b5cea8' });
+      tokens.push({ text: line.slice(i, j), fg: th.number });
       i = j;
       continue;
     }
     const boolNull = ['true', 'false', 'null'].find(k => line.startsWith(k, i));
     if (boolNull) {
-      tokens.push({ text: boolNull, fg: '#569cd6', bold: true });
+      tokens.push({ text: boolNull, fg: th.keyword });
       i += boolNull.length;
       continue;
     }
-    tokens.push({ text: line[i], fg: '244' });
+    tokens.push({ text: line[i], fg: th.punctuation });
     i++;
   }
   return tokens;
 }
 
 function tokenizeYaml(line: string): SyntaxToken[] {
+  const th = fallbackTheme();
   const tokens: SyntaxToken[] = [];
   if (line.trimStart().startsWith('#')) {
-    return [{ text: line, fg: '65', italic: true }];
+    return [{ text: line, fg: th.comment, italic: true }];
   }
   const keyMatch = line.match(/^(\s*)([^:]+)(:)(\s*.*)/);
   if (keyMatch) {
-    if (keyMatch[1]) tokens.push({ text: keyMatch[1], fg: '' });
-    tokens.push({ text: keyMatch[2], fg: '#9cdcfe' });
-    tokens.push({ text: keyMatch[3], fg: '244' });
+    if (keyMatch[1]) tokens.push({ text: keyMatch[1], fg: th.plain });
+    tokens.push({ text: keyMatch[2], fg: th.property });
+    tokens.push({ text: keyMatch[3], fg: th.punctuation });
     if (keyMatch[4]) {
       const val = keyMatch[4];
       const trimVal = val.trimStart();
@@ -253,16 +283,17 @@ function tokenizeYaml(line: string): SyntaxToken[] {
       const isStr = /^['"]/.test(trimVal);
       const isBool = trimVal === 'true' || trimVal === 'false' || trimVal === 'null' || trimVal === 'yes' || trimVal === 'no';
       const isNum = /^-?[0-9]/.test(trimVal);
-      const valFg = isStr ? '#ce9178' : isBool ? '#569cd6' : isNum ? '#b5cea8' : '';
+      const valFg = isStr ? th.string : isBool ? th.keyword : isNum ? th.number : th.plain;
       tokens.push({ text: val, fg: valFg });
     }
     return tokens;
   }
-  return [{ text: line, fg: '' }];
+  return [{ text: line, fg: th.plain }];
 }
 
 function tokenizePlain(line: string): SyntaxToken[] {
-  return [{ text: line, fg: '' }];
+  const th = fallbackTheme();
+  return [{ text: line, fg: th.plain }];
 }
 
 // ─── Main Renderer ───────────────────────────────────────────────────────────
@@ -283,8 +314,9 @@ export function renderCodeBlock(
   const showLineNumbers = opts.showLineNumbers ?? true;
   const lineNumW = showLineNumbers ? String(codeLines.length).length + 1 : 0; // e.g. "10 "
   const contentStartX = showLineNumbers ? leftMargin + lineNumW + 1 : leftMargin;
-  const BG = '#0d0d0d';
-  const LINE_NUM_FG = '238';
+  const palette = activeTokens();
+  const BG = palette.backgroundCode;
+  const LINE_NUM_FG = palette.textFaint;
   const effectiveWidth = width - LAYOUT.RIGHT_MARGIN;
 
   const tokenize = (line: string): SyntaxToken[] => {
@@ -305,7 +337,7 @@ export function renderCodeBlock(
   let hx = leftMargin;
   for (const ch of headerStr) {
     if (hx >= effectiveWidth) break;
-    headerLine[hx] = createStyledCell(ch, { fg: '#1a1a1a', bg: '#4ec9b0', bold: true });
+    headerLine[hx] = createStyledCell(ch, { fg: palette.selectedListItemText, bg: palette.accent, bold: true });
     hx++;
   }
   lines.push(headerLine);
@@ -327,7 +359,7 @@ export function renderCodeBlock(
     if (showLineNumbers) {
       for (const ch of lineNum) {
         if (cx >= contentStartX) break;
-        line[cx++] = createStyledCell(ch, { fg: LINE_NUM_FG, bg: BG, dim: true });
+        line[cx++] = createStyledCell(ch, { fg: LINE_NUM_FG, bg: BG });
       }
       line[cx++] = createStyledCell(' ', { bg: BG });
     }
@@ -354,7 +386,7 @@ export function renderCodeBlock(
   // Footer line
   const footerLine = createEmptyLine(width);
   for (let fx = leftMargin; fx < effectiveWidth; fx++) {
-    footerLine[fx] = createStyledCell(' ', { bg: '#0d0d0d' });
+    footerLine[fx] = createStyledCell(' ', { bg: BG });
   }
   lines.push(footerLine);
 

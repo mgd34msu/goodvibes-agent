@@ -3,6 +3,7 @@ import { servingEffortForLevel, toEffortModel } from '../providers/reasoning-eff
 import type { SelectionResult, SelectionAction } from './selection-modal.ts';
 import type { CommandContext } from './command-registry.ts';
 import { openTtsProviderPicker, openTtsVoicePicker } from './tts-settings-actions.ts';
+import { openThemePicker } from './theme-settings-actions.ts';
 import { openDaemonTimezonePicker } from './daemon-settings-actions.ts';
 import { isTextBackspace } from '@pellux/goodvibes-terminal-shell';
 
@@ -236,7 +237,7 @@ type SettingsRouteState = {
     editChar: (char: string) => void;
     pendingModelPickerTarget: import('./model-picker.ts').ModelPickerTarget | null;
     pendingProviderModelPickerTarget?: import('./model-picker.ts').ModelPickerTarget | null;
-    pendingSettingsPickerAction?: 'tts-provider' | 'tts-voice' | 'daemon-timezone' | null;
+    pendingSettingsPickerAction?: 'tts-provider' | 'tts-voice' | 'daemon-timezone' | 'theme' | null;
     resetSelected?: () => { key: string; value: unknown } | null;
   };
   commandContext?: CommandContext;
@@ -275,6 +276,10 @@ function consumeSettingsPickerRequest(state: SettingsRouteState): void {
     }
     if (settingsAction === 'daemon-timezone') {
       openDaemonTimezonePicker(state.commandContext);
+      return;
+    }
+    if (settingsAction === 'theme') {
+      openThemePicker(state.commandContext);
       return;
     }
     void openTtsVoicePicker(state.commandContext).catch((error: unknown) => {

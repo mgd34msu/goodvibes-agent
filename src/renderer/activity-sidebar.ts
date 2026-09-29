@@ -130,15 +130,16 @@ const KIND_GLYPHS: Record<ActivityKind, string> = {
   system: '·',
 };
 
-const KIND_COLORS: Record<ActivityKind, string> = {
-  status: C.dim,
-  tool: C.dim,
-  agent: C.info,
-  schedule: C.accent,
-  delivery: C.good,
-  security: C.warn,
-  system: C.dim,
-};
+/** Per-kind colour, read per call so it follows the active theme (C is rebuilt in place). */
+function kindColor(kind: ActivityKind): string {
+  switch (kind) {
+    case 'agent': return C.info;
+    case 'schedule': return C.accent;
+    case 'delivery': return C.good;
+    case 'security': return C.warn;
+    default: return C.dim;
+  }
+}
 
 function fmtClock(at: number): string {
   const d = new Date(at);
@@ -148,7 +149,7 @@ function fmtClock(at: number): string {
 function entryLine(width: number, entry: ActivityEntry): Line {
   const time = fmtClock(entry.at);
   const glyph = KIND_GLYPHS[entry.kind];
-  const color = KIND_COLORS[entry.kind];
+  const color = kindColor(entry.kind);
   // Strip the leading "[Tag]", the glyph and color already carry the kind,
   // and horizontal space is the scarcest resource in the sidebar.
   const text = entry.text.replace(/^\[[^\]]+\]\s*/, '');

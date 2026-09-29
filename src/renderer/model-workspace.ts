@@ -13,7 +13,8 @@ import { estimateModelBytes, fitAssessment, fitVerdictLabel, paramCountFromModel
 import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
-import { GLYPHS, UI_TONES } from './ui-primitives.ts';
+import { GLYPHS } from './ui-primitives.ts';
+import { activeTokens, activeUiTones, registerThemeRefresh } from './theme.ts';
 import {
   clamp,
   clipDisplay,
@@ -27,24 +28,35 @@ import {
   drawVerticalRule,
 } from './fullscreen-primitives.ts';
 
-const PALETTE = {
-  border: '#64748b',
-  title: '#67e8f9',
-  subtitle: '#93c5fd',
-  text: '#e2e8f0',
-  muted: '#94a3b8',
-  dim: '#64748b',
-  selectedBg: '#223049',
-  targetBg: '#141b25',
-  detailBg: '#121923',
-  bodyBg: '#0f141d',
-  footerBg: '#111827',
-  good: UI_TONES.state.good,
-  warn: UI_TONES.state.warn,
-  info: UI_TONES.state.info,
-};
+// Built from the active theme and rebuilt in place on every theme change.
+function buildPalette() {
+  const t = activeUiTones();
+  const p = activeTokens();
+  return {
+    border: t.border,
+    title: p.primary,
+    subtitle: t.accent.conversation,
+    text: t.fg.primary,
+    muted: t.fg.muted,
+    dim: t.border,
+    faint: p.textFaint,
+    selectedBg: t.bg.selected,
+    targetBg: p.backgroundSection,
+    detailBg: p.backgroundPanel,
+    bodyBg: p.backgroundBase,
+    footerBg: t.bg.footer,
+    good: t.state.good,
+    warn: t.state.warn,
+    info: t.state.info,
+  };
+}
 
-const renderCache = new WeakMap<ModelPickerModal, { key: string; lines: Line[] }>();
+const PALETTE = buildPalette();
+registerThemeRefresh(() => Object.assign(PALETTE, buildPalette()));
+
+// The cache also records the token table it was painted with, so a theme
+// change never serves lines in the previous theme's colours.
+const renderCache = new WeakMap<ModelPickerModal, { key: string; tokens: object; lines: Line[] }>();
 const objectIds = new WeakMap<object, number>();
 let nextObjectId = 1;
 const MODEL_WORKSPACE_TITLE = ' Model Workspace / Providers And Models ';
@@ -332,8 +344,8 @@ function renderProviderRows(picker: ModelPickerModal, lines: Line[], rows: numbe
     writeText(line, startX + Math.max(4, width - 31), 18, padDisplay(via, 18), { fg: picker.configuredProviders.has(provider) ? PALETTE.good : PALETTE.warn, bg });
     writeText(line, startX + Math.max(4, width - 12), 10, padDisplay(`${count} models`, 10), { fg: PALETTE.dim, bg });
   }
-  if (start > 0 && lines[0]) writeText(lines[0], startX + 1, width - 2, `${GLYPHS.navigation.moreAbove} ${start} more provider(s) above`, { fg: PALETTE.dim, bg: PALETTE.bodyBg, dim: true });
-  if (end < providers.length && lines[rows - 1]) writeText(lines[rows - 1]!, startX + 1, width - 2, `${GLYPHS.navigation.moreBelow} ${providers.length - end} more provider(s) below`, { fg: PALETTE.dim, bg: PALETTE.bodyBg, dim: true });
+  if (start > 0 && lines[0]) writeText(lines[0], startX + 1, width - 2, `${GLYPHS.navigation.moreAbove} ${start} more provider(s) above`, { fg: PALETTE.faint, bg: PALETTE.bodyBg });
+  if (end < providers.length && lines[rows - 1]) writeText(lines[rows - 1]!, startX + 1, width - 2, `${GLYPHS.navigation.moreBelow} ${providers.length - end} more provider(s) below`, { fg: PALETTE.faint, bg: PALETTE.bodyBg });
 }
 
 function renderModelRows(picker: ModelPickerModal, lines: Line[], rows: number, startX: number, width: number): void {
@@ -369,8 +381,8 @@ function renderModelRows(picker: ModelPickerModal, lines: Line[], rows: number, 
     writeText(line, x, tierW, padDisplay(model.tier ?? 'paid', tierW), { fg: model.tier === 'free' ? PALETTE.good : PALETTE.dim, bg }); x += tierW + 1;
     writeText(line, x, capsW, padDisplay(capText, capsW), { fg: PALETTE.info, bg });
   }
-  if (start > 0 && lines[0]) writeText(lines[0], startX + 1, width - 2, `${GLYPHS.navigation.moreAbove} ${start} more model(s) above`, { fg: PALETTE.dim, bg: PALETTE.bodyBg, dim: true });
-  if (end < models.length && lines[rows - 1]) writeText(lines[rows - 1]!, startX + 1, width - 2, `${GLYPHS.navigation.moreBelow} ${models.length - end} more model(s) below`, { fg: PALETTE.dim, bg: PALETTE.bodyBg, dim: true });
+  if (start > 0 && lines[0]) writeText(lines[0], startX + 1, width - 2, `${GLYPHS.navigation.moreAbove} ${start} more model(s) above`, { fg: PALETTE.faint, bg: PALETTE.bodyBg });
+  if (end < models.length && lines[rows - 1]) writeText(lines[rows - 1]!, startX + 1, width - 2, `${GLYPHS.navigation.moreBelow} ${models.length - end} more model(s) below`, { fg: PALETTE.faint, bg: PALETTE.bodyBg });
 }
 
 function renderEffortRows(picker: ModelPickerModal, lines: Line[], rows: number, startX: number, width: number): void {
@@ -434,7 +446,7 @@ function writeTableHeader(line: Line, picker: ModelPickerModal, startX: number, 
 export function renderModelWorkspace(picker: ModelPickerModal, width: number, viewportHeight: number): Line[] {
   const cacheKey = getRenderCacheKey(picker, width, viewportHeight);
   const cached = renderCache.get(picker);
-  if (cached?.key === cacheKey) return cached.lines;
+  if (cached?.key === cacheKey && cached.tokens === activeTokens()) return cached.lines;
 
   const safeWidth = Math.max(20, width);
   const safeHeight = Math.max(12, viewportHeight);
@@ -507,7 +519,7 @@ export function renderModelWorkspace(picker: ModelPickerModal, width: number, vi
 
   while (lines.length < safeHeight) lines.push(makeLine(safeWidth));
   const result = lines.slice(0, safeHeight);
-  renderCache.set(picker, { key: cacheKey, lines: result });
+  renderCache.set(picker, { key: cacheKey, tokens: activeTokens(), lines: result });
   return result;
 }
 

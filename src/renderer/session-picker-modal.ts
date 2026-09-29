@@ -14,6 +14,7 @@ import { renderSessionPickerStatePackageText } from '../input/session-picker-mod
 import { formatTimestamp } from './modal-utils.ts';
 import { fitDisplay } from '../utils/terminal-width.ts';
 import { getOverlaySurfaceMetrics, getStableOverlayContentRows } from '@pellux/goodvibes-terminal-shell';
+import { activeTokens } from './theme.ts';
 
 // ---------------------------------------------------------------------------
 // Renderer
@@ -64,12 +65,12 @@ export function renderSessionPickerModal(
     sections.push({
       type: 'text',
       content: 'No saved sessions.',
-      style: { fg: '244', dim: true },
+      style: { fg: activeTokens().textFaint },
     });
     sections.push({
       type: 'text',
       content: 'Open Agent Workspace -> Conversation -> Save current session.',
-      style: { fg: '240', dim: true },
+      style: { fg: activeTokens().textFaint },
     });
   } else {
     // Column widths: name(24) | timestamp(16) | messages(remaining)
@@ -84,7 +85,7 @@ export function renderSessionPickerModal(
     sections.push({
       type: 'text',
       content: `${nameHdr}  ${tsHdr}  ${msgHdr}`,
-      style: { fg: '240', dim: true },
+      style: { fg: activeTokens().textFaint },
     });
     sections.push({ type: 'separator' });
 
@@ -107,7 +108,7 @@ export function renderSessionPickerModal(
       sections.push({
         type: 'text',
         content: `[${modal.scrollOffset + 1}-${Math.min(modal.sessions.length, modal.scrollOffset + visibleRows)} of ${modal.sessions.length}]`,
-        style: { fg: '244', dim: true },
+        style: { fg: activeTokens().textFaint },
       });
     }
   }
@@ -118,7 +119,7 @@ export function renderSessionPickerModal(
     sections.push({
       type: 'text',
       content: modal.statusMessage,
-      style: { fg: modal.deleteConfirmationTarget ? '#f59e0b' : '#00ffcc' },
+      style: { fg: modal.deleteConfirmationTarget ? activeTokens().warning : activeTokens().accent },
     });
   }
 

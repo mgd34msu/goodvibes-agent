@@ -9,6 +9,7 @@ import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { activeTokens } from '../renderer/theme.ts';
 
 export const MARKER_REGEX = /\[(TEXT|IMAGE): [^\]]+\]/g;
 
@@ -368,7 +369,7 @@ export function handleBookmark(
   const lineIndex = getScrollTop();
   const nearest = conversationManager.findNearestBlock(lineIndex);
   if (!nearest) {
-    conversationManager.log('[Ctrl+B: No block found nearby]', { fg: '240' });
+    conversationManager.log('[Ctrl+B: No block found nearby]', { fg: activeTokens().textFaint });
     requestRender();
     return;
   }
@@ -379,7 +380,7 @@ export function handleBookmark(
   const msg = added
     ? `[Bookmarked: ${nearest.collapseKey}]`
     : `[Bookmark removed: ${nearest.collapseKey}]`;
-  conversationManager.log(msg, { fg: added ? '#22c55e' : '244' });
+  conversationManager.log(msg, { fg: added ? activeTokens().success : activeTokens().textMuted });
   requestRender();
 }
 
@@ -394,14 +395,14 @@ export function handleBlockSave(
   const lineIndex = getScrollTop();
   const content = conversationManager.getBlockContentAtLine(lineIndex);
   if (!content) {
-    conversationManager.log('[Ctrl+S: No block found nearby]', { fg: '240' });
+    conversationManager.log('[Ctrl+S: No block found nearby]', { fg: activeTokens().textFaint });
     requestRender();
     return;
   }
   // No noteUserTouch() here, unlike handleBlockCopy/handleBookmark, the
   // save itself is disabled below (a no-op receipt only), so there is no
   // real content action to exempt from search's close-time re-collapse.
-  conversationManager.log('[Block file save is disabled in GoodVibes Agent: copy the block explicitly or use /export markdown <path> --yes for the conversation.]', { fg: '#f59e0b' });
+  conversationManager.log('[Block file save is disabled in GoodVibes Agent: copy the block explicitly or use /export markdown <path> --yes for the conversation.]', { fg: activeTokens().warning });
   requestRender();
 }
 
@@ -414,7 +415,7 @@ export function handleBlockRerun(
   const lineIndex = getScrollTop();
   const nearest = conversationManager.findNearestBlock(lineIndex, 'tool');
   if (!nearest) {
-    conversationManager.log('[Re-run: No tool block found nearby]', { fg: '240' });
+    conversationManager.log('[Re-run: No tool block found nearby]', { fg: activeTokens().textFaint });
     requestRender();
     return;
   }

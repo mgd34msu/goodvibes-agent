@@ -126,6 +126,16 @@ describe('display.themeMode settings-modal entry (schema-driven)', () => {
     modal.adjustSelected('left'); // dark → auto
     expect(cm.get(THEME_MODE_CONFIG_KEY as ConfigKey)).toBe('auto');
   });
+
+  test('Enter on display.theme opens the theme picker instead of cycling', () => {
+    modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
+    modal.selectTarget('display.theme');
+    expect(String(modal.getSelected()?.setting.key)).toBe('display.theme');
+    const before = cm.get('display.theme' as ConfigKey);
+    modal.activateSelected();
+    expect(modal.pendingSettingsPickerAction).toBe('theme');
+    expect(cm.get('display.theme' as ConfigKey)).toBe(before);
+  });
 });
 
 describe('applyThemeModeSettingChange (the ui-openers apply hook)', () => {
