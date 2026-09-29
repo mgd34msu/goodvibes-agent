@@ -22,6 +22,8 @@ function seedProcess(cmd: string, status = 'running'): string {
     id,
     cmd,
     status,
+    // The manager reports whether a process ended as a field; the status text only describes how.
+    done: status !== 'running',
     startTime: Date.now() - 1200,
   } as TestProcessRecord);
   return id;
@@ -36,6 +38,7 @@ function createProcessModal(): ProcessModal {
         const record = processes.get(id);
         if (!record) return false;
         record.status = 'done';
+        record.done = true;
         return true;
       },
     },
@@ -71,6 +74,14 @@ describe('ProcessModal state', () => {
     expect(modal.entries).toHaveLength(1);
     expect(modal.entries[0]?.type).toBe('exec');
     expect(modal.entries[0]?.label).toContain('bun run build');
+  });
+
+  test('a process ended by its timeout is not listed as running (its status does not start with "done")', () => {
+    seedProcess('for i in 1 2 3; do echo tick; sleep 5; done', 'timed out (signal SIGTERM)');
+    seedProcess('bun run dev');
+    const modal = createProcessModal();
+    modal.refresh();
+    expect(modal.entries.map((e) => e.label)).toEqual([expect.stringContaining('bun run dev')]);
   });
 
   test('moveDown() wraps around to first entry', () => {

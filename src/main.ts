@@ -218,7 +218,7 @@ async function main() {
         busy: orchestrator.isThinking,
         label: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview?.trim() ?? undefined,
         agents: buildActivityAgentRows(activeAgents, ctx.services.fleetUnion.nodes()),
-        processes: processManager.list().filter((p) => !p.status.startsWith('done')).length,
+        processes: processManager.list().filter((p) => !p.done).length,
       },
       needsYou: pendingPermission ? ['Approval needed, answer the prompt on screen.'] : [],
       comingUp: [...autonomy.comingUpItems()],
@@ -553,7 +553,7 @@ async function main() {
     };
     const busy = buildBusyState({ ...thinkingDeps, width });
     const runningAgentCount = activeAgents.length;
-    const runningProcessCount = processManager.list().filter((p) => !p.status.startsWith('done')).length;
+    const runningProcessCount = processManager.list().filter((p) => !p.done).length;
     const cw = getPromptContentWidth();
     const promptInfo = input.getWrappedPromptInfo(cw);
     const commandArgsHint = buildCommandArgsHint(input.prompt, commandRegistry);

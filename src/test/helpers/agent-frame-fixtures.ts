@@ -578,7 +578,7 @@ export function frameFixtures(): FrameFixture[] {
     { name: 'file-popup-100x30', width: 100, height: 30, render: () => fixtureFilePopup(100, 30) },
     { name: 'history-search-100x1', width: 100, height: 1, render: () => fixtureHistorySearch(100) },
     { name: 'find-bar-100x1', width: 100, height: 1, render: () => fixtureFindBar(100, true) },
-    { name: 'code-block-100', width: 100, height: 4, render: () => fixtureCodeBlock(100) },
+    { name: 'code-block-100', width: 100, height: 5, render: () => fixtureCodeBlock(100) },
     { name: 'diff-view-100', width: 100, height: 11, render: () => fixtureDiffView(100) },
   ];
 }

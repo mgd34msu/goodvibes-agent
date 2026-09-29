@@ -75,7 +75,7 @@ export class ProcessModal {
     const result: ProcessEntry[] = [];
 
     for (const process of this.deps.processManager.list()) {
-      if (process.status.startsWith('done')) continue;
+      if (process.done) continue;
       const startTime = this.deps.processManager.getStatus(process.id)?.startTime ?? now;
       result.push({
         id: process.id,
