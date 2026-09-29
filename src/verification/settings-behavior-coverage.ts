@@ -775,6 +775,11 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     test: 'src/test/runtime/remote-conversation.test.ts',
     asserts: 'false routes no turn to the daemon and dials nothing, answering in this process instead; absent behaves as on, which is the ruled default',
   },
+  {
+    key: 'behavior.notificationsMetadataOnly',
+    test: 'src/test/shell/notifications-name-the-work.test.ts',
+    asserts: 'off (the default) makes the real approval alert name the command and the turn; true reduces the same alert to the tool name and permission category',
+  },
 ];
 
 /**

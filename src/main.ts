@@ -447,7 +447,7 @@ async function main() {
     render();
   };
   // see shell/terminal-focus-mode.ts
-  permissionPromptRef.requestPermission = wrapRequestPermissionWithApprovalAlert(commandUi.requestPermission as typeof permissionPromptRef.requestPermission, { focusTracker: ctx.services.focusTracker });
+  permissionPromptRef.requestPermission = wrapRequestPermissionWithApprovalAlert(commandUi.requestPermission as typeof permissionPromptRef.requestPermission, { focusTracker: ctx.services.focusTracker, configGet: (key) => configManager.get(key as Parameters<typeof configManager.get>[0]), conversation });
 
   const input: InputHandler = new InputHandler(
     () => render(),

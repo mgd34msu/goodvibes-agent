@@ -21,7 +21,7 @@ const DISPLAY_KEYS: ConfigKey[] = [
 /** Known behavior setting keys (subset of ConfigKey that maps to behavior.*). */
 const BEHAVIOR_KEYS: ConfigKey[] = [
   'behavior.autoApprove', 'behavior.autoCompactThreshold',
-  'behavior.saveHistory', 'behavior.notifyOnComplete',
+  'behavior.saveHistory', 'behavior.notifyOnComplete', 'behavior.notificationsMetadataOnly',
 ] as const;
 
 function configProfileDeletionDisabledMessage(name: string): string {

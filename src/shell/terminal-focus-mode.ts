@@ -40,11 +40,23 @@
  * infrastructure the port's parity matrix does not list as a PORT item, only
  * core/focus-tracker.ts is. This is the minimal, self-contained wiring the
  * matrix's own text calls for ("route focus in/out events ... to drive
- * awaiting-approval alerts"). PRIVACY: message content is tool name + category
- * only, no args, no file contents, no command strings.
+ * awaiting-approval alerts").
+ *
+ * Text (owner ruling 2026-09-29, SDK runtime/turn-notification.ts, the same
+ * words the TUI uses): the alert names what is waiting, the command for exec,
+ * the file for write and edit, the URL for fetch, and the turn that asked for
+ * it. When behavior.notificationsMetadataOnly is on (default off) it carries
+ * the tool name and permission category only.
  */
 import { logger, notifyCompletion, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { PermissionRequestHandler, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
+import {
+  buildApprovalNotification,
+  describeToolTarget,
+  readNotificationsMetadataOnly,
+  resolveTurnName,
+  type ConfigGet,
+} from '@pellux/goodvibes-sdk/platform/runtime/operations';
 import type { FocusTracker } from '@/runtime/index.ts';
 
 import { FOCUS_DISABLE } from '../renderer/terminal-escapes.ts';
@@ -93,6 +105,38 @@ export function installFocusModeExitGuard(
 export interface ApprovalAlertDeps {
   readonly focusTracker: Pick<FocusTracker, 'shouldAlertWhenUnfocused'>;
   readonly notify?: typeof notifyCompletion;
+  /** Config reader for behavior.notificationsMetadataOnly; absent reads as the default (off). */
+  readonly configGet?: ConfigGet;
+  /**
+   * The live conversation, read for the name of the turn that is asking: a
+   * title the user set, else the message that started this turn (the last
+   * user message while a turn runs). Absent means the alert names no turn.
+   */
+  readonly conversation?: ApprovalTurnSource;
+}
+
+/** The conversation surface the approval alert names the turn from. */
+export interface ApprovalTurnSource {
+  readonly title: string;
+  getTitleSource(): string;
+  getLastUserMessage(): string | null;
+}
+
+/** Title and body for an approval alert (SDK buildApprovalNotification). */
+export function describeApprovalAlert(request: PermissionPromptRequest, deps: Pick<ApprovalAlertDeps, 'configGet' | 'conversation'>): { title: string; body: string } {
+  const metadataOnly = deps.configGet ? readNotificationsMetadataOnly(deps.configGet) : false;
+  const conversation = deps.conversation;
+  const titleSource = conversation?.getTitleSource();
+  return buildApprovalNotification({
+    tool: request.tool,
+    category: request.category,
+    target: metadataOnly ? null : describeToolTarget(request.args, request.analysis?.target),
+    turnName: metadataOnly || !conversation ? null : resolveTurnName({
+      title: conversation.title,
+      titleSource: titleSource === 'user' || titleSource === 'system' ? titleSource : null,
+      turnText: conversation.getLastUserMessage(),
+    }),
+  }, { metadataOnly });
 }
 
 /**
@@ -110,7 +154,8 @@ export function wrapRequestPermissionWithApprovalAlert(
   return (request: PermissionPromptRequest) => {
     if (deps.focusTracker.shouldAlertWhenUnfocused()) {
       try {
-        notify('GoodVibes, approval needed', `${request.tool} (${request.category}) is waiting for approval`, FORCE_APPROVAL_NOTIFY_DURATION_MS);
+        const notice = describeApprovalAlert(request, deps);
+        notify(notice.title, notice.body, FORCE_APPROVAL_NOTIFY_DURATION_MS);
       } catch (err) {
         logger.debug('approval-alert: desktop notify error', { error: summarizeError(err) });
       }
