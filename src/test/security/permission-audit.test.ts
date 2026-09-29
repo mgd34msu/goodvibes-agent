@@ -6,6 +6,7 @@
  * PermissionPromptUI rendering per category.
  */
 
+import { promptCardLines } from '../helpers/permission-card.ts';
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -260,6 +261,18 @@ describe('Path traversal protection via resolveAndValidatePath', () => {
 // 5. PermissionPromptUI, renders correct category label per category
 // ---------------------------------------------------------------------------
 
+/** The permission dialog's text (a kit layer), one row per line. */
+function promptText(width: number, request: Parameters<typeof PermissionPromptUI.createPromptLayer>[2]): string {
+  return PermissionPromptUI.createPromptLayer(width + 40, 48, request).lines
+    .map((line) => line.map((c) => c.char).join(''))
+    .join('\n');
+}
+
+/** One fact row of the dialog: the label column, then the value. */
+function fact(label: string, value: string): string {
+  return `${label.padEnd(11)} ${value}`;
+}
+
 describe('PermissionPromptUI: renders correctly per category', () => {
   const WIDTH = 80;
 
@@ -287,7 +300,7 @@ describe('PermissionPromptUI: renders correctly per category', () => {
     expect(label).toBe('PERMISSION');
   });
 
-  test('createPromptLines returns non-empty array of lines for write', () => {
+  test('createPromptLayer returns non-empty array of lines for write', () => {
     const request = {
       callId: 'test-call-1',
       tool: 'write',
@@ -296,11 +309,11 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('write', { path: 'src/output.ts' }, 'write'),
       resolve: (_approved: boolean) => {},
     };
-    const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    expect(lines.length).toBeGreaterThan(0);
+    const layer = PermissionPromptUI.createPromptLayer(WIDTH, 24, request);
+    expect(layer.lines.length).toBeGreaterThan(0);
   });
 
-  test('createPromptLines for execute includes EXECUTE label', () => {
+  test('createPromptLayer for execute includes EXECUTE label', () => {
     const request = {
       callId: 'test-call-2',
       tool: 'exec',
@@ -309,12 +322,10 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('exec', { command: 'npm run build' }, 'execute'),
       resolve: (_approved: boolean) => {},
     };
-    const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    // Line is Cell[], join chars to get the text content of each line
-    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain('[EXECUTE]');
+    expect(promptText(WIDTH, request)).toContain('execute');
   });
 
-  test('createPromptLines for delegate includes DELEGATE label', () => {
+  test('createPromptLayer for delegate includes DELEGATE label', () => {
     const request = {
       callId: 'test-call-3',
       tool: 'agent',
@@ -323,11 +334,10 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('agent', { task: 'do something' }, 'delegate'),
       resolve: (_approved: boolean) => {},
     };
-    const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain('[DELEGATE]');
+    expect(promptText(WIDTH, request)).toContain('delegate');
   });
 
-  test('createPromptLines includes tool name in output', () => {
+  test('createPromptLayer includes tool name in output', () => {
     const toolName = 'write';
     const request = {
       callId: 'test-call-4',
@@ -337,11 +347,10 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest(toolName, { path: 'out.ts' }, 'write'),
       resolve: (_approved: boolean) => {},
     };
-    const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain(toolName);
+    expect(promptText(WIDTH, request)).toContain(toolName);
   });
 
-  test('createPromptLines includes choices [Y] Allow once in output', () => {
+  test('createPromptLayer includes choices [Y] Allow once in output', () => {
     const request = {
       callId: 'test-call-5',
       tool: 'exec',
@@ -350,11 +359,10 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('exec', { command: 'ls' }, 'execute'),
       resolve: (_approved: boolean) => {},
     };
-    const lines = PermissionPromptUI.createPromptLines(WIDTH, request);
-    expect(lines.map((line) => line.map((c) => c.char).join('')).join('\n')).toContain('[Y]');
+    expect(promptText(WIDTH, request)).toContain('Allow once y');
   });
 
-  test('createPromptLines specializes execute prompts for shell execution', () => {
+  test('createPromptLayer specializes execute prompts for shell execution', () => {
     const request = {
       callId: 'test-call-6',
       tool: 'exec',
@@ -363,18 +371,16 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('exec', { command: 'ls' }, 'execute'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Shell Execution Approval');
     expect(text).toContain('Command');
-    expect(text).toContain('Decision  : shell-execution');
-    expect(text).toContain('Surface   : shell  radius=project');
-    expect(text).toContain('Effects   : process execution');
-    expect(text).toContain('Checklist : Confirm shell side effects');
+    expect(text).toContain(fact('Decision', 'shell-execution'));
+    expect(text).toContain(fact('Surface', 'shell  radius=project'));
+    expect(text).toContain(fact('Effects', 'process execution'));
+    expect(text).toContain(fact('Checklist', 'Confirm shell side effects'));
   });
 
-  test('createPromptLines specializes network prompts and includes host context', () => {
+  test('createPromptLayer specializes network prompts and includes host context', () => {
     const request = {
       callId: 'test-call-7',
       tool: 'fetch',
@@ -394,17 +400,15 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       },
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Network Access Approval');
     expect(text).toContain('Host');
     expect(text).toContain('example.com');
-    expect(text).toContain('Decision  : external-access');
-    expect(text).toContain('Surface   : network  radius=external');
+    expect(text).toContain(fact('Decision', 'external-access'));
+    expect(text).toContain(fact('Surface', 'network  radius=external'));
   });
 
-  test('createPromptLines specializes write prompts for file mutation review', () => {
+  test('createPromptLayer specializes write prompts for file mutation review', () => {
     const request = {
       callId: 'test-call-8',
       tool: 'write',
@@ -413,15 +417,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('write', { path: 'src/output.ts' }, 'write'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('File Mutation Approval');
-    expect(text).toContain('Decision  : file-mutation');
-    expect(text).toContain('Checklist : Confirm target path');
+    expect(text).toContain(fact('Decision', 'file-mutation'));
+    expect(text).toContain(fact('Checklist', 'Confirm target path'));
   });
 
-  test('createPromptLines specializes notebook edits separately from generic file mutation', () => {
+  test('createPromptLayer specializes notebook edits separately from generic file mutation', () => {
     const request = {
       callId: 'test-call-8b',
       tool: 'edit',
@@ -430,15 +432,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('edit', { path: 'notebooks/analysis.ipynb' }, 'write'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Notebook Edit Approval');
-    expect(text).toContain('Decision  : notebook-edit');
-    expect(text).toContain('Checklist : Confirm notebook cell intent');
+    expect(text).toContain(fact('Decision', 'notebook-edit'));
+    expect(text).toContain(fact('Checklist', 'Confirm notebook cell intent'));
   });
 
-  test('createPromptLines specializes config mutations separately from generic file mutation', () => {
+  test('createPromptLayer specializes config mutations separately from generic file mutation', () => {
     const request = {
       callId: 'test-call-8c',
       tool: 'write',
@@ -447,15 +447,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('write', { path: '.env.production' }, 'write'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Configuration Mutation Approval');
-    expect(text).toContain('Decision  : config-mutation');
-    expect(text).toContain('Checklist : Confirm configuration blast radius');
+    expect(text).toContain(fact('Decision', 'config-mutation'));
+    expect(text).toContain(fact('Checklist', 'Confirm configuration blast radius'));
   });
 
-  test('createPromptLines specializes dependency installs separately from generic shell execution', () => {
+  test('createPromptLayer specializes dependency installs separately from generic shell execution', () => {
     const request = {
       callId: 'test-call-8d',
       tool: 'exec',
@@ -464,15 +462,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('exec', { command: 'bun install' }, 'execute'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Dependency Install Approval');
-    expect(text).toContain('Decision  : dependency-install');
-    expect(text).toContain('Checklist : Confirm dependency provenance');
+    expect(text).toContain(fact('Decision', 'dependency-install'));
+    expect(text).toContain(fact('Checklist', 'Confirm dependency provenance'));
   });
 
-  test('createPromptLines specializes delegation prompts for fan-out review', () => {
+  test('createPromptLayer specializes delegation prompts for fan-out review', () => {
     const request = {
       callId: 'test-call-9',
       tool: 'agent',
@@ -481,16 +477,14 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('agent', { task: 'delegate release verification' }, 'delegate'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Agent Delegation Approval');
-    expect(text).toContain('Decision  : delegation');
-    expect(text).toContain('Surface   : orchestration  radius=delegated');
-    expect(text).toContain('Checklist : Confirm delegated scope');
+    expect(text).toContain(fact('Decision', 'delegation'));
+    expect(text).toContain(fact('Surface', 'orchestration  radius=delegated'));
+    expect(text).toContain(fact('Checklist', 'Confirm delegated scope'));
   });
 
-  test('createPromptLines specializes agent spawn approvals separately from generic delegation', () => {
+  test('createPromptLayer specializes agent spawn approvals separately from generic delegation', () => {
     const request = {
       callId: 'test-call-9b',
       tool: 'agent',
@@ -499,15 +493,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('agent', { task: 'delegate release verification' }, 'delegate'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Agent Spawn Approval');
-    expect(text).toContain('Decision  : agent-spawn');
-    expect(text).toContain('Checklist : Confirm spawned agent scope');
+    expect(text).toContain(fact('Decision', 'agent-spawn'));
+    expect(text).toContain(fact('Checklist', 'Confirm spawned agent scope'));
   });
 
-  test('createPromptLines specializes remote dispatch approvals', () => {
+  test('createPromptLayer specializes remote dispatch approvals', () => {
     const request = {
       callId: 'test-call-10',
       tool: 'remote_trigger',
@@ -516,15 +508,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('remote_trigger', { mode: 'dispatch', task: 'run remote verification' }, 'delegate'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Remote Dispatch Approval');
-    expect(text).toContain('Decision  : remote-dispatch');
-    expect(text).toContain('Checklist : Confirm remote target');
+    expect(text).toContain(fact('Decision', 'remote-dispatch'));
+    expect(text).toContain(fact('Checklist', 'Confirm remote target'));
   });
 
-  test('createPromptLines specializes MCP trust escalation approvals', () => {
+  test('createPromptLayer specializes MCP trust escalation approvals', () => {
     const request = {
       callId: 'test-call-11',
       tool: 'mcp',
@@ -533,15 +523,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('mcp', { mode: 'set-trust', serverName: 'docs', trustMode: 'allow-all' }, 'delegate'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('MCP Trust Escalation Approval');
-    expect(text).toContain('Decision  : mcp-escalation');
-    expect(text).toContain('Checklist : Confirm server identity');
+    expect(text).toContain(fact('Decision', 'mcp-escalation'));
+    expect(text).toContain(fact('Checklist', 'Confirm server identity'));
   });
 
-  test('createPromptLines specializes hook execution approvals', () => {
+  test('createPromptLayer specializes hook execution approvals', () => {
     const request = {
       callId: 'test-call-12',
       tool: 'workflow',
@@ -550,15 +538,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('workflow', { eventPath: 'Pre:tool:edit', hookName: 'guard-edit' }, 'delegate'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Hook Execution Approval');
-    expect(text).toContain('Decision  : hook-execution');
-    expect(text).toContain('Checklist : Confirm hook source');
+    expect(text).toContain(fact('Decision', 'hook-execution'));
+    expect(text).toContain(fact('Checklist', 'Confirm hook source'));
   });
 
-  test('createPromptLines specializes plugin lifecycle approvals', () => {
+  test('createPromptLayer specializes plugin lifecycle approvals', () => {
     const request = {
       callId: 'test-call-13',
       tool: 'write',
@@ -567,15 +553,13 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('write', { path: '.goodvibes/plugins/deploy-audit/manifest.json' }, 'write'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Plugin Lifecycle Approval');
-    expect(text).toContain('Decision  : plugin-lifecycle');
-    expect(text).toContain('Checklist : Confirm package provenance');
+    expect(text).toContain(fact('Decision', 'plugin-lifecycle'));
+    expect(text).toContain(fact('Checklist', 'Confirm package provenance'));
   });
 
-  test('createPromptLines specializes sandbox policy change approvals', () => {
+  test('createPromptLayer specializes sandbox policy change approvals', () => {
     const request = {
       callId: 'test-call-14',
       tool: 'write',
@@ -584,12 +568,10 @@ describe('PermissionPromptUI: renders correctly per category', () => {
       analysis: analyzePermissionRequest('write', { path: 'sandbox.vmBackend' }, 'write'),
       resolve: (_approved: boolean) => {},
     };
-    const text = PermissionPromptUI.createPromptLines(WIDTH, request)
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('\n');
+    const text = promptText(WIDTH, request);
     expect(text).toContain('Sandbox Policy Change Approval');
-    expect(text).toContain('Decision  : sandbox-policy-change');
-    expect(text).toContain('Checklist : Confirm isolation-mode impact');
+    expect(text).toContain(fact('Decision', 'sandbox-policy-change'));
+    expect(text).toContain(fact('Checklist', 'Confirm isolation-mode impact'));
   });
 
   test('getDisplayArg returns path when args has path', () => {

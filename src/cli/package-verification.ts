@@ -5,6 +5,8 @@ import { join, normalize, relative } from 'node:path';
 import { hasGoodVibesCommandHelp, listGoodVibesHelpTopics, renderGoodVibesCommandHelp, renderGoodVibesHelp } from './help.ts';
 import { listBlockedGoodVibesCliCommandTokens, listGoodVibesCliCommands, listGoodVibesCliCommandTokens, parseGoodVibesCli } from './parser.ts';
 import { renderAutocompletePackageText } from '../renderer/autocomplete-overlay.ts';
+import { renderActivityModalPackageText } from '../renderer/activity-modal.ts';
+import { renderBlockActionsPackageText } from '../renderer/block-actions-overlay.ts';
 import { renderBookmarkModalPackageText } from '../renderer/bookmark-modal.ts';
 import { renderContextInspectorPackageText } from '../renderer/context-inspector.ts';
 import { renderFilePickerPackageText } from '../renderer/file-picker-overlay.ts';
@@ -12,7 +14,6 @@ import { renderHelpOverlayPackageText } from '../renderer/help-overlay.ts';
 import { renderHistorySearchOverlayPackageText } from '../renderer/history-search-overlay.ts';
 import { renderLiveTailModalPackageText } from '../renderer/live-tail-modal.ts';
 import { renderMcpWorkspacePackageText } from '../renderer/mcp-workspace.ts';
-import { renderModelPickerPackageText } from '../renderer/model-picker-overlay.ts';
 import { renderModelWorkspacePackageText } from '../renderer/model-workspace.ts';
 import { renderProcessModalPackageText } from '../renderer/process-modal.ts';
 import { renderProfilePickerPackageText } from '../renderer/profile-picker-modal.ts';
@@ -496,6 +497,18 @@ function packageFacingCliHelpTextSources(): readonly PackageFacingTextSource[] {
       sourceFunction: 'renderAutocompletePackageText',
     },
     {
+      path: 'tui:activity-modal',
+      content: renderActivityModalPackageText(),
+      sourcePath: 'src/renderer/activity-modal.ts',
+      sourceFunction: 'renderActivityModalPackageText',
+    },
+    {
+      path: 'tui:block-actions',
+      content: renderBlockActionsPackageText(),
+      sourcePath: 'src/renderer/block-actions-overlay.ts',
+      sourceFunction: 'renderBlockActionsPackageText',
+    },
+    {
       path: 'tui:bookmark-modal',
       content: renderBookmarkModalPackageText(),
       sourcePath: 'src/renderer/bookmark-modal.ts',
@@ -536,12 +549,6 @@ function packageFacingCliHelpTextSources(): readonly PackageFacingTextSource[] {
       content: renderMcpWorkspacePackageText(),
       sourcePath: 'src/renderer/mcp-workspace.ts',
       sourceFunction: 'renderMcpWorkspacePackageText',
-    },
-    {
-      path: 'tui:model-picker',
-      content: renderModelPickerPackageText(),
-      sourcePath: 'src/renderer/model-picker-overlay.ts',
-      sourceFunction: 'renderModelPickerPackageText',
     },
     {
       path: 'tui:model-workspace',

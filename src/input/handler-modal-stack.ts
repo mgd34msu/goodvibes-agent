@@ -49,6 +49,8 @@ export type EscapeState = ModalStackState & {
   selectionModal: ModalStackState['selectionModal'];
   autocompleteReset: () => void;
   autocompleteUpdate?: (query: string) => void;
+  /** Kit modals: the top one (or its own sub-level) is the first thing Esc pops. */
+  surfaceModals?: { readonly active: boolean; escape(): boolean };
 };
 
 export function handleEscape(state: EscapeState): {
@@ -85,6 +87,24 @@ export function handleEscape(state: EscapeState): {
     modalReturnFocus = 'prompt';
     state.modalReturnFocus = 'prompt';
   };
+
+  // Kit modals are always on top: one Esc pops one of their levels and stops.
+  if (state.surfaceModals?.active) {
+    state.surfaceModals.escape();
+    state.requestRender();
+    return {
+      prompt,
+      cursorPos,
+      commandMode,
+      helpOverlayActive,
+      helpScrollOffset,
+      shortcutsOverlayActive,
+      shortcutsScrollOffset,
+      selectionCallback,
+      indicatorFocused,
+      modalReturnFocus,
+    };
+  }
 
   if (state.settingsModal.active && state.settingsModal.editingMode) {
     state.settingsModal.cancelEdit();

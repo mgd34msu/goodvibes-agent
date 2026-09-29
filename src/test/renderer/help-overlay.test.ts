@@ -1,14 +1,17 @@
 /**
- * Tests for renderHelpOverlay.
+ * Tests for renderHelpOverlay and renderShortcutsOverlay (kit modals with an
+ * always-live search row).
  */
 import { describe, test, expect } from 'bun:test';
 import { renderHelpOverlay, renderShortcutsOverlay } from '../../renderer/help-overlay.ts';
 import type { SlashCommand } from '../../input/command-registry.ts';
 import { KeybindingsManager } from '../../input/keybindings.ts';
-import { lineToString, linesToText } from '../setup.ts';
+import { OverlayFilter } from '../../input/overlay-filter.ts';
+import { layerTextBlock } from '../helpers/surface-frame.ts';
+import type { SurfaceLayer } from '../../renderer/surface-kit.ts';
 
 const W = 120;
-const TALL_VIEWPORT = 80;
+const H = 40;
 const KEYBINDINGS = new KeybindingsManager({ configPath: '/nonexistent/path/keybindings.json' });
 
 const SAMPLE_COMMANDS: SlashCommand[] = [
@@ -17,75 +20,70 @@ const SAMPLE_COMMANDS: SlashCommand[] = [
   { name: 'quit', aliases: ['q'], description: 'Exit application', handler: () => {} },
 ];
 
-function renderAllText(commands?: SlashCommand[]): string {
-  const frames: string[] = [];
-  for (let offset = 0; offset <= 30; offset += 6) {
-    frames.push(linesToText(renderHelpOverlay(W, KEYBINDINGS, commands, offset, TALL_VIEWPORT)).join('\n'));
+/** Every row of the help list, scrolled through with the renderer's own scroll bound. */
+function renderAllText(commands?: SlashCommand[], query = ''): string {
+  const filter = new OverlayFilter();
+  filter.query = query;
+  const frames: string[] = [layerTextBlock(renderHelpOverlay(W, H, KEYBINDINGS, commands, 0, filter))];
+  for (let offset = 6; offset <= filter.maxScroll + 6; offset += 6) {
+    frames.push(layerTextBlock(renderHelpOverlay(W, H, KEYBINDINGS, commands, offset, filter)));
   }
   return frames.join('\n');
 }
 
 function renderAllShortcutText(): string {
-  const frames: string[] = [];
-  for (let offset = 0; offset <= 42; offset += 6) {
-    frames.push(linesToText(renderShortcutsOverlay(W, KEYBINDINGS, offset, TALL_VIEWPORT)).join('\n'));
+  const filter = new OverlayFilter();
+  const frames: string[] = [layerTextBlock(renderShortcutsOverlay(W, H, KEYBINDINGS, 0, filter))];
+  for (let offset = 6; offset <= filter.maxScroll + 6; offset += 6) {
+    frames.push(layerTextBlock(renderShortcutsOverlay(W, H, KEYBINDINGS, offset, filter)));
   }
   return frames.join('\n');
 }
 
+function rows(layer: SurfaceLayer): string[] {
+  return layer.lines.map((line) => line.map((cell) => cell.char).join(''));
+}
+
 describe('renderHelpOverlay', () => {
-  test('returns an array of Lines', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    expect(lines).toEqual(expect.any(Array));
-    expect(lines.length).toBeGreaterThan(0);
+  test('is a kit modal layer that fits the screen', () => {
+    const layer = renderHelpOverlay(W, H, KEYBINDINGS, undefined, 0);
+    expect(layer.dim).toBe(true);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(W);
+    expect(layer.y + layer.lines.length).toBeLessThanOrEqual(H);
   });
 
-  test('each line has correct terminal width', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    for (const line of lines) {
-      expect(line.length).toBe(W);
-    }
+  test('title row reads Help with the esc keycap', () => {
+    const title = rows(renderHelpOverlay(W, H, KEYBINDINGS, undefined, 0))[2]!;
+    expect(title).toContain('Help');
+    expect(title).toContain(' esc ');
   });
 
-  test('title bar contains "Help"', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const titleLine = lineToString(lines[0]);
-    expect(titleLine).toContain('Help');
+  test('the search row is always live and filters every group', () => {
+    const text = renderAllText(SAMPLE_COMMANDS, 'model');
+    expect(text).toContain('model▏');
+    expect(text).toContain('/model');
+    expect(text).not.toContain('Scroll by full page');
   });
 
-  test('footer contains close hint', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const footerLine = lineToString(lines[lines.length - 1]);
-    expect(footerLine).toContain('Esc');
+  test('says when nothing matches', () => {
+    const filter = new OverlayFilter();
+    filter.query = 'zzzz-no-match';
+    expect(layerTextBlock(renderHelpOverlay(W, H, KEYBINDINGS, SAMPLE_COMMANDS, 0, filter))).toContain('Nothing matches "zzzz-no-match".');
   });
 
-  test('contains Core Navigation section', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Core Navigation');
+  test('lists the navigation, editing and workspace groups', () => {
+    const text = renderAllText();
+    expect(text).toContain('core navigation');
+    expect(text).toContain('prompt and editing');
+    expect(text).toContain('overlays and workspace');
+    expect(text).toContain('Search all Agent workspace actions');
+    expect(text).toContain('Open selected action or form');
   });
 
-  test('contains Prompt And Editing section', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Prompt And Editing');
-  });
-
-  test('contains Overlays And Workspace section', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 13, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Overlays And Workspace');
-    expect(texts).toContain('Search all Agent workspace actions');
-    expect(texts).toContain('Open selected action or form');
-  });
-
-  test('contains Quick Start section when featured commands are registered', () => {
-    // Quick Start is built from the live registry: need at least one featured command.
-    const cmds: SlashCommand[] = [{ name: 'agent', description: 'Operator workspace', handler: () => {} }];
-    const lines = renderHelpOverlay(W, KEYBINDINGS, cmds, 14, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Quick Start');
-    expect(texts).toContain('press / there to search every action');
+  test('contains Quick Start when featured commands are registered', () => {
+    const text = renderAllText([{ name: 'agent', description: 'Operator workspace', handler: () => {} }]);
+    expect(text).toContain('quick start');
+    expect(text).toContain('press / there to search every action');
   });
 
   test('shows the setup quick-start row when setup is registered', () => {
@@ -95,67 +93,36 @@ describe('renderHelpOverlay', () => {
     expect(text).not.toContain('first-run checklist');
   });
 
-  test('includes Ctrl+F shortcut in navigation', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Ctrl+F');
+  test('includes the search, page and ? shortcuts', () => {
+    const text = renderAllText();
+    expect(text).toContain('Ctrl+F');
+    expect(text).toContain('PageUp');
+    expect(text).toContain('Toggle help');
   });
 
-  test('includes PageUp/PageDn in navigation', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('PageUp');
+  test('renders the command list when commands are provided', () => {
+    const text = renderAllText(SAMPLE_COMMANDS);
+    expect(text).toContain('/model');
+    expect(text).toContain('/help');
+    expect(text).toContain('Hidden power commands still work');
   });
 
-  test('includes ? toggle shortcut', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('?');
+  test('shows the fallback command list when no commands are provided', () => {
+    expect(renderAllText()).toContain('/help');
   });
 
-  test('shortcuts overlay presents Ctrl+A as prompt editing only', () => {
-    const text = renderAllShortcutText();
-    expect(text).toContain('Move to start of line');
-    expect(text).not.toContain('Delegate diff');
-    expect(text).not.toContain('apply-diff');
+  test('fits a narrow terminal', () => {
+    const layer = renderHelpOverlay(60, 24, KEYBINDINGS, undefined, 0);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(60);
   });
 
-  test('renders command list when commands provided', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, SAMPLE_COMMANDS, 47, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('/model');
-    expect(texts).toContain('/help');
+  test('keycap hints name scrolling and closing', () => {
+    const text = layerTextBlock(renderHelpOverlay(W, H, KEYBINDINGS, undefined, 0));
+    expect(text).toContain('↑↓  scroll');
+    expect(text).toContain('?  close');
   });
 
-  test('shows command aliases when provided when command is in the expanded list', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, SAMPLE_COMMANDS, 47, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('/model');
-  });
-
-  test('shows fallback command list when no commands provided', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 47, TALL_VIEWPORT);
-    const texts = linesToText(lines).join('\n');
-    // The fallback string includes known command names
-    expect(texts).toContain('/help');
-  });
-
-  test('lines are correct at narrow terminal width', () => {
-    const narrowW = 60;
-    const lines = renderHelpOverlay(narrowW, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    for (const line of lines) {
-      expect(line.length).toBe(narrowW);
-    }
-  });
-
-  test('footer contains scroll hint', () => {
-    const lines = renderHelpOverlay(W, KEYBINDINGS, undefined, 0, TALL_VIEWPORT);
-    const footerLine = lineToString(lines[lines.length - 1]);
-    expect(footerLine).toContain('Up/Down');
-  });
-
-  test('registry traversal crash guard: throwing command getter does not crash overlay', () => {
-    // Simulate a plugin command whose property getter throws (e.g. a broken plugin).
+  test('registry traversal crash guard: a throwing command getter does not crash the modal', () => {
     const throwingCmd = {
       name: 'cockpit',
       description: 'Control room',
@@ -164,13 +131,27 @@ describe('renderHelpOverlay', () => {
         throw new Error('plugin getter failure');
       },
     } as unknown as SlashCommand;
-
-    // The overlay must not throw even when registry traversal errors occur.
     expect(() => {
-      const lines = renderHelpOverlay(W, KEYBINDINGS, [throwingCmd], 0, TALL_VIEWPORT);
-      // Footer hints must still render (overlay is reachable).
-      const footerLine = lineToString(lines[lines.length - 1]);
-      expect(footerLine).toContain('Esc');
+      const text = layerTextBlock(renderHelpOverlay(W, H, KEYBINDINGS, [throwingCmd], 0));
+      expect(text).toContain('Help');
     }).not.toThrow();
+  });
+});
+
+describe('renderShortcutsOverlay', () => {
+  test('presents Ctrl+A as prompt editing only', () => {
+    const text = renderAllShortcutText();
+    expect(text).toContain('Move to start of line');
+    expect(text).not.toContain('Delegate diff');
+    expect(text).not.toContain('apply-diff');
+  });
+
+  test('records how far the grid can scroll and filters by key or action', () => {
+    const filter = new OverlayFilter();
+    filter.query = 'bookmark';
+    const text = layerTextBlock(renderShortcutsOverlay(W, H, KEYBINDINGS, 0, filter));
+    expect(text).toContain('Bookmark block');
+    expect(text).not.toContain('Insert newline');
+    expect(filter.maxScroll).toBe(0);
   });
 });

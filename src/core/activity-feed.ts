@@ -3,7 +3,7 @@
  *
  * Replaces the old multi-panel system's SystemMessagesPanel as the sink for
  * operational traffic (model switches, provider discovery, delivery results,
- * background work updates). The Activity sidebar renders the most recent
+ * background work updates). The Activity modal renders the most recent
  * entries; high-priority messages additionally land in the conversation via
  * SystemMessageRouter.
  *

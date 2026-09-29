@@ -3,12 +3,14 @@ import { fitDisplay, getDisplayWidth, truncateDisplay } from '../utils/terminal-
 import type { SearchManager } from '../input/search.ts';
 import { createBottomBarLine, writeBottomBarText } from '@pellux/goodvibes-terminal-shell';
 import { activeTokens } from './theme.ts';
+import { keycapHintsWidth, paintKeycapHints } from './surface-kit-parts.ts';
+import type { KitHint } from './surface-kit.ts';
 
 const SEARCH_OVERLAY_LABEL = ' Find: ';
 const SEARCH_OVERLAY_NO_MATCHES = 'No matches';
 const SEARCH_OVERLAY_COUNT_SUFFIX = 'up/down';
-const SEARCH_OVERLAY_LOCKED_HINTS = '  [Up/Down] or [jk] navigate  [Bksp] edit  [Esc] close';
-const SEARCH_OVERLAY_UNLOCKED_HINTS = '  [Enter/Tab] lock  [Esc] close';
+const SEARCH_OVERLAY_LOCKED_HINTS: KitHint[] = [['↑↓ jk', 'navigate'], ['bksp', 'edit'], ['esc', 'close']];
+const SEARCH_OVERLAY_UNLOCKED_HINTS: KitHint[] = [['⏎ tab', 'lock'], ['esc', 'close']];
 
 function searchOverlayMatchCount(current: string | number, total: string | number): string {
   return `${current}/${total} ${SEARCH_OVERLAY_COUNT_SUFFIX}`;
@@ -19,21 +21,20 @@ export function renderSearchOverlayPackageText(): string {
     SEARCH_OVERLAY_LABEL.trim(),
     searchOverlayMatchCount('<current>', '<total>'),
     SEARCH_OVERLAY_NO_MATCHES,
-    SEARCH_OVERLAY_LOCKED_HINTS.trim(),
-    SEARCH_OVERLAY_UNLOCKED_HINTS.trim(),
+    ...SEARCH_OVERLAY_LOCKED_HINTS.map(([, action]) => action),
+    ...SEARCH_OVERLAY_UNLOCKED_HINTS.map(([, action]) => action),
   ].join('\n');
 }
 
 /**
  * Render the search bar as a single Line[] overlay at the bottom of the viewport.
- * Format: [ Find: <query>   3/17 up/down  [n] next [N] prev [Esc] close ]
- * The match count is dim grey; the rest of the bar is teal.
+ * Format: [ Find: <query>   3/17 up/down          (keycap hints on the right) ]
+ * The match count is dim; the hints are keycaps and drop out on a narrow bar.
  */
 export function renderSearchOverlay(
   manager: SearchManager,
   width: number
 ): Line[] {
-  // Match count text, displayed in dim grey, right of query, left of hints
   const matchCount = manager.matches?.length > 0
     ? searchOverlayMatchCount(manager.currentMatch + 1, manager.matches.length)
     : manager.query.length > 0
@@ -42,36 +43,26 @@ export function renderSearchOverlay(
 
   const locked = manager.locked;
   const cursor = locked ? '' : '█';
-  const queryDisplay = manager.query + cursor;
-  const hints = locked
-    ? SEARCH_OVERLAY_LOCKED_HINTS
-    : SEARCH_OVERLAY_UNLOCKED_HINTS;
-  const label = SEARCH_OVERLAY_LABEL;
+  const leftPart = SEARCH_OVERLAY_LABEL + manager.query + cursor;
+  const hints = locked ? SEARCH_OVERLAY_LOCKED_HINTS : SEARCH_OVERLAY_UNLOCKED_HINTS;
   const matchStr = matchCount ? ` ${matchCount}` : '';
-
-  // Build left portion: label + query (no match count, that gets separate styling)
-  const leftPart = label + queryDisplay;
-  const hintsW = getDisplayWidth(hints);
   const matchStrW = getDisplayWidth(matchStr);
-  // Available width for left content (query area)
-  const leftWidth = width - hintsW - matchStrW - 2;
+  const hintsW = keycapHintsWidth(hints);
+  // Hints sit at the right end of the bar when they fit beside the query.
+  const showHints = width - hintsW - 2 - matchStrW >= getDisplayWidth(SEARCH_OVERLAY_LABEL) + 8;
+  const leftWidth = Math.max(1, width - matchStrW - (showHints ? hintsW + 4 : 1));
   const truncatedLeft = fitDisplay(
     getDisplayWidth(leftPart) > leftWidth ? truncateDisplay(leftPart, leftWidth) : leftPart,
     leftWidth,
   );
 
-  // Build the full line text (match count embedded for positional tracking)
-  const fullLine = truncatedLeft + matchStr + hints + ' ';
   const p = activeTokens();
   const line = createBottomBarLine(width, { fg: p.selectedListItemText, bg: p.accent });
-  writeBottomBarText(line, 0, width, fitDisplay(truncateDisplay(fullLine, width), width), { fg: p.selectedListItemText, bg: p.accent });
-
-  // Overwrite match count segment with dim grey styling
+  writeBottomBarText(line, 0, leftWidth, truncatedLeft, { fg: p.selectedListItemText, bg: p.accent });
   if (matchStr.length > 0) {
-    const matchStart = getDisplayWidth(truncatedLeft);
     // dim kept: de-emphasis on the accent bar, where a faint grey would not read.
-    writeBottomBarText(line, matchStart, matchStrW, matchStr, { fg: p.selectedListItemText, bg: p.accent, dim: true });
+    writeBottomBarText(line, leftWidth, matchStrW, matchStr, { fg: p.selectedListItemText, bg: p.accent, dim: true });
   }
-
+  if (showHints) paintKeycapHints(line, width - hintsW - 2, width - 2, hints, { fg: p.selectedListItemText, bg: p.accent });
   return [line];
 }

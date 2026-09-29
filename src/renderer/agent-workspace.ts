@@ -7,7 +7,7 @@ import type {
 } from '../input/agent-workspace.ts';
 import type { AgentWorkspaceEditorKind } from '../input/agent-workspace-types.ts';
 import type { AgentWorkspaceSetupChecklistItem } from '../input/agent-workspace-setup.ts';
-import type { Line } from '@pellux/goodvibes-sdk/platform/types';
+import type { SurfaceLayer } from './surface-kit.ts';
 import { wrapText } from '../utils/terminal-width.ts';
 import { GLYPHS } from './ui-primitives.ts';
 import {
@@ -47,6 +47,7 @@ function resultPalette(): { text: string; good: string; muted: string; dim: stri
   };
 }
 import { actionResultColor, type AgentWorkspaceContextLine as ContextLine } from './agent-workspace-style.ts';
+import { buildEditorRows } from './agent-workspace-editor-rows.ts';
 import { compactText, reviewerReadinessContextLines, snapshotLines } from './agent-workspace-context-lines.ts';
 import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, ONBOARDING_CRITICAL_STEP_IDS } from '../input/agent-workspace-onboarding-finish.ts';
 
@@ -113,10 +114,10 @@ function buildLeftRows(workspace: AgentWorkspace, height: number): WorkspaceRow[
   const window = stableWindow(rows.length, selectedRenderedIndex, visible);
   const visibleRows = rows.slice(window.start, window.end);
   if (window.start > 0 && visibleRows.length > 0) {
-    visibleRows[0] = { text: `${GLYPHS.navigation.moreAbove} ${window.start} more row(s) above`, kind: 'more', fg: PALETTE.dim, dim: true };
+    visibleRows[0] = { text: `${GLYPHS.navigation.moreAbove} ${window.start} more`, kind: 'more', fg: PALETTE.dim, dim: true };
   }
   if (window.end < rows.length && visibleRows.length > 0) {
-    visibleRows[visibleRows.length - 1] = { text: `${GLYPHS.navigation.moreBelow} ${rows.length - window.end} more row(s) below`, kind: 'more', fg: PALETTE.dim, dim: true };
+    visibleRows[visibleRows.length - 1] = { text: `${GLYPHS.navigation.moreBelow} ${rows.length - window.end} more`, kind: 'more', fg: PALETTE.dim, dim: true };
   }
   while (visibleRows.length < height) visibleRows.push({ text: '', kind: 'empty' });
   return visibleRows.slice(0, height);
@@ -551,54 +552,6 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
   });
 }
 
-function buildEditorRows(editor: AgentWorkspaceLocalEditor, width: number, height: number): WorkspaceRow[] {
-  const rows: WorkspaceRow[] = [
-    { text: editor.title, fg: PALETTE.title, bold: true },
-    { text: editor.message, fg: PALETTE.info },
-    { text: '' },
-  ];
-  const footerRows: WorkspaceRow[] = [
-    { text: '' },
-    { text: 'Enter next/save · Up/Down field · Backspace edit · Ctrl-J newline · Esc cancel', fg: PALETTE.muted },
-  ];
-  const visibleFields = Math.max(1, Math.floor(Math.max(1, height - rows.length - footerRows.length) / 3));
-  const window = stableWindow(editor.fields.length, editor.selectedFieldIndex, visibleFields);
-  if (window.start > 0) rows.push({ text: `${GLYPHS.navigation.moreAbove} ${window.start} more field(s) above`, kind: 'more', fg: PALETTE.dim, dim: true });
-  for (let index = window.start; index < window.end; index += 1) {
-    rows.push(...buildEditorFieldRows(editor, index, width));
-  }
-  if (window.end < editor.fields.length) rows.push({ text: `${GLYPHS.navigation.moreBelow} ${editor.fields.length - window.end} more field(s) below`, kind: 'more', fg: PALETTE.dim, dim: true });
-  rows.push(...footerRows);
-  while (rows.length < height) rows.push({ text: '', kind: 'empty' });
-  return rows.slice(0, height);
-}
-
-function buildEditorFieldRows(editor: AgentWorkspaceLocalEditor, index: number, width: number): WorkspaceRow[] {
-  const field = editor.fields[index]!;
-  const selected = index === editor.selectedFieldIndex;
-  const marker = selected ? GLYPHS.navigation.selected : ' ';
-  const required = field.required ? ' *' : '';
-  const value = field.value.length > 0
-    ? field.redact ? '*'.repeat(Math.min(12, Math.max(6, Array.from(field.value).length))) : field.value
-    : '(empty)';
-  const color = selected ? PALETTE.text : field.value.length > 0 ? PALETTE.info : PALETTE.muted;
-  const rows: WorkspaceRow[] = [{
-    text: `${marker} ${field.label}${required}`,
-    selected,
-    fg: color,
-    bold: selected,
-  }];
-  const valueLines = value.split('\n');
-  for (const valueLine of valueLines.slice(0, 4)) {
-    for (const wrapped of wrapText(`  ${valueLine}`, Math.max(1, width - 2))) {
-      rows.push({ text: wrapped, fg: field.value.length > 0 ? PALETTE.text : PALETTE.dim, dim: field.value.length === 0 });
-    }
-  }
-  if (valueLines.length > 4) rows.push({ text: `  ${valueLines.length - 4} more line(s)`, fg: PALETTE.dim, dim: true });
-  rows.push({ text: `  ${field.hint}`, fg: PALETTE.dim, dim: true });
-  return rows;
-}
-
 function onboardingFinishPrerequisitesMet(workspace: AgentWorkspace): boolean {
   const checklist = workspace.runtimeSnapshot?.setupChecklist ?? [];
   return ONBOARDING_CRITICAL_STEP_IDS.every((id) => checklist.find((item) => item.id === id)?.status === 'ready');
@@ -727,7 +680,9 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
 
   if (window.end < allActions.length) rows.push({ text: `${GLYPHS.navigation.moreBelow} ${allActions.length - window.end} more action(s) below`, kind: 'more', fg: PALETTE.dim, dim: true });
   rows.push({ text: '' });
-  rows.push({ text: `Status: ${workspace.status}`, fg: PALETTE.muted });
+  // Wrapped here, where the rows are budgeted, so the result window below
+  // accounts for every row the status takes.
+  for (const line of wrapText(`Status: ${workspace.status}`, Math.max(1, width))) rows.push({ text: line, fg: PALETTE.muted });
   // `reservedForResult` shrank the action window; this is what is actually left
   // once the headers, markers and status line have taken their rows. Windowing
   // against the real remainder is what keeps the total within the pane, so the
@@ -745,44 +700,52 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   return rows.slice(0, height);
 }
 
+/** Key / action pairs for the keycap hint row (Esc is the title row's keycap). */
 function footerText(workspace: AgentWorkspace): string {
   if (workspace.localEditor) {
-    return `Agent workspace · editing ${workspace.localEditor.kind} · Enter next/save · Ctrl-J newline · Esc cancel`;
+    return 'Enter next/save · Up/Down field · Backspace edit · Ctrl+J newline · Esc cancel';
   }
   if (workspace.actionSearchActive) {
-    return 'Agent workspace · action search · type filter · Up/Down results · Enter open · Esc clear';
+    return 'Up/Down results · Enter open · Backspace edit search · Esc clear';
   }
-  const focus = workspace.focusPane === 'categories' ? 'categories' : 'actions';
-  return `Agent workspace · ${focus} · / search · Up/Down · Left/Right · Ctrl+[/] area · Enter open/action · R refresh · Esc close`;
+  return 'Up/Down move · Left/Right pane · Enter open · / search · Ctrl+] next area · R refresh';
 }
 
-export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): Line[] {
+export function renderAgentWorkspace(workspace: AgentWorkspace, width: number, height: number): SurfaceLayer {
   const category = workspace.selectedActionCategory;
   const action = workspace.selectedAction;
-  const layoutOptions = {
+  const footer = footerText(workspace);
+  const baseOptions = {
     width,
     height,
-    leftWidth: width < 90 ? undefined : 30,
+    leftWidth: width < 90 ? undefined : 22,
     contextRatio: 0.4,
     minContextRows: 10,
+    footer,
   };
+  // The context is built first (it depends only on the width) so its share of
+  // the panel can grow to what it needs while the actions keep their minimum.
+  const contextWidth = getFullscreenWorkspaceMetrics(baseOptions).contextWidth;
+  const contextRows = buildContextRows(workspace, category, action, contextWidth);
+  const layoutOptions = { ...baseOptions, contextNeed: contextRows.length };
   const metrics = getFullscreenWorkspaceMetrics(layoutOptions);
 
   return renderFullscreenWorkspace({
     width,
     height,
-    title: 'GoodVibes Agent / Operator Workspace',
-    stateLabel: workspace.localEditor ? 'Editor' : workspace.actionSearchActive ? 'Search' : workspace.focusPane === 'categories' ? 'Categories' : 'Actions',
+    title: 'Agent workspace',
+    stateLabel: workspace.localEditor ? `editing ${workspace.localEditor.kind}` : workspace.actionSearchActive ? 'Search' : workspace.focusPane === 'categories' ? 'Categories' : 'Actions',
     leftHeader: 'Operator Areas',
     mainHeader: workspace.actionSearchActive
-      ? `Search actions · ${workspace.actions.length} result(s)`
-      : `${category.label} · ${workspace.actions.length} action(s)`,
+      ? `Search actions · ${workspace.actions.length} result${workspace.actions.length === 1 ? '' : 's'}`
+      : `${category.label} · ${workspace.actions.length} action${workspace.actions.length === 1 ? '' : 's'}`,
     leftRows: buildLeftRows(workspace, metrics.bodyRows),
-    contextRows: buildContextRows(workspace, category, action, metrics.contextWidth),
+    contextRows,
     controlRows: buildActionRows(workspace, metrics.contextWidth, metrics.controlRows),
-    footer: footerText(workspace),
+    footer,
     leftWidth: layoutOptions.leftWidth,
     contextRatio: layoutOptions.contextRatio,
     minContextRows: layoutOptions.minContextRows,
+    contextNeed: layoutOptions.contextNeed,
   });
 }

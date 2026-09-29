@@ -4,7 +4,7 @@
  *
  * A bookmark stores a block's collapseKey at the time it was set (see
  * handler-content-actions.ts's handleBookmark). A tool-result message hidden
- * by a collapsed assistant turn (see conversation-turn-structure.ts) pushes
+ * by a collapsed assistant turn (see work-tree-model.ts) pushes
  * no BlockMeta of its own while that turn stays collapsed, its own
  * collapseKey (`msg_<absoluteIdx>`) never appears in getBlockRegistry() until
  * the turn is expanded. A direct
@@ -26,7 +26,13 @@
 
 import type { ConversationManager } from './conversation.ts';
 
-const MESSAGE_BOOKMARK_KEY = /^msg_(\d+)$/;
+/**
+ * `msg_<idx>` (a message block), or `bead_c:<idx>:<call>` (a work-tree bead of
+ * the main transcript: its call's message index). A bead inside a folded turn
+ * or lane has no block of its own; its message line is the row that stands
+ * for it (the folded turn's header, or the ◉ of its folded lane's spawn).
+ */
+const MESSAGE_BOOKMARK_KEY = /^(?:msg_|bead_c:)(\d+)(?::\d+)?$/;
 
 /**
  * Resolve a bookmark key that missed a direct BlockMeta lookup. Returns the

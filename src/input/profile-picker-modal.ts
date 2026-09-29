@@ -76,6 +76,8 @@ export class ProfilePickerModal {
 
   /** Last status message (success/error feedback). */
   public statusMessage = '';
+  /** The always-live search row's query; selectedIndex indexes visibleProfiles. */
+  public query = '';
 
   public constructor(private readonly profileManager: ProfileManager) {}
 
@@ -88,6 +90,7 @@ export class ProfilePickerModal {
     this.scrollOffset = 0;
     this.statusMessage = '';
     this.deleteConfirmationTarget = null;
+    this.query = '';
     this.active = true;
   }
 
@@ -95,18 +98,36 @@ export class ProfilePickerModal {
     this.active = false;
     this.statusMessage = '';
     this.deleteConfirmationTarget = null;
+    this.query = '';
+  }
+
+  /** The profiles the search row lets through, in order. */
+  get visibleProfiles(): ProfileInfo[] {
+    const q = this.query.trim().toLowerCase();
+    if (!q) return this.profiles;
+    return this.profiles.filter((profile) => profile.name.toLowerCase().includes(q));
+  }
+
+  /** Replace the query; the selection moves to the first match. */
+  setQuery(query: string): void {
+    this.query = query;
+    this.selectedIndex = 0;
+    this.scrollOffset = 0;
+    this.deleteConfirmationTarget = null;
   }
 
   moveUp(): void {
-    if (this.profiles.length === 0) return;
-    this.selectedIndex = (this.selectedIndex - 1 + this.profiles.length) % this.profiles.length;
+    const n = this.visibleProfiles.length;
+    if (n === 0) return;
+    this.selectedIndex = (this.selectedIndex - 1 + n) % n;
     this._clampScroll();
     this.deleteConfirmationTarget = null;
   }
 
   moveDown(): void {
-    if (this.profiles.length === 0) return;
-    this.selectedIndex = (this.selectedIndex + 1) % this.profiles.length;
+    const n = this.visibleProfiles.length;
+    if (n === 0) return;
+    this.selectedIndex = (this.selectedIndex + 1) % n;
     this._clampScroll();
     this.deleteConfirmationTarget = null;
   }
@@ -117,7 +138,7 @@ export class ProfilePickerModal {
   }
 
   getSelected(): ProfileInfo | null {
-    return this.profiles[this.selectedIndex] ?? null;
+    return this.visibleProfiles[this.selectedIndex] ?? null;
   }
 
   /**
@@ -217,7 +238,7 @@ export class ProfilePickerModal {
     } else if (this.selectedIndex >= this.scrollOffset + visRows) {
       this.scrollOffset = this.selectedIndex - visRows + 1;
     }
-    const maxOffset = Math.max(0, this.profiles.length - visRows);
+    const maxOffset = Math.max(0, this.visibleProfiles.length - visRows);
     this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxOffset));
   }
 }

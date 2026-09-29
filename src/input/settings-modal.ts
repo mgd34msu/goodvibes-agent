@@ -44,6 +44,8 @@ import {
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
 import { isAgentHiddenSettingKey } from './settings-modal-agent-policy.ts';
+import { searchSettingEntries } from './settings-modal-search.ts';
+import { getSettingLabel } from '../renderer/settings-modal-helpers.ts';
 
 export {
   SETTINGS_CATEGORIES,
@@ -108,6 +110,13 @@ export class SettingsModal {
   public subscriptionEntries: SubscriptionEntry[] = [];
 
   public lastSettingEffectMessage: string | null = null;
+  /** The always-live search row: a non-empty query lists ranked matches from every category. */
+  public searchQuery = '';
+  public searchResults: SettingEntry[] = [];
+  get searchFocused(): boolean { return this.searchQuery.length > 0; }
+  /** Rows the selected setting's documentation is scrolled (PgUp/PgDn); reset when the selection moves. */
+  public contextScroll = 0;
+  scrollContext(delta: number): void { this.contextScroll = Math.max(0, this.contextScroll + delta); }
 
   private configManager: ConfigManager | null = null;
   private secretsManager: SettingsSecretsManager | null = null;
@@ -154,7 +163,21 @@ export class SettingsModal {
     this.mcpAllowAllConfirmationTarget = null;
     this.subscriptionLogoutConfirmationTarget = null;
     this.lastSettingEffectMessage = null;
+    this.clearSearch();
     this.active = true;
+  }
+
+  /** Replace the search query and recompute the ranked results (an empty query clears the search). */
+  setSearchQuery(query: string): void {
+    this.searchQuery = query;
+    this.searchResults = query.trim().length === 0 ? [] : searchSettingEntries(query, this.groups, getSettingLabel);
+    this.selectedIndex = 0;
+    this.contextScroll = 0;
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.searchResults = [];
   }
 
   close(): void {
@@ -230,7 +253,9 @@ export class SettingsModal {
 
   moveUp(): void {
     if (this.editingMode) return;
-    const items = this._currentItems();
+    this.contextScroll = 0;
+    const items = this.searchFocused ? this.searchResults : this._currentItems();
+    if (this.searchFocused && items.length === 0) return;
     if (items.length === 0) {
       if (this.currentCategory === 'flags' && this.flagEntries.length > 0) {
         this.selectedIndex = (this.selectedIndex - 1 + this.flagEntries.length) % this.flagEntries.length;
@@ -248,7 +273,9 @@ export class SettingsModal {
 
   moveDown(): void {
     if (this.editingMode) return;
-    const items = this._currentItems();
+    this.contextScroll = 0;
+    const items = this.searchFocused ? this.searchResults : this._currentItems();
+    if (this.searchFocused && items.length === 0) return;
     if (items.length === 0) {
       if (this.currentCategory === 'flags' && this.flagEntries.length > 0) {
         this.selectedIndex = (this.selectedIndex + 1) % this.flagEntries.length;
@@ -265,7 +292,7 @@ export class SettingsModal {
   }
 
   getSelected(): SettingEntry | null {
-    const items = this._currentItems();
+    const items = this.searchFocused ? this.searchResults : this._currentItems();
     if (items.length === 0) return null;
     return items[Math.max(0, Math.min(items.length - 1, this.selectedIndex))] ?? null;
   }

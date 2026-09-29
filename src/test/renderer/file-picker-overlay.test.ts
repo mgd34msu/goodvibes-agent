@@ -42,7 +42,7 @@ describe('renderFilePickerOverlay', () => {
     }
   });
 
-  test('uses the shared overlay inset instead of hugging terminal edges', () => {
+  test('docks like the composer: a blank row, then the ┃ bar at column 2 beside the fill on every row', () => {
     const workingDirectory = makeWorkingDirectory();
     workingDirectories.push(workingDirectory);
     const picker = new FilePickerModal({ workingDirectory });
@@ -50,22 +50,20 @@ describe('renderFilePickerOverlay', () => {
     picker.results = ['src/app.ts'];
 
     const lines = renderFilePickerOverlay(picker, 80, 24);
-    expect(lineToString(lines[0]).startsWith('    ┌')).toBe(true);
+    expect(lineToString(lines[0]).trim()).toBe('');
+    for (const line of lines.slice(1)) expect(line[2]!.char).toBe('┃');
   });
 
-  test('shows a block cursor only when the search field is focused', () => {
+  test('the query row is always live: the typed query shows with the cursor and the match count', () => {
     const workingDirectory = makeWorkingDirectory();
     workingDirectories.push(workingDirectory);
     const picker = new FilePickerModal({ workingDirectory });
     picker.active = true;
+    picker.query = 'app';
     picker.results = ['src/app.ts'];
-    picker.searchFocused = false;
 
-    const unfocused = lineToString(renderFilePickerOverlay(picker, 80, 24)[1]!);
-    expect(unfocused).not.toContain('█');
-
-    picker.searchFocused = true;
-    const focused = lineToString(renderFilePickerOverlay(picker, 80, 24)[1]!);
-    expect(focused).toContain('█');
+    const header = lineToString(renderFilePickerOverlay(picker, 80, 24)[2]!);
+    expect(header).toContain('@app▏');
+    expect(header).toContain('1 file');
   });
 });

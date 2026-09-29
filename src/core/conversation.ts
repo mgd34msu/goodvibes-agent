@@ -11,15 +11,17 @@ import {
 } from '@pellux/goodvibes-sdk/platform/core';
 import {
   addConversationSplashScreen,
-  appendConversationMessages,
   conversationTextToLines,
   logConversationText,
-  renderConversationAssistantMessage,
-  renderConversationSystemMessage,
-  renderConversationToolMessage,
-  renderConversationUserMessage,
 } from './conversation-rendering.ts';
 import { renderMarkdown } from '../renderer/markdown.ts';
+import type { BlockMeta } from './conversation-types.ts';
+import { MessageLineCache } from './conversation-line-cache.ts';
+import type { WorkTreeSources } from './work-tree-sources.ts';
+import { renderStreamingContinuation } from './work-tree-render.ts';
+import { WorkTreeController } from './work-tree-focus.ts';
+import { isWorkTreeFoldKey } from './work-tree-fold-store.ts';
+import { probeUnicodeSupport, resolveTreeGlyphSet, type TreeGlyphSetName } from '../renderer/lane-graph/glyphs.ts';
 
 /**
  * ConversationManager - TUI subclass of the SDK's ConversationManager.
@@ -37,43 +39,8 @@ export type {
 
 export type { SdkBlockMeta };
 
-/**
- * The app extends the SDK BlockMeta with rendering position fields, plus a
- * local-only block type: 'assistant_turn' is the merged `● assistant` header
- * block that owns one whole run of assistant activity, with the run's tool
- * calls and their results hanging beneath it as a branch tree (see
- * conversation-turn-structure.ts). Defined as an intersection rather than
- * `interface X extends SdkBlockMeta` because TypeScript requires an extending
- * interface's members to be subtypes of the base interface's, widening the
- * `type` union that way is a compile error. Omit + intersection adds the new
- * variant without touching the SDK's published type.
- */
-export type BlockMeta = Omit<SdkBlockMeta, 'type'> & {
-  type: SdkBlockMeta['type'] | 'assistant_turn';
-  /** Index of this block (increments per renderable block). */
-  blockIndex: number;
-  /** First rendered line index in the history buffer. */
-  startLine: number;
-  /** Number of rendered lines (when not collapsed). */
-  lineCount: number;
-  /** Stable key for collapse state persistence across rebuilds (e.g. msg_N). */
-  collapseKey: string;
-  /**
-   * Absolute message indexes of every tool result hanging under an
-   * 'assistant_turn' header. A row hidden by a collapsed turn pushes no
-   * BlockMeta of its own, so this list is what lets /expand reopen each
-   * result's own collapse key in the same pass, and what lets search reach
-   * content that is currently hidden.
-   */
-  groupMemberIndexes?: readonly number[];
-  /**
-   * The tool call's name, when this block renders a 'tool' result (or is an
-   * 'assistant_turn' header whose calls all share one label). Undefined for
-   * non-tool block types and for standalone tool results with no recorded
-   * name.
-   */
-  toolName?: string;
-};
+/** The app's BlockMeta (see conversation-types.ts), re-exported for every existing importer. */
+export type { BlockMeta };
 
 // Import internal types needed for rendering helpers
 import type { ConversationMessageSnapshot } from '@pellux/goodvibes-sdk/platform/core';
@@ -99,6 +66,8 @@ export class ConversationManager extends SdkConversationManager {
   private errorLineRegistry: number[] = [];
   /** Streaming block start line in history buffer (for incremental streaming update). */
   private streamingStartLine = -1;
+  /** Width the streaming block was last drawn at; a change forces the pending rebuild first. */
+  private _streamWidth = -1;
   /**
    * Message index at the time of the last clearDisplay() call.
    * rebuildHistory() renders only messages at or after this index, so the
@@ -109,6 +78,21 @@ export class ConversationManager extends SdkConversationManager {
 
   public suppressSplash: boolean = false;
   public splashOptions: SplashOptions = {};
+  private splashOnScreen = false;
+  /** Per-unit rendered-line cache: an unchanged turn or message is never redrawn (conversation-line-cache.ts). */
+  private lineCache = new MessageLineCache();
+  /** Live facts the work tree reads (timings, agent lanes, waiting calls); see work-tree-sources.ts. */
+  private workTreeSources: WorkTreeSources = {};
+  /** Whether the terminal draws unicode; ascii work-tree glyphs when not. */
+  private unicodeCapable = probeUnicodeSupport();
+  /** Keyboard focus, live repaint and fold state of the work tree (work-tree-focus.ts). */
+  public readonly workTree: WorkTreeController = new WorkTreeController({
+    blocks: () => { this.flushHistory(); return this.blockRegistry; },
+    collapseState: () => this.collapseState,
+    markDirty: () => this.markDirty(),
+    noteUserTouch: (key) => this.noteUserTouch(key),
+    drewLive: () => this.lineCache.live,
+  });
 
   constructor(
     getWidth: () => number = () => process.stdout.columns || 80,
@@ -197,9 +181,14 @@ export class ConversationManager extends SdkConversationManager {
   public override startStreamingBlock(): void {
     super.startStreamingBlock();
     this.markDirty();
-    // Record the line where the streaming block starts so updates can be incremental
+    // Record the line where the streaming block starts so updates can be incremental.
+    // The rebuild already treats the placeholder as streaming (its turn ends
+    // without a blank row, the text continues under its spine), the same as a
+    // rebuild later in the stream does.
+    this.streamingStartLine = 0;
     this.flushHistory();
     this.streamingStartLine = this.history.getLineCount();
+    this._streamWidth = this._getWidth();
   }
 
   /**
@@ -209,26 +198,16 @@ export class ConversationManager extends SdkConversationManager {
    */
   public override updateStreamingBlock(content: string): void {
     super.updateStreamingBlock(content);
-    // Incrementally update the history buffer instead of full rebuild.
-    // Use the same width computation as the finalized path in renderConversationAssistantMessage
-    // so that streaming content does not reflow when it finalizes.
-    // NOTE: The 'all' line-number mode requires a two-pass measurement (total line count first,
-    // then render with gutter) which is impractical during streaming. For 'all' mode we apply
-    // a fixed pessimistic gutter (numWidth=3, gutterW=6) so the streaming width closely
-    // matches the finalized width; a single-line reflow may still occur if the final message
-    // exceeds 999 lines (extremely unlikely in practice). This is documented here as an
-    // intentional approximation, not a bug.
+    // Incrementally update the history buffer instead of a full rebuild: the
+    // streamed text continues under the spine of the turn it belongs to.
     if (this.streamingStartLine >= 0) {
+      // A terminal resized mid-stream: run the pending width-change rebuild
+      // first. rebuildHistory() re-anchors streamingStartLine to the new
+      // buffer, so the truncate below targets the right offset.
+      if (this._getWidth() !== this._streamWidth) this.flushHistory();
       const width = this._getWidth();
-      const lineNumberMode = this._configManager?.get('display.lineNumbers') ?? 'off';
-      const showAllLineNumbers = lineNumberMode === 'all';
-      // Match the gutter computation from renderConversationAssistantMessage:
-      // use numWidth=3 (minimum) during streaming since total line count is unknown.
-      const gutterW = showAllLineNumbers ? 3 + 3 : 0; // numWidth=3, separator=' | ' = +3
-      const renderWidth = showAllLineNumbers ? width - gutterW : width;
       this.history.truncateToLine(this.streamingStartLine);
-      const rendered = renderMarkdown(content, renderWidth);
-      this.history.addLines(rendered);
+      this.history.addLines(this.streamingLines(content, width));
     }
   }
 
@@ -239,6 +218,7 @@ export class ConversationManager extends SdkConversationManager {
   public override finalizeStreamingBlock(): void {
     super.finalizeStreamingBlock();
     this.streamingStartLine = -1;
+    this._streamWidth = -1;
     this.markDirty();
   }
 
@@ -260,6 +240,8 @@ export class ConversationManager extends SdkConversationManager {
     this.messageLineRegistry = [];
     this.errorLineRegistry = [];
     this.streamingStartLine = -1;
+    this.lineCache.clear();
+    this.workTree.reset();
     this._displayFromMessageIndex = 0; // full reset, show everything on next render
   }
 
@@ -273,6 +255,7 @@ export class ConversationManager extends SdkConversationManager {
   public override replaceMessagesForLLM(newMessages: ProviderMessage[]): void {
     super.replaceMessagesForLLM(newMessages);
     this.history.clear();
+    this.lineCache.clear();
     this.lastRenderedWidth = 0;
     this.dirty = true;
   }
@@ -310,6 +293,7 @@ export class ConversationManager extends SdkConversationManager {
   }): void {
     super.fromJSON(data);
     this.history.clear();
+    this.lineCache.clear();
     this.lastRenderedWidth = 0;
     this.dirty = true;
   }
@@ -321,6 +305,22 @@ export class ConversationManager extends SdkConversationManager {
   public getDisplayBlocks(): Line[] {
     this.flushHistory();
     return this.history.getAllLines();
+  }
+
+  /**
+   * clearLineCache - Drop every cached per-unit Line[] and force a full cold
+   * re-render on the next display. The rendered output is unchanged (the cache
+   * is a pure memoisation); this only discards the reuse, e.g. to reclaim memory
+   * or to assert cache/cold equivalence in tests.
+   */
+  public clearLineCache(): void {
+    this.lineCache.clear();
+    this.dirty = true;
+  }
+
+  /** Number of per-unit Line[] entries retained (bounded by the visible transcript). */
+  public getLineCacheSize(): number {
+    return this.lineCache.size;
   }
 
   /**
@@ -336,26 +336,46 @@ export class ConversationManager extends SdkConversationManager {
     this.dirty = false;
 
     const snapshot = this.getMessageSnapshot();
+    // During streaming, the in-progress placeholder (always the last message) is
+    // rendered here as EMPTY; the incremental streaming path (updateStreamingBlock)
+    // owns its content. This keeps streamingStartLine valid across rebuilds
+    // (a width change, a running bead's repaint), otherwise the placeholder would
+    // be drawn twice: once here and once by the streaming path.
+    const lastMsg = snapshot[snapshot.length - 1];
+    const isStreaming = this.streamingStartLine >= 0 && lastMsg?.role === 'assistant';
+    const renderSnapshot = isStreaming
+      ? [...snapshot.slice(0, -1), { ...lastMsg, content: '' } as Message]
+      : snapshot;
     // When _displayFromMessageIndex > 0, clearDisplay() was called. Only render
     // messages added after the clear, the pre-clear history stays off-screen.
-    // On a full rebuild (e.g. width change), reset the display-start to 0 so the
-    // user can scroll back to the full history if needed.
     const displayStart = this._displayFromMessageIndex;
-    const visibleSnapshot = displayStart > 0 ? snapshot.slice(displayStart) : snapshot;
+    const visibleSnapshot = displayStart > 0 ? renderSnapshot.slice(displayStart) : renderSnapshot;
 
-    // Tool messages ARE rendered (as collapsed blocks); this filter is only
-    // for determining whether to show the splash screen (tool-only messages
-    // don't count as visible conversation content for splash purposes).
+    // Tool and system messages do not count as visible conversation content
+    // for the splash decision.
     const displayMessages = visibleSnapshot.filter(
       (m) => m.role !== 'tool' && m.role !== 'system',
     );
 
     if (displayMessages.length === 0 && displayStart === 0 && !this.suppressSplash) {
+      this.splashOnScreen = true;
       this.addSplashScreen(width);
       return;
     }
 
-    this.appendMessages(visibleSnapshot, width, displayStart);
+    this.splashOnScreen = false;
+    this.lineCache.renderInto(this.renderingContext(), visibleSnapshot, width, this.messageLineRegistry, displayStart, isStreaming ? snapshot.length - 1 : -1);
+
+    if (isStreaming) {
+      // Re-anchor the streaming block to the freshly rebuilt buffer and redraw
+      // the in-progress content at the current width, mirroring startStreamingBlock.
+      this.streamingStartLine = this.history.getLineCount();
+      this._streamWidth = width;
+      const streamingContent = lastMsg?.content;
+      if (typeof streamingContent === 'string' && streamingContent.length > 0) {
+        this.history.addLines(this.streamingLines(streamingContent, width));
+      }
+    }
   }
 
   /**
@@ -390,38 +410,33 @@ export class ConversationManager extends SdkConversationManager {
       errorLineRegistry: this.errorLineRegistry,
       configManager: this._configManager,
       splashOptions: this.splashOptions,
+      workTreeSources: this.workTreeSources,
+      treeGlyphSet: this.treeGlyphSet(),
+      focusId: this.workTree.focus,
+      frame: this.workTree.frame,
     };
   }
 
-  private renderUserMessage(message: Extract<Message, { role: 'user' }>, width: number): void {
-    renderConversationUserMessage(this.renderingContext(), message, width);
+  /** The work tree's glyph set: display.treeGlyphs, ascii on a terminal without unicode. */
+  private treeGlyphSet(): TreeGlyphSetName {
+    return resolveTreeGlyphSet(this._configManager?.get('display.treeGlyphs'), this.unicodeCapable);
   }
 
-  private renderAssistantMessage(
-    message: Extract<Message, { role: 'assistant' }>,
-    width: number,
-    lineNumberMode: 'all' | 'code' | 'off',
-    collapseThreshold: number,
-    msgIdx: number,
-  ): void {
-    renderConversationAssistantMessage(this.renderingContext(), message, width, lineNumberMode, collapseThreshold, msgIdx);
+  /** Streaming text: under the spine of the turn it belongs to when there is one, else full width. */
+  private streamingLines(content: string, width: number): Line[] {
+    const tail = this.lineCache.lastTail;
+    if (!tail) return renderMarkdown(content, width);
+    return renderStreamingContinuation(content, width, tail, this.treeGlyphSet());
   }
 
-  private renderSystemMessage(message: Extract<Message, { role: 'system' }>, width: number): void {
-    renderConversationSystemMessage(this.renderingContext(), message, width);
-  }
+  // -------------------------------------------------------------------------
+  // Work tree (see work-tree-model.ts / work-tree-focus.ts)
+  // -------------------------------------------------------------------------
 
-  private renderToolMessage(message: Extract<Message, { role: 'tool' }>, width: number, msgIdx: number): void {
-    renderConversationToolMessage(this.renderingContext(), message, width, msgIdx);
-  }
-
-  /** Render a slice of messages into the history buffer. `msgIndexOffset` is
-   *  the absolute index of `messages[0]` in the full snapshot, non-zero after
-   *  clearDisplay(), so collapse keys and messageLineRegistry entries stay on
-   *  absolute message indexes. */
-  private appendMessages(messages: Message[], width: number, msgIndexOffset = 0): void {
-    appendConversationMessages(this.renderingContext(), messages, width, this.messageLineRegistry, msgIndexOffset);
-  }
+  /** Live facts the work tree draws: timings, agent lanes, the call a prompt is holding. */
+  public setWorkTreeSources(sources: WorkTreeSources): void { this.workTreeSources = sources; this.markDirty(); }
+  /** Override the unicode probe (tests, and a terminal the caller knows better). */
+  public setUnicodeCapable(capable: boolean): void { this.unicodeCapable = capable; this.markDirty(); }
 
   /** Find the nearest block to a given line index, optionally filtered by type. */
   public findNearestBlock(lineIndex: number, typeFilter?: string): BlockMeta | null {
@@ -447,7 +462,13 @@ export class ConversationManager extends SdkConversationManager {
   public isCollapsed(blockIndex: number): boolean {
     const block = this.blockRegistry[blockIndex];
     if (!block) return false;
-    return this.collapseState.get(block.collapseKey) ?? false;
+    return this.collapsedNow(block);
+  }
+
+  /** Current collapse of a block: an unset bead key is a closed bead; everything else defaults open. */
+  private collapsedNow(block: BlockMeta): boolean {
+    const stored = this.collapseState.get(block.collapseKey);
+    return block.workTree?.kind === 'bead' ? stored !== false : stored ?? false;
   }
 
   /**
@@ -479,10 +500,11 @@ export class ConversationManager extends SdkConversationManager {
   public toggleCollapseAtLine(lineIndex: number): number {
     const nearest = this.findNearestBlock(lineIndex);
     if (!nearest) return -1;
-    const current = this.collapseState.get(nearest.collapseKey) ?? false;
+    const current = this.collapsedNow(nearest);
     this.collapseState.set(nearest.collapseKey, !current);
     this.noteUserTouch(nearest.collapseKey);
     this.markDirty();
+    if (isWorkTreeFoldKey(nearest.collapseKey)) this.workTree.notifyFoldChange();
     return nearest.blockIndex;
   }
 
@@ -624,6 +646,11 @@ export class ConversationManager extends SdkConversationManager {
     if (lines.length === 0) return -1;
     const before = [...lines].reverse().find((line) => line < currentLine);
     return before ?? lines[lines.length - 1]!;
+  }
+
+  /** True while the last rebuild drew the splash (the shell centers it vertically). */
+  public isSplashShowing(): boolean {
+    return this.splashOnScreen;
   }
 
   public setSplashSuppressed(suppressed: boolean): void {

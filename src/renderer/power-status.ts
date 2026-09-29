@@ -1,11 +1,10 @@
 import type { PowerState } from '@pellux/goodvibes-sdk/platform/power';
 
 /**
- * The footer power note (see UIFactory.createFooter's
- * composeSafetyNoticeSegments, it renders alongside dangerMode's
- * "auto-approve is on" notice, COMPOSED together rather than sharing one
- * suppressible slot, since both are safety-relevant and must stay visible at
- * once). Priority order for WHICH power note text to show: the owner
+ * The composer power chip (see shell-surface.ts): it renders on the
+ * composer's inner row beside the auto-approve warning, each its own chip
+ * that is never dropped for lack of room, since both are safety-relevant and
+ * must stay visible at once. Priority order for WHICH power note text to show: the owner
  * keep-awake toggle first (an ALWAYS-ON override the user set explicitly, and
  * per the SDK's own PowerManager doc comment the chip, not a timer, is the
  * safety mechanism while it's on), then the automatic work-hold ("held

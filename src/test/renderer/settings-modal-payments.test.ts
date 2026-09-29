@@ -18,6 +18,7 @@ import { createFeatureFlagManager } from '@/runtime/index.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import { renderSettingsModal } from '../../renderer/settings-modal.ts';
+import { layerText } from '../helpers/surface-frame.ts';
 import { linesToText } from '../setup.ts';
 
 const W = 140;
@@ -79,8 +80,8 @@ describe('renderSettingsModal payments category', () => {
 
   test('the payments category renders without crashing and shows its keys', () => {
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItem');
-    const texts = linesToText(renderSettingsModal(modal, W)).join('\n');
-    expect(texts).toContain('Payments (36)');
+    const texts = layerText(renderSettingsModal(modal, W, 40)).join('\n');
+    expect(texts).toMatch(/Payments\s+36/);
     expect(texts).toContain('payments.budget.dailyItem');
     expect(texts).toContain('Daily Item Budget');
   });
@@ -92,7 +93,7 @@ describe('renderSettingsModal payments category', () => {
     // number setting rather than reformatting it through a currency table.
     cm.setDynamic('payments.budget.dailyItem', 19.99);
     reopen(); // reload modal.groups from the mutated config, same as resetSelected()'s test pattern
-    const texts = linesToText(renderSettingsModal(modal, W)).join('\n');
+    const texts = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(texts).toContain('19.99');
   });
 
@@ -102,13 +103,13 @@ describe('renderSettingsModal payments category', () => {
     // must never be treated as secret-shaped by the masking path a real secret
     // (surfaces.*.token, etc.) goes through.
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.defaultCardId');
-    const emptyTexts = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    const emptyTexts = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(emptyTexts).toContain('(empty)');
 
     cm.setDynamic('payments.defaultCardId', 'card_household_visa');
     reopen();
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.defaultCardId');
-    const setTexts = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    const setTexts = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(setTexts).toContain('card_household_visa');
     expect(setTexts).not.toMatch(/•{4,}/);
   });
@@ -118,7 +119,7 @@ describe('renderSettingsModal payments category', () => {
     modal.activateSelected(); // enum cycle: stored -> prompt
     expect(cm.get('payments.cvvHandling')).toBe('prompt');
 
-    const texts = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    const texts = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(texts).toContain('DISABLES UNATTENDED PURCHASING');
     expect(texts).toContain(CVV_PROMPT_TRADEOFF_WARNING.slice(0, 40));
   });
@@ -131,7 +132,7 @@ describe('renderSettingsModal payments category', () => {
     // string itself.
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.cvvHandling');
     expect(modal.getSelected()?.currentValue).toBe('stored');
-    const texts = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    const texts = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(texts).not.toContain(CVV_PROMPT_TRADEOFF_WARNING.slice(0, 40));
   });
 
@@ -166,7 +167,7 @@ describe('renderSettingsModal payments category', () => {
     cm.setDynamic('payments.cardCvv' as never, FAKE_CODE);
     reopen();
 
-    const atRest = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    const atRest = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(atRest).not.toContain(FAKE_PAN);
 
     // Mid-edit: the in-progress buffer is the window that matters, and it is
@@ -178,7 +179,7 @@ describe('renderSettingsModal payments category', () => {
     expect(modal.editingMode).toBe(true);
     for (const ch of FAKE_PAN) modal.editChar(ch);
 
-    const midEdit = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    const midEdit = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(midEdit).not.toContain(FAKE_PAN);
     expect(midEdit).toContain('\u2022'.repeat(FAKE_PAN.length));
   });

@@ -1,236 +1,133 @@
-import { type Line } from '@pellux/goodvibes-sdk/platform/types';
-import { fitDisplay, getDisplayWidth, truncateDisplay } from '../utils/terminal-width.ts';
-import type { SelectionAction, SelectionModal } from '../input/selection-modal.ts';
-import { getOverlaySurfaceMetrics, fitLabelDetailColumns, wrapWithHangingIndent } from '@pellux/goodvibes-terminal-shell';
-import {
-  createOverlayBoxLayout,
-  createOverlayContentLine,
-  createOverlayFilledBorderLine,
-  DEFAULT_OVERLAY_PALETTE,
-  OVERLAY_GLYPHS,
-  putOverlayText,
-} from './overlay-box.ts';
+/**
+ * renderSelectionModalOverlay, the generic picker (used by many commands and
+ * by the startup recovery questions), drawn with the modal surface kit.
+ *
+ * Title row, the always-live search row (when the picker searches), items as
+ * kit rows grouped under ✦ category headers, the selected item as the
+ * gradient row, details wrapped in full after the label, a muted scroll count
+ * and keycap hints. The modal sizes to its content: a short question is a
+ * small centered dialog that shows every answer; a long list takes the
+ * standard height and scrolls around the selected row.
+ */
+
+import type { SelectionItem, SelectionModal } from '../input/selection-modal.ts';
 import { activeTokens } from './theme.ts';
+import {
+  beginModal,
+  drawWrapped,
+  finishModal,
+  maxModalHeight,
+  searchRow,
+  scrollCountText,
+  type KitHint,
+  type SurfaceLayer,
+} from './surface-kit.ts';
+import { drawList, type KitRow } from './surface-kit-list.ts';
+import { kitHintsFromStrings, listHeight, modalHeightFor, modalTextWidth } from './surface-kit-extra.ts';
 
-const SELECTION_MODAL_SEARCH_LABEL = ' Search';
-const SELECTION_MODAL_RESULTS_LABEL = ' Results';
-const SELECTION_MODAL_NO_MATCHING_ITEMS = 'No matching items';
-const SELECTION_MODAL_NO_ITEMS = 'No items';
-const SELECTION_MODAL_NAVIGATION_HINT = '[Up/Down] Navigate';
-const SELECTION_MODAL_CLOSE_HINT = '[Esc] Close';
-const SELECTION_MODAL_SEARCH_HINT = '[/] Search';
-const SELECTION_MODAL_SPACE_TOGGLE_HINT = '[Space] Toggle';
-
-interface CellStyle {
-  fg: string;
-  bg?: string;
-  bold?: boolean;
-  dim?: boolean;
+function primaryVerb(item: SelectionItem | null): string {
+  switch (item?.primaryAction) {
+    case 'toggle': return 'toggle';
+    case 'edit': return 'edit';
+    case 'delete': return 'delete';
+    default: return 'select';
+  }
 }
 
-function putText(line: Line, startX: number, maxWidth: number, text: string, style: CellStyle): void {
-  putOverlayText(line, startX, maxWidth, text, style);
+function hintsFor(modal: SelectionModal): KitHint[] {
+  const item = modal.getSelected();
+  const base: KitHint[] = [['↑↓', 'move'], ['⏎', primaryVerb(item)]];
+  if (item?.primaryAction === 'toggle' && !item.actions) base.push(['space', 'toggle']);
+  if (item?.adjustable) base.push(['←→', 'adjust']);
+  // Item action strings are legacy "[d] delete" / "d delete" text; each one
+  // becomes a keycap. Several may share one string separated by spaces.
+  const actionStrings = item?.actions ? splitActionString(item.actions) : [];
+  return kitHintsFromStrings(actionStrings, base).hints;
 }
 
-function primaryVerbForAction(primaryAction: SelectionAction | undefined): string {
-  return primaryAction === 'toggle'
-    ? '[Enter] Toggle'
-    : primaryAction === 'edit'
-    ? '[Enter] Edit'
-    : primaryAction === 'delete'
-    ? '[Enter] Delete'
-    : '[Enter] Select';
+/** "[d] delete  [r] rename" → ["[d] delete", "[r] rename"]. */
+function splitActionString(text: string): string[] {
+  const bracketed = text.match(/\[[^\]]+\][^[]*/g);
+  if (bracketed && bracketed.length > 0) return bracketed.map((part) => part.trim());
+  return text.split(/\s{2,}|\s·\s/).map((part) => part.trim()).filter(Boolean);
 }
 
+function rowsFor(items: readonly SelectionItem[], selectedIndex: number): KitRow[] {
+  const rows: KitRow[] = [];
+  let lastCategory: string | undefined;
+  items.forEach((item, index) => {
+    if (item.category && item.category !== lastCategory) {
+      lastCategory = item.category;
+      rows.push({ header: item.category });
+    }
+    rows.push({
+      label: item.label,
+      desc: item.detail,
+      selected: index === selectedIndex,
+      labelFg: item.fg,
+    });
+  });
+  return rows;
+}
+
+/** The static strings this surface can show (checked by package verification). */
 export function renderSelectionModalPackageText(): string {
   return [
-    SELECTION_MODAL_SEARCH_LABEL.trim(),
-    SELECTION_MODAL_RESULTS_LABEL.trim(),
-    SELECTION_MODAL_NO_MATCHING_ITEMS,
-    SELECTION_MODAL_NO_ITEMS,
-    '(<above> above, <below> below)',
-    '(<below> below)',
-    '(<above> above)',
-    SELECTION_MODAL_NAVIGATION_HINT,
-    primaryVerbForAction(undefined),
-    primaryVerbForAction('toggle'),
-    primaryVerbForAction('edit'),
-    primaryVerbForAction('delete'),
-    SELECTION_MODAL_CLOSE_HINT,
-    SELECTION_MODAL_SEARCH_HINT,
-    SELECTION_MODAL_SPACE_TOGGLE_HINT,
+    'Type to filter',
+    'No matching items',
+    'No items',
+    '<n> of <total>',
+    '<n> items',
+    'move',
+    'select',
+    'toggle',
+    'edit',
+    'delete',
+    'adjust',
+    '<n> more ↑',
+    '<n> more ↓',
   ].join('\n');
 }
 
 /**
- * Render the selection modal as Line[] for overlay in the viewport.
+ * Render the selection modal as a SurfaceLayer in screen coordinates.
  */
 export function renderSelectionModalOverlay(
   modal: SelectionModal,
-  width: number,
-  viewportHeight = 24,
-): Line[] {
-  const lines: Line[] = [];
-  const metrics = getOverlaySurfaceMetrics(width, viewportHeight, {
-    margin: 4,
-    maxWidth: 72,
-    chromeRows: modal.allowSearch ? 5 : 4,
-    minContentRows: 6,
-    maxContentRows: 10,
-  });
-  const layout = createOverlayBoxLayout(width, metrics.margin, metrics.boxWidth);
+  screenWidth: number,
+  screenHeight = 24,
+): SurfaceLayer {
+  const t = activeTokens();
+  const hints = hintsFor(modal);
+  const rows = rowsFor(modal.filteredItems, modal.selectedIndex);
+  const textWidth = modalTextWidth(screenWidth, screenHeight);
+  // Size to every item (not the filtered set) so typing never resizes the
+  // modal; measure against the same text span drawList uses.
+  const allRows = rowsFor(modal.items, -1);
+  const needed = allRows.length === 0 ? 1 : listHeight(allRows, 0, textWidth - 1);
+  const searchRows = modal.allowSearch ? 2 : 0;
+  const height = modalHeightFor(screenWidth, screenHeight, { hints }, searchRows + needed);
+  // A short picker (it fits well inside the screen) is a small centered dialog.
+  const center = height <= Math.round(maxModalHeight(screenHeight) * 0.6);
+  const f = beginModal(screenWidth, screenHeight, { title: modal.title, hints, height, center });
 
-  lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.topLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.topRight, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.titleBg));
-
-  const titleLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.titleBg);
-  putText(
-    titleLine,
-    layout.margin + 2,
-    layout.innerWidth,
-    fitDisplay(truncateDisplay(modal.title, layout.innerWidth), layout.innerWidth),
-    { fg: DEFAULT_OVERLAY_PALETTE.titleFg, bold: true },
-  );
-  lines.push(titleLine);
-
+  let top = f.top;
   if (modal.allowSearch) {
-    const labelLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-    putText(labelLine, layout.margin + 2, layout.innerWidth, fitDisplay(SELECTION_MODAL_SEARCH_LABEL, layout.innerWidth), {
-      fg: activeTokens().textMuted,
-    });
-    lines.push(labelLine);
-    const searchLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.inputBg);
-    const prefix = '/ ';
-    const queryAreaWidth = layout.innerWidth - getDisplayWidth(prefix);
-    const queryValue = modal.query + (modal.searchFocused ? OVERLAY_GLYPHS.cursor : '');
-    const queryText = fitDisplay(
-      truncateDisplay(queryValue, queryAreaWidth),
-      queryAreaWidth,
-    );
-    putText(searchLine, layout.margin + 2, getDisplayWidth(prefix), prefix, { fg: modal.searchFocused ? DEFAULT_OVERLAY_PALETTE.bodyFg : DEFAULT_OVERLAY_PALETTE.mutedFg });
-    putText(searchLine, layout.margin + 2 + getDisplayWidth(prefix), queryAreaWidth, queryText, {
-      fg: modal.query.length > 0 || modal.searchFocused ? DEFAULT_OVERLAY_PALETTE.bodyFg : DEFAULT_OVERLAY_PALETTE.mutedFg,
-    });
-    lines.push(searchLine);
-    lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.teeLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.teeRight, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
-  } else {
-    lines.push(createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
+    const total = modal.items.length;
+    const count = modal.query.length > 0
+      ? `${modal.filteredItems.length} of ${total}`
+      : `${total} ${total === 1 ? 'item' : 'items'}`;
+    searchRow(f, top, modal.query, 'Type to filter', count);
+    top += 2;
   }
 
-  const listTitle = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-  putText(listTitle, layout.margin + 2, layout.innerWidth, fitDisplay(SELECTION_MODAL_RESULTS_LABEL, layout.innerWidth), {
-    fg: activeTokens().textMuted,
-  });
-  lines.push(listTitle);
-
-  const items = modal.filteredItems;
-  if (items.length === 0) {
-    const line = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.bodyBg);
-    const message = modal.query ? SELECTION_MODAL_NO_MATCHING_ITEMS : SELECTION_MODAL_NO_ITEMS;
-    putText(line, layout.margin + 2, layout.innerWidth, fitDisplay(message, layout.innerWidth), { fg: DEFAULT_OVERLAY_PALETTE.mutedFg });
-    lines.push(line);
-  } else {
-    const maxVisible = metrics.contentRows;
-    let startIdx = 0;
-    if (items.length > maxVisible) {
-      startIdx = Math.max(0, Math.min(
-        modal.selectedIndex - Math.floor(maxVisible / 2),
-        items.length - maxVisible,
-      ));
-    }
-    const endIdx = Math.min(startIdx + maxVisible, items.length);
-    let lastCategory: string | undefined;
-
-    for (let i = startIdx; i < endIdx; i++) {
-      const item = items[i];
-      const isSelected = i === modal.selectedIndex;
-
-      if (item.category && item.category !== lastCategory) {
-        lastCategory = item.category;
-        const categoryLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-        putText(categoryLine, layout.margin + 2, layout.innerWidth, fitDisplay(`  ${item.category}`, layout.innerWidth), {
-          fg: activeTokens().textMuted,
-        });
-        lines.push(categoryLine);
-      }
-
-      const indicator = isSelected ? `${OVERLAY_GLYPHS.selected} ` : '  ';
-      const indicatorWidth = 2;
-      const remaining = layout.innerWidth - indicatorWidth;
-      const labelColor = isSelected ? DEFAULT_OVERLAY_PALETTE.titleFg : (item.fg ?? DEFAULT_OVERLAY_PALETTE.bodyFg);
-      const detailColor = isSelected ? DEFAULT_OVERLAY_PALETTE.bodyFg : DEFAULT_OVERLAY_PALETTE.mutedFg;
-      const labelWidth = item.detail
-        ? fitLabelDetailColumns(item.label, item.detail, remaining).labelWidth
-        : remaining;
-      const labelLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg);
-        putText(labelLine, layout.margin + 2, indicatorWidth, indicator, {
-          fg: isSelected ? DEFAULT_OVERLAY_PALETTE.titleFg : DEFAULT_OVERLAY_PALETTE.mutedFg,
-          bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
-          bold: isSelected,
-        });
-      putText(labelLine, layout.margin + 2 + indicatorWidth, labelWidth, fitDisplay(truncateDisplay(item.label, labelWidth), labelWidth), {
-        fg: labelColor,
-        bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
-        bold: isSelected,
-      });
-      if (item.detail) {
-          const detailWidth = fitLabelDetailColumns(item.label, item.detail, remaining).detailWidth;
-        if (detailWidth >= 12) {
-          putText(labelLine, layout.margin + 2 + indicatorWidth + labelWidth, 2, '  ', {
-            fg: DEFAULT_OVERLAY_PALETTE.bodyFg,
-            bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
-          });
-          putText(labelLine, layout.margin + 2 + indicatorWidth + labelWidth + 2, detailWidth, fitDisplay(truncateDisplay(item.detail, detailWidth), detailWidth), {
-            fg: detailColor,
-            bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
-          });
-          lines.push(labelLine);
-        } else {
-          lines.push(labelLine);
-          const wrappedDetails = wrapWithHangingIndent(item.detail, Math.max(8, remaining), '', 2);
-          for (const detailLineText of wrappedDetails) {
-            const detailLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg);
-            putText(detailLine, layout.margin + 2 + indicatorWidth, remaining, fitDisplay(truncateDisplay(detailLineText, remaining), remaining), {
-              fg: detailColor,
-              bg: isSelected ? DEFAULT_OVERLAY_PALETTE.selectedBg : DEFAULT_OVERLAY_PALETTE.bodyBg,
-            });
-            lines.push(detailLine);
-          }
-        }
-      } else {
-        lines.push(labelLine);
-      }
-    }
-
-    if (items.length > maxVisible) {
-      const above = startIdx;
-      const below = items.length - endIdx;
-      const scrollHint = above > 0 && below > 0
-        ? `(${above} above, ${below} below)`
-        : below > 0
-        ? `(${below} below)`
-        : `(${above} above)`;
-      const hintLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-      putText(hintLine, layout.margin + 2, layout.innerWidth, fitDisplay(scrollHint, layout.innerWidth), { fg: DEFAULT_OVERLAY_PALETTE.mutedFg });
-      lines.push(hintLine);
-    }
+  if (rows.length === 0) {
+    const message = modal.query ? 'No matching items' : 'No items';
+    drawWrapped(f.canvas, f.l, top, f.r - f.l + 1, message, { fg: t.textMuted }, f.bottom);
+    return finishModal(f);
   }
 
-  const footerLine = createOverlayContentLine(width, layout, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg);
-  const selectedItem = modal.getSelected();
-  const primaryVerb = primaryVerbForAction(selectedItem?.primaryAction);
-  let hints = `${SELECTION_MODAL_NAVIGATION_HINT}  ${primaryVerb}  ${SELECTION_MODAL_CLOSE_HINT}`;
-  if (modal.allowSearch) hints += `  ${SELECTION_MODAL_SEARCH_HINT}`;
-  if (selectedItem?.primaryAction === 'toggle' && !selectedItem.actions) hints += `  ${SELECTION_MODAL_SPACE_TOGGLE_HINT}`;
-  if (selectedItem?.actions) hints += `  ${selectedItem.actions}`;
-  putText(
-    footerLine,
-    layout.margin + 2,
-    layout.innerWidth,
-    fitDisplay(truncateDisplay(hints, layout.innerWidth), layout.innerWidth),
-    { fg: DEFAULT_OVERLAY_PALETTE.mutedFg },
-  );
-  lines.push(footerLine);
-  lines.push(createOverlayFilledBorderLine(width, layout, OVERLAY_GLYPHS.bottomLeft, OVERLAY_GLYPHS.horizontal, OVERLAY_GLYPHS.bottomRight, DEFAULT_OVERLAY_PALETTE.borderFg, DEFAULT_OVERLAY_PALETTE.sectionBg));
-
-  return lines;
+  const res = drawList(f.canvas, { rows, top, bottom: f.bottom, x0: f.l, x1: f.r });
+  f.hintRight = scrollCountText(res.above, res.below);
+  return finishModal(f);
 }

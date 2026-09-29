@@ -1,16 +1,18 @@
 /**
- * thinking-overlay.ts, the thinking-indicator overlay + its honest
- * stall clock, extracted from main.ts's render loop.
+ * thinking-overlay.ts, the running turn's busy state for the status line and
+ * its honest stall clock, extracted from main.ts's render loop.
  *
  * The SDK orchestrator surfaces no lastDeltaAtMs / reconnect signal directly, so
  * ThinkingStallClock derives a per-turn last-delta clock from streaming
  * output-token advances, a real, honest proxy that degrades gracefully with
- * zero new SDK events. buildThinkingOverlay turns that into the honest waiting
- * state (via UIFactory.createThinkingFragment, which consumes the SDK
- * presentation contract's waitingPhrase).
+ * zero new SDK events. buildBusyState turns that into the status line's busy
+ * state (spinner, the honest waiting phrase from the SDK presentation
+ * contract, elapsed time); buildThinkingOverlay keeps only the opt-in partial
+ * tool preview as a faint row under the transcript.
  */
 
 import { UIFactory, type ThinkingStallInfo } from '../renderer/ui-factory.ts';
+import type { StatusBusyState } from '../renderer/status-line.ts';
 import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import type { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -42,6 +44,11 @@ export class ThinkingStallClock {
   reset(): void {
     this.startedAt = null;
   }
+
+  /** Ms since the turn started, undefined before the first tick. */
+  elapsed(nowMs: number): number | undefined {
+    return this.startedAt === null ? undefined : Math.max(0, nowMs - this.startedAt);
+  }
 }
 
 export interface ThinkingOverlayDeps {
@@ -57,27 +64,36 @@ export interface ThinkingOverlayDeps {
 }
 
 /**
- * Build the thinking-indicator overlay lines. Returns [] when not thinking (and
- * resets the stall clock so the next turn re-seeds). The stall/approval signals
- * drive the honest waiting state inside createThinkingFragment.
+ * The status line's busy state for a running turn, or null when idle (which
+ * resets the stall clock so the next turn re-seeds). The stall and approval
+ * signals decide the honest waiting phrase.
  */
-export function buildThinkingOverlay(deps: ThinkingOverlayDeps): Line[] {
+export function buildBusyState(deps: ThinkingOverlayDeps): StatusBusyState | null {
   if (!deps.orchestrator.isThinking) {
     deps.clock.reset();
-    return [];
+    return null;
   }
+  const now = Date.now();
+  const stallInfo = deps.clock.tick(deps.orchestrator.streamingOutputTokens, !!deps.streamToolPreview, now);
   const showSpeed = deps.configManager.get('display.showTokenSpeed') as boolean;
+  return {
+    spinner: deps.orchestrator.getSpinner(),
+    frame: deps.orchestrator.thinkingFrame,
+    phrase: UIFactory.busyPhrase(deps.orchestrator.thinkingFrame, deps.orchestrator.streamingOutputTokens, stallInfo, deps.approvalPending),
+    elapsedMs: deps.clock.elapsed(now),
+    tokenSpeed: showSpeed ? deps.streamTokenSpeed : undefined,
+    approvalPending: deps.approvalPending,
+  };
+}
+
+/**
+ * The transcript rows a running turn adds: only the opt-in partial tool
+ * preview (display.showToolPreview), faint. [] when idle or when the preview
+ * is off; the spinner and phrase live on the status line.
+ */
+export function buildThinkingOverlay(deps: ThinkingOverlayDeps): Line[] {
+  if (!deps.orchestrator.isThinking) return [];
   const showPreview = deps.configManager.get('display.showToolPreview') as boolean;
-  const stallInfo = deps.clock.tick(deps.orchestrator.streamingOutputTokens, !!deps.streamToolPreview, Date.now());
-  return UIFactory.createThinkingFragment(
-    deps.width,
-    deps.orchestrator.getSpinner(),
-    deps.orchestrator.thinkingFrame,
-    showSpeed ? deps.streamTokenSpeed : undefined,
-    showPreview ? deps.streamToolPreview : undefined,
-    deps.orchestrator.streamingInputTokens > 0 ? deps.orchestrator.streamingInputTokens : undefined,
-    deps.orchestrator.streamingOutputTokens > 0 ? deps.orchestrator.streamingOutputTokens : undefined,
-    stallInfo,
-    deps.approvalPending,
-  );
+  if (!showPreview || !deps.streamToolPreview) return [];
+  return [UIFactory.createToolPreviewRow(deps.width, deps.streamToolPreview)];
 }

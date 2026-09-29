@@ -347,6 +347,14 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Conversation export writes a local workspace file and requires an explicit output intent.',
     };
   }
+  if (root === 'activity') {
+    return {
+      effect: 'ui-navigation',
+      confirmation,
+      preferredModelTool: agentHarnessModes('run_command'),
+      boundary: 'Opens the Activity view (running work, what needs you, what is coming up, recent activity); it only changes what is on screen.',
+    };
+  }
   if (root === 'bookmarks' || root === 'expand' || root === 'collapse' || root === 'next-error' || root === 'prev-error') {
     return {
       effect: 'ui-navigation',

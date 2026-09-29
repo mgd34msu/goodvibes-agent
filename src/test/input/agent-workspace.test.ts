@@ -19,7 +19,8 @@ import { readSetupWizardCheckpoint } from '../../agent/setup-wizard-checkpoint.t
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile, getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, readAgentRuntimeProfileSelection, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
-import { createAgentWorkspaceFullscreenComposite } from '../../shell/agent-workspace-fullscreen.ts';
+import { renderAgentWorkspaceLayer } from '../../renderer/conversation-overlays.ts';
+import type { SurfaceLayer } from '../../renderer/surface-kit.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { readOnboardingCheckMarker, readOnboardingCompletionMarker, writeOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
@@ -34,7 +35,9 @@ import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
-function linesText(lines: readonly Line[]): string {
+/** The workspace modal's text (a kit layer), or plain lines' text. */
+function linesText(source: SurfaceLayer | readonly Line[]): string {
+  const lines = 'lines' in source ? source.lines : source;
   return lines.map((line) => line.map((cell) => cell.char).join('')).join('\n');
 }
 
@@ -982,13 +985,13 @@ describe('AgentWorkspace', () => {
     workspace.open(ctx, () => undefined);
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
-    expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Household Operator');
+    expect(linesText(renderAgentWorkspace(workspace, 140, 44))).toContain('Household Operator');
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
-    expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Trip Prep');
+    expect(linesText(renderAgentWorkspace(workspace, 140, 44))).toContain('Trip Prep');
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
-    expect(linesText(renderAgentWorkspace(workspace, 140, 34))).toContain('Morning Brief');
+    expect(linesText(renderAgentWorkspace(workspace, 140, 44))).toContain('Morning Brief');
   });
 
   test('renders Agent-owned memory in the workspace without default knowledge fallback', () => {
@@ -4574,8 +4577,8 @@ describe('AgentWorkspace', () => {
 // start` invocation bumping a start count) left the in-UI counters showing a
 // stale point-in-time snapshot until the user happened to trigger a workspace
 // action. These tests reproduce the dogfood repro against the REAL render
-// entry point (createAgentWorkspaceFullscreenComposite, the only production
-// call site for renderAgentWorkspace, see src/main.ts) rather than only unit
+// entry point (renderAgentWorkspaceLayer, the only production call site for
+// renderAgentWorkspace, see renderer/conversation-overlays.ts) rather than only unit
 // testing the new method in isolation.
 describe('AgentWorkspace live disk-mirror counters', () => {
   test('memory count mirrors an external delete on the next repaint, not just after a workspace action', () => {
@@ -4599,7 +4602,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
     records.length = 1;
 
     // The real render entry point must mirror disk on this repaint.
-    createAgentWorkspaceFullscreenComposite(workspace, 160, 40);
+    renderAgentWorkspaceLayer(workspace, 160, 40);
     expect(workspace.runtimeSnapshot?.localMemoryCount).toBe(1);
     const output = linesText(renderAgentWorkspace(workspace, 160, 40));
     expect(output).toContain('Memory: 1;');
@@ -4632,7 +4635,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
 
     // FIX: the real render entry point mirrors disk on the next repaint,
     // no manual refresh action required.
-    createAgentWorkspaceFullscreenComposite(workspace, 160, 40);
+    renderAgentWorkspaceLayer(workspace, 160, 40);
     const afterRepaint = workspace.runtimeSnapshot?.localRoutines.find((item) => item.id === created.id);
     expect(afterRepaint?.startCount).toBe(1);
     expect(linesText(renderAgentWorkspace(workspace, 160, 40))).toContain('starts 1');
@@ -4654,7 +4657,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
     registry.deleteRoutine(first.id);
     registry.deleteRoutine('beta');
 
-    expect(() => createAgentWorkspaceFullscreenComposite(workspace, 160, 40)).not.toThrow();
+    expect(() => renderAgentWorkspaceLayer(workspace, 160, 40)).not.toThrow();
     expect(workspace.runtimeSnapshot?.localRoutineCount).toBe(0);
     expect(workspace.selectedLibraryItemIndexes.routine).toBe(0);
   });
@@ -4681,7 +4684,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
     const storePath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'routines', 'routines.json');
     writeFileSync(storePath, '{ not valid json', 'utf-8');
 
-    expect(() => createAgentWorkspaceFullscreenComposite(workspace, 160, 40)).not.toThrow();
+    expect(() => renderAgentWorkspaceLayer(workspace, 160, 40)).not.toThrow();
 
     // The previous, still-accurate count is kept -- NOT silently zeroed --
     // and the snapshot is flagged stale so the render path can say so.

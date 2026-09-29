@@ -40,7 +40,7 @@ function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContex
   for (let i = 0; i < blockRegistry.length; i++) {
     const block = blockRegistry[i];
     // A merged assistant turn (type 'assistant_turn', see
-    // conversation-turn-structure.ts) owns the whole tool subtree beneath its
+    // work-tree-model.ts) owns the whole tool subtree beneath its
     // header, so '/expand tool'/'collapse tool' treats it the same as a plain
     // 'tool' block, toggling the header's collapse key shows or hides every
     // tool row underneath it.
@@ -60,8 +60,8 @@ function toggleBlocks(typeFilter: string, collapsed: boolean, ctx: CommandContex
       // state, needing a second pass. '/collapse tool' needs no matching step:
       // collapsing the turn hides every result regardless of its own key.
       if (!collapsed && block.type === 'assistant_turn' && block.groupMemberIndexes) {
-        for (const memberIdx of block.groupMemberIndexes) {
-          const memberKey = `msg_${memberIdx}`;
+        for (const [k, memberIdx] of block.groupMemberIndexes.entries()) {
+          const memberKey = block.groupMemberKeys?.[k] ?? `msg_${memberIdx}`;
           ctx.session.conversationManager.setCollapsed(memberKey, false);
           // An explicit /expand is a deliberate user action on this key, same
           // as Tab/Ctrl+Y/Ctrl+B, exempts it from search's close-time
@@ -133,6 +133,18 @@ function parseMediaGenerateArgs(args: readonly string[]): MediaGenerateArgs {
 export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({ name: 'expand', description: 'Expand blocks by type', hidden: true, usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', false, ctx); } });
   registry.register({ name: 'collapse', description: 'Collapse blocks by type', hidden: true, usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', true, ctx); } });
+
+  registry.register({
+    name: 'activity',
+    description: 'Show running work, what needs you, what is coming up, and recent activity',
+    handler(_args, ctx) {
+      if (ctx.openActivityModal) {
+        ctx.openActivityModal();
+        return;
+      }
+      ctx.print('The Activity view needs the interactive shell.');
+    },
+  });
 
   registry.register({
     name: 'bookmarks',

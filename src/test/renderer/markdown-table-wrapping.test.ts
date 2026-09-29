@@ -225,7 +225,8 @@ describe('an eight-column table at a width the box cannot fit', () => {
   test('at widths the box DOES fit, all eight columns are still drawn', () => {
     // Header text legitimately wraps inside a narrow column band here, so the
     // check that no column was dropped is the border's own column count.
-    for (const width of [56, 80, 120]) {
+    // Prose and tables keep a 5-column right gutter, so the box needs 64 columns here.
+    for (const width of [64, 80, 120]) {
       const top = renderTextAt(WIDE_TABLE, width).split('\n')[0]!;
       expect(top).toContain('┌');
       expect(top).toContain('┐');

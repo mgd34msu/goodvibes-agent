@@ -395,7 +395,7 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'voice.wake.indicator',
     test: 'src/test/voice/wake-settings-behavior.test.ts',
-    asserts: 'the row travels to the footer state, "off" suppresses the row while the device stays open, and (in src/test/renderer/process-indicator.test.ts and shell-surface.test.ts) "banner" paints a full-width row while "off" costs no footer line at all',
+    asserts: 'the state travels to the footer, "off" suppresses the microphone chip while the device stays open, and (in src/test/renderer/shell-surface.test.ts) "banner" draws the chip filled on the composer row while "off" draws nothing',
   },
   {
     key: 'voice.wake.captureMaxSeconds',

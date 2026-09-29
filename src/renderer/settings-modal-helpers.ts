@@ -5,7 +5,7 @@
  */
 
 import type { SettingEntry, McpEntry, SubscriptionEntry } from '../input/settings-modal.ts';
-import { SETTINGS_CATEGORIES } from '../input/settings-modal.ts';
+import type { SETTINGS_CATEGORIES } from '../input/settings-modal.ts';
 import { isSecretConfigKey, isSecretReferenceValue } from '../config/secret-config.ts';
 import { activeTokens } from './theme.ts';
 

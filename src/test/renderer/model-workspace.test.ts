@@ -3,7 +3,7 @@ import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import { ModelPickerModal } from '../../input/model-picker.ts';
 import { renderModelWorkspace } from '../../renderer/model-workspace.ts';
 import { _resetHardwareProfileCache, _setHardwareProfileForTest } from '../../core/hardware-profile.ts';
-import { linesToText } from '../setup.ts';
+import { layerText } from '../helpers/surface-frame.ts';
 
 const W = 132;
 const H = 34;
@@ -113,7 +113,7 @@ describe('modelHardwareFitLine (via detailLines)', () => {
     picker.configuredViaMap = new Map([['ollama', 'env']]);
     picker.availableOnly = false;
     picker.openAllModels(picker.models, 'ollama:llama3');
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     expect(text).toContain('Hardware:');
   });
 
@@ -132,7 +132,7 @@ describe('modelHardwareFitLine (via detailLines)', () => {
     picker.configuredViaMap = new Map([['groq', 'env']]);
     picker.availableOnly = false;
     picker.openAllModels(picker.models, 'groq:llama-3.1-70b');
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     expect(text).not.toContain('Hardware:');
   });
 
@@ -152,7 +152,7 @@ describe('modelHardwareFitLine (via detailLines)', () => {
     picker.configuredViaMap = new Map([['ollama', 'env']]);
     picker.availableOnly = false;
     picker.openAllModels(picker.models, 'ollama:llama-3.1-70b');
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     // Label must reference the real model size, not the 7B fallback.
     expect(text).toContain('70B');
     // Verify it doesn't fall through to the 7B representative label.
@@ -163,63 +163,54 @@ describe('modelHardwareFitLine (via detailLines)', () => {
 });
 
 describe('renderModelWorkspace', () => {
-  test('fills the full viewport with stable-width lines', () => {
-    const lines = renderModelWorkspace(makePicker(), W, H);
-
-    expect(lines).toHaveLength(H);
-    for (const line of lines) expect(line).toHaveLength(W);
+  test('is a kit modal layer that fits the screen', () => {
+    const layer = renderModelWorkspace(makePicker(), W, H);
+    expect(layer.dim).toBe(true);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(W);
+    expect(layer.y + layer.lines.length).toBeLessThanOrEqual(H);
   });
 
-  test('renders targets, selected target details, and model table', () => {
-    const text = linesToText(renderModelWorkspace(makePicker(), W, H)).join('\n');
-
-    expect(text).toContain('Model Workspace / Providers And Models');
-    expect(text).toContain('Targets');
+  test('renders the target tabs, the selected target details and the model list', () => {
+    const text = layerText(renderModelWorkspace(makePicker(), W, H)).join('\n');
+    expect(text).toContain('Models › Main Chat › Model list');
     expect(text).toContain('Main Chat');
     expect(text).toContain('Helper Model');
+    expect(text).toContain('Tool LLM (off)');
     expect(text).toContain('Target: Main Chat');
-    expect(text).toContain('Model key');
     expect(text).toContain('openai:gpt-test');
     expect(text).toContain('Claude Test');
   });
 
   test('does not advertise code-editing capability in Agent model UI', () => {
-    const text = linesToText(renderModelWorkspace(makePicker(), W, H)).join('\n');
-
+    const text = layerText(renderModelWorkspace(makePicker(), W, H)).join('\n');
     expect(text).toContain('reasoning, tools');
     expect(text).not.toContain('reasoning, tools, code');
     expect(text).not.toContain('RVTC');
   });
 
-  test('provider mode renders provider table and configuration state', () => {
+  test('provider mode lists providers with their configuration state', () => {
     const picker = makePicker();
     picker.openProviders(['openai', 'anthropic'], 'openai');
-
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
-
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     expect(text).toContain('Provider list');
-    expect(text).toContain('Provider');
-    expect(text).toContain('Configuration');
+    expect(text).toContain('Search providers');
     expect(text).toContain('openai');
     expect(text).toContain('env');
   });
 
-  test('target pane focus changes only the target marker', () => {
+  test('the search row is always live and narrows the list', () => {
     const picker = makePicker();
-    picker.focusTargets();
-
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
-
-    expect(text).toContain('Focus targets');
-    expect(text).toContain('Main Chat');
+    for (const ch of 'claude') picker.appendChar(ch);
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
+    expect(text).toContain('claude▏');
+    expect(text).toContain('Claude Test');
+    expect(text).not.toContain('GPT Test');
   });
 
-  test('uses a render cache when the picker state has not changed', () => {
-    const picker = makePicker();
-
-    const first = renderModelWorkspace(picker, W, H);
-    const second = renderModelWorkspace(picker, W, H);
-
-    expect(second).toBe(first);
+  test('keycap hints name the filter chords (every letter can be typed into the search)', () => {
+    const text = layerText(renderModelWorkspace(makePicker(), W, H)).join('\n');
+    expect(text).toContain('tab  target');
+    expect(text).toContain('ctrl+t  price');
+    expect(text).toContain('ctrl+g  group');
   });
 });

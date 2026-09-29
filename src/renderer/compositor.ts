@@ -1,10 +1,11 @@
 import { TerminalBuffer } from './buffer.ts';
 import { DiffEngine } from './diff.ts';
-import { type Line, createEmptyCell, createEmptyLine, createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
-import { getDisplayWidth } from '../utils/terminal-width.ts';
+import { type Line, createEmptyLine } from '@pellux/goodvibes-sdk/platform/types';
 import type { SearchManager } from '../input/search.ts';
 import { allowTerminalWrite, probeTermCaps, type TermColorCaps } from '@pellux/goodvibes-terminal-shell';
 import { activeTheme, activeTokens } from './theme.ts';
+import type { SurfaceLayer } from './surface-kit.ts';
+import { composeLayers } from './surface-compose.ts';
 
 export interface SelectionInfo {
   isCellSelected: (col: number, absoluteRow: number) => boolean;
@@ -18,11 +19,6 @@ export interface SearchInfo {
   viewportStartY: number;
 }
 
-export interface SidebarCompositeData {
-  /** Pre-rendered sidebar lines, one per viewport row. */
-  lines: Line[];
-}
-
 export interface CompositeRequest {
   width: number;
   height: number;
@@ -32,8 +28,11 @@ export interface CompositeRequest {
   forceFullRedraw?: boolean;
   selection?: SelectionInfo;
   search?: SearchInfo;
-  sidebar?: SidebarCompositeData;
-  sidebarWidth?: number; // width of the right sidebar area (0 = no sidebar)
+  /**
+   * Surfaces stamped over the finished screen, in order: modals (which dim
+   * everything underneath first), popups and toasts. Screen coordinates.
+   */
+  layers?: readonly SurfaceLayer[];
 }
 
 /**
@@ -75,7 +74,7 @@ export class Compositor {
   }
 
   public composite(params: CompositeRequest): void {
-    const { width, height, header, viewport, footer, forceFullRedraw, selection, search, sidebar, sidebarWidth } = params;
+    const { width, height, header, viewport, footer, forceFullRedraw, selection, search, layers } = params;
     const previousFrontBuffer = forceFullRedraw ? null : this.frontBuffer;
     if (forceFullRedraw) this.diffEngine.reset();
 
@@ -87,9 +86,7 @@ export class Compositor {
     }
     const newBuffer = this.backBuffer;
 
-    const hasSidebar = sidebar !== undefined && sidebarWidth !== undefined && sidebarWidth > 0;
-    const leftWidth = hasSidebar ? Math.max(1, width - sidebarWidth - 1) : width;
-    const sepX = hasSidebar ? leftWidth : -1;
+    const leftWidth = width;
 
     // 1. Draw Header, always full width
     header.forEach((line, i) => newBuffer.blitLine(i, line));
@@ -107,47 +104,12 @@ export class Compositor {
     // Read the search-highlight tones and the separator colour live per frame
     // so they follow the active theme.
     const T = activeTheme();
-    const sepFg = activeTokens().textFaint;
 
     viewport.forEach((line, i) => {
       const screenY = viewportStartY + i;
       if (screenY >= height) return;
 
-      if (!hasSidebar) {
-        // No sidebar: existing fast path
-        newBuffer.blitLine(screenY, line);
-      } else {
-        // Sidebar active: left side gets viewport cells 0..leftWidth-1
-        for (let x = 0; x < leftWidth; x++) {
-          const cell = line[x];
-          if (cell !== undefined) {
-            // If this is a wide char (2-cell) at the last left-side column,
-            // it would bleed into the separator column visually.
-            // Replace with a space to keep the separator aligned.
-            if (x === leftWidth - 1 && cell.char && cell.char.length > 0 && getDisplayWidth(cell.char) > 1) {
-              newBuffer.setCell(x, screenY, { ...cell, char: ' ' });
-              continue;
-            }
-            newBuffer.setCell(x, screenY, cell);
-          }
-        }
-
-        // Separator column (vertical bar between conversation and sidebar)
-        newBuffer.setCell(sepX, screenY, createStyledCell('│', { fg: sepFg }));
-
-        const sidebarStartX = sepX + 1;
-        const sidebarLine = sidebar!.lines[i];
-        const limit = sidebarLine === undefined ? 0 : Math.min(sidebarLine.length, sidebarWidth);
-        for (let x = 0; x < limit; x++) {
-          const cell = sidebarLine![x];
-          if (cell !== undefined) {
-            newBuffer.setCell(sidebarStartX + x, screenY, cell);
-          }
-        }
-        for (let x = limit; x < sidebarWidth; x++) {
-          newBuffer.setCell(sidebarStartX + x, screenY, createEmptyCell());
-        }
-      }
+      newBuffer.blitLine(screenY, line);
 
       // Apply Selection Highlighting Overlay (left side only)
       // Only highlight rows that actually contain history (past the bottom-anchor offset)
@@ -186,25 +148,6 @@ export class Compositor {
       newBuffer.blitLine(screenY, createEmptyLine(width));
     }
 
-    // Draw the separator and sidebar on viewport rows past the conversation content
-    if (hasSidebar) {
-      for (let i = viewport.length; i < vHeight; i++) {
-        const screenY = viewportStartY + i;
-        if (screenY >= height) break;
-        newBuffer.setCell(sepX, screenY, createStyledCell('│', { fg: sepFg }));
-        const sidebarStartX = sepX + 1;
-        const sidebarLine = sidebar!.lines[i];
-        const limit = sidebarLine === undefined ? 0 : Math.min(sidebarLine.length, sidebarWidth!);
-        for (let x = 0; x < limit; x++) {
-          const cell = sidebarLine![x];
-          if (cell !== undefined) newBuffer.setCell(sidebarStartX + x, screenY, cell);
-        }
-        for (let x = limit; x < sidebarWidth!; x++) {
-          newBuffer.setCell(sidebarStartX + x, screenY, createEmptyCell());
-        }
-      }
-    }
-
     // 3. Draw Footer (Pinned to Bottom), always full width
     const footerStart = height - footer.length;
     footer.forEach((line, i) => {
@@ -213,7 +156,12 @@ export class Compositor {
       newBuffer.blitLine(screenY, line);
     });
 
-    // 4. Diff and Render
+    // 4. Modal passes: dim the composed screen, then stamp each surface over
+    // it (cells outside a surface keep their dimmed content). Runs after the
+    // selection and search passes so those dim along with everything else.
+    if (layers && layers.length > 0) composeLayers(newBuffer, layers);
+
+    // 5. Diff and Render
     // R3: Diff against front-buffer (last-rendered), then swap front/back, no clone() needed
     const diff = this.diffEngine.diff(previousFrontBuffer, newBuffer);
     if (diff) {

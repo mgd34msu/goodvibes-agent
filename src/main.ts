@@ -2,7 +2,7 @@
 import { homedir } from 'node:os';
 import { Compositor } from './renderer/compositor.ts';
 import { installStartupThemeProbe } from './renderer/startup-theme-probe.ts';
-import { ThinkingStallClock, buildThinkingOverlay } from './core/thinking-overlay.ts';
+import { ThinkingStallClock, buildBusyState, buildThinkingOverlay } from './core/thinking-overlay.ts';
 import { UIFactory } from './renderer/ui-factory.ts';
 import { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
@@ -17,18 +17,16 @@ import { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
 import { PermissionPromptUI } from './permissions/prompt.ts';
 import { CommandRegistry } from './input/command-registry.ts';
 import type { CommandContext } from './input/command-registry.ts';
-import { renderProcessIndicator } from './renderer/process-indicator.ts';
-import { renderModelWorkspace } from './renderer/model-workspace.ts';
-import { renderSettingsModal } from './renderer/settings-modal.ts';
 import { registerBuiltinCommands } from './input/commands.ts';
 import { ScheduleManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { InputHistory } from './input/input-history.ts';
 import { ShellPassthrough, SHELL_USAGE_HINT } from './input/shell-passthrough.ts';
 import { getTierPromptSupplement, getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
 import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-surface.ts';
-import { buildConversationViewport } from './renderer/conversation-layout.ts';
-import { applyConversationOverlays } from './renderer/conversation-overlays.ts';
-import { buildActivitySidebarLines, buildSidebarAgentRows, resolveSidebarWidthWithOverride } from './renderer/activity-sidebar.ts';
+import { buildConversationViewport, centerViewportContent } from './renderer/conversation-layout.ts';
+import { applyConversationOverlays, buildConversationLayers } from './renderer/conversation-overlays.ts';
+import { buildActivityAgentRows, type ActivityView } from './renderer/activity-modal.ts';
+import { ActivityModal } from './input/activity-modal.ts';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
@@ -42,7 +40,6 @@ import {
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState, type PendingWorkspaceRegistrationState } from './shell/blocking-input.ts';
-import { createAgentWorkspaceFullscreenComposite, createFullscreenCompositeFromLines } from './shell/agent-workspace-fullscreen.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
 import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
@@ -73,6 +70,7 @@ import { installRemoteConversationRouting } from './shell/remote-conversation-wi
 import { applyAtModelSwitches } from './input/at-model-switch.ts';
 import { createCommandContextUi } from './shell/command-context-ui.ts';
 import { createTerminalPaintWindow } from './shell/terminal-paint-window.ts';
+import { wireWorkTree } from './core/work-tree-wiring.ts';
 
 // Escape bytes and enter/exit sequencing live in renderer/terminal-escapes.ts (re-exported from @pellux/goodvibes-terminal-shell) so this file never holds its own drifting copy.
 
@@ -192,7 +190,7 @@ async function main() {
 
   const shellPassthrough = new ShellPassthrough();
 
-  // Ambient autonomy surfacing: away digest at launch + sidebar Coming up.
+  // Ambient autonomy surfacing: away digest at launch + the Activity modal's Coming up.
   const autonomy = createAutonomySurfacing({
     shellPaths: ctx.services.shellPaths,
     listAutomationJobs: () => ctx.services.automationManager.listJobs(),
@@ -209,17 +207,27 @@ async function main() {
     onAwayDigest: buildSkillDraftProposer(ctx.services.shellPaths, commandContext),
   });
 
-  // Activity sidebar: shows ambient status on wide terminals. null = automatic
-  // (visible when the terminal is wide enough); the user can toggle it with
-  // Ctrl+O, which pins an explicit on/off override for the session.
-  let sidebarOverride: boolean | null = null;
-  const sidebarWidthFor = (width: number): number => resolveSidebarWidthWithOverride(width, sidebarOverride);
+  // The Activity modal's view (Ctrl+O, /activity), read live on every paint of it:
+  // the running work, what needs you, what is coming up and the activity feed.
+  const activityView = (): ActivityView => {
+    const sessionSnapshot = uiServices.readModels.session.getSnapshot();
+    const activeAgents = uiServices.readModels.agents.getSnapshot().active;
+    return {
+      now: {
+        busy: orchestrator.isThinking,
+        label: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview?.trim() ?? undefined,
+        agents: buildActivityAgentRows(activeAgents, ctx.services.fleetUnion.nodes()),
+        processes: processManager.list().filter((p) => !p.status.startsWith('done')).length,
+      },
+      needsYou: pendingPermission ? ['Approval needed, answer the prompt on screen.'] : [],
+      comingUp: [...autonomy.comingUpItems()],
+      recent: systemMessageRouter.getFeed()?.latest(200) ?? [],
+    };
+  };
 
   const getPromptContentWidth = () => {
-    const w = getTerminalSize(stdout).width;
-    const boxMargin = 2;
-    const boxWidth = w - (boxMargin * 2);
-    return boxWidth - 4 - 3; // minus padding (4) minus prefix width (3: ' > ')
+    // Composer text runs from column 5 and wraps at width-9 (composer.ts), leaving the cursor room at width-4.
+    return Math.max(1, getTerminalSize(stdout).width - 9);
   };
 
   // Live-microphone footer row (the wake detector); assigned once voice capture is wired below, null until then so pre-wiring frames size correctly.
@@ -227,10 +235,8 @@ async function main() {
 
   const getViewportHeight = (): number => {
     const { height } = getTerminalSize(stdout);
-    if (input.agentWorkspace.active) return height;
     const promptLines: number = input.getVisiblePromptLineCount(getPromptContentWidth());
-    const currentModel = providerRegistry.getCurrentModel();
-    return height - 2 - estimateShellFooterHeight(promptLines, currentModel.contextWindow, voiceCaptureStatus());
+    return height - 1 - estimateShellFooterHeight(promptLines); // 1: the header row
   };
 
   const scroll = (delta: number) => {
@@ -246,6 +252,9 @@ async function main() {
   };
 
   const unsubs: Array<() => void> = [];
+  // The work tree's live facts: call/turn timings, agent lanes, the call a permission prompt holds, fold persistence (work-tree-wiring.ts).
+  const workTreeWiring = wireWorkTree({ conversation, events: uiServices.events, agentManager, listChains: () => ctx.services.wrfcController.listChains(), fleetNodes: () => ctx.services.processRegistry.query().nodes, pendingCallId: () => pendingPermission?.callId, turnActive: () => orchestrator.isThinking, sessionsDir: ctx.services.surface.sessionsDir, sessionId: () => runtime.sessionId, requestRender: () => render() });
+  unsubs.push(...workTreeWiring.unsubs);
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   // sessionId of the offered recovery snapshot, or null when none is pending.
@@ -418,12 +427,17 @@ async function main() {
   commandContext.scrollToLine = scrollToLine;
   const commandUi = createCommandContextUi({
     compositor, stdout, render: () => render(), terminalWidth: () => getTerminalSize(stdout).width,
-    sidebarVisibleAt: (width) => sidebarWidthFor(width) > 0,
-    setSidebarOverride: (visible) => { sidebarOverride = visible; },
     setPendingPermission: (pending) => { pendingPermission = pending; },
   });
   commandContext.clearScreen = commandUi.clearScreen;
-  commandContext.toggleActivitySidebar = commandUi.toggleActivitySidebar;
+  // The Activity modal (Ctrl+O, /activity): what the pane-era sidebar showed, as a kit modal.
+  commandContext.openActivityModal = () => {
+    input.surfaceModals.push(new ActivityModal({
+      view: () => activityView(),
+      openProcesses: () => { input.modalOpened('process'); input.processModal.open(); render(); },
+    }));
+    render();
+  };
   // see shell/terminal-focus-mode.ts
   permissionPromptRef.requestPermission = wrapRequestPermissionWithApprovalAlert(commandUi.requestPermission as typeof permissionPromptRef.requestPermission, { focusTracker: ctx.services.focusTracker });
 
@@ -484,6 +498,7 @@ async function main() {
   input.setContentWidth(getPromptContentWidth());
   input.filePicker.setOnUpdate(() => render());
   input.processModal.setOnRefresh(() => render());
+  input.surfaceModals.onChange = () => render();
 
   // Model picker callback is handled in bootstrap.ts, do not duplicate here.
   input.setHistory(inputHistory);
@@ -508,23 +523,8 @@ async function main() {
     if (!paintWindow.isOpen()) return;
     const { width, height } = getTerminalSize(stdout);
 
-    // Fire-and-forget refresh for the 'Coming up' sidebar section.
+    // Fire-and-forget refresh for the Activity modal's 'Coming up' section.
     autonomy.refreshComingUp();
-
-    if (input.agentWorkspace.active) {
-      activeConversationWidth = width;
-      conversation.setSplashSuppressed(true);
-      if (input.modelPicker.active) {
-        compositor.composite(createFullscreenCompositeFromLines(renderModelWorkspace(input.modelPicker, width, height), width, height));
-        return;
-      }
-      if (input.settingsModal.active) {
-        compositor.composite(createFullscreenCompositeFromLines(renderSettingsModal(input.settingsModal, width, height), width, height));
-        return;
-      }
-      compositor.composite(createAgentWorkspaceFullscreenComposite(input.agentWorkspace, width, height));
-      return;
-    }
 
     // Cache the current model for consistent values across the entire render frame
     const currentModel = providerRegistry.getCurrentModel();
@@ -534,7 +534,14 @@ async function main() {
     const primaryActiveAgent = activeAgents.find((agent) => agent.latestProgress?.trim())
       ?? activeAgents[0];
 
-    const headerLines = UIFactory.createHeader(width, currentModel.id, currentModel.provider, conversation.title || undefined);
+    const headerLines = UIFactory.createHeader(width, currentModel.id, conversation.title || undefined);
+    // A running turn takes the status line's left side: spinner, honest waiting phrase, elapsed, esc.
+    const thinkingDeps = {
+      orchestrator, configManager, streamTokenSpeed, clock: thinkingClock,
+      streamToolPreview: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview,
+      approvalPending: pendingPermission !== null,
+    };
+    const busy = buildBusyState({ ...thinkingDeps, width });
     const runningAgentCount = activeAgents.length;
     const runningProcessCount = processManager.list().filter((p) => !p.status.startsWith('done')).length;
     const cw = getPromptContentWidth();
@@ -559,10 +566,8 @@ async function main() {
       usage: { up: orchestrator.usage.input, down: orchestrator.usage.output },
       showExitNotice: input.showExitNotice,
       lastCopyTime: input.lastCopyTime,
-      model: runtime.model,
-      toolCount: toolRegistry.list().length,
+      model: runtime.model, // prices the cost; the header names the model
       workingDir,
-      provider: runtime.provider,
       contextWindow: currentModel.contextWindow,
       compactThreshold: configManager.get('behavior.autoCompactThreshold') as number,
       // Single source of truth for "will this bypass the approval prompt?", computed
@@ -575,26 +580,25 @@ async function main() {
       hitlMode: modeManager.getHITLMode(),
       runningAgentCount,
       runningProcessCount,
-      indicatorFocused: input.indicatorFocused,
+      indicatorFocused: input.indicatorFocused, promptFocused: !input.indicatorFocused && !conversation.workTree.focused, workTreeFocused: conversation.workTree.focused,
       runningAgentProgress: primaryActiveAgent
         ? `${primaryActiveAgent.label}: ${primaryActiveAgent.latestProgress?.trim() || primaryActiveAgent.status}`
         : undefined,
       composerMode: composerState.modeLabel,
-      composerStatus: composerState.statusLabel,
       composerFlags: composerState.flags,
       composerPendingRisk: composerState.pendingRisk,
       voiceCapture: voiceCaptureStatus(),
+      busy,
     }).lines;
 
     const shellHeaderLines = headerLines;
     const shellFooterLines = footerLines;
-    const sidebarWidth = sidebarWidthFor(width);
     const shellLayout = createShellLayout({
       width,
       height,
       headerHeight: shellHeaderLines.length,
       footerHeight: shellFooterLines.length,
-      panelWidth: sidebarWidth,
+      panelWidth: 0,
     });
     const vHeight = shellLayout.body.height;
     const conversationWidth = shellLayout.conversation.width;
@@ -603,12 +607,15 @@ async function main() {
 
     // Flush pending renders after updating the width provider and splash posture
     // so the transcript and splash rebuild against the current shell layout.
+    workTreeWiring.syncSession(); // a resumed session's folds come back with it
+    conversation.workTree.tickLive(); // running beads spin and count up
     conversation.getDisplayBlocks();
 
     // Calculate how many rows are consumed by overlays (thinking, permissions, queue, file picker)
     let overlayRows = 0;
-    if (orchestrator.isThinking) overlayRows += 2; // spinner + blank
-    if (pendingPermission) overlayRows += PermissionPromptUI.getPromptHeight(pendingPermission);
+    // The opt-in partial tool preview row (the spinner lives on the status line).
+    const thinkingRows = buildThinkingOverlay({ ...thinkingDeps, width: conversationWidth });
+    overlayRows += thinkingRows.length;
     overlayRows += orchestrator.messageQueue.length * 3; // queued messages
     // File picker and model picker overlay rows computed from actual rendered line count below
     // Selection modal overlay rows are computed from actual rendered line count below
@@ -625,17 +632,12 @@ async function main() {
       overlayRows,
     });
     scrollTop = conversationViewport.nextScrollTop;
-    let viewport = conversationViewport.viewport;
+    // The home splash sits in the middle of the conversation area, never clipped.
+    let viewport = conversation.isSplashShowing()
+      ? centerViewportContent(conversationViewport.viewport, conversationViewport.effectiveHeight, conversationWidth)
+      : conversationViewport.viewport;
 
-    viewport.push(...buildThinkingOverlay({ // honest waiting state; [] when not thinking
-      orchestrator, configManager, streamTokenSpeed, clock: thinkingClock,
-      streamToolPreview: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview,
-      approvalPending: pendingPermission !== null, width: conversationWidth,
-    }));
-
-    if (pendingPermission) {
-      viewport.push(...PermissionPromptUI.createPromptLines(conversationWidth, pendingPermission));
-    }
+    viewport.push(...thinkingRows);
 
     orchestrator.messageQueue.forEach(msg => {
       viewport.push(...UIFactory.createQueuedMessageFragment(conversationWidth, msg.text));
@@ -650,26 +652,6 @@ async function main() {
       viewportHeight: vHeight,
       contextWindow: currentModel.contextWindow,
     });
-
-    // Activity sidebar (ambient status on wide terminals). Agent rows carry
-    // the fleet read-model's headline and stall tell (see activity-sidebar.ts).
-    const sidebar = sidebarWidth > 0
-      ? {
-          lines: buildActivitySidebarLines({
-            now: {
-              busy: orchestrator.isThinking,
-              label: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview?.trim() ?? undefined,
-              agents: buildSidebarAgentRows(activeAgents, ctx.services.fleetUnion.nodes()),
-              processes: runningProcessCount,
-            },
-            needsYou: pendingPermission
-              ? ['Approval needed, answer the prompt under the conversation.']
-              : [],
-            comingUp: [...autonomy.comingUpItems()],
-            recent: systemMessageRouter.getFeed()?.latest(Math.max(4, vHeight - 8)) ?? [],
-          }, sidebarWidth, vHeight),
-        }
-      : undefined;
 
     compositor.composite({
       width, height,
@@ -686,8 +668,17 @@ async function main() {
         scrollTop,
         viewportStartY: shellHeaderLines.length,
       } : undefined,
-      sidebar,
-      sidebarWidth,
+      // Modals, the permission dialog and kit modals: stamped over the dimmed screen.
+      layers: buildConversationLayers({
+        input,
+        conversation,
+        commandRegistry,
+        keybindingsManager: ctx.services.keybindingsManager,
+        screenWidth: width,
+        screenHeight: height,
+        contextWindow: currentModel.contextWindow,
+        permission: pendingPermission ? PermissionPromptUI.createPromptLayer(width, height, pendingPermission) : null,
+      }),
     });
   }
   const terminalOutputGuard = installFullScreenTerminalOutputGuard({ stdout, stderr: process.stderr, notify: (message) => { systemMessageRouter.low(message); render(); } });

@@ -16,7 +16,7 @@ import {
   _resetHardwareProfileCache,
   _setHardwareProfileForTest,
 } from '../../core/hardware-profile.ts';
-import { linesToText } from '../setup.ts';
+import { layerText } from '../helpers/surface-frame.ts';
 
 const W = 132;
 const H = 34;
@@ -82,13 +82,13 @@ afterEach(() => {
 describe('local-only workspace header', () => {
   test('renders local-only header when list contains only synthetic recommendations', () => {
     const picker = makePickerWithLocalOnly();
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     expect(text).toContain('No provider signed in');
   });
 
   test('renders Sign in instead affordance when list is local-only', () => {
     const picker = makePickerWithLocalOnly();
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     // The affordance is now a selectable row; the header instructs the user to
     // navigate to it rather than press a dead key.
     expect(text).toContain('Sign in instead');
@@ -112,7 +112,7 @@ describe('local-only workspace header', () => {
 
   test('fit label in detail pane matches fitAssessment for the stub profile', () => {
     const picker = makePickerWithLocalOnly();
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     // On 16 GB total / 10 GB available, 3B (1.65 GB) fits in RAM
     // The detail pane should show "not yet installed" and a fit hint
     expect(text).toContain('not yet installed');
@@ -138,7 +138,7 @@ describe('local-only workspace header', () => {
       },
     ]);
     picker.openAllModels([realModel], 'openai:gpt-test');
-    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    const text = layerText(renderModelWorkspace(picker, W, H)).join('\n');
     expect(text).not.toContain('No provider signed in');
     expect(text).not.toContain('Sign in instead');
   });

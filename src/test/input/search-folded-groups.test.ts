@@ -26,13 +26,14 @@ const NEEDLE = 'zzzGroupedMarkerZzz';
 let sm: SearchManager;
 beforeEach(() => { sm = new SearchManager(); });
 
-/** Two results for one assistant turn hang under a single 'assistant_turn'
- *  header (see conversation-turn-structure.ts). Once that turn is collapsed
- *  the header is its entire visible representation and no result registers a
+/** Two results for one assistant turn sit behind its beads under a single
+ *  'assistant_turn' header (see work-tree-model.ts). Once that turn is folded
+ *  the header is its entire visible representation and no bead registers a
  *  BlockMeta of its own, so the needle, which lives ONLY in the second
  *  result's content, never in the header's summary, is reachable only
- *  through the turn's groupMemberIndexes. */
-function buildFoldedToolGroup(): { cm: ConversationManager; hitMemberIdx: number } {
+ *  through the turn's groupMemberIndexes, and revealed by the bead key
+ *  groupMemberKeys pairs with it. */
+function buildFoldedToolGroup(): { cm: ConversationManager; hitMemberIdx: number; hitKey: string; otherKey: string } {
   const cm = new ConversationManager(() => 80);
   // Long enough that each member is collapsed-by-default on its own too,
   // so expanding the group header alone would not reveal the needle.
@@ -54,7 +55,8 @@ function buildFoldedToolGroup(): { cm: ConversationManager; hitMemberIdx: number
   const group = cm.getBlockRegistry().find((b) => b.type === 'assistant_turn');
   expect(group).toBeDefined();
   expect(group!.groupMemberIndexes).toHaveLength(2);
-  return { cm, hitMemberIdx: group!.groupMemberIndexes![1] };
+  expect(group!.groupMemberKeys).toEqual(['bead_c:1:0', 'bead_c:1:1']);
+  return { cm, hitMemberIdx: group!.groupMemberIndexes![1]!, hitKey: group!.groupMemberKeys![1]!, otherKey: group!.groupMemberKeys![0]! };
 }
 
 /** A single long tool result (>200 chars, no recognized summarizer shape)
@@ -203,13 +205,11 @@ describe('search() reaches text hidden inside a collapsed assistant turn', () =>
 
     expect(sm.matches.length).toBeGreaterThan(0);
     expect(cm.isCollapsed(group!.blockIndex)).toBe(true);
-    expect(cm.getBlockRegistry().some((b) => b.collapseKey.startsWith('msg_'))).toBe(false);
+    expect(cm.getBlockRegistry().some((b) => b.collapseKey.startsWith('bead_'))).toBe(false);
   });
 
   test('revealCurrentMatch() expands the turn AND the hit result (and only that result), landing on the needle line', () => {
-    const { cm, hitMemberIdx } = buildFoldedToolGroup();
-    const group = cm.getBlockRegistry().find((b) => b.type === 'assistant_turn');
-    const otherMemberIdx = group!.groupMemberIndexes!.find((idx) => idx !== hitMemberIdx)!;
+    const { cm, hitKey, otherKey } = buildFoldedToolGroup();
 
     sm.open();
     sm.search(NEEDLE, cm.history, cm);
@@ -221,15 +221,14 @@ describe('search() reaches text hidden inside a collapsed assistant turn', () =>
     const registry = cm.getBlockRegistry();
     const groupAfter = registry.find((b) => b.type === 'assistant_turn');
     expect(cm.isCollapsed(groupAfter!.blockIndex)).toBe(false);
-    // The hit result now has a block of its own, and it is expanded, the
+    // The hit result's bead now has a block of its own, and it is open: the
     // header alone would have left its content invisible.
-    const member = registry.find((b) => b.collapseKey === `msg_${hitMemberIdx}`);
+    const member = registry.find((b) => b.collapseKey === hitKey);
     expect(member).toBeDefined();
     expect(cm.isCollapsed(member!.blockIndex)).toBe(false);
-    // Its sibling result (no hit inside it) is left exactly as it was, the
-    // turn unfolds, but only the hit result's own key was expanded, so the
-    // sibling still renders under its own (collapsed-by-default) state.
-    const otherMember = registry.find((b) => b.collapseKey === `msg_${otherMemberIdx}`);
+    // Its sibling bead (no hit inside it) is left exactly as it was: the turn
+    // unfolds, but only the hit bead was opened, so the sibling stays closed.
+    const otherMember = registry.find((b) => b.collapseKey === otherKey);
     expect(otherMember).toBeDefined();
     expect(cm.isCollapsed(otherMember!.blockIndex)).toBe(true);
     // The landed line is the real one.
@@ -240,7 +239,7 @@ describe('search() reaches text hidden inside a collapsed assistant turn', () =>
   });
 
   test('search close re-collapses the turn; the result is inaccessible again until re-expanded (turn and result fold as one)', () => {
-    const { cm, hitMemberIdx } = buildFoldedToolGroup();
+    const { cm, hitKey } = buildFoldedToolGroup();
     sm.open();
     sm.search(NEEDLE, cm.history, cm);
     sm.lock();
@@ -248,7 +247,7 @@ describe('search() reaches text hidden inside a collapsed assistant turn', () =>
 
     let registry = cm.getBlockRegistry();
     expect(cm.isCollapsed(registry.find((b) => b.type === 'assistant_turn')!.blockIndex)).toBe(false);
-    expect(cm.isCollapsed(registry.find((b) => b.collapseKey === `msg_${hitMemberIdx}`)!.blockIndex)).toBe(false);
+    expect(cm.isCollapsed(registry.find((b) => b.collapseKey === hitKey)!.blockIndex)).toBe(false);
 
     sm.close(cm);
     cm.getDisplayBlocks();
@@ -259,7 +258,7 @@ describe('search() reaches text hidden inside a collapsed assistant turn', () =>
     expect(cm.isCollapsed(groupAfter!.blockIndex)).toBe(true);
     // The result no longer materializes its own BlockMeta, hidden again
     // right along with its turn, exactly as it was before search opened.
-    expect(registry.some((b) => b.collapseKey === `msg_${hitMemberIdx}`)).toBe(false);
+    expect(registry.some((b) => b.collapseKey === hitKey)).toBe(false);
   });
 
   test('a needle present nowhere finds nothing and expands nothing', () => {
@@ -281,11 +280,11 @@ describe('search() reaches text hidden inside a collapsed assistant turn', () =>
   });
 
   test('a turn whose results are already expanded still matches, and search never touches its collapse state', () => {
-    const { cm, hitMemberIdx } = buildFoldedToolGroup();
+    const { cm, hitKey } = buildFoldedToolGroup();
     const group = cm.getBlockRegistry().find((b) => b.type === 'assistant_turn');
     cm.setCollapsed(group!.collapseKey, false);
-    for (const memberIdx of group!.groupMemberIndexes!) {
-      cm.setCollapsed(`msg_${memberIdx}`, false);
+    for (const memberKey of group!.groupMemberKeys!) {
+      cm.setCollapsed(memberKey, false);
     }
     cm.getDisplayBlocks();
 
@@ -297,7 +296,7 @@ describe('search() reaches text hidden inside a collapsed assistant turn', () =>
     expect(sm.matches.length).toBeGreaterThan(0);
     const registry = cm.getBlockRegistry();
     expect(cm.isCollapsed(registry.find((b) => b.type === 'assistant_turn')!.blockIndex)).toBe(false);
-    expect(cm.isCollapsed(registry.find((b) => b.collapseKey === `msg_${hitMemberIdx}`)!.blockIndex)).toBe(false);
+    expect(cm.isCollapsed(registry.find((b) => b.collapseKey === hitKey)!.blockIndex)).toBe(false);
   });
 
   test('result indexes that outlived their messages are skipped, not thrown on', () => {

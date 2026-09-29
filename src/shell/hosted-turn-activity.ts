@@ -8,7 +8,7 @@
  * orchestrator's `isThinking`, and the animation frame and token counts beside
  * it. The thinking overlay (spinner + waiting phrase + token speed + tool
  * preview), the rows the render loop reserves for it, and the activity
- * sidebar's busy lamp are all gated on it.
+ * Activity modal's busy row are all gated on it.
  *
  * A local turn sets that state and, this is the part that mattered most,
  * starts an 80ms interval that advances the animation frame and calls
@@ -66,7 +66,7 @@ export interface HostedTurnActivity {
   /**
    * The tool the daemon is running right now, or null when none is.
    *
-   * The shell's tool preview and its activity sidebar both read a LOCAL
+   * The shell's tool preview and its Activity modal both read a LOCAL
    * session snapshot, which stays empty for a hosted turn because the tools
    * are executing in the daemon's process, a turn making thirty tool calls
    * reported "No runtime activity". The frames say what is running; this is

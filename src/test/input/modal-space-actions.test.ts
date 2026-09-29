@@ -343,6 +343,9 @@ describe('modal space actions', () => {
         pendingModelPickerTarget: null,
         adjustSelected: () => { calls.push('adjust'); },
         focusSettings: () => { calls.push('settings'); },
+        searchQuery: '',
+        setSearchQuery: () => {},
+        clearSearch: () => {},
         focusCategories: () => { calls.push('categories'); },
         moveUp: () => {},
         moveDown: () => {},
@@ -410,6 +413,9 @@ describe('modal space actions', () => {
       nextCategory: () => {},
       editBackspace: () => {},
       editChar: () => {},
+      searchQuery: '',
+      setSearchQuery: () => {},
+      clearSearch: () => {},
     };
 
     const handled = handleSettingsModalToken({

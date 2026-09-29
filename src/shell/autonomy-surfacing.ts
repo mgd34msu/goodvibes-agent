@@ -4,7 +4,7 @@
  * HISTORY: this factory was extracted from main.ts to keep that file under the
  * 800-line cap. After extraction it gained two capabilities:
  *   1. Calendar merging, listCalendarEvents callback merges upcoming events
- *      into the Coming-up sidebar alongside scheduled jobs (buildCalendarEventsLister).
+ *      into the Activity modal's Coming up alongside scheduled jobs (buildCalendarEventsLister).
  *   2. Skill-draft accrual, onAwayDigest callback runs skill-draft proposal
  *      once per away-digest pass and appends a feed line when drafts are created
  *      (buildSkillDraftProposer).
@@ -40,7 +40,7 @@ interface AutonomyMessageRouter {
 
 export interface AutonomySurfacingOptions {
   readonly shellPaths: Parameters<typeof LastSeenStore.fromShellPaths>[0];
-  /** Feeds the Coming-up sidebar's next-run entries only, the local automation
+  /** Feeds the Activity modal's Coming-up next-run entries only, the local automation
    * manager's job list (local execution is disabled by design; see
    * src/runtime/bootstrap.ts). The away digest's run OUTCOMES never read this;
    * see listAutomationRunsSince below. */
@@ -110,7 +110,7 @@ function aggregateFiredSchedules(
 
 /**
  * Ambient autonomy surfacing for the shell: the launch "While you were away"
- * digest and the sidebar's Coming up entries. Everything here is best-effort
+ * digest and the Activity modal's Coming up entries. Everything here is best-effort
  * and offline-tolerant, failures are silent and renders are never blocked.
  */
 export function createAutonomySurfacing(options: AutonomySurfacingOptions) {

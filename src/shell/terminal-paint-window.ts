@@ -20,7 +20,7 @@
  * app was about to leave. The enter sequence switches to a BLANK alternate
  * screen, so every cell the compositor believed was already painted was in fact
  * absent, and being believed present, it was diffed away and never sent. The
- * surface came up without its header, its header rule, its sidebar divider or
+ * surface came up without its header, its header, its status line or
  * its section headings, with characters missing from the middle of words where
  * the two screens happened to agree. Anything that reset the diff, a resize,
  * Ctrl+L, the theme probe's repaint, healed it, which is why it looked like a

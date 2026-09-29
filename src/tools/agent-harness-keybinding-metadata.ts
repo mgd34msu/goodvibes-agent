@@ -311,12 +311,12 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
         note: 'Runs the available clear-screen route.',
       };
-    case 'sidebar-toggle':
+    case 'activity-open':
       return {
         supported: false,
         effect: 'visible-ui-navigation',
         confirmation: 'Direct user interaction only.',
-        note: 'Shows or hides the activity sidebar. Layout preferences stay under user control.',
+        note: 'Opens the Activity modal (running work, what needs you, what is coming up, recent activity).',
       };
     case 'workspace-picker':
       return {
@@ -420,6 +420,14 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         preferredMode: 'direct-user-interaction',
         confirmation: 'No model operation is exposed.',
         note: 'This shortcut is reserved and has no current Agent operation route.',
+      };
+    case 'focus-work-tree':
+      return {
+        supported: false,
+        effect: 'visible-ui-navigation',
+        preferredMode: 'direct-user-interaction',
+        confirmation: 'Direct user interaction only.',
+        note: 'Moves the keyboard onto the conversation work tree: arrows move and fold, Enter opens a tool call, y copies, Esc returns to the composer.',
       };
   }
 }

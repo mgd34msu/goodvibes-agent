@@ -1,7 +1,7 @@
 /**
  * ui-factory-waiting.test.ts, the honest waiting-state wording.
  *
- * createThinkingFragment now derives WHICH waiting state applies (renderer-local)
+ * UIFactory.busyPhrase derives WHICH waiting state applies (renderer-local)
  * and defers the exact wording to the SDK presentation contract's
  * waitingPhrase(). This proves the state derivation + contract consumption:
  * approval / pre-first-token / stalled / thinking, plus the tool-active stall
@@ -14,11 +14,6 @@ import { setActiveThemeMode } from '../../renderer/theme.ts';
 import { THINKING_PHRASES } from '@pellux/goodvibes-sdk/platform/presentation';
 
 afterEach(() => setActiveThemeMode('dark'));
-
-/** Flatten a rendered fragment to its visible text. */
-function text(lines: ReturnType<typeof UIFactory.createThinkingFragment>): string {
-  return lines.map((l) => l.map((c) => c.char).join('')).join(' ');
-}
 
 const STALL = 3_000; // > THINKING_STALL_FREEZE_MS (2500)
 
@@ -43,38 +38,37 @@ describe('computeRenderStallInfo suppresses stall while a tool is active', () =>
   });
 });
 
-describe('createThinkingFragment honest waiting states', () => {
-  const W = 60;
-
-  test('approval pending → "Waiting for your approval" and suppresses tok/s', () => {
-    const out = text(UIFactory.createThinkingFragment(W, '-', 0, 42 /* tokenSpeed */, undefined, undefined, undefined, undefined, true));
-    expect(out).toContain('Waiting for your approval');
-    expect(out).not.toContain('tok/s');
+describe('busyPhrase honest waiting states (the status line\'s phrase)', () => {
+  test('approval pending → "Waiting for your approval"', () => {
+    expect(UIFactory.busyPhrase(0, undefined, undefined, true)).toContain('Waiting for your approval');
   });
 
   test('pre-first-token silence → "Waiting for model Ns..." not "Stalled"', () => {
-    const stall = { msSinceLastDelta: STALL };
-    // outputTokens = 0 → pre-first-token branch
-    const out = text(UIFactory.createThinkingFragment(W, '-', 0, undefined, undefined, undefined, 0, stall));
+    const out = UIFactory.busyPhrase(0, 0, { msSinceLastDelta: STALL });
     expect(out).toContain('Waiting for model 3s...');
     expect(out).not.toContain('Stalled');
   });
 
   test('post-stream silence (tokens already flowed) → "Stalled Ns..."', () => {
-    const stall = { msSinceLastDelta: STALL };
-    // outputTokens > 0 → stalled branch
-    const out = text(UIFactory.createThinkingFragment(W, '-', 0, undefined, undefined, undefined, 5, stall));
-    expect(out).toContain('Stalled 3s...');
+    expect(UIFactory.busyPhrase(0, 5, { msSinceLastDelta: STALL })).toContain('Stalled 3s...');
   });
 
   test('reconnecting → "Reconnecting (attempt n/m)..."', () => {
-    const stall = { msSinceLastDelta: STALL, reconnect: { attempt: 2, maxAttempts: 5 } };
-    const out = text(UIFactory.createThinkingFragment(W, '-', 0, undefined, undefined, undefined, 5, stall));
-    expect(out).toContain('Reconnecting (attempt 2/5)...');
+    expect(UIFactory.busyPhrase(0, 5, { msSinceLastDelta: STALL, reconnect: { attempt: 2, maxAttempts: 5 } })).toContain('Reconnecting (attempt 2/5)...');
   });
 
   test('no stall → a rotated THINKING_PHRASE from the SDK contract', () => {
-    const out = text(UIFactory.createThinkingFragment(W, '-', 0));
-    expect(out).toContain(THINKING_PHRASES[0]); // frame 0 → 'Thinking...'
+    expect(UIFactory.busyPhrase(0)).toContain(THINKING_PHRASES[0]); // frame 0 → 'Thinking...'
+  });
+
+  test('the status line never shows tok/s while waiting on an approval', async () => {
+    const { buildShellFooter } = await import('../../renderer/shell-surface.ts');
+    const status = buildShellFooter({
+      width: 120, promptText: '', promptLineCount: 1, usage: { up: 0, down: 0 }, showExitNotice: false, lastCopyTime: 0,
+      runningAgentCount: 0, runningProcessCount: 0, indicatorFocused: false,
+      busy: { spinner: '-', frame: 0, phrase: UIFactory.busyPhrase(0, undefined, undefined, true), tokenSpeed: 42, approvalPending: true },
+    }).lines.at(-1)!.map((c) => c.char).join('');
+    expect(status).toContain('Waiting for your approval');
+    expect(status).not.toContain('tok/s');
   });
 });

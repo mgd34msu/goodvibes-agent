@@ -1,8 +1,18 @@
-import { type Line } from '@pellux/goodvibes-sdk/platform/types';
-import { ModalFactory } from './modal-factory.ts';
+/**
+ * The process monitor (F2, or Enter on the process indicator): background
+ * shell processes drawn with the modal surface kit. One kit row per process
+ * (status marker, command, status and elapsed time right-aligned), keycap
+ * hints. Enter opens the live tail (a sub-level; Esc comes back here), k
+ * stops the selected process. Esc only closes the view: the processes keep
+ * running.
+ */
+
 import { formatDuration } from './modal-utils.ts';
 import type { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
-import { getOverlaySurfaceMetrics, getStableOverlayContentRows, getVisibleWindow } from '@pellux/goodvibes-terminal-shell';
+import { activeTokens } from './theme.ts';
+import { beginModal, drawWrapped, finishModal, scrollCountText, type KitHint, type SurfaceLayer } from './surface-kit.ts';
+import { drawList, type KitRow } from './surface-kit-list.ts';
+import { listHeight, modalHeightFor, modalTextWidth } from './surface-kit-extra.ts';
 
 export interface ProcessEntry {
   readonly id: string;
@@ -12,13 +22,11 @@ export interface ProcessEntry {
   readonly elapsedMs: number;
 }
 
-const MAX_LABEL_LENGTH = 80;
-const MODAL_BORDER_WIDTH = 8;
-const PROCESS_MODAL_TITLE = 'Runtime Activity';
+const MAX_LABEL_LENGTH = 200;
+const PROCESS_MODAL_TITLE = 'Runtime activity';
 const PROCESS_MODAL_EMPTY_MESSAGE = 'No running shell processes.';
-const PROCESS_MODAL_EMPTY_HINTS = ['[Esc] Close'];
-const PROCESS_MODAL_ACTIVE_HINTS = ['[Up/Down] Navigate', '[Enter] Output', '[k] Stop process', '[Esc] Close'];
-const PROCESS_MODAL_TYPE_TAG = '[exec]';
+const PROCESS_MODAL_NOTE = 'Esc closes this view; processes keep running.';
+const PROCESS_MODAL_HINTS: readonly KitHint[] = [['↑↓', 'move'], ['⏎', 'output'], ['k', 'stop process']];
 
 export interface ProcessModalDeps {
   readonly processManager: Pick<ProcessManager, 'list' | 'getStatus' | 'stop'>;
@@ -26,7 +34,7 @@ export interface ProcessModalDeps {
 
 function truncateCmd(text: string): string {
   const firstLine = text.split('\n')[0]?.trim() ?? '';
-  if (firstLine.length > MAX_LABEL_LENGTH) return `${firstLine.slice(0, MAX_LABEL_LENGTH - 3)}...`;
+  if (firstLine.length > MAX_LABEL_LENGTH) return `${firstLine.slice(0, MAX_LABEL_LENGTH - 1)}…`;
   return firstLine;
 }
 
@@ -105,79 +113,57 @@ export class ProcessModal {
   }
 }
 
+/** The static strings this surface can show (checked by package verification). */
 export function renderProcessModalPackageText(): string {
   return [
     PROCESS_MODAL_TITLE,
     PROCESS_MODAL_EMPTY_MESSAGE,
-    PROCESS_MODAL_TYPE_TAG,
-    '*',
-    '!',
-    '-',
+    PROCESS_MODAL_NOTE,
+    '<n> running',
     'running',
     'failed',
     '<duration>',
-    ...PROCESS_MODAL_EMPTY_HINTS,
-    ...PROCESS_MODAL_ACTIVE_HINTS,
+    ...PROCESS_MODAL_HINTS.map(([, action]) => action),
   ].join('\n');
 }
 
-export function renderProcessModal(modal: ProcessModal, width: number, viewportHeight = 24): Line[] {
+function rowFor(entry: ProcessEntry, selected: boolean): KitRow {
+  const t = activeTokens();
+  const running = entry.status === 'running';
+  const failed = entry.status === 'failed';
+  return {
+    label: entry.label,
+    right: `${entry.status} · ${formatDuration(entry.elapsedMs)}`,
+    rightFg: failed ? t.error : undefined,
+    mark: running ? '◐' : failed ? '✕' : '○',
+    markFg: running ? t.brand : failed ? t.error : t.textFaint,
+    selected,
+  };
+}
+
+/** Render the process monitor as a SurfaceLayer in screen coordinates. */
+export function renderProcessModal(modal: ProcessModal, screenWidth: number, screenHeight = 24): SurfaceLayer {
   modal.refresh();
-
-  const metrics = getOverlaySurfaceMetrics(width, viewportHeight, {
-    margin: 2,
-    maxWidth: Math.max(24, width - 4),
-    chromeRows: 4,
-    minContentRows: 5,
-    maxContentRows: 9,
-  });
-  const boxMargin = metrics.margin;
-  const boxW = metrics.boxWidth;
-  const maxVisibleRows = metrics.contentRows;
-  const targetContentRows = getStableOverlayContentRows(metrics.contentRows, 7);
-
-  if (modal.entries.length === 0) {
-    return ModalFactory.createModal({
-      title: PROCESS_MODAL_TITLE,
-      width: boxW,
-      margin: boxMargin,
-      targetContentRows,
-      sections: [
-        { type: 'text', content: PROCESS_MODAL_EMPTY_MESSAGE },
-      ],
-      hints: PROCESS_MODAL_EMPTY_HINTS,
-    }, width);
-  }
-
-  const maxLabelW = Math.max(10, boxW - MODAL_BORDER_WIDTH);
-  const window = getVisibleWindow(modal.entries.length, modal.selectedIndex, maxVisibleRows);
-  const visibleEntries = modal.entries.slice(window.start, window.end);
-
-  const items = visibleEntries.map((entry, index) => {
-    const absoluteIndex = window.start + index;
-    const statusIcon = entry.status === 'running' ? '*' : entry.status === 'failed' ? '!' : '-';
-    const dur = formatDuration(entry.elapsedMs);
-    const suffix = `  ${entry.status}  ${dur}`;
-    const typeTag = PROCESS_MODAL_TYPE_TAG;
-    const maxDescW = Math.max(0, maxLabelW - typeTag.length - suffix.length - 4);
-    const desc = entry.label.length > maxDescW ? `${entry.label.slice(0, Math.max(0, maxDescW - 3))}...` : entry.label;
-    return {
-      label: `${statusIcon} ${typeTag} ${desc}${suffix}`,
-      selected: absoluteIndex === modal.selectedIndex,
-    };
-  });
-  const sections: import('./modal-factory.ts').ModalSection[] = [{ type: 'list', items }];
-  if (modal.entries.length > maxVisibleRows) sections.push({ type: 'separator' });
-
-  return ModalFactory.createModal({
+  const t = activeTokens();
+  const empty = modal.entries.length === 0;
+  const hints = empty ? [] : PROCESS_MODAL_HINTS;
+  const rows = modal.entries.map((entry, i) => rowFor(entry, i === modal.selectedIndex));
+  const width = modalTextWidth(screenWidth, screenHeight);
+  const body = (empty ? 1 : listHeight(rows, 0, width - 1)) + 2;
+  const height = modalHeightFor(screenWidth, screenHeight, { hints }, body);
+  const f = beginModal(screenWidth, screenHeight, {
     title: PROCESS_MODAL_TITLE,
-    width: boxW,
-    margin: boxMargin,
-    targetContentRows,
-    sections,
-    helpers: modal.entries.length > maxVisibleRows
-      ? [{ content: `[${window.start + 1}-${window.end} of ${modal.entries.length}]` }]
-      : undefined,
-    hints: PROCESS_MODAL_ACTIVE_HINTS,
-  }, width);
+    sub: empty ? undefined : `${modal.entries.length} running`,
+    hints,
+    height,
+  });
+  const noteRow = f.bottom;
+  drawWrapped(f.canvas, f.l, noteRow, f.r - f.l + 1, PROCESS_MODAL_NOTE, { fg: t.textFaint }, f.bottom);
+  if (empty) {
+    drawWrapped(f.canvas, f.l, f.top, f.r - f.l + 1, PROCESS_MODAL_EMPTY_MESSAGE, { fg: t.textMuted }, noteRow - 2);
+    return finishModal(f);
+  }
+  const res = drawList(f.canvas, { rows, top: f.top, bottom: Math.max(f.top, noteRow - 2), x0: f.l, x1: f.r, scrollKey: { owner: modal, name: 'processes' } });
+  f.hintRight = scrollCountText(res.above, res.below);
+  return finishModal(f);
 }

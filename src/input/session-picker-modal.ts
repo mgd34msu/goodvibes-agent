@@ -42,6 +42,12 @@ export class SessionPickerModal {
   /** Last status message to show in the modal (e.g. error or success). */
   public statusMessage = '';
 
+  /**
+   * The always-live search query. Filters the sessions by name and title;
+   * selectedIndex and scrollOffset index the filtered list.
+   */
+  public query = '';
+
   public constructor(private readonly sessionManager: SessionManager) {}
 
   /**
@@ -53,7 +59,23 @@ export class SessionPickerModal {
     this.scrollOffset = 0;
     this.statusMessage = '';
     this.deleteConfirmationTarget = null;
+    this.query = '';
     this.active = true;
+  }
+
+  /** The sessions matching the query (all of them when it is empty). */
+  visibleSessions(): SessionInfo[] {
+    const q = this.query.trim().toLowerCase();
+    if (q.length === 0) return this.sessions;
+    return this.sessions.filter((s) => s.name.toLowerCase().includes(q) || (s.title ?? '').toLowerCase().includes(q));
+  }
+
+  /** Replace the query; the selection returns to the first match. */
+  setQuery(query: string): void {
+    this.query = query;
+    this.selectedIndex = 0;
+    this.scrollOffset = 0;
+    this.deleteConfirmationTarget = null;
   }
 
   close(): void {
@@ -63,15 +85,17 @@ export class SessionPickerModal {
   }
 
   moveUp(): void {
-    if (this.sessions.length === 0) return;
-    this.selectedIndex = (this.selectedIndex - 1 + this.sessions.length) % this.sessions.length;
+    const count = this.visibleSessions().length;
+    if (count === 0) return;
+    this.selectedIndex = (this.selectedIndex - 1 + count) % count;
     this._clampScroll();
     this.deleteConfirmationTarget = null;
   }
 
   moveDown(): void {
-    if (this.sessions.length === 0) return;
-    this.selectedIndex = (this.selectedIndex + 1) % this.sessions.length;
+    const count = this.visibleSessions().length;
+    if (count === 0) return;
+    this.selectedIndex = (this.selectedIndex + 1) % count;
     this._clampScroll();
     this.deleteConfirmationTarget = null;
   }
@@ -82,7 +106,7 @@ export class SessionPickerModal {
   }
 
   getSelected(): SessionInfo | null {
-    return this.sessions[this.selectedIndex] ?? null;
+    return this.visibleSessions()[this.selectedIndex] ?? null;
   }
 
   /**
@@ -122,7 +146,7 @@ export class SessionPickerModal {
     } else if (this.selectedIndex >= this.scrollOffset + visRows) {
       this.scrollOffset = this.selectedIndex - visRows + 1;
     }
-    const maxOffset = Math.max(0, this.sessions.length - visRows);
+    const maxOffset = Math.max(0, this.visibleSessions().length - visRows);
     this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxOffset));
   }
 }

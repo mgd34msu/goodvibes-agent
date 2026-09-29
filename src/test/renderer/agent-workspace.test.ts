@@ -13,7 +13,7 @@ import { routineScheduleReceiptStorePath } from '../../agent/routine-schedule-re
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
-import type { Line } from '@pellux/goodvibes-sdk/platform/types';
+import type { SurfaceLayer } from '../../renderer/surface-kit.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
@@ -21,8 +21,9 @@ import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
-function text(lines: readonly Line[]): string {
-  return lines.map((line) => line.map((cell) => cell.char ?? ' ').join('').trimEnd()).join('\n');
+/** The workspace modal's text (it is a kit layer drawn over the screen). */
+function text(layer: SurfaceLayer): string {
+  return layer.lines.map((line) => line.map((cell) => cell.char ?? ' ').join('').trimEnd()).join('\n');
 }
 
 function commandContext(): CommandContext {
@@ -505,17 +506,17 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);
 
-    const output = text(renderAgentWorkspace(workspace, 120, 32));
+    const output = text(renderAgentWorkspace(workspace, 120, 42));
 
-    expect(output).toContain('GoodVibes Agent / Operator Workspace');
-    expect(output).toContain('Operator Areas');
+    expect(output).toContain('Agent workspace');
     expect(output).toContain('Home');
     expect(output).toContain('Get the assistant working');
     expect(output).toContain('Talk and choose models');
     expect(output).toContain('Assistant: attention');
     expect(output).toContain('Set interaction mode');
-    expect(output).toContain('Agent workspace');
-    expect(output).toContain('Enter open/action');
+    // Footer controls are keycap hints now.
+    expect(output).toContain('⏎  open');
+    expect(output).toContain('R  refresh');
   });
 
   test('renders workspace action search as a TUI-native finder', () => {
@@ -524,15 +525,15 @@ describe('renderAgentWorkspace', () => {
     workspace.beginActionSearch();
     workspace.appendActionSearchText('doctor');
 
-    const output = text(renderAgentWorkspace(workspace, 120, 32));
+    const output = text(renderAgentWorkspace(workspace, 120, 42));
 
     expect(output).toContain('Search actions');
     expect(output).toContain('Action Search');
     expect(output).toContain('Query: doctor');
     expect(output).toContain('Knowledge / Connector doctor');
     expect(output).toContain('Messaging / Diagnose a channel');
-    expect(output).toContain('type filter');
-    expect(output).toContain('Esc clear');
+    expect(output).toContain('↑↓  results');
+    expect(output).toContain('esc  clear');
   });
 
   test('renders build delegation as an explicit TUI handoff area', () => {
@@ -540,7 +541,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(commandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
 
-    const output = text(renderAgentWorkspace(workspace, 130, 34));
+    const output = text(renderAgentWorkspace(workspace, 130, 54));
 
     expect(output).toContain('Work & Approvals');
     expect(output).toContain('Delegate a build task');
@@ -551,7 +552,7 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
 
-    const output = text(renderAgentWorkspace(workspace, 132, 50));
+    const output = text(renderAgentWorkspace(workspace, 132, 60));
 
     expect(output).toContain('Assistant: ready-with-optional-setup; chat route openai-subscriber / GPT-5.5');
     expect(output).toContain('openai-subscriber / GPT-5.5');
@@ -567,7 +568,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 50));
+    const output = text(renderAgentWorkspace(workspace, 132, 60));
 
     expect(output).toContain('Selected: Use a local model (no sign-in)');
     expect(output).toContain('Onboarding');
@@ -629,7 +630,7 @@ describe('renderAgentWorkspace', () => {
     }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 52));
+    const output = text(renderAgentWorkspace(workspace, 132, 62));
 
     expect(output).toContain('Onboarding');
     expect(output).toContain('need attention');
@@ -687,7 +688,7 @@ describe('renderAgentWorkspace', () => {
     }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 52));
+    const output = text(renderAgentWorkspace(workspace, 132, 62));
 
     expect(output).toContain('Onboarding');
     expect(output).toContain('of 13 done');
@@ -701,7 +702,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext({ setupCheckpointStepId: 'install-smoke' }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 52));
+    const output = text(renderAgentWorkspace(workspace, 132, 62));
 
     expect(output).toContain('Onboarding');
     expect(output).toContain('Save resume point');
@@ -714,7 +715,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext({ includePersonalOpsNote: true }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personal-ops');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 52));
+    const output = text(renderAgentWorkspace(workspace, 132, 72));
 
     expect(output).toContain('Personal Ops');
     expect(output).toContain('Personal Ops: notes 1; routines 1/1');
@@ -734,7 +735,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
 
-    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    let output = text(renderAgentWorkspace(workspace, 132, 64));
 
     expect(output).toContain('Documents & Files');
     expect(output).toContain('Browse document drafts');
@@ -759,7 +760,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-reviewer-readiness');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 64));
     expect(output).toContain('Review Readiness Preflight');
     expect(output).toContain('Repair routes');
     expect(output).toContain('Preflight checks: comments, suggestions, source artifacts');
@@ -767,7 +768,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-diff-handoffs');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 64));
     expect(output).toContain('Diff Reviewer Handoffs');
     expect(output).toContain('Left handoff');
     expect(output).toContain('No complete handoff pair selected; submitting lists recent saved handoffs.');
@@ -801,12 +802,12 @@ describe('renderAgentWorkspace', () => {
     }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
 
-    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    let output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Reviewer handoffs: 2 saved; diff defaults artifact-older -> artifact-newer.');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-diff-handoffs');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Current diff: artifact-older -> artifact-newer.');
     expect(output).toContain('Recent choices: artifact-newer');
     expect(output).toContain('artifact-older (judgment; related 1).');
@@ -880,7 +881,7 @@ describe('renderAgentWorkspace', () => {
     }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
 
-    let output = text(renderAgentWorkspace(workspace, 150, 56));
+    let output = text(renderAgentWorkspace(workspace, 150, 66));
 
     expect(output).toContain('Review packet timeline:');
     expect(output).toContain('Packet packet-preset: Packet preset: Launch packet preset');
@@ -899,7 +900,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-review-packet-wizard');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 150, 56));
+    output = text(renderAgentWorkspace(workspace, 150, 66));
     expect(output).toContain('Review Packet Wizard');
     expect(output).toContain('Walk the current reviewer packet');
     expect(output).toContain('Focus');
@@ -907,28 +908,28 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-draft');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 150, 56));
+    output = text(renderAgentWorkspace(workspace, 150, 66));
     expect(output).toContain('Packet default: document reviewer-packet');
     expect(output).toContain('reviewer-packet');
     workspace.cancelLocalEditor();
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-compare');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 150, 56));
+    output = text(renderAgentWorkspace(workspace, 150, 66));
     expect(output).toContain('Default archive uses the latest reviewer handoff');
     expect(output).toContain('handoff-launch');
     workspace.cancelLocalEditor();
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-apply-compare');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 150, 56));
+    output = text(renderAgentWorkspace(workspace, 150, 66));
     expect(output).toContain('Default from latest revealed packet judgment');
     expect(output).toContain('judgment-launch');
     workspace.cancelLocalEditor();
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-save-review-packet-preset');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 150, 56));
+    output = text(renderAgentWorkspace(workspace, 150, 66));
     expect(output).toContain('Save Review Packet Preset');
     expect(output).toContain('Launch packet preset');
     expect(output).toContain('doc-export-launch');
@@ -945,7 +946,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-draft');
     workspace.activateSelected();
-    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    let output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Document export readiness: attention');
     expect(output).toContain('1 comment(s)');
     expect(output).toContain('source/evidence gap(s)');
@@ -960,14 +961,14 @@ describe('renderAgentWorkspace', () => {
         fields: workspace.localEditor.fields.map((field) => field.id === 'reportKind' ? { ...field, value: 'archive' } : field),
       };
     }
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Handoff archive readiness: attention');
     expect(output).toContain('Preflight next: Resolve open comments');
     workspace.cancelLocalEditor();
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-apply-compare');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Route apply readiness: attention');
     expect(output).toContain('Preflight next: Resolve open comments');
   });
@@ -977,7 +978,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'research');
 
-    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    let output = text(renderAgentWorkspace(workspace, 132, 64));
     expect(output).toContain('Research');
     expect(output).toContain('Research route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Research runs: 0 running; 0 paused; 0 blocked; 0 planned.');
@@ -1004,7 +1005,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'research-save-report');
     workspace.activateSelected();
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 64));
     expect(output).toContain('Save Research Report');
     expect(output).toContain('Title *');
     expect(output).toContain('Question *');
@@ -1018,7 +1019,7 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined, 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 37));
+    const output = text(renderAgentWorkspace(workspace, 132, 47));
 
     expect(output).toContain('Selected: Use a local model (no sign-in)');
     expect(output).toContain('Choose main model');
@@ -1038,7 +1039,7 @@ describe('renderAgentWorkspace', () => {
     }), () => undefined, 'onboarding-channels');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-enabled');
-    let output = text(renderAgentWorkspace(workspace, 180, 48));
+    let output = text(renderAgentWorkspace(workspace, 180, 58));
 
     expect(output).toContain('Setting');
     expect(output).toContain('Default');
@@ -1058,7 +1059,7 @@ describe('renderAgentWorkspace', () => {
       'surfaces.ntfy.token': 'goodvibes://secrets/goodvibes/NTFY_TOKEN',
     }), () => undefined, 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-token');
-    output = text(renderAgentWorkspace(workspace, 180, 48));
+    output = text(renderAgentWorkspace(workspace, 180, 58));
 
     expect(output).toContain('ntfy token');
     expect(output).toContain('(empty)');
@@ -1080,7 +1081,7 @@ describe('renderAgentWorkspace', () => {
       safety: 'read-only',
     };
 
-    const output = text(renderAgentWorkspace(workspace, 150, 48));
+    const output = text(renderAgentWorkspace(workspace, 150, 58));
 
     expect(output).toContain('Result: Context ready');
     expect(output).not.toContain('Action Result');
@@ -1097,10 +1098,11 @@ describe('renderAgentWorkspace', () => {
       categoryWorkspace.open(commandContext(), () => undefined, category.id);
       const output = text(renderAgentWorkspace(categoryWorkspace, 132, 37));
       const lines = output.split('\n');
-      const contextSeparatorRow = lines.findIndex((line, index) => index > 2 && line.includes('────'));
+      // The controls' column header row starts the lower part of the panel.
+      const contextSeparatorRow = lines.findIndex((line, index) => index > 2 && /(Setting|Option|Action|Result)\s{2,}(Default|Does)/.test(line));
 
       expect(contextSeparatorRow).toBeGreaterThan(0);
-      expect(contextSeparatorRow).toBeLessThanOrEqual(16);
+      expect(contextSeparatorRow).toBeLessThanOrEqual(24);
       expect(output).toContain(category.label);
       if (category.group === 'ONBOARDING') {
         // Every onboarding category uses the consistent Setting/Default/Current layout.
@@ -1121,18 +1123,18 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
-    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    let output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Choose provider and model');
     expect(output).toContain('About: Open the shared provider/model picker for the main chat route.');
     expect(output).not.toContain('Change:');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-reasoning');
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Reasoning effort');
     expect(output).not.toContain('Change:');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-run-local-model-benchmark');
-    output = text(renderAgentWorkspace(workspace, 132, 44));
+    output = text(renderAgentWorkspace(workspace, 132, 54));
     expect(output).toContain('Run a local model benchmark');
     expect(output).not.toContain('Change:');
   });
@@ -1143,15 +1145,15 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-export');
-    const exportOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const exportOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(exportOutput).toContain('Export support bundle');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-inspect');
-    const inspectOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const inspectOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(inspectOutput).toContain('Inspect support bundle');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-support-bundle-import');
-    const importOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const importOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(importOutput).toContain('Import support bundle');
   });
 
@@ -1161,21 +1163,21 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'subscription-login-start');
 
-    const actionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const actionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(actionOutput).toContain('Sign in to a provider');
     expect(actionOutput).toContain('About: Start one provider sign-in flow, save pending state, and return here.');
     expect(actionOutput).not.toContain('Change:');
 
     workspace.activateSelected();
-    const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const editorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(editorOutput).toContain('Start Provider Subscription Login');
     expect(editorOutput).toContain('Provider *');
     workspace.moveEditorField(1);
-    const browserOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const browserOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(browserOutput).toContain('Start Provider Subscription Login');
     expect(browserOutput).toContain('Open browser');
     workspace.moveEditorField(1);
-    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(confirmOutput).toContain('Editing: Confirm (required)');
   });
 
@@ -1185,54 +1187,54 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-detail');
-    const inspectActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const inspectActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(inspectActionOutput).toContain('Provider detail');
 
     workspace.activateSelected();
-    const inspectEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const inspectEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(inspectEditorOutput).toContain('Inspect Provider');
     expect(inspectEditorOutput).toContain('Provider id *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-routes');
-    const routesActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const routesActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(routesActionOutput).toContain('Provider routes');
 
     workspace.activateSelected();
-    const routesEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const routesEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(routesEditorOutput).toContain('Inspect Provider Routes');
     expect(routesEditorOutput).toContain('Provider id *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-provider-repair');
-    const accountRepairActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const accountRepairActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(accountRepairActionOutput).toContain('Provider repair guidance');
 
     workspace.activateSelected();
-    const accountRepairEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const accountRepairEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(accountRepairEditorOutput).toContain('Review Provider Account Repair');
     expect(accountRepairEditorOutput).toContain('Provider id *');
 
     workspace.cancelLocalEditor();
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
-    const addActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const addActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(addActionOutput).toContain('Add a custom provider');
     expect(addActionOutput).toContain('About: Add one OpenAI-compatible provider for Agent model routing.');
     expect(addActionOutput).not.toContain('Change:');
 
     workspace.activateSelected();
-    const addEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const addEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(addEditorOutput).toContain('Add Custom Provider');
     expect(addEditorOutput).toContain('Provider name *');
     workspace.moveEditorField(2);
-    const addKeyOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const addKeyOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(addKeyOutput).toContain('API key');
 
     workspace.cancelLocalEditor();
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
-    const removeActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const removeActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(removeActionOutput).toContain('Remove a custom provider');
     expect(removeActionOutput).toContain('About: Remove one custom provider config after confirmation.');
     expect(removeActionOutput).not.toContain('Change:');
@@ -1245,7 +1247,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-auth-bundle-export');
     workspace.activateSelected();
-    const authOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const authOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(authOutput).toContain('Export Auth Review Bundle');
     expect(authOutput).toContain('Output path *');
 
@@ -1253,7 +1255,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-subscription-bundle-inspect');
     workspace.activateSelected();
-    const subscriptionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const subscriptionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(subscriptionOutput).toContain('Inspect Subscription Bundle');
     expect(subscriptionOutput).toContain('Bundle path *');
 
@@ -1261,7 +1263,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'trust-bundle-export');
     workspace.activateSelected();
-    const trustOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const trustOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(trustOutput).toContain('Export Trust Bundle');
     expect(trustOutput).toContain('Confirm *');
 
@@ -1269,7 +1271,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-enable');
     workspace.activateSelected();
-    const voiceOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const voiceOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(voiceOutput).toContain('Enable Voice Interaction');
     expect(voiceOutput).toContain('Confirm *');
   });
@@ -1314,7 +1316,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(context, () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
 
-    const output = text(renderAgentWorkspace(workspace, 150, 52));
+    const output = text(renderAgentWorkspace(workspace, 150, 62));
 
     expect(output).toContain('Context');
     expect(output).toContain('Create/import memory, personas, skills, routines, notes, and Knowledge.');
@@ -1347,7 +1349,7 @@ describe('renderAgentWorkspace', () => {
 
     const expectSetupAction = (id: string, label: string) => {
       workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === id);
-      const output = text(renderAgentWorkspace(workspace, 150, 48));
+      const output = text(renderAgentWorkspace(workspace, 150, 58));
       expect(output).toContain(label);
       expect(output).not.toContain('/vibe status');
       expect(output).not.toContain('context action:"');
@@ -1364,7 +1366,7 @@ describe('renderAgentWorkspace', () => {
     expectSetupAction('context-create-routine', 'Create routine');
     expectSetupAction('context-knowledge-url', 'Ingest URL');
     expectSetupAction('context-knowledge-file', 'Ingest file');
-    expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.');
+    expect(text(renderAgentWorkspace(workspace, 150, 58))).toContain('Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.');
   });
 
   test('renders prompt receipt outcomes in the Local Context workspace', () => {
@@ -1372,7 +1374,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext({ includePromptReceipts: true }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
 
-    const output = text(renderAgentWorkspace(workspace, 150, 56));
+    const output = text(renderAgentWorkspace(workspace, 150, 66));
 
     expect(output).toContain('Prompt receipt timeline: 1 total; completed 0; errors 1; cancelled 0; pending 0.');
     expect(output).toContain('Latest prompt receipt: error turn turn-renderer-fail; 3 applied / 1 suppressed; 512 tokens; stop provider_error.');
@@ -1393,7 +1395,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 54));
 
     expect(output).toContain('Memory: 1; prompt 1; queue 1; session 1.');
     expect(output).toContain('Notes: 0; skills 1/1; routines 1/1; personas 1.');
@@ -1406,7 +1408,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Search memory');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-promote');
-    const maintenanceOutput = text(renderAgentWorkspace(workspace, 132, 34));
+    const maintenanceOutput = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(maintenanceOutput).toContain('Edit selected memory');
     expect(maintenanceOutput).toContain('Learning curator');
@@ -1414,12 +1416,12 @@ describe('renderAgentWorkspace', () => {
     expect(maintenanceOutput).toContain('Export memory bundle');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-handoff-inspect');
-    const handoffOutput = text(renderAgentWorkspace(workspace, 132, 34));
+    const handoffOutput = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(handoffOutput).toContain('Inspect handoff bundle');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-vector-rebuild');
-    const vectorOutput = text(renderAgentWorkspace(workspace, 132, 34));
+    const vectorOutput = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(vectorOutput).toContain('Rebuild vector index');
   });
@@ -1429,7 +1431,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
-    const personasOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const personasOutput = text(renderAgentWorkspace(workspace, 132, 48));
     const normalizedPersonasOutput = personasOutput.replace(/\s+/g, ' ');
     expect(normalizedPersonasOutput).toContain('VIBE.md: 0 applied; 0 blocked; 0 truncated.');
     expect(normalizedPersonasOutput).toContain('VIBE.md is personality; project context files are separate workspace instructions.');
@@ -1439,14 +1441,14 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-search');
     workspace.activateSelected();
-    const personaSearchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const personaSearchOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(personaSearchOutput).toContain('Search Personas');
     expect(personaSearchOutput).toContain('Search query');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-show');
     workspace.activateSelected();
-    const personaShowOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const personaShowOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(personaShowOutput).toContain('Show Persona');
     expect(personaShowOutput).toContain('Persona id *');
 
@@ -1454,14 +1456,14 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-search');
     workspace.activateSelected();
-    const skillSearchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const skillSearchOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(skillSearchOutput).toContain('Search Skills');
     expect(skillSearchOutput).toContain('Search query');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-show');
     workspace.activateSelected();
-    const skillShowOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const skillShowOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(skillShowOutput).toContain('Show Skill');
     expect(skillShowOutput).toContain('Skill id *');
 
@@ -1469,13 +1471,13 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
     workspace.activateSelected();
 
-    const output = text(renderAgentWorkspace(workspace, 132, 38));
+    const output = text(renderAgentWorkspace(workspace, 132, 48));
 
     expect(output).toContain('Create Skill');
     expect(output).toContain('Name *');
     expect(output).toContain('more field(s) below');
     workspace.moveEditorField(2);
-    const procedureOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const procedureOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(procedureOutput).toContain('Procedure *');
     expect(output).toContain('Enter next/save');
     expect(output).toContain('Esc cancel');
@@ -1484,14 +1486,14 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-search');
     workspace.activateSelected();
-    const routineSearchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const routineSearchOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(routineSearchOutput).toContain('Search Routines');
     expect(routineSearchOutput).toContain('Search query');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-show');
     workspace.activateSelected();
-    const routineShowOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const routineShowOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(routineShowOutput).toContain('Show Routine');
     expect(routineShowOutput).toContain('Routine id *');
   });
@@ -1501,7 +1503,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 42));
+    const output = text(renderAgentWorkspace(workspace, 132, 52));
 
     expect(output).toContain('Skills: 1; enabled: 1; bundles: 1; enabled bundles: 1; active skills: 1');
     expect(output).toContain('Create bundle');
@@ -1518,24 +1520,24 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-update-bundle');
     workspace.activateSelected();
-    const updateOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const updateOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(updateOutput).toContain('Update Skill Bundle');
     expect(updateOutput).toContain('Bundle id *');
     workspace.moveEditorField(3);
-    const updateSkillsOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const updateSkillsOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(updateSkillsOutput).toContain('Skill ids');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-stale-bundle');
     workspace.activateSelected();
-    const staleOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const staleOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(staleOutput).toContain('Mark Skill Bundle Stale');
     expect(staleOutput).toContain('Reason *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-delete-bundle');
     workspace.activateSelected();
-    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(deleteOutput).toContain('Delete Skill Bundle');
     expect(deleteOutput).toContain('Confirm *');
   });
@@ -1545,7 +1547,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 42));
+    const output = text(renderAgentWorkspace(workspace, 132, 52));
 
     expect(output).toContain('Routines: 1; enabled: 1');
     expect(output).toContain('Routine Library: 1; selected Daily Brief');
@@ -1553,11 +1555,11 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Missing setup: env:GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipt');
-    const receiptActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const receiptActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(receiptActionOutput).toContain('Show promotion receipt');
 
     workspace.activateSelected();
-    const receiptEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const receiptEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(receiptEditorOutput).toContain('Show Routine Promotion Receipt');
     expect(receiptEditorOutput).toContain('Receipt id *');
   });
@@ -1568,7 +1570,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ingest-url');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 38));
+    const output = text(renderAgentWorkspace(workspace, 132, 48));
 
     expect(output).toContain('Search Agent knowledge');
     expect(output).toContain('Ingest URL');
@@ -1579,7 +1581,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('non-Agent product setup');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-issue');
-    const reviewOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const reviewOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(reviewOutput).toContain('Review issue');
     expect(reviewOutput).not.toContain('/api/knowledge');
   });
@@ -1591,7 +1593,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-search');
     workspace.activateSelected();
-    const searchOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const searchOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(searchOutput).toContain('Search Agent Knowledge');
     expect(searchOutput).toContain('Search query *');
     expect(searchOutput).toContain('Results come from Agent-owned sources only');
@@ -1599,7 +1601,7 @@ describe('renderAgentWorkspace', () => {
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-ask');
     workspace.activateSelected();
-    const askOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const askOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(askOutput).toContain('Ask Agent Knowledge');
     expect(askOutput).toContain('Question *');
     expect(askOutput).toContain('fails closed instead of using');
@@ -1612,7 +1614,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-issue');
     workspace.activateSelected();
-    const reviewOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const reviewOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(reviewOutput).toContain('Review Agent Knowledge Issue');
     expect(reviewOutput).toContain('Issue id *');
     expect(reviewOutput).toContain('Action *');
@@ -1620,7 +1622,7 @@ describe('renderAgentWorkspace', () => {
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-packet');
     workspace.activateSelected();
-    const packetOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const packetOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(packetOutput).toContain('Build Prompt Packet');
     expect(packetOutput).toContain('Task *');
     expect(packetOutput).toContain('Scopes');
@@ -1628,7 +1630,7 @@ describe('renderAgentWorkspace', () => {
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-consolidate');
     workspace.activateSelected();
-    const consolidateOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const consolidateOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(consolidateOutput).toContain('Consolidate Agent Knowledge');
     expect(consolidateOutput).toContain('Confirm *');
   });
@@ -1640,7 +1642,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-bookmarks');
     workspace.activateSelected();
-    const bookmarkOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const bookmarkOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(bookmarkOutput).toContain('Import Bookmarks into Agent Knowledge');
     expect(bookmarkOutput).toContain('Bookmark export path *');
     expect(bookmarkOutput).toContain('Confirm *');
@@ -1649,7 +1651,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'image-attach');
     workspace.activateSelected();
-    const imageOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const imageOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(imageOutput).toContain('Attach Image Input');
     expect(imageOutput).toContain('Image path *');
     expect(imageOutput).toContain('Prompt');
@@ -1658,11 +1660,11 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create-bundle');
     workspace.activateSelected();
-    const bundleOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const bundleOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(bundleOutput).toContain('Create Skill Bundle');
     expect(bundleOutput).toContain('Bundle name *');
     workspace.moveEditorField(2);
-    const bundleSkillsOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const bundleSkillsOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(bundleSkillsOutput).toContain('Skill ids *');
   });
 
@@ -1673,7 +1675,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-import-urls');
     workspace.activateSelected();
-    const urlListOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const urlListOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(urlListOutput).toContain('Import URL List into Agent Knowledge');
     expect(urlListOutput).toContain('URL list path *');
     expect(urlListOutput).toContain('Allow private hosts');
@@ -1682,7 +1684,7 @@ describe('renderAgentWorkspace', () => {
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-reindex');
     workspace.activateSelected();
-    const reindexOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const reindexOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(reindexOutput).toContain('Reindex Agent Knowledge');
     expect(reindexOutput).toContain('Confirm *');
   });
@@ -1694,7 +1696,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-promote-routine');
     workspace.activateSelected();
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 54));
 
     expect(output).toContain('Promote Routine to Schedule');
     expect(output).toContain('Routine id *');
@@ -1702,32 +1704,32 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Schedule value *');
     expect(output).toContain('more field(s) below');
     workspace.moveEditorField(5);
-    const deliveryOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const deliveryOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(deliveryOutput).toContain('Delivery channel');
     expect(deliveryOutput).toContain('more field(s) above');
     workspace.moveEditorField(2);
-    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(confirmOutput).toContain('Confirm *');
     expect(output).not.toContain('<routine-id>');
     expect(output).not.toContain('<expr>');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-receipt');
-    const receiptActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const receiptActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(receiptActionOutput).toContain('Show receipt');
 
     workspace.activateSelected();
-    const receiptEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const receiptEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(receiptEditorOutput).toContain('Show Schedule Receipt');
     expect(receiptEditorOutput).toContain('Receipt id *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'health-repair');
-    const healthActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const healthActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(healthActionOutput).toContain('Health repair guidance');
 
     workspace.activateSelected();
-    const healthEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const healthEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(healthEditorOutput).toContain('Show Health Repair Guidance');
     expect(healthEditorOutput).toContain('Domain *');
   });
@@ -1776,7 +1778,7 @@ describe('renderAgentWorkspace', () => {
     } as unknown as CommandContext, () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
 
-    const output = text(renderAgentWorkspace(workspace, 150, 44));
+    const output = text(renderAgentWorkspace(workspace, 150, 54));
 
     expect(output).toContain('Automation: 1 schedule-ready routine(s); receipts 1.');
     expect(output).toContain('Next automation action: Reconcile schedules to compare local receipts with the connected host.');
@@ -1794,7 +1796,7 @@ describe('renderAgentWorkspace', () => {
       workspace.open(liveCommandContext(), () => undefined);
       workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
 
-      const output = text(renderAgentWorkspace(workspace, 132, 54));
+      const output = text(renderAgentWorkspace(workspace, 132, 64));
 
       expect(output).toContain('Voice & Media');
       expect(output).toContain('Voice readiness');
@@ -1816,40 +1818,40 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 38));
+    const output = text(renderAgentWorkspace(workspace, 132, 48));
 
     expect(output).toContain('Tools & MCP');
     expect(output).toContain('Server tool inventory');
     expect(output).toContain('Repair guidance');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-tools-server');
-    const toolsActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const toolsActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(toolsActionOutput).toContain('Server tool inventory');
 
     workspace.activateSelected();
-    const toolsEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const toolsEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(toolsEditorOutput).toContain('Show MCP Server Tools');
     expect(toolsEditorOutput).toContain('Server name *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-repair');
-    const repairActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const repairActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(repairActionOutput).toContain('Repair guidance');
 
     workspace.activateSelected();
-    const repairEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const repairEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(repairEditorOutput).toContain('Show MCP Repair Guidance');
     expect(repairEditorOutput).toContain('Server name *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-add-server');
     workspace.activateSelected();
-    const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const editorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(editorOutput).toContain('Add MCP Server');
     expect(editorOutput).toContain('Server name *');
     expect(editorOutput).toContain('Command *');
     workspace.moveEditorField(9);
-    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const confirmOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(confirmOutput).toContain('Confirm *');
   });
 
@@ -1863,7 +1865,7 @@ describe('renderAgentWorkspace', () => {
     workspace.appendEditorText('OPENAI_API_KEY');
     workspace.submitEditorFieldOrForm();
     workspace.appendEditorText('sk-render-secret-value');
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 54));
 
     expect(output).toContain('Store Secret Value');
     expect(output).toContain('Secret value *');
@@ -1876,7 +1878,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 38));
+    const output = text(renderAgentWorkspace(workspace, 132, 48));
 
     expect(output).toContain('Profiles');
     expect(output).toContain('Local profiles: 1; starters 5; custom 0.');
@@ -1887,11 +1889,11 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('/setup transfer');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-clear-default');
-    const clearOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const clearOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(clearOutput).toContain('Clear default profile');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-delete');
-    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(deleteOutput).toContain('Delete Agent profile');
   });
 
@@ -1902,18 +1904,18 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-export');
     workspace.activateSelected();
-    const exportOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const exportOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(exportOutput).toContain('Export Agent Starter Template');
     expect(exportOutput).toContain('Starter id *');
     expect(exportOutput).toContain('Output path *');
     workspace.moveEditorField(2);
-    const exportConfirmOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const exportConfirmOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(exportConfirmOutput).toContain('Confirm *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-import');
     workspace.activateSelected();
-    const importOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const importOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(importOutput).toContain('Import Agent Starter Template');
     expect(importOutput).toContain('Template path *');
     expect(importOutput).toContain('Confirm *');
@@ -1921,7 +1923,7 @@ describe('renderAgentWorkspace', () => {
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-template-show');
     workspace.activateSelected();
-    const previewOutput = text(renderAgentWorkspace(workspace, 132, 38));
+    const previewOutput = text(renderAgentWorkspace(workspace, 132, 48));
     expect(previewOutput).toContain('Preview Agent Starter Template');
     expect(previewOutput).toContain('Starter id *');
   });
@@ -1933,7 +1935,7 @@ describe('renderAgentWorkspace', () => {
     // Scroll to channel-show so editor actions are visible in the rendered output
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-show');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 54));
 
     expect(output).toContain('Messaging');
     expect(output).toContain('Check a channel');
@@ -1945,11 +1947,11 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('TELEGRAM_BOT_TOKEN');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-setup');
-    const setupOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const setupOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(setupOutput).toContain('Channel setup guide');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-clear-webhooks');
-    const notificationOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const notificationOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(notificationOutput).toContain('Clear notification targets');
   });
 
@@ -1968,11 +1970,11 @@ describe('renderAgentWorkspace', () => {
     // row, which pushed the Action Result panel below a 34-row viewport. This
     // test is about feedback + refresh affordance rendering, not the exact
     // viewport budget; the sibling render tests in this file use 44.
-    const output = text(renderAgentWorkspace(workspace, 132, 36));
+    const output = text(renderAgentWorkspace(workspace, 132, 46));
 
     expect(output).toContain('Action Result');
     expect(output).toContain('Autonomy queue');
-    expect(output).toContain('R refresh');
+    expect(output).toContain('R  refresh');
   });
 
   test('renders build delegation form as a confirmed TUI workflow', () => {
@@ -1982,7 +1984,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
     workspace.activateSelected();
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 68));
 
     expect(output).toContain('Delegate Build Work to GoodVibes TUI');
     expect(output).toContain('Original task *');
@@ -1990,7 +1992,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Success criteria');
     expect(output).toContain('Workspace hint');
     expect(output).toContain('Priority');
-    expect(output).toContain('2 more field(s) below');
+    // The rest of the form is reachable, and the window says how much is below.
+    expect(output).toMatch(/\d+ more field\(s\) below/);
     expect(output).toContain('editing delegate-task');
   });
 
@@ -1999,7 +2002,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 54));
 
     expect(output).toContain('Process supervision: available; 0 tracked; 0 running; 0 completed.');
     expect(output).toContain('Process parity: stdin not-yet-supported; PTY not-yet-supported; sudo foreground-only.');
@@ -2012,42 +2015,42 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Review approval class');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
-    const workPlanDetailOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const workPlanDetailOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(workPlanDetailOutput).toContain('Inspect host task');
 
     workspace.activateSelected();
-    const taskEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const taskEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(taskEditorOutput).toContain('Inspect Host Task');
     expect(taskEditorOutput).toContain('Task id *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'approval-review');
-    const approvalActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const approvalActionOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(approvalActionOutput).toContain('Review approval class');
 
     workspace.activateSelected();
-    const approvalEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const approvalEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(approvalEditorOutput).toContain('Review Approval Class');
     expect(approvalEditorOutput).toContain('Approval kind *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tasks-filter');
-    const taskFilterOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const taskFilterOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(taskFilterOutput).toContain('Filter host tasks');
 
     workspace.activateSelected();
-    const taskFilterEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const taskFilterEditorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(taskFilterEditorOutput).toContain('Filter Host Tasks');
     expect(taskFilterEditorOutput).toContain('Status or kind');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'task-show');
-    const taskOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const taskOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(taskOutput).toContain('Inspect host task');
     expect(taskOutput).toContain('Show task output');
 
     workspace.activateSelected();
-    const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const editorOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(editorOutput).toContain('Inspect Host Task');
     expect(editorOutput).toContain('Task id *');
   });
@@ -2058,7 +2061,7 @@ describe('renderAgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mode-preset');
     workspace.activateSelected();
-    const modeOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const modeOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(modeOutput).toContain('Set Interaction Mode');
     expect(modeOutput).toContain('Preset *');
 
@@ -2066,49 +2069,49 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'conversation');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-export-current');
     workspace.activateSelected();
-    const exportOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const exportOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(exportOutput).toContain('Export Conversation');
     expect(exportOutput).toContain('Output path *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-controls-find');
     workspace.activateSelected();
-    const findOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const findOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(findOutput).toContain('Find Transcript Text');
     expect(findOutput).toContain('Search query *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-load');
     workspace.activateSelected();
-    const loadOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const loadOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(loadOutput).toContain('Load Session');
     expect(loadOutput).toContain('Session name *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-rename');
     workspace.activateSelected();
-    const renameOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const renameOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(renameOutput).toContain('Rename Current Session');
     expect(renameOutput).toContain('New session name *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-fork');
     workspace.activateSelected();
-    const forkOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const forkOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(forkOutput).toContain('Fork Current Session');
     expect(forkOutput).toContain('Fork name');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-resume');
     workspace.activateSelected();
-    const resumeOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const resumeOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(resumeOutput).toContain('Resume Saved Session');
     expect(resumeOutput).toContain('Session id or name *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-info');
     workspace.activateSelected();
-    const infoOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const infoOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(infoOutput).toContain('Inspect Saved Session');
     expect(infoOutput).toContain('Session id or name *');
 
@@ -2116,7 +2119,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-session-graph');
     workspace.activateSelected();
-    const graphOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const graphOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(graphOutput).toContain('Inspect Session Graph');
     expect(graphOutput).toContain('Session id');
 
@@ -2124,21 +2127,21 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'conversation');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-export');
     workspace.activateSelected();
-    const savedExportOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const savedExportOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(savedExportOutput).toContain('Export Saved Session');
     expect(savedExportOutput).toContain('Format *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-search');
     workspace.activateSelected();
-    const searchOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const searchOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(searchOutput).toContain('Search Saved Sessions');
     expect(searchOutput).toContain('Search query *');
 
     workspace.cancelLocalEditor();
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-delete');
     workspace.activateSelected();
-    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 44));
+    const deleteOutput = text(renderAgentWorkspace(workspace, 132, 54));
     expect(deleteOutput).toContain('Delete Saved Session');
     expect(deleteOutput).toContain('Confirm *');
   });
@@ -2163,7 +2166,7 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    const output = text(renderAgentWorkspace(workspace, 132, 50));
+    const output = text(renderAgentWorkspace(workspace, 132, 60));
 
     for (const [label, pattern] of jargonPatterns) {
       expect(output).not.toMatch(pattern);
@@ -2177,7 +2180,7 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    const output = text(renderAgentWorkspace(workspace, 132, 54));
 
     // userRoute strings look like "/channels show telegram" or tool-call syntax, strip entirely, only label shown
     expect(output).not.toMatch(/Next:.*\/channels show/);
@@ -2192,7 +2195,7 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 50));
+    const output = text(renderAgentWorkspace(workspace, 132, 60));
 
     // 3-column header on every onboarding page
     expect(output).toContain('Setting');
@@ -2214,17 +2217,17 @@ describe('renderAgentWorkspace', () => {
 
     // Category 1: setup (Start)
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
-    const setupOutput = text(renderAgentWorkspace(workspace, 132, 50));
+    const setupOutput = text(renderAgentWorkspace(workspace, 132, 60));
     expect(setupOutput).toContain('Finish setup');
 
     // Category 2: onboarding-context (Local Context), different ONBOARDING category
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
-    const contextOutput = text(renderAgentWorkspace(workspace, 132, 50));
+    const contextOutput = text(renderAgentWorkspace(workspace, 132, 60));
     expect(contextOutput).toContain('Finish setup');
 
     // Category 3: account-model (Model Routing)
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
-    const accountOutput = text(renderAgentWorkspace(workspace, 132, 50));
+    const accountOutput = text(renderAgentWorkspace(workspace, 132, 60));
     expect(accountOutput).toContain('Finish setup');
   });
 
@@ -2234,7 +2237,7 @@ describe('renderAgentWorkspace', () => {
     // Navigate to setup category so the left pane is rendered at that position
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 50));
+    const output = text(renderAgentWorkspace(workspace, 132, 60));
 
     // setup category covers runtime + connected-host-auth + provider-model, all ready in liveCommandContext
     // So the Start row should show the success glyph ✓
@@ -2244,9 +2247,10 @@ describe('renderAgentWorkspace', () => {
     // onboarding-context covers agent-knowledge (recommended), should show attention marker !
     // Navigate to a different category so onboarding-context row is still visible in the left pane
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
-    const output2 = text(renderAgentWorkspace(workspace, 132, 50));
+    const output2 = text(renderAgentWorkspace(workspace, 132, 60));
     // The left pane includes ONBOARDING group header and category rows
-    expect(output2).toContain('ONBOARDING');
+    // Group headers are the kit's lowercase ✦ headers.
+    expect(output2).toContain('✦ onboarding');
     // Both success (✓) and attention (!) markers must be present: setup maps to all-ready
     // critical items, and onboarding-context maps to agent-knowledge which is recommended.
     expect(output2).toContain('✓');

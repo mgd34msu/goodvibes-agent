@@ -2,7 +2,7 @@
  * SystemMessageRouter, routes system messages to the right surfaces.
  *
  * Every message lands in the ActivityFeed (the ambient "Recent" record shown
- * in the Activity sidebar). High-priority messages, errors, confirmations the
+ * in the Activity modal). High-priority messages, errors, confirmations the
  * user explicitly caused, session lifecycle, additionally land in the main
  * conversation so they are impossible to miss.
  *

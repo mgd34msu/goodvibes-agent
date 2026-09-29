@@ -6,6 +6,8 @@ import { lineToString } from '../setup.ts';
 const WIDTH = 80;
 
 const lineText = lineToString;
+/** The gutter column: the diff keeps 2 columns between its fill edge and its text. */
+const G = 2;
 
 const SAMPLE_DIFF = [
   '--- old.ts (original)',
@@ -45,21 +47,21 @@ describe('renderDiffView', () => {
 
   test('added lines contain + gutter character', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    const addedLines = result.filter((line) => line[0]?.char === '+');
+    const addedLines = result.filter((line) => line[G]?.char === '+');
     expect(addedLines.length).toBeGreaterThan(0);
   });
 
   test('removed lines contain - gutter character', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    const removedLines = result.filter((line) => line[0]?.char === '-');
+    const removedLines = result.filter((line) => line[G]?.char === '-');
     expect(removedLines.length).toBeGreaterThan(0);
   });
 
   test('context lines contain space gutter character', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    // Context lines have space in gutter (first cell)
+    // Context lines have a space in the gutter
     const contextLines = result.filter((line) => {
-      const firstChar = line[0]?.char;
+      const firstChar = line[G]?.char;
       return firstChar === ' ' && lineText(line).trim().length > 0;
     });
     expect(contextLines.length).toBeGreaterThan(0);
@@ -67,7 +69,7 @@ describe('renderDiffView', () => {
 
   test('hunk header line contains @@ marker text', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    expect(result.map(lineText).filter((text) => text.startsWith('@@'))).toEqual([
+    expect(result.map(lineText).filter((text) => text.trimStart().startsWith('@@'))).toEqual([
       expect.stringContaining('@@ -1,4 +1,4 @@'),
     ]);
   });
@@ -77,12 +79,12 @@ describe('renderDiffView', () => {
     // Actual added code lines have gutter '+' AND the diffAddedBg fill
     // (file headers with +++ have the context fill and muted fg)
     const addedLines = result.filter((line) =>
-      line[0]?.char === '+' && line[0]?.bg === activeTokens().diffAddedBg
+      line[G]?.char === '+' && line[G]?.bg === activeTokens().diffAddedBg
     );
     expect(addedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 42;'),
     ]);
-    expect(addedLines[0]?.[0].fg).toContain(activeDiffTones().add.slice(1));
+    expect(addedLines[0]?.[G].fg).toContain(activeDiffTones().add.slice(1));
   });
 
   test('removed lines have red foreground color', () => {
@@ -90,25 +92,37 @@ describe('renderDiffView', () => {
     // Actual removed code lines have gutter '-' AND the diffRemovedBg fill
     // (file headers with --- have the context fill and muted fg)
     const removedLines = result.filter((line) =>
-      line[0]?.char === '-' && line[0]?.bg === activeTokens().diffRemovedBg
+      line[G]?.char === '-' && line[G]?.bg === activeTokens().diffRemovedBg
     );
     expect(removedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 2;'),
     ]);
-    expect(removedLines[0]?.[0].fg).toContain(activeDiffTones().del.slice(1));
+    expect(removedLines[0]?.[G].fg).toContain(activeDiffTones().del.slice(1));
   });
 
-  test('handles empty diff string', () => {
+  test('handles empty diff string (the fill keeps its padding rows)', () => {
     const result = renderDiffView('', WIDTH);
     expect(result).toEqual(expect.any(Array));
-    expect(result.map(lineText)).toEqual(['']);
+    expect(result.map((line) => lineText(line).trim())).toEqual(['', '', '']);
+  });
+
+  test('text keeps 2 columns from both fill edges, with a padding row above and below', () => {
+    const result = renderDiffView(SAMPLE_DIFF, WIDTH);
+    expect(lineText(result[0]).trim()).toBe('');
+    expect(lineText(result[result.length - 1]).trim()).toBe('');
+    for (const line of result) {
+      expect(line[0]!.char).toBe(' ');
+      expect(line[1]!.char).toBe(' ');
+      expect(line[WIDTH - 1]!.char).toBe(' ');
+      expect(line[WIDTH - 2]!.char).toBe(' ');
+    }
   });
 
   test('renders content from added lines', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
     // Actual added code lines have the diffAddedBg fill (not the +++ header with the context fill)
     const addedLines = result.filter((line) =>
-      line[0]?.char === '+' && line[0]?.bg === activeTokens().diffAddedBg
+      line[G]?.char === '+' && line[G]?.bg === activeTokens().diffAddedBg
     );
     expect(addedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 42;'),
@@ -119,7 +133,7 @@ describe('renderDiffView', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
     // Actual removed code lines have the diffRemovedBg fill (not the --- header with the context fill)
     const removedLines = result.filter((line) =>
-      line[0]?.char === '-' && line[0]?.bg === activeTokens().diffRemovedBg
+      line[G]?.char === '-' && line[G]?.bg === activeTokens().diffRemovedBg
     );
     // The removed line contains 'const b = 2;'
     expect(removedLines.map(lineText)).toEqual([

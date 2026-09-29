@@ -40,6 +40,7 @@ import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import { SettingsModal } from '../../input/settings-modal.ts';
 import { renderSettingsModal } from '../../renderer/settings-modal.ts';
+import { layerText } from '../helpers/surface-frame.ts';
 import { linesToText } from '../setup.ts';
 import {
   buildGoodVibesSecretKey,
@@ -488,7 +489,7 @@ describe('payments card containment (agent terminal)', () => {
     expect(modal.editingMode).toBe(true);
     for (const ch of FAKE_CVV) modal.editChar(ch);
 
-    const frame = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    const frame = layerText(renderSettingsModal(modal, W, 40)).join('\n');
     expect(leakedDigits(frame, FAKE_CVV)).toBe(false);
     expect(frame).toContain('•'.repeat(FAKE_CVV.length));
   });

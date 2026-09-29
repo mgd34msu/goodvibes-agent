@@ -82,7 +82,7 @@ afterEach(() => {
 });
 
 describe('modal search focus routing', () => {
-  test('selection modal keeps typable custom actions active until search is focused', () => {
+  test('selection modal: a claimed action letter fires while the query is empty; once typing, it is a character', () => {
     const modal = new SelectionModal();
     const customActions = new Map([['d', 'delete' as const]]);
     modal.open('Pick', [
@@ -107,14 +107,13 @@ describe('modal search focus routing', () => {
       { id: 'one', label: 'One' },
       { id: 'two', label: 'Two' },
     ], { allowSearch: true, customActions });
-    handleSelectionModalToken(state, { type: 'text', value: '/' });
-    expect(modal.searchFocused).toBe(true);
+    handleSelectionModalToken(state, { type: 'text', value: 't' });
     handleSelectionModalToken(state, { type: 'text', value: 'd' });
     expect(result).toBeNull();
-    expect(modal.query).toBe('d');
+    expect(modal.query).toBe('td');
   });
 
-  test('selection modal moves into and out of search with up/down', () => {
+  test('selection modal: up/down always move the selection (there is no search mode to enter)', () => {
     const modal = new SelectionModal();
     modal.open('Pick', [
       { id: 'one', label: 'One' },
@@ -129,14 +128,15 @@ describe('modal search focus routing', () => {
       handleEscape: () => {},
     };
 
-    handleSelectionModalToken(state, { type: 'key', name: 'up', logicalName: 'up', ctrl: false, shift: false, meta: false });
-    expect(modal.searchFocused).toBe(true);
     handleSelectionModalToken(state, { type: 'key', name: 'down', logicalName: 'down', ctrl: false, shift: false, meta: false });
-    expect(modal.searchFocused).toBe(false);
+    expect(modal.selectedIndex).toBe(1);
+    handleSelectionModalToken(state, { type: 'key', name: 'up', logicalName: 'up', ctrl: false, shift: false, meta: false });
     expect(modal.selectedIndex).toBe(0);
+    handleSelectionModalToken(state, { type: 'key', name: 'up', logicalName: 'up', ctrl: false, shift: false, meta: false });
+    expect(modal.selectedIndex).toBe(1); // wraps
   });
 
-  test('model picker keeps group hotkey active until search is focused', () => {
+  test('model picker: letters always search, ctrl+g cycles the grouping', () => {
     const picker = new ModelPickerModal(harness.favoritesStore, harness.benchmarkStore, harness.providerRegistry);
     picker.openAllModels([
       {
@@ -163,16 +163,15 @@ describe('modal search focus routing', () => {
 
     expect(picker.groupBy).toBe('provider');
     handleModelPickerToken(state, { type: 'text', value: 'g' });
-    expect(picker.groupBy).toBe('family');
+    expect(picker.groupBy).toBe('provider');
+    expect(picker.query).toBe('g');
 
-    handleModelPickerToken(state, { type: 'text', value: '/' });
-    expect(picker.searchFocused).toBe(true);
-    handleModelPickerToken(state, { type: 'text', value: 'g' });
+    handleModelPickerToken(state, { type: 'key', name: 'g', logicalName: 'g', ctrl: true, shift: false, meta: false });
     expect(picker.groupBy).toBe('family');
     expect(picker.query).toBe('g');
   });
 
-  test('model picker uses left and right to switch target/list panes', () => {
+  test('model picker uses left and right to switch model targets', () => {
     const picker = new ModelPickerModal(harness.favoritesStore, harness.benchmarkStore, harness.providerRegistry);
     picker.openAllModels([
       {
@@ -197,15 +196,21 @@ describe('modal search focus routing', () => {
       handleEscape: () => {},
     };
 
-    handleModelPickerToken(state, { type: 'key', name: 'left', logicalName: 'left', ctrl: false, shift: false, meta: false });
-    expect(picker.focusPane).toBe('targets');
-
+    picker.setTargetInfos([
+      { target: 'main', label: 'Main Chat', description: '', provider: 'openai', model: 'openai:gpt-1', enabled: true, inherited: false },
+      { target: 'helper', label: 'Helper Model', description: '', provider: 'openai', model: 'openai:gpt-1', enabled: true, inherited: true },
+    ]);
+    const target = () => picker.target;
+    const first = target();
     handleModelPickerToken(state, { type: 'key', name: 'right', logicalName: 'right', ctrl: false, shift: false, meta: false });
+    const second = target();
+    expect(second).not.toBe(first);
+    handleModelPickerToken(state, { type: 'key', name: 'left', logicalName: 'left', ctrl: false, shift: false, meta: false });
+    expect(target()).toBe(first);
     expect(picker.focusPane).toBe('items');
-    expect(picker.selectedIndex).toBe(0);
   });
 
-  test('model picker exposes capability, availability, and benchmark hotkeys outside search', () => {
+  test('model picker exposes capability, availability, and benchmark filters as ctrl chords', () => {
     const picker = new ModelPickerModal(harness.favoritesStore, harness.benchmarkStore, harness.providerRegistry);
     picker.openAllModels([
       {
@@ -230,13 +235,14 @@ describe('modal search focus routing', () => {
       handleEscape: () => {},
     };
 
-    handleModelPickerToken(state, { type: 'text', value: 'c' });
+    handleModelPickerToken(state, { type: 'key', name: 'k', logicalName: 'k', ctrl: true, shift: false, meta: false });
     expect(picker.capabilityFilter).toBe('reasoning');
 
-    handleModelPickerToken(state, { type: 'text', value: 'a' });
+    handleModelPickerToken(state, { type: 'key', name: 'a', logicalName: 'a', ctrl: true, shift: false, meta: false });
     expect(picker.availableOnly).toBe(false);
 
-    handleModelPickerToken(state, { type: 'text', value: 'b' });
+    handleModelPickerToken(state, { type: 'key', name: 'b', logicalName: 'b', ctrl: true, shift: false, meta: false });
     expect(picker.benchmarkSort).toBe('composite');
+    expect(picker.query).toBe('');
   });
 });

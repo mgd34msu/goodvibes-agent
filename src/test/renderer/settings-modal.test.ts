@@ -13,7 +13,8 @@ import { createFeatureFlagManager } from '@/runtime/index.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import { renderSettingsModal } from '../../renderer/settings-modal.ts';
-import { lineToString, linesToText } from '../setup.ts';
+import { layerText, layerTextBlock } from '../helpers/surface-frame.ts';
+import { activeTokens } from '../../renderer/theme.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const W = 120;
@@ -94,81 +95,72 @@ describe('renderSettingsModal', () => {
     if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('returns a non-empty Line[] array', () => {
-    const lines = renderSettingsModal(modal, W);
-    expect(lines).toEqual(expect.any(Array));
-    expect(lines.length).toBeGreaterThan(0);
+  /** The modal's text (a kit layer drawn over the screen). */
+  function render(width = W, height = 40): string {
+    return layerTextBlock(renderSettingsModal(modal, width, height));
+  }
+
+  test('is a kit modal layer that fits the screen', () => {
+    const layer = renderSettingsModal(modal, W, 40);
+    expect(layer.dim).toBe(true);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(W);
+    expect(layer.y + layer.lines.length).toBeLessThanOrEqual(40);
   });
 
-  test('each line has correct terminal width', () => {
-    const lines = renderSettingsModal(modal, W);
-    for (const line of lines) {
-      expect(line.length).toBe(W);
-    }
+  test('title row reads Settings with the category as a breadcrumb', () => {
+    const title = layerText(renderSettingsModal(modal, W, 40))[2]!;
+    expect(title).toContain('Settings');
+    expect(title).toContain('› Display');
   });
 
-  test('title bar contains "Settings"', () => {
-    const lines = renderSettingsModal(modal, W);
-    const titleLine = lineToString(lines[0]);
-    expect(titleLine).toContain('Settings');
+  test('keycap hints name the category keys while the categories have focus', () => {
+    const text = render();
+    expect(text).toContain('↑↓  category');
+    expect(text).toContain('tab  pane');
   });
 
-  test('footer contains navigation hints', () => {
-    const lines = renderSettingsModal(modal, W);
-    const footer = lineToString(lines[lines.length - 2]);
-    expect(footer).toContain('Tab');
-    expect(footer).toContain('Esc');
+  test('the search row is always live', () => {
+    expect(render()).toContain('Search all settings');
+    modal.setSearchQuery('theme');
+    const text = render();
+    expect(text).toContain('theme▏');
+    expect(text).toContain('› Search');
+    expect(text).toMatch(/\d+ results?/);
   });
 
-  test('category rail and header show the active category count', () => {
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    // The SDK's 9 display.* CONFIG_SCHEMA keys (display.themeMode included).
-    expect(texts).toContain('Display (9)');
+  test('category list shows each category with its count', () => {
+    const text = render();
+    // The SDK's 10 display.* CONFIG_SCHEMA keys (display.themeMode and display.treeGlyphs included).
+    expect(text).toMatch(/Display\s+10/);
   });
 
-  test('category rail is grouped and opens with category focus', () => {
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
+  test('category list is grouped and opens with category focus', () => {
+    const text = render();
     expect(modal.focusPane).toBe('categories');
-    expect(texts).toContain('AGENT EXPERIENCE');
-    expect(texts).toContain('  ▸ Display (9)');
-    expect(texts).not.toContain('EXTERNAL RUNTIME CONNECTION');
-    expect(texts).not.toContain('DELEGATION COMPATIBILITY');
-    const interfaceLines = lines.filter(line => lineToString(line).includes('AGENT EXPERIENCE'));
-    expect(interfaceLines.map(lineToString)).toEqual([
-      expect.stringContaining('AGENT EXPERIENCE'),
-    ]);
-    const interfaceIndex = lineToString(interfaceLines[0]!).indexOf('AGENT EXPERIENCE');
-    expect(interfaceLines[0]?.[interfaceIndex]).toEqual(expect.objectContaining({ bold: true }));
+    expect(text).toContain('✦ agent experience');
+    expect(text).not.toContain('external runtime connection');
+    expect(text).not.toContain('delegation compatibility');
   });
 
-  // The Agent Experience group alone (display/ui/behavior/agents/notifications/
-  // permissions/policy/fetch/diagnostics) now exceeds a default 24-row terminal's
-  // rail viewport, so later groups scroll out of view until the selection reaches
-  // them, this exercises that the rail still reaches every group via scrolling.
-  test('category rail scrolls to reveal later groups as selection moves down', () => {
+  test('category list scrolls to reveal later groups as selection moves down', () => {
     modal.categoryIndex = SETTINGS_CATEGORIES.indexOf('provider');
-    let texts = linesToText(renderSettingsModal(modal, W)).join('\n');
-    expect(texts).toContain('MODELS AND PROVIDERS');
-
+    expect(render(W, 24)).toContain('models and providers');
     modal.categoryIndex = SETTINGS_CATEGORIES.indexOf('surfaces');
-    texts = linesToText(renderSettingsModal(modal, W)).join('\n');
-    expect(texts).toContain('CHANNELS AND TOOLS');
+    expect(render(W, 24)).toContain('channels and tools');
   });
 
   test('exposes daemon runtime settings, including the danger toggle', () => {
     const rendered: string[] = [];
     for (let index = 0; index < SETTINGS_CATEGORIES.length; index += 1) {
-      rendered.push(linesToText(renderSettingsModal(modal, W, 40)).join('\n'));
+      rendered.push(render(W, 40));
       modal.nextCategory();
     }
     const text = rendered.join('\n');
-    expect(text).toContain('DAEMON RUNTIME');
+    expect(text).toContain('daemon runtime');
     expect(text).toContain('Control Plane');
     expect(text).toContain('HTTP Listener');
     expect(text).toContain('Service');
-    expect(text).toContain('ADVANCED RUNTIME');
+    expect(text).toContain('advanced runtime');
     expect(text).toContain('WRFC');
     expect(text).toContain('controlPlane.');
     expect(text).toContain('httpListener.');
@@ -181,29 +173,20 @@ describe('renderSettingsModal', () => {
     expect(text).toContain('danger.httpListener');
   });
 
-  test('settings list shows setting keys', () => {
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    // display category should show stream, lineNumbers, etc.
-    expect(texts.toLowerCase()).toMatch(/stream|linenumbers|theme/);
+  test('settings list shows setting names', () => {
+    expect(render().toLowerCase()).toMatch(/stream|linenumbers|theme/);
   });
 
-  test('selected item has arrow indicator', () => {
-    const lines = renderSettingsModal(modal, W);
-    expect(lines.flat().filter(cell => cell.char === '▸').length).toBeGreaterThan(0);
+  test('the selected setting carries the gradient once the settings have focus', () => {
+    modal.focusSettings();
+    const layer = renderSettingsModal(modal, W, 40);
+    expect(layer.lines.flat().some((cell) => cell.bg === activeTokens().brand)).toBe(true);
   });
 
-  test('description of selected setting is shown', () => {
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    // The first setting in display is 'display.stream' with description containing 'Stream'
-    expect(texts).toMatch(/stream|Stream/);
-  });
-
-  test('selected setting surfaces resolved source metadata', () => {
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Source');
+  test('the selected setting explains itself with its source', () => {
+    const text = render();
+    expect(text).toMatch(/stream|Stream/);
+    expect(text).toContain('source ');
   });
 
   test('selected conflicting setting surfaces conflict provenance', () => {
@@ -213,63 +196,49 @@ describe('renderSettingsModal', () => {
     }));
     selected!.conflict = true;
     modal.groups.set(modal.currentCategory, [selected!]);
-    const lines = renderSettingsModal(modal, W, 40);
-    const texts = linesToText(lines).join('\n');
-    expect(texts.toLowerCase()).toContain('conflict');
+    expect(render().toLowerCase()).toContain('conflict');
   });
 
   test('selected synced setting surfaces synced provenance', () => {
     const selected = modal.getSelected();
-    expect(selected).toEqual(expect.objectContaining({
-      setting: expect.objectContaining({ key: expect.any(String) }),
-    }));
     selected!.effectiveSource = 'synced';
     modal.groups.set(modal.currentCategory, [selected!]);
-    const lines = renderSettingsModal(modal, W, 40);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Source: synced');
+    expect(render()).toContain('source synced');
   });
 
-  test('footer shows [Enter] Confirm/[Esc] Cancel in editing mode', () => {
+  test('hints name save and cancel in editing mode', () => {
     modal.editingMode = true;
-    const lines = renderSettingsModal(modal, W);
-    const footer = lineToString(lines[lines.length - 2]);
-    expect(footer).toContain('Confirm');
-    expect(footer).toContain('Cancel');
+    const text = render();
+    expect(text).toContain('⏎  save');
+    expect(text).toContain('esc  cancel edit');
   });
 
   test('edit cursor shown when in editing mode', () => {
+    modal.focusSettings();
     modal.editingMode = true;
     modal.editBuffer = 'test';
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    // Block cursor character
-    expect(texts).toContain('test\u2588');
+    expect(render()).toContain('test▏');
   });
 
   test('changing category shows different settings', () => {
     modal.nextCategory();
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('UI (3)');
+    const text = render();
+    expect(text).toContain('› UI');
+    expect(text).toMatch(/UI\s+3/);
   });
 
   test('mcp category renders server trust editing surface', () => {
     while (modal.currentCategory !== 'mcp') modal.nextCategory();
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('MCP (1)');
-    expect(texts).toContain('docs-server');
-    expect(texts).toContain('ask-on-risk');
+    const text = render();
+    expect(text).toContain('docs-server');
+    expect(text).toContain('ask-on-risk');
   });
 
   test('mcp category renders explicit allow-all confirmation guidance', () => {
     while (modal.currentCategory !== 'mcp') modal.nextCategory();
     modal.editingMode = true;
     modal.mcpAllowAllConfirmationTarget = 'docs-server';
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('ALLOW ALL docs-server');
+    expect(render()).toContain('ALLOW ALL docs-server');
   });
 
   test('subscriptions category renders provider override state', () => {
@@ -280,12 +249,11 @@ describe('renderSettingsModal', () => {
       tokenType: 'Bearer',
       oauthConfigured: true,
     }];
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Subscriptions (1)');
-    expect(texts).toContain('openai');
-    expect(texts).toContain('active');
-    expect(texts).toContain('ambient key ov');
+    const text = render();
+    expect(text).toContain('› Subscriptions');
+    expect(text).toContain('openai');
+    expect(text).toContain('active');
+    expect(text).toContain('ambient key ov');
   });
 
   test('subscriptions category renders explicit logout confirmation guidance when armed', () => {
@@ -297,16 +265,13 @@ describe('renderSettingsModal', () => {
       oauthConfigured: true,
     }];
     modal.subscriptionLogoutConfirmationTarget = 'openai';
-    const lines = renderSettingsModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Press Enter again to sign out openai');
+    const text = render();
+    expect(text).toContain('Press Enter again to sign out openai');
+    expect(text).toContain('⏎  sign out');
   });
 
-  test('works with narrow terminal width', () => {
-    const narrowW = 60;
-    const lines = renderSettingsModal(modal, narrowW);
-    for (const line of lines) {
-      expect(line.length).toBe(narrowW);
-    }
+  test('fits a narrow terminal', () => {
+    const layer = renderSettingsModal(modal, 60, 24);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(60);
   });
 });

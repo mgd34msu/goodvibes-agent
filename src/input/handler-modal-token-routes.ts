@@ -2,7 +2,7 @@ import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { InfiniteBuffer } from '@pellux/goodvibes-terminal-shell';
 import type { ConversationManager } from '../core/conversation.ts';
 import type { SelectionResult, SelectionModal } from './selection-modal.ts';
-import type { BookmarkModal } from '@pellux/goodvibes-terminal-shell';
+import type { BookmarkModal } from './bookmark-modal.ts';
 import type { SettingsModal } from './settings-modal.ts';
 import type { SessionPickerModal } from './session-picker-modal.ts';
 import type { ProfilePickerModal } from './profile-picker-modal.ts';
@@ -14,6 +14,7 @@ import type { CommandContext } from './command-registry.ts';
 import type { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import type { ProcessModal } from '../renderer/process-modal.ts';
 import type { ContextInspectorModal } from '../renderer/context-inspector.ts';
+import type { OverlayFilters } from './overlay-filter.ts';
 import type { FilePickerModal } from './file-picker.ts';
 import type { BlockActionsMenu, BlockActionId } from '../renderer/block-actions.ts';
 import type { SearchManager } from './search.ts';
@@ -63,6 +64,7 @@ export type ModalTokenRouteState = {
   liveTailModal: LiveTailModal;
   processModal: ProcessModal;
   contextInspectorModal: ContextInspectorModal;
+  overlayFilters?: OverlayFilters;
   modalOpened: (name: string) => void;
   filePicker: FilePickerModal;
   imageRegistry: Map<string, { data: string; mediaType: string }>;
@@ -201,6 +203,7 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
     helpScrollOffset: state.helpScrollOffset,
     shortcutsOverlayActive: state.shortcutsOverlayActive,
     shortcutsScrollOffset: state.shortcutsScrollOffset,
+    overlayFilters: state.overlayFilters,
     requestRender: state.requestRender,
     handleEscape: state.handleEscape,
   };
@@ -231,6 +234,7 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
     active: state.contextInspectorModal.active,
     requestRender: state.requestRender,
     handleEscape: state.handleEscape,
+    scroll: (delta) => state.contextInspectorModal.scrollBy(delta),
   }, token)) {
     return withState(state, true);
   }

@@ -58,7 +58,7 @@ export interface RemoteConversationWiring {
   cancelHostedTurn(): void;
   /**
    * The tool a hosted turn is running right now, for the shell's tool preview
-   * and activity sidebar, both of which otherwise read a local snapshot that
+   * and Activity modal, both of which otherwise read a local snapshot that
    * a daemon-hosted turn never fills in.
    */
   hostedToolPreview(): string | undefined;

@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from 'bun:test';
 import { LiveTailModal, renderLiveTailModal } from '../../renderer/live-tail-modal.ts';
 import type { ProcessEntry } from '../../renderer/process-modal.ts';
 import { getTestProcessManager, resetTestProcessManager, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
-import { linesToText } from '../setup.ts';
+import { layerTextBlock } from '../helpers/surface-frame.ts';
 
 const W = 100;
 
@@ -88,39 +88,41 @@ describe('LiveTailModal state', () => {
 });
 
 describe('renderLiveTailModal', () => {
-  test('returns empty array when entry is null', () => {
-    const modal = createLiveTailModal();
-    expect(renderLiveTailModal(modal, W)).toEqual([]);
+  const H = 30;
+  const text = (modal: LiveTailModal): string => layerTextBlock(renderLiveTailModal(modal, W, H));
+
+  test('returns null when no process is open', () => {
+    expect(renderLiveTailModal(createLiveTailModal(), W, H)).toBeNull();
   });
 
-  test('all lines have correct terminal width', () => {
+  test('is a kit modal layer that fits the screen', () => {
     const modal = createLiveTailModal();
     modal.open(makeEntry({ label: 'Process task' }));
-    const lines = renderLiveTailModal(modal, W);
-    for (const line of lines) expect(line.length).toBe(W);
+    const layer = renderLiveTailModal(modal, W, H)!;
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(W);
+    expect(layer.y + layer.lines.length).toBeLessThanOrEqual(H);
   });
 
-  test('renders title with exec tag and label', () => {
+  test('shows the full command under the title', () => {
     const modal = createLiveTailModal();
     modal.open(makeEntry({ label: 'tail me' }));
-    const text = linesToText(renderLiveTailModal(modal, W)).join('\n');
-    expect(text).toContain('[exec]');
-    expect(text).toContain('tail me');
+    const output = text(modal);
+    expect(output).toContain('Runtime activity › Live output');
+    expect(output).toContain('$ tail me');
   });
 
   test('renders (no output yet) for missing exec output', () => {
     const modal = createLiveTailModal();
     modal.open(makeEntry({ id: 'no-such-exec', label: 'cmd' }));
-    const text = linesToText(renderLiveTailModal(modal, W)).join('\n');
-    expect(text).toContain('no output yet');
+    expect(text(modal)).toContain('no output yet');
   });
 
-  test('footer contains process stop hint and back hint', () => {
+  test('hints name stopping the process and going back without stopping it', () => {
     const modal = createLiveTailModal();
     modal.open(makeEntry({ label: 'Hint test' }));
-    const text = linesToText(renderLiveTailModal(modal, W)).join('\n');
-    expect(text).toContain('Stop process');
-    expect(text).toContain('Back');
-    expect(text).not.toContain('[agent]');
+    const output = text(modal);
+    expect(output).toContain('k  stop process');
+    expect(output).toContain('esc  back, the process keeps running');
+    expect(output).not.toContain('[agent]');
   });
 });

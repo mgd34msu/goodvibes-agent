@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
 import type { BackgroundProcess } from '@pellux/goodvibes-sdk/platform/tools';
 import { ProcessModal, renderProcessModal } from '../../renderer/process-modal.ts';
-import { activeUiTones } from '../../renderer/theme.ts';
-import { linesToText } from '../setup.ts';
+import { activeTokens } from '../../renderer/theme.ts';
+import { layerText, layerTextBlock } from '../helpers/surface-frame.ts';
 
 const W = 100;
 
@@ -104,47 +104,47 @@ describe('ProcessModal state', () => {
 });
 
 describe('renderProcessModal', () => {
-  test('renders empty state when no processes are running', () => {
-    const modal = createProcessModal();
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-    expect(text).toContain('No running shell processes');
+  const H = 30;
+
+  test('renders the empty state when no processes are running', () => {
+    expect(layerTextBlock(renderProcessModal(createProcessModal(), W, H))).toContain('No running shell processes');
   });
 
-  test('all lines have correct terminal width', () => {
-    const modal = createProcessModal();
-    const lines = renderProcessModal(modal, W);
-    for (const line of lines) expect(line.length).toBe(W);
+  test('is a kit modal layer that fits the screen', () => {
+    const layer = renderProcessModal(createProcessModal(), W, H);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(W);
+    expect(layer.y + layer.lines.length).toBeLessThanOrEqual(H);
   });
 
-  test('renders exec entries as list items', () => {
+  test('renders each process with its status', () => {
     seedProcess('bun run build');
     const modal = createProcessModal();
     modal.open();
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-    expect(text).toContain('[exec]');
+    const text = layerTextBlock(renderProcessModal(modal, W, H));
     expect(text).toContain('bun run build');
+    expect(text).toContain('running');
+    expect(text).toContain('1 running');
   });
 
-  test('selected entry shows selection indicator', () => {
+  test('the selected process is the gradient row', () => {
     seedProcess('Task A');
     seedProcess('Task B');
     const modal = createProcessModal();
     modal.open();
     modal.moveDown();
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-    expect(text).toContain('Task B');
-    const selectedCell = lines.flat().find((cell) => cell.bg === activeUiTones().bg.selected);
-    expect(selectedCell).toEqual(expect.objectContaining({ bg: activeUiTones().bg.selected }));
+    const layer = renderProcessModal(modal, W, H);
+    const ink = activeTokens().selectedListItemText;
+    const row = layer.lines.findIndex((line) => line.some((c) => c.fg === ink && c.bold && c.char.trim() !== ''));
+    expect(layerText(layer)[row]).toContain('Task B');
   });
 
-  test('footer contains process-specific hint text', () => {
+  test('says Esc leaves the processes running and names the keys', () => {
+    seedProcess('Task A');
     const modal = createProcessModal();
-    const lines = renderProcessModal(modal, W);
-    const text = linesToText(lines).join('\n');
-    expect(text).toContain('Esc');
+    modal.open();
+    const text = layerTextBlock(renderProcessModal(modal, W, H));
+    expect(text).toContain('Esc closes this view; processes keep running.');
+    expect(text).toContain('k  stop process');
     expect(text).not.toContain('[agent]');
   });
 });

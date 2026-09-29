@@ -427,12 +427,14 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     if (!input.helpOverlayActive) input.modalOpened('help');
     input.helpOverlayActive = !input.helpOverlayActive;
     input.helpScrollOffset = 0;
+    input.overlayFilters.help.clear();
   };
 
   commandContext.openShortcutsOverlay = () => {
     if (!input.shortcutsOverlayActive) input.modalOpened('shortcuts');
     input.shortcutsOverlayActive = !input.shortcutsOverlayActive;
     input.shortcutsScrollOffset = 0;
+    input.overlayFilters.shortcuts.clear();
     render();
   };
 

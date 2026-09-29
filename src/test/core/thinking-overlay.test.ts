@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { ThinkingStallClock, buildThinkingOverlay, type ThinkingOverlayDeps } from '../../core/thinking-overlay.ts';
+import { ThinkingStallClock, buildBusyState, buildThinkingOverlay, type ThinkingOverlayDeps } from '../../core/thinking-overlay.ts';
 
 const STALL = 3_000; // > THINKING_STALL_FREEZE_MS (2500)
 
@@ -55,7 +55,7 @@ describe('ThinkingStallClock', () => {
   });
 });
 
-describe('buildThinkingOverlay', () => {
+describe('buildBusyState and buildThinkingOverlay', () => {
   const base = (over: Partial<ThinkingOverlayDeps> = {}): ThinkingOverlayDeps => ({
     orchestrator: fakeOrchestrator(),
     configManager: cfg,
@@ -67,23 +67,29 @@ describe('buildThinkingOverlay', () => {
     ...over,
   });
 
-  test('returns [] and resets the clock when not thinking', () => {
+  test('the busy state is null and the clock resets when not thinking', () => {
     const clock = new ThinkingStallClock();
     clock.tick(0, false, 1000); // seed it
-    const lines = buildThinkingOverlay(base({ orchestrator: fakeOrchestrator({ isThinking: false }), clock }));
-    expect(lines).toEqual([]);
+    expect(buildBusyState(base({ orchestrator: fakeOrchestrator({ isThinking: false }), clock }))).toBeNull();
     // clock was reset → next tick re-seeds (no stall)
     expect(clock.tick(0, false, 99_999)?.msSinceLastDelta).toBe(0);
   });
 
-  test('thinking → renders overlay lines', () => {
-    const lines = buildThinkingOverlay(base());
-    expect(lines.length).toBeGreaterThan(0);
+  test('thinking → a busy state for the status line (spinner, phrase, elapsed)', () => {
+    const busy = buildBusyState(base());
+    expect(busy).not.toBeNull();
+    expect(busy!.phrase.length).toBeGreaterThan(0);
+    expect(busy!.elapsedMs).toBeGreaterThanOrEqual(0);
   });
 
   test('approval pending surfaces the honest approval wording', () => {
-    const lines = buildThinkingOverlay(base({ approvalPending: true }));
-    const text = lines.map((l) => l.map((c) => c.char).join('')).join(' ');
-    expect(text).toContain('Waiting for your approval');
+    const busy = buildBusyState(base({ approvalPending: true }));
+    expect(busy!.phrase).toContain('Waiting for your approval');
+    expect(busy!.approvalPending).toBe(true);
+  });
+
+  test('the transcript gets no rows of its own unless the tool preview is on', () => {
+    expect(buildThinkingOverlay(base({ orchestrator: fakeOrchestrator({ isThinking: false }) }))).toEqual([]);
+    expect(buildThinkingOverlay(base({ streamToolPreview: 'web_search {"q": "fares"}' })).length).toBeLessThanOrEqual(1);
   });
 });

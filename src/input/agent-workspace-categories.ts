@@ -531,6 +531,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'approval-deny', label: 'Deny request', detail: 'Open a confirmed form for denying one pending connected-host approval request by id.', editorKind: 'approval-deny', kind: 'editor', safety: 'safe' },
       { id: 'approval-cancel', label: 'Cancel request', detail: 'Open a confirmed form for cancelling one pending connected-host approval request by id.', editorKind: 'approval-cancel', kind: 'editor', safety: 'safe' },
       { id: 'delegate-task', label: 'Delegate a build task', detail: 'Hand one explicit build, fix, or review task to GoodVibes TUI with the full original ask, reason, and success criteria.', editorKind: 'delegate-task', kind: 'editor', safety: 'delegates' },
+      { id: 'work-activity', label: 'Activity', detail: 'Open the Activity view: running work, what needs you, what is coming up, and the recent activity feed (also Ctrl+O).', command: '/activity', kind: 'command', safety: 'read-only' },
     ],
   },
   AGENT_WORKSPACE_HOST_CATEGORY,

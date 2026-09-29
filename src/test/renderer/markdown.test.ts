@@ -1,3 +1,4 @@
+import { activeTokens } from '../../renderer/theme.ts';
 import { describe, test, expect } from 'bun:test';
 import { renderMarkdown, renderMarkdownTracked, renderInlineMarkdown } from '../../renderer/markdown.ts';
 import { lineToString, linesToText } from '../setup.ts';
@@ -32,18 +33,41 @@ describe('renderMarkdown', () => {
     expect(text).toContain('hello world');
   });
 
-  test('renders H1 heading in uppercase', () => {
+  test('renders an H1 heading in its own case, bold, in the heading color', () => {
     const result = renderMarkdown('# My Title', WIDTH);
     const text = textLines(result).join('\n');
-    expect(text).toContain('MY TITLE');
+    expect(text).toContain('My Title');
+    expect(text).not.toContain('MY TITLE');
+    const cell = result[0]!.find((c) => c.char === 'M')!;
+    expect(cell.bold).toBe(true);
+    expect(cell.fg).toBe(activeTokens().markdownHeading);
   });
 
-  test('renders H2 heading with underline', () => {
-    const result = renderMarkdown('## Section Header', WIDTH);
-    const texts = textLines(result);
-    expect(texts.join('\n')).toContain('Section Header');
-    // H2 produces 2 lines (text + rule)
-    expect(texts.length).toBeGreaterThanOrEqual(2);
+  test('headings carry no rule row', () => {
+    for (const md of ['# One', '## Two', '### Three']) {
+      expect(renderMarkdown(md, WIDTH)).toHaveLength(1);
+    }
+  });
+
+  test('exactly one blank row around code, tables, quotes and rules', () => {
+    const md = ['before', '', '', '', '```ts', 'x', '```', 'between', '> q', 'after', '---', '| a | b |', '|---|---|', '| 1 | 2 |', 'end'].join('\n');
+    // A row on a fill (the code block's padding) is not a blank row.
+    const rows = renderMarkdown(md, WIDTH).map((line) => (line.some((c) => c.bg) ? '#fill' : lineToString(line).trim()));
+    for (let i = 1; i < rows.length; i++) expect(rows[i] === '' && rows[i - 1] === '').toBe(false);
+    const idx = (needle: string) => rows.findIndex((r) => r.includes(needle));
+    expect(rows[idx('between') - 1]).toBe('');
+    expect(rows[idx('between') + 1]).toBe('');
+    expect(rows[idx('after') - 1]).toBe('');
+    expect(rows[idx('after') + 1]).toBe('');
+    expect(rows[idx('end') - 1]).toBe('');
+  });
+
+  test('prose starts at column 5 and wraps before width-5', () => {
+    const rows = textLines(renderMarkdown('word '.repeat(40), 60));
+    for (const row of rows) {
+      expect(row.startsWith('     ')).toBe(true);
+      expect(row.trimEnd().length).toBeLessThanOrEqual(55);
+    }
   });
 
   test('renders H3 heading', () => {
@@ -77,7 +101,7 @@ describe('renderMarkdown', () => {
   test('renders blockquote', () => {
     const result = renderMarkdown('> quoted text', WIDTH);
     const text = textLines(result).join('\n');
-    expect(text).toContain('┃');
+    expect(text).toContain('│');
     expect(text).toContain('quoted text');
   });
 

@@ -1,15 +1,31 @@
 /**
- * renderHelpOverlay, renders the help overlay with keyboard shortcuts and slash commands.
+ * renderHelpOverlay, the help modal (`?` or /help): keyboard shortcuts plus
+ * the slash-command list, drawn with the modal surface kit as one grouped,
+ * filterable kit list (✦ group headers, each entry's description on the left
+ * and its key or command right-aligned, muted). The search row is always
+ * live; ↑↓ and PgUp/PgDn scroll.
  *
- * Toggle with `?` key or `/help` command.
+ * The keyboard shortcuts modal (/shortcuts) lives in shortcuts-overlay.ts.
  */
 
-import { type Line } from '@pellux/goodvibes-sdk/platform/types';
-import { ModalFactory } from './modal-factory.ts';
 import type { SlashCommand } from '../input/command-registry.ts';
 import type { KeybindingsManager } from '../input/keybindings.ts';
-import { getOverlaySurfaceMetrics, getVisibleWindow } from '@pellux/goodvibes-terminal-shell';
+import type { OverlayFilter } from '../input/overlay-filter.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { activeTokens } from './theme.ts';
+import {
+  beginModal,
+  finishModal,
+  searchRow,
+  scrollCountText,
+  type KitHint,
+  type SurfaceLayer,
+} from './surface-kit.ts';
+import { drawList, measureRow, type KitRow } from './surface-kit-list.ts';
+import { drawTextBlock } from './surface-kit-extra.ts';
+import { SHORTCUT_OVERLAY_STATIC_TEXT } from './shortcuts-overlay.ts';
+
+export { renderShortcutsOverlay } from './shortcuts-overlay.ts';
 
 const FEATURED_HELP_COMMANDS: Array<[name: string, argHint: string, desc: string]> = [
   ['agent',        '',           'Open workspace; press / there to search every action'],
@@ -62,45 +78,15 @@ const HELP_OVERLAY_STATIC_TEXT = [
   'Clear conversation',
 ] as const;
 
-const SHORTCUT_OVERLAY_STATIC_TEXT = [
-  'Navigation',
-  'Scroll / history recall',
-  'Scroll by full page',
-  'Jump to start / end of line',
-  'Search conversation',
-  'Scroll conversation or hovered panel',
-  'Editing',
-  'Submit message',
-  'Insert newline',
-  'Open file picker',
-  'Slash command mode',
-  'Paste (image priority)',
-  'Undo / redo',
-  'Clear prompt',
-  'Delete word backward',
-  'Kill to end of line',
-  'Move to start of line',
-  'Next error / line end',
-  'Actions',
-  'Collapse/expand block',
-  'Bookmark block',
-  'Copy block to clipboard',
-  'Block file save disabled; copy or export',
-  'Copy selection',
-  'Process monitor',
-  'Help overlay',
-  'Exit',
-  'Workspace',
-  'Swap focus between input and active Agent workspace',
-  'Open the Agent operator workspace',
-  'Cycle Agent workspace category forward',
-  'Cycle Agent workspace category backward',
-  'Config: /keybindings to list and customize',
-] as const;
 
 export function renderHelpOverlayPackageText(): string {
   return [
     ...HELP_OVERLAY_STATIC_TEXT,
+    'Help',
+    'Filter commands and shortcuts',
+    'Nothing matches "<query>".',
+    'scroll',
+    'close',
     ...FEATURED_HELP_COMMANDS.flatMap(([name, argHint, desc]) => [
       argHint ? `/${name} ${argHint}` : `/${name}`,
       desc,
@@ -109,258 +95,171 @@ export function renderHelpOverlayPackageText(): string {
   ].join('\n');
 }
 
-function toModalSections(rows: readonly string[]): import('./modal-factory.ts').ModalSection[] {
-  return rows.map((row) => {
-    if (row === '') return { type: 'spacer' as const };
-    if (row.startsWith('  ') && !row.slice(2).includes('  ')) {
-      return { type: 'title' as const, content: row.trim() };
-    }
-    if (row.startsWith('  \u2500')) return { type: 'separator' as const };
-    return { type: 'text' as const, content: row };
-  });
+interface HelpGroup {
+  readonly title: string;
+  readonly entries: Array<{ readonly label: string; readonly right: string }>;
 }
 
-/**
- * Render the help overlay as Line[].
- * Shows keyboard shortcuts summary and slash commands.
- *
- * @param width      Terminal width.
- * @param commands   List of registered slash commands.
- * @param scrollOffset  Number of lines scrolled (for navigation).
- */
-export function renderHelpOverlay(
-  width: number,
-  keybindingsManager: KeybindingsManager,
-  commands?: SlashCommand[],
-  scrollOffset = 0,
-  viewportHeight = process.stdout.rows || 24,
-): Line[] {
+/** The preferred order of the "Available Slash Commands" group. */
+const PREFERRED_COMMANDS = [
+  'agent', 'setup', 'knowledge', 'memory', 'personas', 'skills', 'routines', 'approval', 'schedule', 'delegate',
+  'mcp', 'provider', 'model', 'subscription', 'secrets', 'health', 'settings', 'security', 'policy', 'tasks',
+] as const;
+
+/** Every help group for the live keybindings and registry. */
+function helpGroups(keybindingsManager: KeybindingsManager, commands?: SlashCommand[]): HelpGroup[] {
   const kb = (action: Parameters<typeof keybindingsManager.getComboLabel>[0]) => keybindingsManager.getComboLabel(action);
+  const hasCommand = (name: string): boolean => {
+    if (!commands) return false;
+    for (const command of commands) {
+      // A broken plugin may expose a throwing `aliases` getter; skip it rather than crash the modal.
+      try {
+        if (command.name === name || (command.aliases ?? []).includes(name)) return true;
+      } catch { /* skip this command */ }
+    }
+    return false;
+  };
 
-  const hasCommand = (name: string): boolean => Boolean(commands?.some((command) => command.name === name || (command.aliases ?? []).includes(name)));
-
-  // Keyboard shortcut sections
-  const shortcutRows: string[] = [
-    '  Core Navigation',
-    '  ' + '\u2500'.repeat(40),
-    `  ${'Up / Down'.padEnd(20)}  Scroll / history recall`,
-    `  ${'PageUp / PageDn'.padEnd(20)}  Scroll by full page`,
-    `  ${kb('search').padEnd(20)}  Search conversation (Ctrl+F)`,
-    '',
-    '  Prompt And Editing',
-    '  ' + '\u2500'.repeat(40),
-    `  ${'Enter'.padEnd(20)}  Submit message`,
-    `  ${'Shift+Enter'.padEnd(20)}  Insert newline`,
-    `  ${kb('paste').padEnd(20)}  Paste (image priority)`,
-    `  ${(kb('undo') + ' / ' + kb('redo')).padEnd(20)}  Undo / redo`,
-    '',
-    '  Overlays And Workspace',
-    '  ' + '\u2500'.repeat(40),
-    `  ${'?'.padEnd(20)}  Toggle help`,
-    `  ${'/shortcuts'.padEnd(20)}  Full keyboard shortcuts`,
-    `  ${kb('workspace-picker').padEnd(20)}  Open the Agent operator workspace`,
-    `  ${'Workspace /'.padEnd(20)}  Search all Agent workspace actions`,
-    `  ${'Workspace Enter'.padEnd(20)}  Open selected action or form`,
-    '',
+  const groups: HelpGroup[] = [
+    {
+      title: 'Core Navigation',
+      entries: [
+        { right: 'Up / Down', label: 'Scroll / history recall' },
+        { right: 'PageUp / PageDn', label: 'Scroll by full page' },
+        { right: kb('search'), label: 'Search conversation (Ctrl+F)' },
+      ],
+    },
+    {
+      title: 'Prompt And Editing',
+      entries: [
+        { right: 'Enter', label: 'Submit message' },
+        { right: 'Shift+Enter', label: 'Insert newline' },
+        { right: kb('paste'), label: 'Paste (image priority)' },
+        { right: `${kb('undo')} / ${kb('redo')}`, label: 'Undo / redo' },
+      ],
+    },
+    {
+      title: 'Overlays And Workspace',
+      entries: [
+        { right: '?', label: 'Toggle help' },
+        { right: '/shortcuts', label: 'Full keyboard shortcuts' },
+        { right: kb('workspace-picker'), label: 'Open the Agent operator workspace' },
+        { right: 'Workspace /', label: 'Search all Agent workspace actions' },
+        { right: 'Workspace Enter', label: 'Open selected action or form' },
+      ],
+    },
   ];
 
-  // Build command rows from featured list, filtering out unregistered commands.
-  function featuredRow(name: string, argHint: string, desc: string): string {
-    const invocation = argHint ? `/${name} ${argHint}` : `/${name}`;
-    return `  ${invocation.padEnd(23)}  ${desc}`;
-  }
-
-  const quickStartRows: string[] = [];
+  const quickStart: HelpGroup = { title: 'Quick Start', entries: [] };
+  const featured = (name: string, argHint: string, desc: string): { label: string; right: string } => ({ label: desc, right: argHint ? `/${name} ${argHint}` : `/${name}` });
   try {
     for (const [name, argHint, desc] of FEATURED_HELP_COMMANDS) {
-      if (!hasCommand(name)) continue; // omit if not in live registry
-      quickStartRows.push(featuredRow(name, argHint, desc));
+      if (hasCommand(name)) quickStart.entries.push(featured(name, argHint, desc));
     }
   } catch (err) {
-    // A plugin command getter threw during registry traversal. Fall back to an
-    // unfiltered quick-start list so /help remains reachable.
+    // A plugin command getter threw during registry traversal; fall back to the unfiltered list.
     logger.warn(`[help-overlay] registry traversal error during command filter; using unfiltered list: ${err}`);
-    quickStartRows.length = 0;
-    for (const [name, argHint, desc] of FEATURED_HELP_COMMANDS) {
-      quickStartRows.push(featuredRow(name, argHint, desc));
-    }
+    quickStart.entries.length = 0;
+    for (const [name, argHint, desc] of FEATURED_HELP_COMMANDS) quickStart.entries.push(featured(name, argHint, desc));
   }
-
-  const commandRows: string[] = [];
-  if (quickStartRows.length > 0) {
-    commandRows.push('  Quick Start', '  ' + '\u2500'.repeat(40), ...quickStartRows, '');
-  }
+  groups.push(quickStart);
 
   if (commands && commands.length > 0) {
-    commandRows.push('', '  Available Slash Commands', '  ' + '\u2500'.repeat(40));
-    const preferred = [
-      'agent',
-      'setup',
-      'knowledge',
-      'memory',
-      'personas',
-      'skills',
-      'routines',
-      'approval',
-      'schedule',
-      'delegate',
-      'mcp',
-      'provider',
-      'model',
-      'subscription',
-      'secrets',
-      'health',
-      'settings',
-      'security',
-      'policy',
-      'tasks',
-    ];
+    const available: HelpGroup = { title: 'Available Slash Commands', entries: [] };
     const seen = new Set<string>();
-    for (const name of preferred) {
+    for (const name of PREFERRED_COMMANDS) {
       const cmd = commands.find((entry) => entry.name === name);
       if (!cmd) continue;
       seen.add(cmd.name);
-      const nameCol = `/${cmd.name}`.padEnd(18);
-      commandRows.push(`  ${nameCol}  ${cmd.description}`);
+      available.entries.push({ label: cmd.description, right: `/${cmd.name}` });
     }
-    const remainder = [...commands]
-      .filter((cmd) => !seen.has(cmd.name))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(0, 24);
-    if (remainder.length > 0) {
-      commandRows.push('', '  More Commands', '  ' + '\u2500'.repeat(40));
-      for (const cmd of remainder) {
-        const nameCol = `/${cmd.name}`.padEnd(18);
-        commandRows.push(`  ${nameCol}  ${cmd.description}`);
-      }
-    }
-    commandRows.push('', '  Hidden power commands still work, run /commands for the full catalog.');
+    groups.push(available);
+    // The list scrolls, so the full remaining registry is listed.
+    const more: HelpGroup = {
+      title: 'More Commands',
+      entries: [...commands]
+        .filter((cmd) => !seen.has(cmd.name))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((cmd) => ({ label: cmd.description, right: `/${cmd.name}` })),
+    };
+    groups.push(more);
   } else if (!hasCommand('help')) {
-    commandRows.push('', '  Essentials', '  ' + '\u2500'.repeat(40));
-    commandRows.push('  /help               Show this help overlay');
-    commandRows.push('  /shortcuts          Keyboard shortcut reference');
-    commandRows.push('  /model              Select LLM model');
-    commandRows.push('  /clear              Clear conversation');
-  }
-
-  const allRows = [...shortcutRows, ...commandRows];
-
-  // Apply scroll offset, show a window of rows
-  const metrics = getOverlaySurfaceMetrics(width, viewportHeight, {
-    chromeRows: 4,
-    minContentRows: 8,
-    maxContentRows: 12,
-  });
-  const maxVisible = metrics.contentRows;
-  const clampedOffset = Math.max(0, Math.min(scrollOffset, Math.max(0, allRows.length - maxVisible)));
-  const visibleRows = allRows.slice(clampedOffset, clampedOffset + maxVisible);
-  const window = getVisibleWindow(allRows.length, clampedOffset, maxVisible);
-
-  return ModalFactory.createModal(
-    {
-      title: 'Help',
-      width: metrics.boxWidth,
-      margin: metrics.margin,
-      targetContentRows: metrics.contentRows,
-      tabs: [
-        { label: 'Overview', active: true },
-        { label: 'Commands' },
+    groups.push({
+      title: 'Essentials',
+      entries: [
+        { right: '/help', label: 'Show this help overlay' },
+        { right: '/shortcuts', label: 'Keyboard shortcut reference' },
+        { right: '/model', label: 'Select LLM model' },
+        { right: '/clear', label: 'Clear conversation' },
       ],
-      sections: toModalSections(visibleRows),
-      helpers: allRows.length > maxVisible
-        ? [{ content: `[${window.start + 1}-${Math.min(allRows.length, clampedOffset + visibleRows.length)} of ${allRows.length}]` }]
-        : undefined,
-      hints: ['? or Esc Close', 'Up/Down Scroll'],
-    },
-    width,
-  );
+    });
+  }
+  return groups.filter((g) => g.entries.length > 0);
 }
 
+function filterGroups(groups: readonly HelpGroup[], query: string): HelpGroup[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...groups];
+  return groups
+    .map((g) => ({
+      title: g.title,
+      entries: g.title.toLowerCase().includes(q)
+        ? g.entries
+        : g.entries.filter((e) => e.label.toLowerCase().includes(q) || e.right.toLowerCase().includes(q)),
+    }))
+    .filter((g) => g.entries.length > 0);
+}
+
+const HINTS: readonly KitHint[] = [['↑↓', 'scroll'], ['?', 'close']];
+const NOTE = 'Hidden power commands still work, run /commands for the full catalog.';
+
 /**
- * renderShortcutsOverlay, renders keyboard shortcuts as Line[].
- * Accessed via /shortcuts command. Reflects live keybindings (user overrides included).
+ * Render the help modal as a SurfaceLayer in screen coordinates.
+ *
+ * @param scrollOffset  Rows scrolled past the top of the list.
+ * @param filter        The search row's query; the renderer records how far the list can scroll in it.
  */
-export function renderShortcutsOverlay(
-  width: number,
+export function renderHelpOverlay(
+  screenWidth: number,
+  screenHeight: number,
   keybindingsManager: KeybindingsManager,
+  commands?: SlashCommand[],
   scrollOffset = 0,
-  viewportHeight = process.stdout.rows || 24,
-): Line[] {
-  function row(key: string, desc: string): string {
-    const keyCol = key.length > 20 ? key.slice(0, 19) + '\u2026' : key.padEnd(20);
-    return `  ${keyCol}  ${desc}`;
+  filter?: OverlayFilter,
+): SurfaceLayer {
+  const t = activeTokens();
+  const query = filter?.query ?? '';
+  const all = helpGroups(keybindingsManager, commands);
+  const groups = filterGroups(all, query);
+  const f = beginModal(screenWidth, screenHeight, { title: 'Help', hints: HINTS });
+  const total = all.reduce((n, g) => n + g.entries.length, 0);
+  const shown = groups.reduce((n, g) => n + g.entries.length, 0);
+  searchRow(f, f.top, query, 'Filter commands and shortcuts', query ? `${shown} of ${total}` : `${total} entries`);
+
+  const top = f.top + 2;
+  if (groups.length === 0) {
+    if (filter) filter.maxScroll = 0;
+    drawTextBlock(f.canvas, f.l, top, f.r - f.l + 1, [{ text: `Nothing matches "${query}".`, style: { fg: t.textMuted } }], f.bottom);
+    return finishModal(f);
   }
 
-  // Helper: get the label for a bindable action, falling back to literal string.
-  const kb = (action: Parameters<typeof keybindingsManager.getComboLabel>[0]) => keybindingsManager.getComboLabel(action);
-
-  const allRows: string[] = [
-    '  Navigation',
-    '  ' + '\u2500'.repeat(40),
-    row('Up / Down', 'Scroll / history recall'),
-    row('PageUp / PageDn', 'Scroll by full page'),
-    row('Home / End', 'Jump to start / end of line'),
-    row(kb('search'), 'Search conversation'),
-    row('Mouse wheel', 'Scroll conversation or hovered panel'),
-    '',
-    '  Editing',
-    '  ' + '\u2500'.repeat(40),
-    row('Enter', 'Submit message'),
-    row('Shift+Enter', 'Insert newline'),
-    row('@', 'Open file picker'),
-    row('/', 'Slash command mode'),
-    row(kb('paste'), 'Paste (image priority)'),
-    row(`${kb('undo')} / ${kb('redo')}`, 'Undo / redo'),
-    row(kb('clear-prompt'), 'Clear prompt'),
-    row(kb('delete-word'), 'Delete word backward'),
-    row(kb('kill-line'), 'Kill to end of line'),
-    row(kb('line-start'), 'Move to start of line'),
-    row(kb('next-error-line-end'), 'Next error / line end'),
-    '',
-    '  Actions',
-    '  ' + '\u2500'.repeat(40),
-    row('Tab', 'Collapse/expand block'),
-    row(kb('bookmark'), 'Bookmark block'),
-    row(kb('block-copy'), 'Copy block to clipboard'),
-    row(kb('block-save'), 'Block file save disabled; copy or export'),
-    row(kb('copy-selection'), 'Copy selection'),
-    row('F2', 'Process monitor'),
-    row('?', 'Help overlay'),
-    row(`${kb('clear-cancel')} x2`, 'Exit'),
-    '',
-    '  Workspace',
-    '  ' + '\u2500'.repeat(40),
-    row('Tab', 'Swap focus between input and active Agent workspace'),
-    row(kb('workspace-picker'), 'Open the Agent operator workspace'),
-    row(kb('workspace-tab-next'), 'Cycle Agent workspace category forward'),
-    row(kb('workspace-tab-prev'), 'Cycle Agent workspace category backward'),
-    '',
-    `  Config: /keybindings to list and customize`,
-  ];
-
-  const metrics = getOverlaySurfaceMetrics(width, viewportHeight, {
-    chromeRows: 4,
-    minContentRows: 8,
-    maxContentRows: 12,
-  });
-  const maxVisible = metrics.contentRows;
-  const clampedOffset = Math.max(0, Math.min(scrollOffset, Math.max(0, allRows.length - maxVisible)));
-  const visibleRows = allRows.slice(clampedOffset, clampedOffset + maxVisible);
-  const window = getVisibleWindow(allRows.length, clampedOffset, maxVisible);
-
-  return ModalFactory.createModal(
-    {
-      title: 'Keyboard Shortcuts',
-      width: metrics.boxWidth,
-      margin: metrics.margin,
-      targetContentRows: metrics.contentRows,
-      tabs: [{ label: 'Shortcuts', active: true }],
-      sections: toModalSections(visibleRows),
-      helpers: allRows.length > maxVisible
-        ? [{ content: `[${window.start + 1}-${Math.min(allRows.length, clampedOffset + visibleRows.length)} of ${allRows.length}]` }]
-        : undefined,
-      hints: ['Esc Close', 'Up/Down Scroll'],
-    },
-    width,
-  );
+  const rows: KitRow[] = [];
+  for (const g of groups) {
+    rows.push({ header: g.title });
+    for (const e of g.entries) rows.push({ label: e.label, right: e.right });
+  }
+  // The catalog note closes the unfiltered list (wrapped in full, never clipped).
+  if (!query && commands && commands.length > 0) rows.push({ label: NOTE, labelFg: t.textFaint });
+  // The furthest start that still fills the list (group spacing collapses when scrolling).
+  const capacity = Math.max(1, f.bottom - top + 1);
+  let maxStart = rows.length;
+  let used = 0;
+  while (maxStart > 0 && used + measureRow(rows[maxStart - 1]!, f.l, f.r) <= capacity) {
+    maxStart--;
+    used += measureRow(rows[maxStart]!, f.l, f.r);
+  }
+  if (filter) filter.maxScroll = maxStart;
+  const res = drawList(f.canvas, { rows, top, bottom: f.bottom, x0: f.l, x1: f.r, scrollStart: Math.min(scrollOffset, maxStart) });
+  f.hintRight = scrollCountText(res.above, res.below);
+  return finishModal(f);
 }

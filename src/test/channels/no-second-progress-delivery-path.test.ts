@@ -91,7 +91,7 @@ describe('the tool-activity delivery path has exactly one home, and it is the SD
     expect(readers).toEqual([
       // ── This terminal's own frame. Drawn where the operator is already
       //    looking; nothing leaves the machine.
-      'src/renderer/activity-sidebar.ts', // the live activity list
+      'src/renderer/activity-modal.ts', // the live activity list
       'src/runtime/agent-runtime-events.ts', // the periodic delegated-task line
       'src/main.ts', // the footer's running-agent indicator
       // ── Tool output: the model's own view of work it delegated, returned to

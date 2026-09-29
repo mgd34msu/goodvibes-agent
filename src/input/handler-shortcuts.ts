@@ -113,8 +113,8 @@ export function handleGlobalShortcutToken(
       state.requestRender();
       return true;
 
-    case 'sidebar-toggle':
-      state.commandContext?.toggleActivitySidebar?.();
+    case 'activity-open':
+      state.commandContext?.openActivityModal?.();
       state.requestRender();
       return true;
 

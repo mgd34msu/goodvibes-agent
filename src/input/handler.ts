@@ -17,7 +17,9 @@ import { ProcessModal } from '../renderer/process-modal.ts';
 import { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import { BlockActionsMenu } from '../renderer/block-actions.ts';
 import { ContextInspectorModal } from '../renderer/context-inspector.ts';
-import { BookmarkModal } from '@pellux/goodvibes-terminal-shell';
+import { OverlayFilters } from './overlay-filter.ts';
+import { SurfaceModalHost } from './surface-modal-host.ts';
+import { BookmarkModal } from './bookmark-modal.ts';
 import { SettingsModal } from './settings-modal.ts';
 import { McpWorkspace } from './mcp-workspace.ts';
 import { AgentWorkspace } from './agent-workspace.ts';
@@ -131,6 +133,9 @@ export class InputHandler {
   public processModal: ProcessModal;
   public liveTailModal: LiveTailModal;
   public contextInspectorModal = new ContextInspectorModal();
+  public readonly overlayFilters = new OverlayFilters();
+  /** Kit modals: a one-level-Esc stack drawn over everything else (surface-modal-host.ts). */
+  public surfaceModals = new SurfaceModalHost();
   public bookmarkModal: BookmarkModal;
   public blockActionsMenu = new BlockActionsMenu();
   public settingsModal = new SettingsModal();
@@ -253,6 +258,8 @@ export class InputHandler {
         processModal: this.processModal,
         liveTailModal: this.liveTailModal,
         contextInspectorModal: this.contextInspectorModal,
+        overlayFilters: this.overlayFilters,
+        surfaceModals: this.surfaceModals,
         blockActionsMenu: this.blockActionsMenu,
         searchManager: this.searchManager,
         modalStack: this.modalStack,

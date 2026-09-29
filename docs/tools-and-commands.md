@@ -385,6 +385,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | Command | Purpose |
 | --- | --- |
 | `/accounts` | Review provider auth routes, subscription windows, and billing-path safety. |
+| `/activity` | Show running work, what needs you, what is coming up, and recent activity (also Ctrl+O). |
 | `/agent` | Open the GoodVibes Agent operator workspace. |
 | `/agent-profile` | Manage isolated Agent profiles and starter templates, including opt-in VIBE.md starter export/import with `--include-vibe`. |
 | `/approval` | Review approval classes and run exact confirmed approval actions. |

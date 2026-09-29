@@ -8,6 +8,9 @@ import { activeTokens } from './theme.ts';
  * Colours come from the active theme's diff tokens (diffAdded/diffRemoved/
  * diffHunkHeader, the matching backgrounds and the line-number tokens).
  */
+/** Columns between the diff's fill edges and its text. */
+const DIFF_PAD = 2;
+
 export function renderDiffView(diffText: string, width: number, filename?: string): Line[] {
   const lines: Line[] = [];
   const p = activeTokens();
@@ -15,13 +18,16 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
 
   // Filename header
   if (filename) {
-    const header = ` ≡ ${filename} `;
+    const header = `  ≡ ${filename} `;
     lines.push(UIFactory.stringToLine(header.padEnd(width), width, { fg: p.selectedListItemText, bg: p.diffHunkHeader, bold: true }));
   }
 
   const diffLines = diffText.split('\n');
   let oldLineNo = 0;
   let newLineNo = 0;
+  // The diff is one filled block: an empty row above and below, and text two
+  // columns in from both edges (the Measurements padding rule).
+  lines.push(makeFilledLine(width, BG));
 
   for (const raw of diffLines) {
     if (raw === '') {
@@ -37,7 +43,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
         oldLineNo = parseInt(hunkMatch[1], 10) - 1;
         newLineNo = parseInt(hunkMatch[2], 10) - 1;
       }
-      lines.push(makeStyledLine(raw, width, p.diffHunkHeader, p.backgroundElement, false));
+      lines.push(makeStyledLine(raw, width, p.diffHunkHeader, BG, false));
       continue;
     }
 
@@ -75,6 +81,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
     }
   }
 
+  lines.push(makeFilledLine(width, BG));
   return lines;
 }
 
@@ -89,7 +96,8 @@ function makeGutterLine(
   lineNumBg: string,
 ): Line {
   const line = makeFilledLine(width, bg);
-  let cx = 0;
+  const end = width - DIFF_PAD;
+  let cx = DIFF_PAD;
 
   // Gutter char
   line[cx++] = createStyledCell(gutter, { fg, bg, bold: gutter !== ' ' });
@@ -102,12 +110,12 @@ function makeGutterLine(
 
   // Content
   for (const ch of content) {
-    if (cx >= width) break;
     const cw = getDisplayWidth(ch);
+    if (cx + Math.max(1, cw) > end) break;
     const code = ch.charCodeAt(0);
     if (code < 32) { cx++; continue; }
     line[cx] = createStyledCell(ch, { fg, bg });
-    if (cw === 2 && cx + 1 < width) line[cx + 1] = { ...line[cx], char: '' };
+    if (cw === 2) line[cx + 1] = { ...line[cx], char: '' };
     cx += cw;
   }
 
@@ -117,14 +125,15 @@ function makeGutterLine(
 /** Build a simple styled line from text. */
 function makeStyledLine(text: string, width: number, fg: string, bg: string, bold: boolean): Line {
   const line = makeFilledLine(width, bg);
-  let cx = 0;
+  const end = width - DIFF_PAD;
+  let cx = DIFF_PAD;
   for (const ch of text) {
-    if (cx >= width) break;
     const cw = getDisplayWidth(ch);
+    if (cx + Math.max(1, cw) > end) break;
     const code = ch.charCodeAt(0);
     if (code < 32) { cx++; continue; }
     line[cx] = createStyledCell(ch, { fg, bg, bold });
-    if (cw === 2 && cx + 1 < width) line[cx + 1] = { ...line[cx], char: '' };
+    if (cw === 2) line[cx + 1] = { ...line[cx], char: '' };
     cx += cw;
   }
   return line;

@@ -1,6 +1,7 @@
-import { type Line } from '@pellux/goodvibes-sdk/platform/types';
-import { UIFactory } from '../renderer/ui-factory.ts';
 import { activeTokens } from '../renderer/theme.ts';
+import { beginModal, finishModal, wrapLines, type KitHint, type SurfaceLayer } from '../renderer/surface-kit.ts';
+import { button, buttonWidth, type ButtonTone } from '../renderer/surface-kit-parts.ts';
+import { modalHeightFor, modalTextWidth } from '../renderer/surface-kit-extra.ts';
 import type { PermissionCategory, PermissionRequestAnalysis } from '@pellux/goodvibes-sdk/platform/permissions';
 import { buildPermissionApprovalBrief, getDisplayArg } from '@pellux/goodvibes-sdk/platform/permissions';
 
@@ -8,10 +9,10 @@ import type { PermissionPromptRequest, PermissionPromptDecision, PermissionReque
 export type { PermissionPromptRequest, PermissionPromptDecision, PermissionRequestHandler, PermissionRequest };
 
 /**
- * PermissionPromptUI - Renders a permission prompt as Line[] fragments.
+ * PermissionPromptUI - Renders a permission prompt as a kit modal layer.
  *
- * Displayed as an overlay injected into the viewport during render.
- * The prompt blocks orchestrator execution until the user responds.
+ * Stamped over the dimmed screen, above every other modal, while a request
+ * is pending. The prompt blocks orchestrator execution until the user responds.
  *
  * Keys:
  *   y / Y  -> Allow once
@@ -55,14 +56,6 @@ export class PermissionPromptUI {
     return null;
   }
 
-  static getPromptHeight(request: PermissionPromptRequest): number {
-    const analysis = this.fallbackAnalysis(request);
-    const reasonLines = Math.min(2, Math.max(1, analysis.reasons.length));
-    const extraLines = (analysis.host ? 1 : 0) + (analysis.surface ? 1 : 0) + (analysis.sideEffects && analysis.sideEffects.length > 0 ? 1 : 0)
-      + (this.attributionLine(request) ? 1 : 0);
-    return 12 + reasonLines + extraLines;
-  }
-
   /** Returns the key argument to display for a given tool invocation. */
   static getDisplayArg(tool: string, args: Record<string, unknown>): string {
     return getDisplayArg(tool, args);
@@ -87,116 +80,83 @@ export class PermissionPromptUI {
     return buildPermissionApprovalBrief(request).subjectLabel;
   }
 
-  /**
-   * createPromptLines - Renders the permission prompt as an array of Lines.
-   * Injected into the viewport by the render function when a request is pending.
-   */
-  static createPromptLines(width: number, request: PermissionRequest): Line[] {
-    const lines: Line[] = [];
-    const { tool, args, category } = request;
+  /** The facts of a request as label / value pairs, every one shown in full. */
+  static promptFacts(request: PermissionRequest): Array<{ label: string; value: string; fg: string }> {
+    const tokens = activeTokens();
     const analysis = this.fallbackAnalysis(request);
     const brief = buildPermissionApprovalBrief(request);
-    const displayArg = this.getDisplayArg(tool, args);
-    const { label, color } = this.getCategoryLabel(category);
+    const { color } = this.getCategoryLabel(request.category);
+    const facts: Array<{ label: string; value: string; fg: string }> = [];
+    const add = (label: string, value: string, fg: string = tokens.textMuted): void => { facts.push({ label, value, fg }); };
+    add('Tool', request.tool, tokens.text);
+    const attribution = this.attributionLine(request);
+    if (attribution) add('Asked by', attribution);
+    add(brief.subjectLabel, this.getDisplayArg(request.tool, request.args), tokens.text);
+    add('Directory', request.workingDirectory ?? '(unknown)');
+    add('Risk', `${analysis.riskLevel} (${analysis.classification})`, color);
+    if (analysis.surface || analysis.blastRadius) add('Surface', `${analysis.surface ?? 'generic'}${analysis.blastRadius ? `  radius=${analysis.blastRadius}` : ''}`);
+    if (analysis.host) add('Host', analysis.host);
+    add('Summary', analysis.summary, tokens.text);
+    add('Decision', brief.decisionModeLabel);
+    if (analysis.sideEffects && analysis.sideEffects.length > 0) add('Effects', analysis.sideEffects.join(', '));
+    for (const reason of analysis.reasons) add('Review', reason);
+    add('Checklist', brief.checklist);
+    return facts;
+  }
 
+  /**
+   * The permission dialog as a kit modal layer: an amber cap (red for a high
+   * risk), the request's title, every fact wrapped in full, and the three
+   * choices. Drawn above every other modal; the keys (y / a / n, Esc denies)
+   * live in shell/blocking-input.ts.
+   */
+  static createPromptLayer(screenWidth: number, screenHeight: number, request: PermissionRequest): SurfaceLayer {
     const tokens = activeTokens();
-    const ACCENT = tokens.secondary;
-    const WARN   = color;
-    const TEXT   = tokens.text;
-    const DIM    = tokens.textMuted;
-
-    // Top separator
-    lines.push(UIFactory.stringToLine('─'.repeat(width), width, { fg: ACCENT, dim: true }));
-
-    // Title bar: category badge + title
-    const titleText = brief.title;
-    const titleLine = ` [${label}] ${titleText} `;
-    lines.push(UIFactory.stringToLine(titleLine.padEnd(width), width, { fg: WARN, bold: true }));
-
-    // Tool name row
-    const toolLine = `   Tool      : ${tool}`;
-    lines.push(UIFactory.stringToLine(toolLine.padEnd(width), width, { fg: TEXT }));
-
-    // Attribution row (mcp-server / sandbox-escalation only, see attributionLine's doc comment)
-    const attributionText = this.attributionLine(request);
-    if (attributionText) {
-      const maxAttrLen = Math.max(10, width - 16);
-      const truncatedAttr = attributionText.length > maxAttrLen ? `${attributionText.slice(0, maxAttrLen - 3)}...` : attributionText;
-      const attributionRow = `   Asked by  : ${truncatedAttr}`;
-      lines.push(UIFactory.stringToLine(attributionRow.padEnd(width), width, { fg: DIM }));
+    const analysis = this.fallbackAnalysis(request);
+    const brief = buildPermissionApprovalBrief(request);
+    const { label, color } = this.getCategoryLabel(request.category);
+    const high = analysis.riskLevel === 'high' || analysis.riskLevel === 'critical';
+    const width = modalTextWidth(screenWidth, screenHeight);
+    const labelW = 11;
+    const valueW = Math.max(8, width - labelW - 1);
+    const facts = this.promptFacts(request);
+    const factRows = facts.reduce((n, fact) => n + wrapLines(fact.value, valueW).length, 0);
+    const body = factRows + 2;
+    const height = modalHeightFor(screenWidth, screenHeight, { hints: PROMPT_HINTS }, body);
+    const f = beginModal(screenWidth, screenHeight, {
+      title: brief.title,
+      sub: label.toLowerCase(),
+      hints: PROMPT_HINTS,
+      height,
+      center: true,
+      cap: high ? 'danger' : 'warning',
+      titleGlyph: { char: '△', fg: color },
+      escKey: false,
+    });
+    let y = f.top;
+    for (const fact of facts) {
+      if (y > f.bottom - 2) break;
+      f.canvas.put(f.l, y, fact.label, { fg: tokens.textFaint });
+      for (const part of wrapLines(fact.value, valueW)) {
+        if (y > f.bottom - 2) break;
+        f.canvas.put(f.l + labelW + 1, y++, part, { fg: fact.fg });
+      }
     }
-
-    // Key argument row - truncate if too long
-    const maxArgLen = Math.max(10, width - 16);
-    const truncatedArg = displayArg.length > maxArgLen
-      ? '...' + displayArg.slice(-(maxArgLen - 3))
-      : displayArg;
-    const argLine = `   ${brief.subjectLabel.padEnd(9)}: ${truncatedArg}`;
-    lines.push(UIFactory.stringToLine(argLine.padEnd(width), width, { fg: TEXT }));
-
-    // Working directory row
-    const cwd = request.workingDirectory ?? '(unknown)';
-    const maxCwdLen = Math.max(10, width - 16);
-    const truncatedCwd = cwd.length > maxCwdLen ? '...' + cwd.slice(-(maxCwdLen - 3)) : cwd;
-    const cwdLine = `   Directory : ${truncatedCwd}`;
-    lines.push(UIFactory.stringToLine(cwdLine.padEnd(width), width, { fg: DIM }));
-
-    const riskLine = `   Risk      : ${analysis.riskLevel.toUpperCase()} (${analysis.classification})`;
-    lines.push(UIFactory.stringToLine(riskLine.padEnd(width), width, { fg: WARN }));
-
-    if (analysis.surface || analysis.blastRadius) {
-      const surfaceLine = `   Surface   : ${analysis.surface ?? 'generic'}${analysis.blastRadius ? `  radius=${analysis.blastRadius}` : ''}`;
-      lines.push(UIFactory.stringToLine(surfaceLine.padEnd(width), width, { fg: DIM }));
+    // The choices, as chips on the last body row.
+    let x = f.l;
+    const by = f.bottom;
+    for (const [key, text, tone] of PROMPT_CHOICES) {
+      if (x + buttonWidth(`${text} ${key}`) > f.r) break;
+      x = button(f.canvas, x, by, `${text} ${key}`, false, tone) + 2;
     }
-
-    if (analysis.host) {
-      const hostLine = `   Host      : ${analysis.host}`;
-      lines.push(UIFactory.stringToLine(hostLine.padEnd(width), width, { fg: DIM }));
-    }
-
-    const summary = analysis.summary.length > width - 16
-      ? `${analysis.summary.slice(0, Math.max(0, width - 19))}...`
-      : analysis.summary;
-    const summaryLine = `   Summary   : ${summary}`;
-    lines.push(UIFactory.stringToLine(summaryLine.padEnd(width), width, { fg: TEXT }));
-
-    const modeLine = `   Decision  : ${brief.decisionModeLabel}`;
-    lines.push(UIFactory.stringToLine(modeLine.padEnd(width), width, { fg: DIM }));
-
-    if (analysis.sideEffects && analysis.sideEffects.length > 0) {
-      const effects = analysis.sideEffects.join(', ');
-      const maxEffectsLen = Math.max(10, width - 16);
-      const truncatedEffects =
-        effects.length > maxEffectsLen ? `${effects.slice(0, maxEffectsLen - 3)}...` : effects;
-      const effectsLine = `   Effects   : ${truncatedEffects}`;
-      lines.push(UIFactory.stringToLine(effectsLine.padEnd(width), width, { fg: DIM }));
-    }
-
-    for (const reason of analysis.reasons.slice(0, 2)) {
-      const maxReasonLen = Math.max(10, width - 16);
-      const truncatedReason =
-        reason.length > maxReasonLen ? `${reason.slice(0, maxReasonLen - 3)}...` : reason;
-      const reasonLine = `   Review    : ${truncatedReason}`;
-      lines.push(UIFactory.stringToLine(reasonLine.padEnd(width), width, { fg: DIM }));
-    }
-
-    const checklist = brief.checklist;
-    const maxChecklistLen = Math.max(10, width - 16);
-    const truncatedChecklist =
-      checklist.length > maxChecklistLen ? `${checklist.slice(0, maxChecklistLen - 3)}...` : checklist;
-    const checklistLine = `   Checklist : ${truncatedChecklist}`;
-    lines.push(UIFactory.stringToLine(checklistLine.padEnd(width), width, { fg: DIM }));
-
-    // Blank spacer
-    lines.push(UIFactory.stringToLine(' '.repeat(width), width));
-
-    // Choices row
-    const choicesLine = `   [Y] Allow once    [A] Allow always (session)    [N] Deny`;
-    lines.push(UIFactory.stringToLine(choicesLine.padEnd(width), width, { fg: ACCENT, bold: true }));
-
-    // Bottom separator
-    lines.push(UIFactory.stringToLine('─'.repeat(width), width, { fg: ACCENT, dim: true }));
-
-    return lines;
+    return finishModal(f);
   }
 }
+
+/** Keycap hints of the permission dialog (the keys live in shell/blocking-input.ts). */
+const PROMPT_HINTS: readonly KitHint[] = [['y', 'allow once'], ['a', 'allow for this session'], ['n', 'deny'], ['esc', 'deny']];
+const PROMPT_CHOICES: ReadonlyArray<readonly [key: string, text: string, tone: ButtonTone]> = [
+  ['y', 'Allow once', 'primary'],
+  ['a', 'Allow for session', 'warning'],
+  ['n', 'Deny', 'danger'],
+];

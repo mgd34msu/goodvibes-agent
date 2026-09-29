@@ -18,6 +18,7 @@
  *   "panel-close-all" → "workspace-close-all"
  *   "panel-tab-next"  → "workspace-tab-next"
  *   "panel-tab-prev"  → "workspace-tab-prev"
+ *   "sidebar-toggle"  → "activity-open" (the activity sidebar became a modal)
  *
  * These aliases are accepted when loading user-provided keybindings.json
  * override files so existing user configs continue to work without changes.
@@ -49,7 +50,7 @@ export type KeyAction =
   | 'workspace-close-all'
   | 'workspace-tab-next'
   | 'workspace-tab-prev'
-  | 'sidebar-toggle'
+  | 'activity-open'
   | 'history-search'
   | 'search'
   | 'block-copy'
@@ -63,7 +64,8 @@ export type KeyAction =
   | 'undo'
   | 'redo'
   | 'paste'
-  | 'replay-panel';
+  | 'replay-panel'
+  | 'focus-work-tree';
 
 /** Human-readable description for each action (used in /keybindings display). */
 export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
@@ -75,7 +77,7 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'workspace-close-all':   'Close the Agent workspace (alias: also bound to Ctrl+Shift+X)',
   'workspace-tab-next':    'Cycle Agent workspace category forward',
   'workspace-tab-prev':    'Cycle Agent workspace category backward',
-  'sidebar-toggle':        'Show or hide the activity sidebar',
+  'activity-open':         'Open the Activity modal (running work, needs you, recent)',
   'history-search':        'Reverse input history search',
   'search':                'Toggle conversation search',
   'block-copy':            'Copy nearest block to clipboard',
@@ -90,6 +92,7 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'redo':                  'Redo last undone edit',
   'paste':                 'Paste from clipboard (image priority)',
   'replay-panel':          'Reserved replay workspace shortcut',
+  'focus-work-tree':       'Move the keyboard onto the conversation work tree (arrows move and fold, Enter opens, y copies, Esc returns)',
 };
 
 function isKeyAction(action: string): action is KeyAction {
@@ -115,7 +118,7 @@ export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'workspace-close-all':   [{ key: 'x', ctrl: true, shift: true }],
   'workspace-tab-next':    [{ key: ']', ctrl: true }],
   'workspace-tab-prev':    [{ key: '[', ctrl: true }],
-  'sidebar-toggle':        [{ key: 'o', ctrl: true }],
+  'activity-open':         [{ key: 'o', ctrl: true }],
   'history-search':        [{ key: 'r', ctrl: true }],
   'search':                [{ key: 'f', ctrl: true }],
   'block-copy':            [{ key: 'y', ctrl: true }],
@@ -130,6 +133,8 @@ export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'redo':                  [{ key: 'z', ctrl: true, shift: true }],
   'paste':                 [{ key: 'v', ctrl: true }],
   'replay-panel':          [],  // intentionally unbound until replay-panel is implemented
+  // Alt+Up and Ctrl+Up: into the work tree from the composer (plain Up keeps input history).
+  'focus-work-tree':       [{ key: 'up', alt: true }, { key: 'up', ctrl: true }],
 };
 
 /** Resolved overrides type: each key can be a single combo or array. */
@@ -205,6 +210,7 @@ export class KeybindingsManager {
         'panel-close-all': 'workspace-close-all',
         'panel-tab-next': 'workspace-tab-next',
         'panel-tab-prev': 'workspace-tab-prev',
+        'sidebar-toggle': 'activity-open',
       };
 
       for (const [rawAction, combo] of Object.entries(parsed)) {

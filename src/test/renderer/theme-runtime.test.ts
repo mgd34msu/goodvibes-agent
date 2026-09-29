@@ -4,8 +4,8 @@
  * Covers the active-mode accessors, the flip + reversibility of the live token
  * layers, and the display.themeMode config coercion.
  *
- * The opaque-surface chrome palettes (modal DEFAULT_STYLE, overlay
- * DEFAULT_OVERLAY_PALETTE, FULLSCREEN_PALETTE) register an in-place rebuild via
+ * The opaque-surface chrome palette (FULLSCREEN_PALETTE, read by the Agent
+ * workspace's content builders) registers an in-place rebuild via
  * registerThemeRefresh, so setActiveThemeMode rebuilds them without replacing
  * the object reference (read by reference across many call sites). Every role,
  * surface fills included, follows the active theme and mode, and a flip is
@@ -26,7 +26,6 @@ import {
   resolveConfiguredThemeMode,
 } from '../../renderer/theme-mode-config.ts';
 import { installBackgroundThemeProbe } from '../../renderer/terminal-bg-probe.ts';
-import { DEFAULT_OVERLAY_PALETTE } from '../../renderer/overlay-box.ts';
 import { FULLSCREEN_PALETTE } from '../../renderer/fullscreen-primitives.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 
@@ -64,13 +63,13 @@ describe('active mode accessors', () => {
 });
 
 describe('opaque-surface chrome palettes rebuild in place (the trio port)', () => {
-  test('overlay palette identity is stable across flips and restores byte-identically', () => {
-    const ref = DEFAULT_OVERLAY_PALETTE;
-    const darkSnapshot = { ...DEFAULT_OVERLAY_PALETTE };
+  test('fullscreen palette identity is stable across flips and restores byte-identically', () => {
+    const ref = FULLSCREEN_PALETTE;
+    const darkSnapshot = { ...FULLSCREEN_PALETTE };
     setActiveThemeMode('light');
     setActiveThemeMode('dark');
-    expect(DEFAULT_OVERLAY_PALETTE).toBe(ref);              // never replaced, only rebuilt
-    expect({ ...DEFAULT_OVERLAY_PALETTE }).toEqual(darkSnapshot);
+    expect(FULLSCREEN_PALETTE).toBe(ref);              // never replaced, only rebuilt
+    expect({ ...FULLSCREEN_PALETTE }).toEqual(darkSnapshot);
   });
 
   test('fullscreen palette flips its info role in light and restores in dark', () => {

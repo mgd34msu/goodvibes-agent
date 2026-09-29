@@ -1,4 +1,3 @@
-import { GLYPHS } from './ui-primitives.ts';
 import { activeUiTones } from './theme.ts';
 
 /**
@@ -9,14 +8,6 @@ import { activeUiTones } from './theme.ts';
  * and the glyph columns derived from them cannot drift apart.
  */
 export { TRANSCRIPT_LAYOUT as LAYOUT } from '@pellux/goodvibes-terminal-shell';
-
-export const TOOL_STATUS = {
-  SUCCESS_ICON: GLYPHS.status.success,
-  SPINNER_FRAMES: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
-  FAIL_ICON: GLYPHS.status.failure,
-  PENDING_ICON: GLYPHS.status.pending,
-  TOOL_NAME_PAD: 8,
-} as const;
 
 // `color` is a getter so it always reads the active theme.
 export const BORDERS = {

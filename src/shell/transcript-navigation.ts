@@ -33,7 +33,7 @@ export function createTranscriptNavigators(deps: TranscriptNavigationDeps): Tran
     const block = deps.conversation.getBlockRegistry().find((entry) => entry.collapseKey === key);
     // A bookmark set on a tool result now hidden by a collapsed assistant
     // turn has no BlockMeta of its own while that turn stays collapsed (see
-    // conversation-turn-structure.ts), resolve it to the turn's header line
+    // work-tree-model.ts), resolve it to the turn's header line
     // rather than reporting a false "not found".
     const line = block?.startLine ?? resolveFoldedBookmarkLine(deps.conversation, key);
     if (line === null) {

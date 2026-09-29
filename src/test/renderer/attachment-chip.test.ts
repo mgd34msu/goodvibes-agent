@@ -2,13 +2,13 @@
  * An attached image is visible in the composer as a chip, not only as the
  * bracketed marker sitting inside the prompt text.
  *
- * The footer's status row already received `composerFlags` and threw them
+ * The composer received `composerFlags` and used to throw them
  * away, so the sole evidence that a message carried an image was the literal
  * `[IMAGE: img1, clipboard, 12KB]` text in the prompt, which reads as
  * something you typed, not as an attachment the next message will carry.
  */
 import { describe, expect, test } from 'bun:test';
-import { UIFactory } from '../../renderer/ui-factory.ts';
+import { buildShellFooter } from '../../renderer/shell-surface.ts';
 import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 
 function textOf(lines: Line[]): string {
@@ -16,12 +16,21 @@ function textOf(lines: Line[]): string {
 }
 
 function footer(flags: readonly string[] | undefined): string {
-  return textOf(UIFactory.createFooter(
-    100, 'what is in this picture?', { up: 0, down: 0 }, false, 0,
-    'some-model', undefined, undefined, undefined, undefined, undefined, undefined,
-    false, undefined, undefined, undefined, true,
-    'chat', 'idle', flags, 'none', undefined,
-  ));
+  return textOf(buildShellFooter({
+    width: 100,
+    promptText: 'what is in this picture?',
+    promptLineCount: 1,
+    usage: { up: 0, down: 0 },
+    showExitNotice: false,
+    lastCopyTime: 0,
+    model: 'some-model',
+    runningAgentCount: 0,
+    runningProcessCount: 0,
+    indicatorFocused: false,
+    composerMode: 'prompt',
+    composerFlags: flags,
+    composerPendingRisk: 'none',
+  }).lines);
 }
 
 describe('composer attachment chip', () => {

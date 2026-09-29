@@ -38,6 +38,12 @@ export function buildConversationViewport(
   };
 }
 
+/** The last transcript line visible in the viewport (0 for an empty transcript). */
+export function getViewportBottomLine(scrollTop: number, viewportHeight: number, lineCount: number): number {
+  if (lineCount <= 0) return 0;
+  return Math.max(0, Math.min(scrollTop + viewportHeight - 1, lineCount - 1));
+}
+
 export function overlayViewportBottom(
   viewport: readonly Line[],
   overlay: readonly Line[],
@@ -64,4 +70,25 @@ export function replaceViewportWithOverlay(
   for (let i = 0; i < pad; i++) next.push(createEmptyLine(width));
   next.push(...overlay);
   return next;
+}
+
+/**
+ * Center the non-blank rows of a viewport vertically (the home splash). A
+ * body that already fills the height is returned unchanged, so the splash is
+ * never clipped.
+ */
+export function centerViewportContent(viewport: readonly Line[], height: number, width: number): Line[] {
+  const isBlank = (line: Line): boolean => line.every((cell) => cell.char === ' ' || cell.char === '');
+  const first = viewport.findIndex((line) => !isBlank(line));
+  if (first < 0) return [...viewport];
+  let last = viewport.length - 1;
+  while (last > first && isBlank(viewport[last]!)) last--;
+  const body = viewport.slice(first, last + 1);
+  if (body.length >= height) return [...viewport];
+  const top = Math.floor((height - body.length) / 2);
+  const out: Line[] = [];
+  for (let i = 0; i < top; i++) out.push(createEmptyLine(width));
+  out.push(...body);
+  while (out.length < height) out.push(createEmptyLine(width));
+  return out;
 }

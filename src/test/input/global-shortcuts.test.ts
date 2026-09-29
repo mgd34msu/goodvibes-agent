@@ -17,7 +17,7 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
     historySearch: { open: mock(() => {}) } as unknown as GlobalShortcutRouteState['historySearch'],
     searchManager: { active: false, open: mock(() => {}), close: mock(() => {}) } as unknown as GlobalShortcutRouteState['searchManager'],
     conversationManager: null,
-    commandContext: { openWorkspacePicker: mock(() => {}), clearScreen: mock(() => {}), toggleActivitySidebar: mock(() => {}) } as unknown as NonNullable<GlobalShortcutRouteState['commandContext']>,
+    commandContext: { openWorkspacePicker: mock(() => {}), clearScreen: mock(() => {}), openActivityModal: mock(() => {}) } as unknown as NonNullable<GlobalShortcutRouteState['commandContext']>,
     contentWidth: 80,
     getScrollTop: () => 0,
     getWrappedPromptInfo: () => ({ wrappedLines: [''], segments: [{ rawStart: 0, length: 0 }], cursorWrappedLine: 0 }),
@@ -73,11 +73,11 @@ describe('handleGlobalShortcutToken', () => {
     expect(state.dismissAgentWorkspace).toHaveBeenCalled();
   });
 
-  test('sidebar-toggle shows or hides the activity sidebar', () => {
+  test('activity-open (ctrl+o) opens the Activity modal', () => {
     const state = buildState({
       keybindingsManager: {
         matches: () => false,
-        lookup: () => 'sidebar-toggle',
+        lookup: () => 'activity-open',
       } as unknown as GlobalShortcutRouteState['keybindingsManager'],
     });
 
@@ -88,7 +88,7 @@ describe('handleGlobalShortcutToken', () => {
     );
 
     expect(handled).toBe(true);
-    expect(state.commandContext?.toggleActivitySidebar).toHaveBeenCalled();
+    expect(state.commandContext?.openActivityModal).toHaveBeenCalled();
   });
 
   test('bare escape routes to the escape handler', () => {

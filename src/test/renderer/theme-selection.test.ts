@@ -36,7 +36,6 @@ import {
 } from '../../renderer/terminal-palette.ts';
 import { DEFAULT_PANEL_PALETTE, extendPalette } from '../../renderer/polish.ts';
 import { buildStatusToken } from '../../renderer/status-token.ts';
-import { DEFAULT_OVERLAY_PALETTE } from '../../renderer/overlay-box.ts';
 import { FULLSCREEN_PALETTE } from '../../renderer/fullscreen-primitives.ts';
 import { BORDERS } from '../../renderer/layout.ts';
 import { addConversationSplashScreen } from '../../core/conversation-rendering.ts';
@@ -143,12 +142,9 @@ describe('the system theme', () => {
 
 describe('a theme change reaches every palette', () => {
   test('base palettes rebuild in place', () => {
-    const overlay = DEFAULT_OVERLAY_PALETTE;
     const fullscreen = FULLSCREEN_PALETTE;
     setActiveThemeName('dracula');
-    expect(DEFAULT_OVERLAY_PALETTE).toBe(overlay);
     expect(FULLSCREEN_PALETTE).toBe(fullscreen);
-    expect(DEFAULT_OVERLAY_PALETTE.selectedBg).toBe(activeUiTones().bg.selected);
     expect(FULLSCREEN_PALETTE.controlsBg).toBe(activeUiTones().bg.base);
     expect(DEFAULT_PANEL_PALETTE.good).toBe(activeTokens().success);
   });

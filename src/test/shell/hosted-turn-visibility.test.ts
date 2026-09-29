@@ -20,7 +20,7 @@ import {
   HOSTED_SPINNER_INTERVAL_MS,
   type ThinkingUiState,
 } from '../../shell/hosted-turn-activity.ts';
-import { buildThinkingOverlay, ThinkingStallClock } from '../../core/thinking-overlay.ts';
+import { buildBusyState, ThinkingStallClock } from '../../core/thinking-overlay.ts';
 import { createHostedFrameRenderer } from '../../runtime/client/hosted-frame-render.ts';
 import type { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 
@@ -43,8 +43,12 @@ function overlayOrchestrator(state: ThinkingUiState): Pick<
   } as Pick<Orchestrator, 'isThinking' | 'getSpinner' | 'thinkingFrame' | 'streamingInputTokens' | 'streamingOutputTokens'>;
 }
 
+/**
+ * The waiting state the status line draws: the spinner and the phrase, as
+ * text. [] when no turn is in flight.
+ */
 function overlayLines(state: ThinkingUiState): string[] {
-  const lines = buildThinkingOverlay({
+  const busy = buildBusyState({
     orchestrator: overlayOrchestrator(state),
     configManager: { get: ((key: string) => (key === 'display.showTokenSpeed' ? true : key === 'display.showToolPreview')) as never },
     streamToolPreview: undefined,
@@ -53,7 +57,7 @@ function overlayLines(state: ThinkingUiState): string[] {
     width: 80,
     clock: new ThinkingStallClock(),
   });
-  return lines.map((line) => line.map((cell) => cell.char).join(''));
+  return busy ? [`${busy.spinner} ${busy.phrase}`] : [];
 }
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms); });

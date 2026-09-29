@@ -1,5 +1,5 @@
 /**
- * fleet-union.ts, the activity sidebar shows work running anywhere, not only
+ * fleet-union.ts, the Activity modal shows work running anywhere, not only
  * the sub-agents this process spawned.
  *
  * This Agent's `processRegistry` answers for the agents, chains, workflows and
@@ -18,7 +18,7 @@
  * state change, while the daemon's copy arrives on an interval and is
  * necessarily staler.
  *
- * Reading only. Every act the sidebar can lead to (interrupt, resume, kill,
+ * Reading only. Every act the Activity modal can lead to (interrupt, resume, kill,
  * steer) reaches a child process of this one, and a daemon row has no child
  * here to signal; the Agent drives the daemon's own verbs for the acts the
  * daemon serves.

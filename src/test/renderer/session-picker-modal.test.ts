@@ -1,22 +1,20 @@
 /**
- * Tests for renderSessionPickerModal renderer.
+ * Tests for renderSessionPickerModal (a kit modal with an always-live search row).
  */
-import { describe, test, expect, beforeEach } from 'bun:test';
+import { describe, test, expect } from 'bun:test';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { SessionPickerModal } from '../../input/session-picker-modal.ts';
 import { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import { renderSessionPickerModal } from '../../renderer/session-picker-modal.ts';
-import { lineToString, linesToText } from '../setup.ts';
+import { activeTokens } from '../../renderer/theme.ts';
+import { layerText, layerTextBlock } from '../helpers/surface-frame.ts';
 
 const W = 120;
-// Not migrated to makeProjectTempDir: this path is never materialized on
-// disk. SessionManager's constructor only reads (existsSync check before
-// its orphan-tempfile cleanup; it returns early when the directory is
-// absent, never creates it), and this suite only renders modal state
-// (renderSessionPickerModal), never calling a write method on
-// sessionManager, so nothing is ever created at this fixed, unrandomized
-// path.
+const H = 30;
+const NOW = 1700100000000 + 3_600_000;
+// Never materialized on disk: SessionManager's constructor only reads, and this
+// suite only renders modal state.
 const sessionManager = new SessionManager(join(tmpdir(), 'gv-renderer-session-picker'), { surfaceRoot: 'tui' });
 
 function makeModal(overrides: Partial<SessionPickerModal> = {}): SessionPickerModal {
@@ -31,83 +29,69 @@ function makeModal(overrides: Partial<SessionPickerModal> = {}): SessionPickerMo
   return modal;
 }
 
+function render(modal: SessionPickerModal, width = W, height = H): string {
+  return layerTextBlock(renderSessionPickerModal(modal, width, height, NOW));
+}
+
 describe('renderSessionPickerModal', () => {
-  test('returns a non-empty Line[] array', () => {
-    const lines = renderSessionPickerModal(makeModal(), W);
-    expect(lines).toEqual(expect.any(Array));
-    expect(lines.length).toBeGreaterThan(0);
+  test('is a kit modal layer that fits the screen', () => {
+    const layer = renderSessionPickerModal(makeModal(), W, H, NOW);
+    expect(layer.dim).toBe(true);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(W);
   });
 
-  test('each line has correct terminal width', () => {
-    const lines = renderSessionPickerModal(makeModal(), W);
-    for (const line of lines) {
-      expect(line.length).toBe(W);
-    }
+  test('title row carries the ✦ mark and the title', () => {
+    expect(layerText(renderSessionPickerModal(makeModal(), W, H, NOW))[2]).toMatch(/✦ Sessions/);
   });
 
-  test('title bar contains "Sessions"', () => {
-    const lines = renderSessionPickerModal(makeModal(), W);
-    const title = lineToString(lines[0]);
-    expect(title).toContain('Sessions');
+  test('keycap hints: move, load, and how to delete; the search row is live', () => {
+    const text = render(makeModal());
+    expect(text).toContain('↑↓  move');
+    expect(text).toContain('⏎  load');
+    expect(text).toContain('d  how to delete');
+    expect(text).toContain('▏Search sessions');
+    expect(text).toContain('2 saved');
   });
 
-  test('footer contains navigation hints', () => {
-    const lines = renderSessionPickerModal(makeModal(), W);
-    const footer = lineToString(lines[lines.length - 1]);
-    expect(footer).toContain('Navigate');
-    expect(footer).toContain('Load');
-    expect(footer).toContain('/session delete');
-    expect(footer).toContain('Esc');
+  test('shows session titles with their names, message counts and recency groups', () => {
+    const text = render(makeModal());
+    expect(text).toContain('Alpha');
+    expect(text).toContain('alpha-session');
+    expect(text).toContain('12 msgs');
+    expect(text).toMatch(/✦ (today|yesterday|this week|earlier)/);
   });
 
-  test('shows session names in list', () => {
-    const lines = renderSessionPickerModal(makeModal(), W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('alpha-session');
-    expect(texts).toContain('beta-session');
+  test('the selected session is drawn as the selected row', () => {
+    const layer = renderSessionPickerModal(makeModal({ selectedIndex: 1 }), W, H, NOW);
+    const ink = activeTokens().selectedListItemText;
+    const row = layer.lines.findIndex((line) => line.some((c) => c.fg === ink && c.bold && c.char.trim() !== ''));
+    expect(layerText(layer)[row]).toContain('Beta');
   });
 
-  test('selected item has arrow indicator', () => {
-    const lines = renderSessionPickerModal(makeModal(), W);
-    expect(lines.flat().map((cell) => cell.char)).toContain('▸');
-  });
-
-  test('empty sessions shows helpful message', () => {
-    const modal = makeModal({ sessions: [] as typeof makeModal extends () => infer R ? (R extends { sessions: infer S } ? S : never) : never });
-    modal.sessions = [];
-    const lines = renderSessionPickerModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('No saved sessions');
-  });
-
-  test('status message is displayed when set', () => {
+  test('the search row filters by name and title', () => {
     const modal = makeModal();
-    modal.statusMessage = 'Deleted: alpha-session';
-    const lines = renderSessionPickerModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Deleted: alpha-session');
+    modal.setQuery('bet');
+    const text = render(modal);
+    expect(text).toContain('bet▏');
+    expect(text).toContain('1 of 2');
+    expect(text).not.toContain('alpha-session');
   });
 
-  test('delete command guidance is displayed through status message', () => {
+  test('empty sessions shows the helpful message', () => {
+    const text = render(makeModal({ sessions: [] }));
+    expect(text).toContain('No saved sessions.');
+    expect(text).toContain('Save current session');
+  });
+
+  test('status message is displayed when set, wrapped in full', () => {
     const modal = makeModal();
-    modal.statusMessage = 'Deletion requires an explicit command: /session delete alpha-session --yes';
-    const lines = renderSessionPickerModal(modal, W);
-    const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('/session delete alpha-session --yes');
+    modal.deleteSelected();
+    const text = layerText(renderSessionPickerModal(modal, W, H, NOW)).join(' ').replace(/\s+/g, ' ');
+    expect(text).toContain('Deletion requires an explicit command: /session delete alpha-session --yes');
   });
 
   test('works at narrow terminal width', () => {
-    const narrowW = 60;
-    const lines = renderSessionPickerModal(makeModal(), narrowW);
-    for (const line of lines) {
-      expect(line.length).toBe(narrowW);
-    }
-  });
-
-  test('message count shown in list', () => {
-    const lines = renderSessionPickerModal(makeModal(), W);
-    const texts = linesToText(lines).join('\n');
-    // Session has 5 messages
-    expect(texts).toContain('5');
+    const layer = renderSessionPickerModal(makeModal(), 60, 24, NOW);
+    expect(layer.x + layer.lines[0]!.length).toBeLessThanOrEqual(60);
   });
 });

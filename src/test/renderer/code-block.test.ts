@@ -22,16 +22,17 @@ describe('renderCodeBlock', () => {
     }
   });
 
-  test('first line is a language header bar', () => {
+  test('no header bar: a padding row opens the fill and the language sits muted at the right of the first code row', () => {
     const result = renderCodeBlock(['code here'], 'ts', WIDTH);
-    const headerText = lineText(result[0]);
-    expect(headerText).toContain('ts');
+    expect(lineText(result[0]).trim()).toBe('');
+    const first = lineText(result[1]);
+    expect(first).toContain('code here');
+    expect(first.trimEnd().endsWith('ts')).toBe(true);
   });
 
-  test('shows generic code label when no language specified', () => {
+  test('without a language there is no label at all', () => {
     const result = renderCodeBlock(['line'], '', WIDTH);
-    const headerText = lineText(result[0]);
-    expect(headerText).toContain('code');
+    expect(lineText(result[1]).trim()).toBe('1 line');
   });
 
   test('contains code content in body lines', () => {

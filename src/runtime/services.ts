@@ -644,7 +644,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   readonly automationManager: AutomationManager;
   /**
    * Fleet rows from this process's registry unioned with the adopted daemon's,
-   * local winning on a shared id. Read by the activity sidebar so work the
+   * local winning on a shared id. Read by the Activity modal so work the
    * daemon is running is visible here too.
    */
   readonly fleetUnion: AgentFleetUnion;
@@ -1578,7 +1578,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // hidden file (see tools/agent-read-policy.ts).
   const detachSessionWriteLedger = attachAgentSessionWriteLedger(options.runtimeBus);
   // The SDK's foundation/integration contracts still expect a panel manager;
-  // the Agent shell has no panel UI (the Activity sidebar replaced it), so we
+  // the Agent shell has no panel UI (the Activity modal replaced it), so we
   // satisfy those contracts with a no-op implementation.
   const NOOP_PANEL_MANAGER = (() => {
     const emptyPane = { panels: [], activeIndex: 0 } as const;
@@ -1850,7 +1850,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // The fleet a surface can SEE is wider than the fleet it started. The
   // registry above answers for work this process spawned; the daemon runs its
   // own, scheduled jobs, channel-driven runs, work other surfaces submitted,
-  // and the union is what the activity sidebar reads (client/fleet-union.ts,
+  // and the union is what the Activity modal reads (client/fleet-union.ts,
   // over the SDK's poll + local-wins merge policy).
   const fleetUnion = createAgentFleetUnion({
     local: { nodes: () => processRegistry.query().nodes },

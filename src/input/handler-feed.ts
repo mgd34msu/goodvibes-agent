@@ -13,7 +13,9 @@ import { ProcessModal } from '../renderer/process-modal.ts';
 import { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import { BlockActionsMenu } from '../renderer/block-actions.ts';
 import { ContextInspectorModal } from '../renderer/context-inspector.ts';
-import { BookmarkModal } from '@pellux/goodvibes-terminal-shell';
+import type { OverlayFilters } from './overlay-filter.ts';
+import type { SurfaceModalHost } from './surface-modal-host.ts';
+import { BookmarkModal } from './bookmark-modal.ts';
 import { SettingsModal } from './settings-modal.ts';
 import type { McpWorkspace } from './mcp-workspace.ts';
 import type { AgentWorkspace } from './agent-workspace.ts';
@@ -31,6 +33,8 @@ import {
   handlePromptTextToken,
 } from './handler-feed-routes.ts';
 import type { WrappedPromptInfo } from './handler-prompt-buffer.ts';
+import { getViewportBottomLine } from '../renderer/conversation-layout.ts';
+import { handleWorkTreeToken } from './handler-work-tree-route.ts';
 import { handleModalTokenRoutes } from './handler-modal-token-routes.ts';
 import { handleCommandModeToken } from './handler-command-route.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
@@ -131,6 +135,9 @@ export interface InputFeedContext {
   readonly processModal: ProcessModal;
   readonly liveTailModal: LiveTailModal;
   readonly contextInspectorModal: ContextInspectorModal;
+  readonly overlayFilters: OverlayFilters;
+  /** Kit modals (the activity modal, ...): they take every key while open. */
+  readonly surfaceModals?: SurfaceModalHost;
   readonly blockActionsMenu: BlockActionsMenu;
   readonly searchManager: SearchManager;
   readonly keybindingsManager: KeybindingsManager;
@@ -204,6 +211,16 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       continue;
     }
 
+    // Kit modals sit on top of everything else: focus belongs to the top one.
+    // Esc goes through the shared chain (handler-modal-stack.ts), which pops
+    // exactly one level of the host before anything else.
+    if (context.surfaceModals?.active && (token.type === 'key' || token.type === 'text')) {
+      if (token.type === 'key' && token.logicalName === 'escape') context.handleEscape();
+      else context.surfaceModals.handleToken(token);
+      context.requestRender();
+      continue;
+    }
+
     const modalRoute = handleModalTokenRoutes({
       history,
       searchShortcutMatch: token.type === 'key' && keybindings.matches('search', token),
@@ -235,6 +252,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       liveTailModal: context.liveTailModal,
       processModal: context.processModal,
       contextInspectorModal: context.contextInspectorModal,
+      overlayFilters: context.overlayFilters,
       modalOpened: context.modalOpened,
       filePicker: context.filePicker,
       imageRegistry: context.imageRegistry,
@@ -263,6 +281,20 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
     context.cursorPos = modalRoute.cursorPos;
     context.nextImageId = modalRoute.nextImageId;
     if (modalRoute.handled) {
+      continue;
+    }
+
+    // The keyboard inside the work tree (Alt+Up enters, Esc leaves; see handler-work-tree-route.ts).
+    if (handleWorkTreeToken({
+      conversationManager: context.conversationManager,
+      enterMatch: token.type === 'key' && keybindings.matches('focus-work-tree', token),
+      anchorLine: getViewportBottomLine(scrollTop, viewportHeight, lineCount),
+      scrollTop: context.getScrollTop(),
+      viewportHeight,
+      scroll: context.scroll,
+      requestRender: context.requestRender,
+      onCopied: () => { /* the copy receipt is the transcript line handleBlockCopy logs */ },
+    }, token)) {
       continue;
     }
 

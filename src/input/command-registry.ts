@@ -168,7 +168,8 @@ export interface CommandShellUiOpeners {
   openSecurityPanel?: () => void;
   openKnowledgePanel?: () => void;
   openSubscriptionPanel?: () => void;
-  toggleActivitySidebar?: () => void;
+  /** Open the Activity modal (Ctrl+O, /activity). */
+  openActivityModal?: () => void;
 }
 
 export interface CommandSessionServices {

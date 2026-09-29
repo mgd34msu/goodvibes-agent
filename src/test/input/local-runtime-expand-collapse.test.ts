@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // local-runtime-expand-collapse.test.ts, /expand tool and /collapse tool
-// against a collapsed assistant turn (see conversation-turn-structure.ts).
+// against a collapsed assistant turn (see work-tree-model.ts).
 //
 // Regression: a tool result hidden by a collapsed turn pushes no BlockMeta of
 // its own, so it never surfaces from toggleBlocks's block-registry loop to be

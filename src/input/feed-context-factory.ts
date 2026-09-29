@@ -27,7 +27,9 @@ import type { ProcessModal } from '../renderer/process-modal.ts';
 import type { LiveTailModal } from '../renderer/live-tail-modal.ts';
 import type { BlockActionsMenu } from '../renderer/block-actions.ts';
 import type { ContextInspectorModal } from '../renderer/context-inspector.ts';
-import type { BookmarkModal } from '@pellux/goodvibes-terminal-shell';
+import type { OverlayFilters } from './overlay-filter.ts';
+import type { SurfaceModalHost } from './surface-modal-host.ts';
+import type { BookmarkModal } from './bookmark-modal.ts';
 import type { SettingsModal } from './settings-modal.ts';
 import type { McpWorkspace } from './mcp-workspace.ts';
 import type { AgentWorkspace } from './agent-workspace.ts';
@@ -117,6 +119,10 @@ export interface FeedContextStableRefs {
   processModal: ProcessModal;
   liveTailModal: LiveTailModal;
   contextInspectorModal: ContextInspectorModal;
+  /** Help / shortcuts overlay search rows (shared by reference with the renderer). */
+  overlayFilters: OverlayFilters;
+  /** Kit modals (the activity modal, ...), see surface-modal-host.ts. */
+  surfaceModals?: SurfaceModalHost;
   blockActionsMenu: BlockActionsMenu;
   searchManager: SearchManager;
   modalStack: string[];

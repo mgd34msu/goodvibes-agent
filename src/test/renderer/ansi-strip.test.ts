@@ -3,18 +3,15 @@
  *
  * Covers:
  * - stripDangerousAnsi() unit: all dangerous ANSI categories stripped, SGR preserved
- * - renderToolCallBlock() integration: tool arg / error / summary fields are sanitized
- *
- * Finding status: PARTIAL
- * The writeStyledText() loop in tool-call.ts incidentally drops ESC (\x1b, display
- * width=0) character-by-character, but the printable remnants of escape sequences
- * (e.g. "[2A") still render as visible text. This module provides explicit,
- * intentional sanitization as the authoritative defence.
+ * - the work tree's bead rows and opened bodies (lane-graph/bead.ts cellText):
+ *   a tool call's argument, its error text and its result summary never put
+ *   an escape sequence, or its printable remnant, on screen.
  */
 import { describe, expect, test } from 'bun:test';
 import { stripDangerousAnsi } from '@pellux/goodvibes-terminal-shell';
-import { renderToolCallBlock } from '../../renderer/tool-call.ts';
-import type { ToolCall } from '@pellux/goodvibes-sdk/platform/types';
+import type { Line, ToolCall } from '@pellux/goodvibes-sdk/platform/types';
+import type { ConversationMessageSnapshot } from '@pellux/goodvibes-sdk/platform/core';
+import { appendConversationMessages, type ConversationRenderContext } from '../../core/conversation-rendering.ts';
 import { lineToString } from '../setup.ts';
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -169,90 +166,71 @@ describe('stripDangerousAnsi', () => {
   });
 });
 
-// ─── renderToolCallBlock integration tests ────────────────────────────────────
+// ─── Work-tree bead integration tests ─────────────────────────────────────────
 
-describe('renderToolCallBlock ANSI sanitization', () => {
-  /**
-   * Collect printable cell text from rendered lines, excluding NUL padding.
-   * Escape sequences should never appear in rendered output.
-   */
-  function collectText(lines: import('@pellux/goodvibes-sdk/platform/types').Line[]): string {
-    return lines
-      .map((line) => line.map((c) => c.char).join(''))
-      .join('')
-      .replace(/\x00/g, '')  // grid NUL padding
-      .trim();
+/**
+ * Render one turn holding `toolCall` and its result through the real
+ * transcript path, with the bead's body opened so the result text draws too.
+ */
+function renderCall(toolCall: ToolCall, result: string): Line[] {
+  const lines: Line[] = [];
+  const messages: ConversationMessageSnapshot[] = [
+    { role: 'user', content: 'go' },
+    { role: 'assistant', content: '', toolCalls: [toolCall] },
+    { role: 'tool', callId: toolCall.id, toolName: toolCall.name, content: result },
+  ];
+  const context: ConversationRenderContext = {
+    history: { addLine: (l) => { lines.push(l); }, addLines: (ls) => { lines.push(...ls); }, getLineCount: () => lines.length },
+    blockRegistry: [],
+    collapseState: new Map([['bead_c:1:0', false]]),
+    errorLineRegistry: [],
+    configManager: null,
+    splashOptions: {},
+  };
+  appendConversationMessages(context, messages, 80, []);
+  return lines;
+}
+
+describe('work-tree bead ANSI sanitization', () => {
+  /** Printable cell text from rendered lines. */
+  function collectText(lines: Line[]): string {
+    return lines.map((line) => line.map((c) => c.char).join('')).join('\n');
   }
 
-  /**
-   * Assert that rendered output does not contain ESC or any ANSI escape sequence.
-   */
+  /** No escape byte, no BEL, and no printable remnant of a CSI or OSC sequence. */
   function assertNoEscapes(text: string): void {
-    // No ESC byte should reach the rendered cell text
     expect(text).not.toContain('\x1b');
-    // No BEL
     expect(text).not.toContain('\x07');
+    expect(text).not.toMatch(/\[\?\d+[hl]|\[\d+A|\]0;/);
   }
 
-  test('cursor-move sequence in path argument is stripped from rendered output', () => {
-    const toolCall: ToolCall = {
-      id: 'tc-ansi-1',
-      name: 'read_file',
-      arguments: { path: '/tmp/\x1b[2Amalicious' },
-    };
-    const lines = renderToolCallBlock(toolCall, 'done', undefined, 80);
-    const text = collectText(lines);
+  test('cursor-move sequence in path argument is stripped from the bead row', () => {
+    const text = collectText(renderCall({ id: 'tc-ansi-1', name: 'read_file', arguments: { path: '/tmp/\x1b[2Amalicious' } }, 'ok'));
     assertNoEscapes(text);
-    // The printable payload still renders (the path without the escape)
-    expect(text).toContain('/tmp/');
-    expect(text).toContain('malicious');
+    expect(text).toContain('/tmp/malicious');
   });
 
   test('OSC sequence in query argument is stripped', () => {
-    const toolCall: ToolCall = {
-      id: 'tc-ansi-2',
-      name: 'web_search',
-      arguments: { query: 'normal\x1b]0;evil\x07query' },
-    };
-    const lines = renderToolCallBlock(toolCall, 'done', undefined, 80);
-    const text = collectText(lines);
+    const text = collectText(renderCall({ id: 'tc-ansi-2', name: 'web_search', arguments: { query: 'normal\x1b]0;evil\x07query' } }, 'ok'));
     assertNoEscapes(text);
     expect(text).toContain('normal');
     expect(text).toContain('query');
   });
 
-  test('BEL in error message is stripped', () => {
-    const toolCall: ToolCall = {
-      id: 'tc-ansi-3',
-      name: 'exec',
-      arguments: { cmd: 'ls' },
-    };
-    const lines = renderToolCallBlock(toolCall, 'error', undefined, 80, undefined, 'failed\x07beep');
-    const text = collectText(lines);
+  test('BEL in an error result is stripped from the summary and the opened body', () => {
+    const text = collectText(renderCall({ id: 'tc-ansi-3', name: 'exec', arguments: { cmd: 'ls' } }, 'Error: failed\x07beep'));
     assertNoEscapes(text);
     expect(text).toContain('failed');
   });
 
-  test('alt-screen sequence in result summary is stripped', () => {
-    const toolCall: ToolCall = {
-      id: 'tc-ansi-4',
-      name: 'exec',
-      arguments: { cmd: 'ls' },
-    };
-    const lines = renderToolCallBlock(toolCall, 'done', '3 files\x1b[?1049h', 80, 100);
-    const text = collectText(lines);
+  test('alt-screen sequence in a result is stripped from the summary', () => {
+    const text = collectText(renderCall({ id: 'tc-ansi-4', name: 'lookup', arguments: { cmd: 'ls' } }, '3 files\x1b[?1049h'));
     assertNoEscapes(text);
     expect(text).toContain('3 files');
   });
 
   test('DECSET cursor-hide sequence in cmd argument is stripped', () => {
-    const toolCall: ToolCall = {
-      id: 'tc-ansi-5',
-      name: 'exec',
-      arguments: { cmd: 'echo\x1b[?25l hello' },
-    };
-    const lines = renderToolCallBlock(toolCall, 'done', undefined, 80);
-    const text = collectText(lines);
+    const text = collectText(renderCall({ id: 'tc-ansi-5', name: 'exec', arguments: { cmd: 'echo\x1b[?25l hello' } }, '{"exit_code":0,"stdout":"hi\x1b[2J"}'));
     assertNoEscapes(text);
     expect(text).toContain('echo');
     expect(text).toContain('hello');

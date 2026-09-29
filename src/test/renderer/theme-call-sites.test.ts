@@ -47,8 +47,9 @@ const GUARDS: Array<{ file: string; blockedHex: string[] }> = [
     blockedHex: ['#00ffff', '#d000ff', '#22d3ee', '#a855f7', '#38bdf8', '#3a1a1a', '#94a3b8', '#e2e8f0', '#f59e0b'],
   },
   {
-    // process-indicator active-status label → live brand accent.
-    file: path.join(root, 'renderer/process-indicator.ts'),
+    // The background-work summary (formerly process-indicator.ts, now a
+    // status-line segment) → live brand accent.
+    file: path.join(root, 'renderer/status-line.ts'),
     blockedHex: ['#00ffff', '#7dd3fc'],
   },
 ];

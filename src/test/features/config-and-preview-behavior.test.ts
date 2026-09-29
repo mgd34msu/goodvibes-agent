@@ -141,34 +141,23 @@ describe('tool preview truncation', () => {
     expect(preview).toBe(shortArgs);
   });
 
-  it('UIFactory.createThinkingFragment includes tool preview line when provided', () => {
+  it('UIFactory.createToolPreviewRow draws the tool preview as one row (the spinner lives on the status line)', () => {
     const width = 80;
     const toolPreview = 'read_file({"path":"/home/user/test.ts"})';
-    const lines = UIFactory.createThinkingFragment(width, '-', 0, undefined, toolPreview);
-    // Should have 4 lines: blank + spinner + preview + blank
-    expect(lines).toHaveLength(4);
-    // The preview line chars should include the tool name
-    const previewLine = lines[2];
-    const text = previewLine.map(c => c.char).join('');
+    const row = UIFactory.createToolPreviewRow(width, toolPreview);
+    expect(row).toHaveLength(width);
+    const text = row.map((c) => c.char).join('');
     expect(text).toContain('read_file');
-  });
-
-  it('UIFactory.createThinkingFragment without tool preview has 3 lines', () => {
-    const width = 80;
-    const lines = UIFactory.createThinkingFragment(width, '-', 0, undefined, undefined);
-    // blank + spinner + blank (no preview line)
-    expect(lines).toHaveLength(3);
   });
 
   it('tool preview display width does not exceed terminal width', () => {
     const width = 40;
     const longPreview = 'some_tool(' + 'a'.repeat(100) + ')';
-    const lines = UIFactory.createThinkingFragment(width, '-', 0, undefined, longPreview);
+    const previewLine = UIFactory.createToolPreviewRow(width, longPreview);
     // The preview line should not exceed width cells
-    const previewLine = lines[2];
     expect(previewLine).toHaveLength(width);
     // Compute display width of non-space content
-    const text = previewLine.map(c => c.char).join('');
+    const text = previewLine.map((c) => c.char).join('');
     const displayW = getDisplayWidth(text.trimEnd());
     expect(displayW).toBeLessThanOrEqual(width);
   });

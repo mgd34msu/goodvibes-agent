@@ -23,18 +23,19 @@ function makeCmd(name: string): SlashCommand {
 }
 
 import { renderHelpOverlay } from '../../renderer/help-overlay.ts';
+import { OverlayFilter } from '../../input/overlay-filter.ts';
 
 /**
  * Render the overlay across multiple scroll offsets and concatenate all visible text.
  * This ensures we see all content regardless of which scroll position it appears at.
  */
 function renderAllText(commands: SlashCommand[]): string {
-  const allFrames: string[] = [];
-  for (let offset = 0; offset <= 30; offset += 6) {
-    const lines = renderHelpOverlay(120, KEYBINDINGS_STUB, commands, offset, 80);
-    const frame = lines.map(line => line.map(cell => cell.char).join('').trimEnd()).join('\n');
-    allFrames.push(frame);
-  }
+  // The help modal scrolls; walk it with the scroll bound the renderer records.
+  const filter = new OverlayFilter();
+  const frame = (offset: number): string => renderHelpOverlay(120, 80, KEYBINDINGS_STUB, commands, offset, filter).lines
+    .map(line => line.map(cell => cell.char).join('').trimEnd()).join('\n');
+  const allFrames: string[] = [frame(0)];
+  for (let offset = 6; offset <= filter.maxScroll + 6; offset += 6) allFrames.push(frame(offset));
   return allFrames.join('\n');
 }
 
@@ -91,16 +92,10 @@ describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () =>
   });
 
   test('shows available-commands section when commands are provided', () => {
-    // The overlay renders with a limited content window; test that non-featured
-    // commands appear when the registry is non-empty (shown via getAll() loop).
-    // Since the window is limited, we test the structural contract: rendering
-    // succeeds and returns a non-empty line array.
+    // Non-featured commands appear once the registry is non-empty (the list scrolls).
     const commands = [makeCmd('model'), makeCmd('clear')];
-    const lines = renderHelpOverlay(120, KEYBINDINGS_STUB, commands);
-    expect(lines.length).toBeGreaterThan(0);
-    // Each line has width 120
-    for (const line of lines) {
-      expect(line.length).toBe(120);
-    }
+    const text = renderText(commands);
+    expect(text).toContain('/model');
+    expect(text).toContain('/clear');
   });
 });

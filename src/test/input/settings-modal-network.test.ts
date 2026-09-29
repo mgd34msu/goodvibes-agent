@@ -170,7 +170,7 @@ describe('SettingsModal: Agent service-hosting boundaries', () => {
     // What matters is that selecting the key actually renders it.
     openSettings();
     modal.selectTarget('danger.httpListener');
-    const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
+    const text = renderSettingsModal(modal, 120, 30).lines.map(lineText).join('\n');
     expect(text).toContain('danger.httpListener');
   });
 

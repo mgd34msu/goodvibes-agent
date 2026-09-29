@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // bookmark-navigation.test.ts, a bookmark stored on a tool result now hidden
-// by a collapsed assistant turn (see conversation-turn-structure.ts) must still
+// by a collapsed assistant turn (see work-tree-model.ts) must still
 // resolve to a real transcript line (the turn's header) rather than reporting
 // "Bookmark not found".
 //

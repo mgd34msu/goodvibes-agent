@@ -296,6 +296,25 @@ function tokenizePlain(line: string): SyntaxToken[] {
   return [{ text: line, fg: th.plain }];
 }
 
+/**
+ * Syntax tokens per line for `lang` (a fence tag or file extension), for
+ * callers that lay code out themselves (an opened edit's diff in the work
+ * tree). The same tokenizers renderCodeBlock uses.
+ */
+export function highlightCodeLines(codeLines: readonly string[], lang: string): SyntaxToken[][] {
+  const language = detectLanguage(lang);
+  return codeLines.map((line) => {
+    switch (language) {
+      case 'ts': return tokenizeTsJs(line);
+      case 'python': return tokenizePython(line);
+      case 'bash': return tokenizeBash(line);
+      case 'json': return tokenizeJson(line);
+      case 'yaml': return tokenizeYaml(line);
+      default: return tokenizePlain(line);
+    }
+  });
+}
+
 // ─── Main Renderer ───────────────────────────────────────────────────────────
 
 /**
@@ -310,10 +329,15 @@ export function renderCodeBlock(
 ): Line[] {
   const lines: Line[] = [];
   const language = detectLanguage(lang);
-  const leftMargin = LAYOUT.LEFT_MARGIN;
+  // The fill starts at column 3 like every other fill (user messages, the
+  // composer), so code text lands on column 5 after the 2-column padding.
+  const leftMargin = LAYOUT.LEFT_MARGIN - 1;
   const showLineNumbers = opts.showLineNumbers ?? true;
   const lineNumW = showLineNumbers ? String(codeLines.length).length + 1 : 0; // e.g. "10 "
-  const contentStartX = showLineNumbers ? leftMargin + lineNumW + 1 : leftMargin;
+  // Text keeps 2 columns from both edges of the code fill (the Measurements
+  // table's padding rule), and the fill has a blank row above and below it.
+  const PAD = 2;
+  const contentStartX = showLineNumbers ? leftMargin + PAD + lineNumW + 1 : leftMargin + PAD;
   const palette = activeTokens();
   const BG = palette.backgroundCode;
   const LINE_NUM_FG = palette.textFaint;
@@ -330,17 +354,12 @@ export function renderCodeBlock(
     }
   };
 
-  // Header bar: language label
-  const langLabel = lang ? ` ${lang} ` : ' code ';
-  const headerLine = createEmptyLine(width);
-  const headerStr = langLabel.padEnd(effectiveWidth - leftMargin);
-  let hx = leftMargin;
-  for (const ch of headerStr) {
-    if (hx >= effectiveWidth) break;
-    headerLine[hx] = createStyledCell(ch, { fg: palette.selectedListItemText, bg: palette.accent, bold: true });
-    hx++;
-  }
-  lines.push(headerLine);
+  // No header bar: the language (when the fence names one) sits muted on the
+  // right of the first code row, and only when the code leaves room for it.
+  const langLabel = lang;
+  const padLine = createEmptyLine(width);
+  for (let px = leftMargin; px < effectiveWidth; px++) padLine[px] = createStyledCell(' ', { bg: BG });
+  lines.push(padLine);
 
   // Code lines
   for (let i = 0; i < codeLines.length; i++) {
@@ -355,7 +374,8 @@ export function renderCodeBlock(
       line[x] = createStyledCell(' ', { bg: BG });
     }
 
-    let cx = leftMargin;
+    const textEnd = effectiveWidth - PAD;
+    let cx = leftMargin + PAD;
     if (showLineNumbers) {
       for (const ch of lineNum) {
         if (cx >= contentStartX) break;
@@ -367,23 +387,34 @@ export function renderCodeBlock(
     // Syntax tokens
     for (const token of tokens) {
       for (const ch of token.text) {
-        if (cx >= effectiveWidth) break;
+        if (cx >= textEnd) break;
         const cw = getDisplayWidth(ch);
         const code = ch.charCodeAt(0);
         if (code < 32 || code === 127) {
           cx++;
           continue;
         }
+        // A wide glyph that does not fit before the text edge ends the row
+        // rather than drawing half of itself into the padding.
+        if (cx + cw > textEnd) break;
         line[cx] = createStyledCell(ch, { fg: token.fg, bg: BG, bold: token.bold, italic: token.italic });
-        if (cw === 2 && cx + 1 < width) line[cx + 1] = { ...line[cx], char: '' };
+        if (cw === 2 && cx + 1 < textEnd) line[cx + 1] = { ...line[cx], char: '' };
         cx += cw;
+      }
+    }
+
+    if (i === 0 && langLabel) {
+      const labelX = textEnd - getDisplayWidth(langLabel);
+      if (labelX > cx + 1) {
+        let lx = labelX;
+        for (const ch of langLabel) line[lx++] = createStyledCell(ch, { fg: palette.textMuted, bg: BG });
       }
     }
 
     lines.push(line);
   }
 
-  // Footer line
+  // Padding row: the code fill closes with an empty row.
   const footerLine = createEmptyLine(width);
   for (let fx = leftMargin; fx < effectiveWidth; fx++) {
     footerLine[fx] = createStyledCell(' ', { bg: BG });
