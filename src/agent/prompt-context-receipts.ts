@@ -80,7 +80,8 @@ export interface RuntimePromptCompositionInput {
   readonly source?: PromptContextReceiptSource;
   readonly provider: string;
   readonly model: unknown;
-  readonly contextWindow: number;
+  /** The window a source states, or null when unknown (a guess, or disproven by a larger accepted request). */
+  readonly contextWindow: number | null;
   readonly runtimePrompt: string;
   readonly operatorPolicy: string;
   readonly shellPaths: ShellPathService;
@@ -453,7 +454,9 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       suppressedCount: 0,
       promptChars: tierPrompt.length,
       promptText: tierPrompt,
-      note: `Model ${modelLabel(input.model)} has context window ${input.contextWindow}; tier ${tier}.`,
+      note: input.contextWindow === null
+        ? `Model ${modelLabel(input.model)} has an unknown context window; tier ${tier}.`
+        : `Model ${modelLabel(input.model)} has context window ${input.contextWindow}; tier ${tier}.`,
     }),
   ];
 }
@@ -486,7 +489,8 @@ export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionI
       source: input.source ?? 'turn',
       provider: input.provider,
       model: currentModel,
-      contextWindow: input.contextWindow,
+      // Receipts keep a number: 0 records an unknown window.
+      contextWindow: input.contextWindow ?? 0,
       promptHash: promptHash(prompt),
       promptChars: prompt.length,
       approxPromptTokens: approxTokens(prompt),

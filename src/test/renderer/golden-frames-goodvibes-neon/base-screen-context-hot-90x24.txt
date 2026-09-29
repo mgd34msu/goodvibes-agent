@@ -8,7 +8,7 @@
 |     • A reminder is set for Thursday at 08:00: pack the travel adapter.                  |
 |                                                                                          |
 |     │ Fares change often; this quote wraps so its bar shows on every row it takes up     |
-|     │  on screen.                                                                        |
+|     │ on screen.                                                                         |
 |                                                                                          |
 |                                                                                          |
 |      1 { "reminder": "pack the adapter", "at": "2026-10-01T08:00" }              json    |
@@ -365,8 +365,6 @@
 9 15 italic=1
 9 16 fg=#94a3b8
 9 16 italic=1
-9 17 fg=#94a3b8
-9 17 italic=1
 11 3 bg=#0d0d0d
 11 4 bg=#0d0d0d
 11 5 bg=#0d0d0d

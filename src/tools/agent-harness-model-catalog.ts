@@ -28,6 +28,19 @@ export function readConfig(context: CommandContext, key: string): unknown {
 }
 
 export function contextWindowFor(context: CommandContext, model: unknown): number | null {
+  // The window a source states, or null when unknown (a guess, or disproven
+  // by a larger accepted request); never the model record's stated number
+  // when the registry knows that number is not real.
+  const known = context.provider.providerRegistry as { getKnownContextWindowForModel?: (candidate: unknown) => number | null };
+  const isModelDefinition = typeof readRecord(model).registryKey === 'string' && typeof readRecord(model).contextWindow === 'number';
+  if (isModelDefinition && typeof known.getKnownContextWindowForModel === 'function') {
+    try {
+      const value = known.getKnownContextWindowForModel(model);
+      return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    } catch {
+      // A bare model reference the registry cannot resolve: fall through.
+    }
+  }
   const record = readRecord(model);
   const direct = record.contextWindow;
   if (typeof direct === 'number' && Number.isFinite(direct)) return direct;

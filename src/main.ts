@@ -578,7 +578,7 @@ async function main() {
       lastCopyTime: input.lastCopyTime,
       model: runtime.model, // prices the cost; the header names the model
       workingDir, homeDirectory, view: viewFrame?.footer ?? null,
-      contextWindow: currentModel.contextWindow,
+      contextWindow: providerRegistry.getKnownContextWindowForModel(currentModel), // null: unknown, the meter says so
       compactThreshold: configManager.get('behavior.autoCompactThreshold') as number,
       // Single source of truth for "will this bypass the approval prompt?", computed
       // the same way cli/status.ts and the policy-explain tool compute it (behavior.autoApprove
@@ -660,7 +660,7 @@ async function main() {
       keybindingsManager: ctx.services.keybindingsManager,
       conversationWidth,
       viewportHeight: vHeight,
-      contextWindow: currentModel.contextWindow,
+      contextWindow: providerRegistry.getKnownContextWindowForModel(currentModel) ?? 0,
     });
 
     compositor.composite({
@@ -686,7 +686,7 @@ async function main() {
         keybindingsManager: ctx.services.keybindingsManager,
         screenWidth: width,
         screenHeight: height,
-        contextWindow: currentModel.contextWindow,
+        contextWindow: providerRegistry.getKnownContextWindowForModel(currentModel) ?? 0,
         permission: pendingPermission ? PermissionPromptUI.createPromptLayer(width, height, pendingPermission) : null,
       }),
     });

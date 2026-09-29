@@ -333,7 +333,7 @@ export async function bootstrapRuntime(
     permissionManager,
     getSystemPrompt: () => {
       const currentModel = providerRegistry.getCurrentModel();
-      const contextWindow = providerRegistry.getContextWindowForModel(currentModel);
+      const contextWindow = providerRegistry.getKnownContextWindowForModel(currentModel); // null: unknown window, standard tier
       const composed = composeRuntimePromptWithReceipt({
         sessionId: runtime.sessionId,
         turnId: activePromptTurnId,
@@ -400,7 +400,7 @@ export async function bootstrapRuntime(
     runtimeBus,
     runtimeStore: store,
     sessionId: runtime.sessionId,
-    getContextWindow: () => providerRegistry.getContextWindowForModel(providerRegistry.getCurrentModel()),
+    getContextWindow: () => providerRegistry.getKnownContextWindowForModel(providerRegistry.getCurrentModel()),
   }));
 
   // featureFlags is REQUIRED here in practice, even though the SDK types it

@@ -45,7 +45,8 @@ type PromptMemoryApi = Pick<MemoryApi, 'getAll'>;
 interface PromptModelInfo {
   readonly model: unknown;
   readonly label: string;
-  readonly contextWindow: number;
+  /** null when nothing states the window. */
+  readonly contextWindow: number | null;
 }
 
 interface CompactPromptContextReceipt {
@@ -132,6 +133,7 @@ function promptModelInfo(context: CommandContext): PromptModelInfo {
   const registry = context.provider.providerRegistry as {
     readonly getCurrentModel?: () => unknown;
     readonly getContextWindowForModel?: (model: unknown) => number;
+    readonly getKnownContextWindowForModel?: (model: unknown) => number | null;
   };
   let model: unknown = context.session.runtime.model ?? 'unknown';
   if (typeof registry.getCurrentModel === 'function') {
@@ -141,8 +143,12 @@ function promptModelInfo(context: CommandContext): PromptModelInfo {
       model = context.session.runtime.model ?? model;
     }
   }
-  let contextWindow = 0;
-  if (typeof registry.getContextWindowForModel === 'function') {
+  // null: nothing states the window (the tier is then standard, not free).
+  let contextWindow: number | null = 0;
+  if (typeof registry.getKnownContextWindowForModel === 'function') {
+    const value = registry.getKnownContextWindowForModel(model);
+    contextWindow = value !== null && Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : null;
+  } else if (typeof registry.getContextWindowForModel === 'function') {
     const value = registry.getContextWindowForModel(model);
     contextWindow = Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
   }
@@ -560,7 +566,9 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
       suppressedCount: 0,
       promptChars: tierPrompt.length,
       promptText: tierPrompt,
-      note: `Model ${currentModel} has context window ${contextWindow}; tier ${tier}.`,
+      note: contextWindow === null
+        ? `Model ${currentModel} has an unknown context window; tier ${tier}.`
+        : `Model ${currentModel} has context window ${contextWindow}; tier ${tier}.`,
     }, includeParameters),
   ];
 }
@@ -594,7 +602,7 @@ export function promptContextSummary(context: CommandContext, args: PromptContex
     budget: {
       approxPromptTokens,
       contextWindow,
-      percentOfWindow: contextWindow > 0 ? Math.round((approxPromptTokens / contextWindow) * 1000) / 10 : null,
+      percentOfWindow: contextWindow !== null && contextWindow > 0 ? Math.round((approxPromptTokens / contextWindow) * 1000) / 10 : null,
     },
     receipts: promptContextReceiptSummary(context, args, includeParameters),
     segments,

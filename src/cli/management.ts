@@ -433,6 +433,8 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
         id: model.id,
         displayName: model.displayName,
         contextWindow: services.providerRegistry.getContextWindowForModel(model),
+        // False when nothing states the window (a guess, or disproven by a larger accepted request).
+        contextWindowKnown: services.providerRegistry.getKnownContextWindowForModel(model) !== null,
         providerConfigured: providerSnapshot?.runtime.auth?.configured ?? true,
         setup,
       };
@@ -442,7 +444,7 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
         `  provider: ${model.provider}`,
         `  setup: ${setup.setupLabel}`,
         `  provider configured: ${yesNo(value.providerConfigured)}`,
-        `  context: ${value.contextWindow.toLocaleString()}`,
+        `  context: ${value.contextWindowKnown ? value.contextWindow.toLocaleString() : 'unknown'}`,
       ].join('\n'));
     }
     if (subOrFilter === 'use' || subOrFilter === 'set') {
@@ -504,11 +506,12 @@ async function renderModels(runtime: CliCommandRuntime): Promise<string> {
       id: model.id,
       displayName: model.displayName,
       contextWindow: services.providerRegistry.getContextWindowForModel(model),
+      contextWindowKnown: services.providerRegistry.getKnownContextWindowForModel(model) !== null,
       current: model.registryKey === current,
     }));
     return formatJsonOrText(runtime.cli)(value, [
       `GoodVibes models${filter ? ` (${filter})` : ''}`,
-      ...value.map((model) => `  ${model.current ? '*' : ' '} ${model.registryKey.padEnd(42)} setup ${model.setupClass} context ${model.contextWindow.toLocaleString()} ${model.displayName}`),
+      ...value.map((model) => `  ${model.current ? '*' : ' '} ${model.registryKey.padEnd(42)} setup ${model.setupClass} context ${model.contextWindowKnown ? model.contextWindow.toLocaleString() : 'unknown'} ${model.displayName}`),
     ].join('\n'));
   });
 }

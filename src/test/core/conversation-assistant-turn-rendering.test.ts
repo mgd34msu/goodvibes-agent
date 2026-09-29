@@ -109,7 +109,8 @@ describe('assistant turns as a work tree', () => {
     cm.addToolResults([{ callId: 'call-3', success: true, output: 'third' }]);
     expect(lines().find((l) => l.includes('◆'))).toMatch(/3 tools/);
     expect(lines().filter((l) => l.includes('Searching the web'))).toHaveLength(2);
-    expect(lines().some((l) => /✓ +▸ Tool .*third/.test(l))).toBe(true);
+    // A call-less result whose shape names no tool reads "Result", never the bare "Tool".
+    expect(lines().some((l) => /✓ +▸ Result .*third/.test(l))).toBe(true);
   });
 
   test('every assistant message between two user messages is one turn: narration on the spine, the last answer closes it', () => {
