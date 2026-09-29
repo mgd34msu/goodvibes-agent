@@ -11,6 +11,7 @@ import {
   toEffortModel,
 } from '../../providers/reasoning-effort-surface.ts';
 import { compactConversation, requireKeybindingsManager, requireProviderApi } from './runtime-services.ts';
+import { startFreshConversation, type FreshConversationResult } from './fresh-conversation.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 
@@ -307,9 +308,20 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'clear',
     aliases: ['cls'],
-    description: 'Clear the conversation display (keeps LLM context)',
+    description: 'Start a fresh conversation (the current one is saved as its own session)',
     handler(_args, ctx) {
-      ctx.session.conversationManager.clearDisplay();
+      if (ctx.isGenerating?.()) {
+        ctx.print('A turn is still running. Stop it with Esc or let it finish, then /clear.');
+        return;
+      }
+      let result: FreshConversationResult;
+      try {
+        result = startFreshConversation(ctx);
+      } catch (e) {
+        ctx.print(`Could not save the current conversation, so nothing was cleared: ${summarizeError(e)}`);
+        return;
+      }
+      if (result.savedAs) ctx.print(`Fresh conversation. The previous one is saved as ${result.savedAs}: /session resume ${result.savedAs} returns to it.`);
       ctx.renderRequest();
     },
   });

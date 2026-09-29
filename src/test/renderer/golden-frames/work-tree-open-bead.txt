@@ -27,8 +27,8 @@
 |   │       ✓ withRetry > does not sleep after the final attempt [0.88ms]                                                |
 |   │       ✓ withRetry > rethrows the last error [0.27ms]                                                               |
 |   │                                                                                                                    |
-|   │       4 pass                                                                                                       |
-|   │       0 fail                                                                                                       |
+|   │        4 pass                                                                                                      |
+|   │        0 fail                                                                                                      |
 |   │                                                                                                                    |
 |   │       exit 0                                                                                                       |
 |   │                                                                                                                    |
@@ -3691,6 +3691,7 @@
 28 15 bg=#232438
 28 16 fg=#e4e2ee
 28 16 bg=#232438
+28 17 fg=#e4e2ee
 28 17 bg=#232438
 28 18 bg=#232438
 28 19 bg=#232438
@@ -3806,6 +3807,7 @@
 29 15 bg=#232438
 29 16 fg=#e4e2ee
 29 16 bg=#232438
+29 17 fg=#e4e2ee
 29 17 bg=#232438
 29 18 bg=#232438
 29 19 bg=#232438

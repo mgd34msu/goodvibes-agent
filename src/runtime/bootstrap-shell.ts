@@ -13,6 +13,7 @@ import { registerBuiltinCommands } from '../input/commands.ts';
 import { InputHistory } from '../input/input-history.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import { ActivityFeed } from '../core/activity-feed.ts';
+import { sumConversationUsage } from '../core/conversation-usage.ts';
 import { createSystemMessageRouter, type SystemMessageRouter } from '../core/system-message-router.ts';
 import { getConfigSnapshot } from '../config/index.ts';
 import { createBootstrapCommandContext } from './bootstrap-command-context.ts';
@@ -249,6 +250,13 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     componentHealthMonitor: services.componentHealthMonitor,
     writeLastSessionPointer,
     restoreTurnAnchors,
+    surface: services.surface,
+    // Token counters and context occupancy come from the transcript (/clear empties it).
+    hydrateSessionUsage: () => {
+      const { usage, lastInputTokens } = sumConversationUsage(conversation.getMessageSnapshot());
+      orchestrator.usage = usage;
+      orchestrator.lastInputTokens = lastInputTokens;
+    },
   });
   commandContextRef = commandContext;
 

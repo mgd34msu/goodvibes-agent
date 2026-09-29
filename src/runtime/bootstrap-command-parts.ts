@@ -125,6 +125,8 @@ export interface BootstrapCommandSectionOptions {
   readonly writeLastSessionPointer?: (sessionId: string) => void;
   /** Reload a resumed session's persisted rewind anchors. Bound at bootstrap to the runtime's SessionSurface; returns how many were restored. */
   readonly restoreTurnAnchors?: (sessionId: string) => number;
+  readonly surface?: import('@/runtime/index.ts').SessionSurface;
+  readonly hydrateSessionUsage?: () => void;
   readonly agentManager?: ShellAgentManagerService;
   readonly modeManager?: ShellModeManagerService;
   readonly automationManager?: ShellAutomationManagerRuntimeService;
@@ -301,6 +303,7 @@ export function createBootstrapCommandSessionSection(
   options: Pick<
     BootstrapCommandSectionOptions,
     'conversation' | 'runtime' | 'sessionManager' | 'sessionMemoryStore' | 'sessionLineageTracker' | 'changeTracker' | 'writeLastSessionPointer' | 'restoreTurnAnchors'
+    | 'surface' | 'hydrateSessionUsage'
   >,
 ): BootstrapCommandSessionSection {
   return {
@@ -312,6 +315,8 @@ export function createBootstrapCommandSessionSection(
     changeTracker: options.changeTracker,
     writeLastSessionPointer: options.writeLastSessionPointer,
     restoreTurnAnchors: options.restoreTurnAnchors,
+    surface: options.surface,
+    hydrateSessionUsage: options.hydrateSessionUsage,
   };
 }
 

@@ -131,6 +131,8 @@ export type CreateBootstrapCommandContextOptions = {
   componentHealthMonitor: import('@/runtime/index.ts').ComponentHealthMonitor;
   writeLastSessionPointer?: (sessionId: string) => void;
   restoreTurnAnchors?: (sessionId: string) => number;
+  surface?: import('@/runtime/index.ts').SessionSurface;
+  hydrateSessionUsage?: () => void;
 };
 
 export function createBootstrapCommandContext(
@@ -211,6 +213,8 @@ export function createBootstrapCommandContext(
     memoryConsolidationScheduler,
     writeLastSessionPointer,
     restoreTurnAnchors,
+    surface,
+    hydrateSessionUsage,
   } = options;
 
   const shellServices = createBootstrapCommandShellServices({
@@ -251,6 +255,8 @@ export function createBootstrapCommandContext(
     changeTracker,
     writeLastSessionPointer,
     restoreTurnAnchors,
+    surface,
+    hydrateSessionUsage,
   });
   const provider = createBootstrapCommandProviderSection({
     providerRegistry,

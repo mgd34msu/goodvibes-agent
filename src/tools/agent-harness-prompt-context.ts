@@ -1,5 +1,6 @@
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
-import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
+import { getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
+import { mainSessionTierSupplement } from '../runtime/main-session-tier-prompt.ts';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import { describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE } from '../agent/memory-prompt.ts';
 import { AgentPersonaRegistry, buildActivePersonaPrompt } from '../agent/persona-registry.ts';
@@ -376,7 +377,7 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
   const runtimePrompt = context.session.runtime.systemPrompt ?? '';
   const { label: currentModel, contextWindow } = promptModelInfo(context);
   const tier = getTierForContextWindow(contextWindow);
-  const tierPrompt = getTierPromptSupplement(tier);
+  const tierPrompt = mainSessionTierSupplement(tier);
   if (!shellPaths) {
     return [
       segment({

@@ -94,6 +94,8 @@ export interface CommandUiActions {
   beginPlainInput?: (request: import('./plain-line-input.ts').PlainLineInputRequest) => void;
   executeCommand?: (name: string, args: string[]) => Promise<boolean>;
   cancelGeneration?: () => void;
+  /** True while a turn is running (a local or hosted turn has the orchestrator thinking). */
+  isGenerating?: () => boolean;
   completeModelSelection?: (selection: {
     model: { id: string; provider: string; displayName: string; registryKey: string };
     effort: string;
@@ -197,6 +199,16 @@ export interface CommandSessionServices {
   readonly writeLastSessionPointer?: (sessionId: string) => void;
   /** Reload a resumed session's persisted rewind anchors. Bound at bootstrap to the runtime's SessionSurface; returns how many were restored. */
   readonly restoreTurnAnchors?: (sessionId: string) => number;
+  /**
+   * The runtime's declare-once session-storage handle: the directory the
+   * session files and their sidecars (rewind anchors, work-tree view) live in.
+   */
+  readonly surface?: import('@/runtime/index.ts').SessionSurface;
+  /**
+   * Recompute the Orchestrator's usage totals and context occupancy from the
+   * conversation's current messages (after /clear empties it, both read zero).
+   */
+  readonly hydrateSessionUsage?: () => void;
 }
 
 export interface CommandProviderServices {
