@@ -545,7 +545,8 @@ describe('routines CLI command', () => {
       receipts: [
         {
           id: 'legacy-receipt',
-          createdAt: '2026-06-02T12:00:00.000Z',
+          // Relative to now: the receipt store drops receipts older than 90 days.
+          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
           routineId: 'daily-operations-sweep',
           routineName: 'Daily Operations Sweep',
           route: '/api/automation/schedules',
