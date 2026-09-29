@@ -5,8 +5,7 @@ import { writeStoreFile } from '@/utils/store-file.ts';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import type { MemoryRecallSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
-import { getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
-import { mainSessionTierSupplement } from '../runtime/main-session-tier-prompt.ts';
+import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ShellPathService } from '@/runtime/index.ts';
 import type { CapabilityIndexReport } from '../capabilities/capability-types.ts';
 import { buildCapabilitySummaryPrompt } from './capability-summary-prompt.ts';
@@ -277,7 +276,7 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
   const activePersona = personaSnapshot.activePersona;
   const personaPrompt = buildActivePersonaPrompt(input.shellPaths) ?? '';
   const tier = getTierForContextWindow(input.contextWindow);
-  const tierPrompt = mainSessionTierSupplement(tier);
+  const tierPrompt = getTierPromptSupplement(tier, { audience: 'conversation' });
   const capabilitySummaryText = buildCapabilitySummaryPrompt(input.capabilityIndex ?? null) ?? '';
 
   return [
@@ -462,7 +461,7 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
 export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionInput): { readonly prompt: string; readonly receipt: PromptContextReceiptDraft } {
   const currentModel = modelLabel(input.model);
   const tier = getTierForContextWindow(input.contextWindow);
-  const supplement = mainSessionTierSupplement(tier);
+  const supplement = getTierPromptSupplement(tier, { audience: 'conversation' });
   const capabilitySummary = buildCapabilitySummaryPrompt(input.capabilityIndex ?? null);
   const prompt = joinPromptParts(
     input.runtimePrompt,
