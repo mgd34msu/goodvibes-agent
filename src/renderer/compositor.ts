@@ -2,7 +2,8 @@ import { TerminalBuffer } from './buffer.ts';
 import { DiffEngine } from './diff.ts';
 import { type Line, createEmptyLine } from '@pellux/goodvibes-sdk/platform/types';
 import type { SearchManager } from '../input/search.ts';
-import { allowTerminalWrite, probeTermCaps, type TermColorCaps } from '@pellux/goodvibes-terminal-shell';
+import { allowTerminalWrite, type TermColorCaps } from '@pellux/goodvibes-terminal-shell';
+import { probeColorCaps } from './term-caps.ts';
 import { activeTheme, activeTokens } from './theme.ts';
 import type { SurfaceLayer } from './surface-kit.ts';
 import { composeLayers } from './surface-compose.ts';
@@ -53,7 +54,7 @@ export class Compositor {
     // colors) is therefore cap-gated, no raw #rrggbb leaks on a non-truecolor
     // terminal. (R4 later replaces the hardcoded hex with live activeTheme()
     // reads in its tone-read region; this R2 region owns only the caps wiring.)
-    this.caps = probeTermCaps(stdout);
+    this.caps = probeColorCaps(stdout);
     this.diffEngine = new DiffEngine(this.caps);
   }
 

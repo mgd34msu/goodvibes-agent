@@ -19,12 +19,36 @@ import { voiceCaptureChip } from './voice-capture-chip.ts';
  * phrase, elapsed, `esc` interrupt) or the working directory and any
  * background work, then the cost, the context bar and the `ctrl+p` keycap for
  * the Agent workspace. A context window near compaction keeps its bar.
+ *
+ * Inside an agent or process view (shell/session-views.ts) the composer's bar
+ * takes that session's color and its own placeholder (or a one-line reason in
+ * place of input), and the status line shows the view's keys, the first of
+ * which says what the next Esc does, then main kept in sight.
  */
 
 /** The work tree's keys, shown on the status line while the keyboard is in it. */
 const WORK_TREE_KEYS: ReadonlyArray<readonly [string, string]> = [
   ['↑↓', 'move between beads'], ['←→', 'fold / unfold'], ['enter', 'open'], ['y', 'copy'], ['esc', 'back to typing'],
 ];
+
+/** What an agent or process view changes under the transcript. */
+export interface ShellFooterView {
+  /** The composer bar: the agent's lane color, or the process color. */
+  readonly barColor: string;
+  readonly placeholder?: string;
+  /** The composer takes no input; this says why. */
+  readonly disabledReason?: string;
+  /** The view's keys on the status line (esc back to main, ctrl+x stop, …). */
+  readonly keys: ReadonlyArray<readonly [string, string]>;
+  /** After the keys: main kept in sight (◐ main · working). */
+  readonly trail?: { readonly text: string; readonly fg: string } | null;
+  /** A notice in place of the keys (press ctrl+x again to stop). */
+  readonly notice?: { readonly text: string; readonly tone: 'error' | 'info' } | null;
+  /** The process view shows no context bar or cost. */
+  readonly noContext?: boolean;
+  /** The cost this view states instead of the session's (an agent's own, when priced). */
+  readonly cost?: string | null;
+}
 
 export interface ShellFooterBuildOptions {
   readonly width: number;
@@ -40,6 +64,10 @@ export interface ShellFooterBuildOptions {
   /** The model the session cost is priced against; not drawn (the header names the model). */
   readonly model?: string;
   readonly workingDir?: string;
+  /** The home directory, drawn as ~ at the start of the working directory. */
+  readonly homeDirectory?: string;
+  /** An agent or process view is showing (core/session-focus.ts). */
+  readonly view?: ShellFooterView | null;
   readonly contextWindow?: number;
   /**
    * The compaction threshold. behavior.autoCompactThreshold is stored as a
@@ -136,10 +164,24 @@ export function statusCostText(usage: ShellFooterBuildOptions['usage'], model: s
   return `~$${fmtCost(calcSessionCost(usage.up, usage.down, usage.cacheRead ?? 0, usage.cacheWrite ?? 0, model))}`;
 }
 
-function displayDirectory(workingDir: string | undefined): string | undefined {
+/** The chips no view hides: auto-approve, the live microphone, the power note. */
+function safetyChips(options: ShellFooterBuildOptions): StatusChip[] {
+  const t = activeTokens();
+  const chips: StatusChip[] = [];
+  if (options.dangerMode) chips.push({ text: '! auto-approve', fg: t.error, bold: true, keep: true });
+  const voice = options.voiceCapture ?? null;
+  if (voice && voiceCaptureRowVisible(voice)) chips.push(voiceCaptureChip(voice));
+  if (options.powerNote) chips.push({ text: options.powerNote, fg: t.warning, bold: true, keep: true });
+  return chips;
+}
+
+/** The working directory with the home directory as ~ (only on a whole path segment). */
+function displayDirectory(workingDir: string | undefined, homeDirectory: string | undefined): string | undefined {
   if (!workingDir) return undefined;
-  const home = typeof process !== 'undefined' ? process.env.HOME ?? '' : '';
-  return home && workingDir.startsWith(home) ? '~' + workingDir.slice(home.length) : workingDir;
+  const home = homeDirectory ?? (typeof process !== 'undefined' ? process.env.HOME ?? '' : '');
+  if (!home) return workingDir;
+  if (workingDir === home) return '~';
+  return workingDir.startsWith(home.endsWith('/') ? home : `${home}/`) ? '~' + workingDir.slice(home.replace(/\/$/, '').length) : workingDir;
 }
 
 /** The compaction threshold as a fraction [0..1] (0.85 when unset or nonsense). */
@@ -153,6 +195,7 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
   const lines: Line[] = [];
   const focused = options.promptFocused ?? !options.indicatorFocused;
   const mode = composerModeStyle(options);
+  const view = options.view ?? null;
   lines.push(...renderComposer({
     width: options.width,
     promptText: options.promptText,
@@ -160,7 +203,9 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
     focused,
     unfocusedHint: 'Esc returns to the composer',
     argsHint: options.commandArgsHint,
-    modeColor: mode.color,
+    modeColor: view ? view.barColor : mode.color,
+    placeholder: view?.placeholder,
+    disabledReason: view?.disabledReason,
   }));
 
   // The left end of the status line: the mode, auto-approve, microphone and
@@ -175,15 +220,29 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
   if ((options.composerFlags ?? []).includes('attachments')) chips.push({ text: 'image attached', fg: t.info });
 
   const copied = Date.now() - options.lastCopyTime < 2000;
+  if (view) {
+    // Inside an agent or process view: its keys (what Esc does first), then main kept in sight.
+    lines.push(renderStatusLine({
+      width: options.width,
+      chips: safetyChips(options),
+      notice: options.showExitNotice ? { text: 'Press Ctrl+C again to exit', tone: 'error' } : view.notice ?? (copied ? { text: 'Copied', tone: 'info' } : null),
+      keys: view.keys,
+      trail: view.trail ?? null,
+      cost: view.noContext ? null : view.cost ?? null,
+      context: null,
+    }));
+    return { lines, height: lines.length };
+  }
   lines.push(renderStatusLine({
     width: options.width,
     chips,
     notice: options.showExitNotice
       ? { text: 'Press Ctrl+C again to exit', tone: 'error' }
       : copied ? { text: 'Copied', tone: 'info' } : null,
-    busy: options.busy ?? null,
+    // With text in the composer the next Esc clears it; only an empty composer's Esc interrupts.
+    busy: options.busy ? { ...options.busy, escAction: options.promptText.trim().length > 0 ? 'clear input' : undefined } : null,
     keys: options.workTreeFocused ? WORK_TREE_KEYS : null,
-    directory: displayDirectory(options.workingDir),
+    directory: displayDirectory(options.workingDir, options.homeDirectory),
     background: {
       agents: options.runningAgentCount,
       processes: options.runningProcessCount,

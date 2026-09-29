@@ -71,6 +71,7 @@ import { applyAtModelSwitches } from './input/at-model-switch.ts';
 import { createCommandContextUi } from './shell/command-context-ui.ts';
 import { createTerminalPaintWindow } from './shell/terminal-paint-window.ts';
 import { wireWorkTree } from './core/work-tree-wiring.ts';
+import { SessionViews } from './shell/session-views.ts';
 
 // Escape bytes and enter/exit sequencing live in renderer/terminal-escapes.ts (re-exported from @pellux/goodvibes-terminal-shell) so this file never holds its own drifting copy.
 
@@ -233,13 +234,17 @@ async function main() {
   // Live-microphone footer row (the wake detector); assigned once voice capture is wired below, null until then so pre-wiring frames size correctly.
   let voiceCaptureStatus: () => import('./core/voice-capture-status.ts').VoiceCaptureIndicatorState | null = () => null;
 
+  // Agents and background processes opened full screen: Enter on a lane or ▶ bead, the Activity modal, the process monitor (shell/session-views.ts).
+  const sessionViews = new SessionViews({ conversation, agentManager, processManager, fleetNodes: () => ctx.services.processRegistry.query().nodes, steer: (id, text) => ctx.services.processRegistry.steer(id, text), killAgent: (id) => ctx.services.processRegistry.kill(id, { cascade: true }), mainBusy: () => orchestrator.isThinking, mainModel: () => providerRegistry.getCurrentModel().id, promptText: () => input.prompt, requestRender: () => render() });
+  commandContext.openSessionView = (target) => sessionViews.open(target);
   const getViewportHeight = (): number => {
     const { height } = getTerminalSize(stdout);
     const promptLines: number = input.getVisiblePromptLineCount(getPromptContentWidth());
-    return height - 1 - estimateShellFooterHeight(promptLines); // 1: the header row
+    return height - sessionViews.headerRows() - estimateShellFooterHeight(promptLines); // the header row (+ the session chips)
   };
 
   const scroll = (delta: number) => {
+    if (sessionViews.active) { sessionViews.scroll(-delta); return; } // a view scrolls its own lines (up is positive there)
     const vHeight = getViewportHeight();
     const maxScroll = Math.max(0, conversation.history.getLineCount() - vHeight);
     scrollTop = Math.max(0, Math.min(scrollTop + delta, maxScroll));
@@ -254,7 +259,7 @@ async function main() {
   const unsubs: Array<() => void> = [];
   // The work tree's live facts: call/turn timings, agent lanes, the call a permission prompt holds, fold persistence (work-tree-wiring.ts).
   const workTreeWiring = wireWorkTree({ conversation, events: uiServices.events, agentManager, listChains: () => ctx.services.wrfcController.listChains(), fleetNodes: () => ctx.services.processRegistry.query().nodes, pendingCallId: () => pendingPermission?.callId, turnActive: () => orchestrator.isThinking, sessionsDir: ctx.services.surface.sessionsDir, sessionId: () => runtime.sessionId, requestRender: () => render() });
-  unsubs.push(...workTreeWiring.unsubs);
+  unsubs.push(...workTreeWiring.unsubs, () => sessionViews.dispose());
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   // sessionId of the offered recovery snapshot, or null when none is pending.
@@ -435,6 +440,7 @@ async function main() {
     input.surfaceModals.push(new ActivityModal({
       view: () => activityView(),
       openProcesses: () => { input.modalOpened('process'); input.processModal.open(); render(); },
+      openSessionView: (target) => sessionViews.open(target),
     }));
     render();
   };
@@ -498,7 +504,7 @@ async function main() {
   input.setContentWidth(getPromptContentWidth());
   input.filePicker.setOnUpdate(() => render());
   input.processModal.setOnRefresh(() => render());
-  input.surfaceModals.onChange = () => render();
+  input.surfaceModals.onChange = () => render(); input.sessionView = sessionViews;
 
   // Model picker callback is handled in bootstrap.ts, do not duplicate here.
   input.setHistory(inputHistory);
@@ -534,7 +540,10 @@ async function main() {
     const primaryActiveAgent = activeAgents.find((agent) => agent.latestProgress?.trim())
       ?? activeAgents[0];
 
-    const headerLines = UIFactory.createHeader(width, currentModel.id, conversation.title || undefined);
+    const viewFrame = sessionViews.frame(width); // an agent or process open full screen, or null in main
+    const headerLines = viewFrame ? [viewFrame.header] : UIFactory.createHeader(width, currentModel.id, conversation.title || undefined);
+    const chipsRow = sessionViews.chips(width); // every session to switch to, when there is more than main
+    if (chipsRow) headerLines.push(chipsRow);
     // A running turn takes the status line's left side: spinner, honest waiting phrase, elapsed, esc.
     const thinkingDeps = {
       orchestrator, configManager, streamTokenSpeed, clock: thinkingClock,
@@ -567,7 +576,7 @@ async function main() {
       showExitNotice: input.showExitNotice,
       lastCopyTime: input.lastCopyTime,
       model: runtime.model, // prices the cost; the header names the model
-      workingDir,
+      workingDir, homeDirectory, view: viewFrame?.footer ?? null,
       contextWindow: currentModel.contextWindow,
       compactThreshold: configManager.get('behavior.autoCompactThreshold') as number,
       // Single source of truth for "will this bypass the approval prompt?", computed
@@ -580,7 +589,7 @@ async function main() {
       hitlMode: modeManager.getHITLMode(),
       runningAgentCount,
       runningProcessCount,
-      indicatorFocused: input.indicatorFocused, promptFocused: !input.indicatorFocused && !conversation.workTree.focused, workTreeFocused: conversation.workTree.focused,
+      indicatorFocused: input.indicatorFocused, promptFocused: !input.indicatorFocused && !conversation.workTree.focused && viewFrame?.footer.disabledReason === undefined, workTreeFocused: conversation.workTree.focused && !viewFrame,
       runningAgentProgress: primaryActiveAgent
         ? `${primaryActiveAgent.label}: ${primaryActiveAgent.latestProgress?.trim() || primaryActiveAgent.status}`
         : undefined,
@@ -633,13 +642,13 @@ async function main() {
     });
     scrollTop = conversationViewport.nextScrollTop;
     // The home splash sits in the middle of the conversation area, never clipped.
-    let viewport = conversation.isSplashShowing()
+    let viewport = viewFrame ? viewFrame.body(vHeight) : conversation.isSplashShowing()
       ? centerViewportContent(conversationViewport.viewport, conversationViewport.effectiveHeight, conversationWidth)
       : conversationViewport.viewport;
 
-    viewport.push(...thinkingRows);
+    if (!viewFrame) viewport.push(...thinkingRows); // main's own rows stay with main
 
-    orchestrator.messageQueue.forEach(msg => {
+    (viewFrame ? [] : orchestrator.messageQueue).forEach(msg => {
       viewport.push(...UIFactory.createQueuedMessageFragment(conversationWidth, msg.text));
     });
 
@@ -658,12 +667,12 @@ async function main() {
       header: shellHeaderLines,
       viewport,
       footer: shellFooterLines,
-      selection: {
+      selection: viewFrame ? undefined : {
         isCellSelected: (col, row) => selection.isCellSelected(col, row),
         scrollTop,
         lineCount: conversation.history.getLineCount(),
       },
-      search: input.searchManager.active ? {
+      search: !viewFrame && input.searchManager.active ? {
         manager: input.searchManager,
         scrollTop,
         viewportStartY: shellHeaderLines.length,

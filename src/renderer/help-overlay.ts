@@ -21,7 +21,7 @@ import {
   type KitHint,
   type SurfaceLayer,
 } from './surface-kit.ts';
-import { drawList, measureRow, type KitRow } from './surface-kit-list.ts';
+import { drawList, listScrollEnd, type KitRow } from './surface-kit-list.ts';
 import { drawTextBlock } from './surface-kit-extra.ts';
 import { SHORTCUT_OVERLAY_STATIC_TEXT } from './shortcuts-overlay.ts';
 
@@ -250,16 +250,11 @@ export function renderHelpOverlay(
   }
   // The catalog note closes the unfiltered list (wrapped in full, never clipped).
   if (!query && commands && commands.length > 0) rows.push({ label: NOTE, labelFg: t.textFaint });
-  // The furthest start that still fills the list (group spacing collapses when scrolling).
-  const capacity = Math.max(1, f.bottom - top + 1);
-  let maxStart = rows.length;
-  let used = 0;
-  while (maxStart > 0 && used + measureRow(rows[maxStart - 1]!, f.l, f.r) <= capacity) {
-    maxStart--;
-    used += measureRow(rows[maxStart]!, f.l, f.r);
-  }
+  // The furthest start that still fills the list, by drawList's own spacing rules.
+  const listOptions = { rows, top, bottom: f.bottom, x0: f.l, x1: f.r };
+  const maxStart = listScrollEnd(f.canvas, listOptions);
   if (filter) filter.maxScroll = maxStart;
-  const res = drawList(f.canvas, { rows, top, bottom: f.bottom, x0: f.l, x1: f.r, scrollStart: Math.min(scrollOffset, maxStart) });
+  const res = drawList(f.canvas, { ...listOptions, scrollStart: Math.min(scrollOffset, maxStart) });
   f.hintRight = scrollCountText(res.above, res.below);
   return finishModal(f);
 }

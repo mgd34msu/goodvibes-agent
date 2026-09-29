@@ -245,6 +245,7 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
     modalOpened: state.modalOpened,
     requestRender: state.requestRender,
     handleEscape: state.handleEscape,
+    openProcessView: (id) => state.commandContext?.openSessionView?.({ kind: 'process', id }) ?? false,
   }, token)) {
     return withState(state, true);
   }

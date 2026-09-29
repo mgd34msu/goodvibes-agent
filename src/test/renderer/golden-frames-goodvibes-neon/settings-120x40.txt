@@ -21,18 +21,18 @@
 |            Diagnostics         1      all: Use all for this setting.                                                   |
 |            Sleep and Power     3      code: Use code for this setting.                                                 |
 |            Payments           36      off: Use off for this setting.                                                   |
-|          ✦ models and providers                                                                                        |
-|            Provider            7      Category purpose: Presentation settings for the terminal                         |
-|            Subscriptions       1      transcript: streaming, line numbers, thinking visibility,                        |
-|            Helper              3      reasoning summaries, token speed, and tool previews.                             |
-|            Tools               9                                                                                       |
-|            TTS                 5      collapseThreshold                                               30               |
-|            Local Voice        34      theme                                                    goodvibes               |
-|            Model Pricing       1      themeMode                                                     auto               |
-|          ✦ agent-local state          treeGlyphs                                                 rounded               |
-|            Storage             2      showThinking                                                 false               |
-|            Cache               4      showReasoningSummary                                         false               |
-|                        37 more ↓                                                                                       |
+|                                                                                                                        |
+|          ✦ models and providers       Category purpose: Presentation settings for the terminal                         |
+|            Provider            7      transcript: streaming, line numbers, thinking visibility,                        |
+|            Subscriptions       1      reasoning summaries, token speed, and tool previews.                             |
+|            Helper              3                                                                                       |
+|            Tools               9      collapseThreshold                                               30               |
+|            TTS                 5      theme                                                    goodvibes               |
+|            Local Voice        34      themeMode                                                     auto               |
+|            Model Pricing       1      treeGlyphs                                                 rounded               |
+|                                       showThinking                                                 false               |
+|                                       showReasoningSummary                                         false               |
+|                        39 more ↓                                                                                       |
 |                                                                                                                        |
 |             ↑↓  move    ⏎  change    ←→  category    pgup pgdn  docs    ctrl+r  reset             2 more ↓             |
 |                                                                                                                        |
@@ -3963,69 +3963,28 @@
 22 7 bg=#050507
 22 8 bg=#161a22
 22 9 bg=#161a22
-22 10 fg=#d000ff
 22 10 bg=#161a22
 22 11 bg=#161a22
-22 12 fg=#a855f7
 22 12 bg=#161a22
-22 12 bold=1
-22 13 fg=#a855f7
 22 13 bg=#161a22
-22 13 bold=1
-22 14 fg=#a855f7
 22 14 bg=#161a22
-22 14 bold=1
-22 15 fg=#a855f7
 22 15 bg=#161a22
-22 15 bold=1
-22 16 fg=#a855f7
 22 16 bg=#161a22
-22 16 bold=1
-22 17 fg=#a855f7
 22 17 bg=#161a22
-22 17 bold=1
-22 18 fg=#a855f7
 22 18 bg=#161a22
-22 18 bold=1
-22 19 fg=#a855f7
 22 19 bg=#161a22
-22 19 bold=1
-22 20 fg=#a855f7
 22 20 bg=#161a22
-22 20 bold=1
-22 21 fg=#a855f7
 22 21 bg=#161a22
-22 21 bold=1
-22 22 fg=#a855f7
 22 22 bg=#161a22
-22 22 bold=1
-22 23 fg=#a855f7
 22 23 bg=#161a22
-22 23 bold=1
-22 24 fg=#a855f7
 22 24 bg=#161a22
-22 24 bold=1
-22 25 fg=#a855f7
 22 25 bg=#161a22
-22 25 bold=1
-22 26 fg=#a855f7
 22 26 bg=#161a22
-22 26 bold=1
-22 27 fg=#a855f7
 22 27 bg=#161a22
-22 27 bold=1
-22 28 fg=#a855f7
 22 28 bg=#161a22
-22 28 bold=1
-22 29 fg=#a855f7
 22 29 bg=#161a22
-22 29 bold=1
-22 30 fg=#a855f7
 22 30 bg=#161a22
-22 30 bold=1
-22 31 fg=#a855f7
 22 31 bg=#161a22
-22 31 bold=1
 22 32 bg=#161a22
 22 33 bg=#161a22
 22 34 bg=#161a22
@@ -4141,37 +4100,69 @@
 23 7 bg=#050507
 23 8 bg=#161a22
 23 9 bg=#161a22
+23 10 fg=#d000ff
 23 10 bg=#161a22
 23 11 bg=#161a22
-23 12 fg=#e2e8f0
+23 12 fg=#a855f7
 23 12 bg=#161a22
-23 13 fg=#e2e8f0
+23 12 bold=1
+23 13 fg=#a855f7
 23 13 bg=#161a22
-23 14 fg=#e2e8f0
+23 13 bold=1
+23 14 fg=#a855f7
 23 14 bg=#161a22
-23 15 fg=#e2e8f0
+23 14 bold=1
+23 15 fg=#a855f7
 23 15 bg=#161a22
-23 16 fg=#e2e8f0
+23 15 bold=1
+23 16 fg=#a855f7
 23 16 bg=#161a22
-23 17 fg=#e2e8f0
+23 16 bold=1
+23 17 fg=#a855f7
 23 17 bg=#161a22
-23 18 fg=#e2e8f0
+23 17 bold=1
+23 18 fg=#a855f7
 23 18 bg=#161a22
-23 19 fg=#e2e8f0
+23 18 bold=1
+23 19 fg=#a855f7
 23 19 bg=#161a22
+23 19 bold=1
+23 20 fg=#a855f7
 23 20 bg=#161a22
+23 20 bold=1
+23 21 fg=#a855f7
 23 21 bg=#161a22
+23 21 bold=1
+23 22 fg=#a855f7
 23 22 bg=#161a22
+23 22 bold=1
+23 23 fg=#a855f7
 23 23 bg=#161a22
+23 23 bold=1
+23 24 fg=#a855f7
 23 24 bg=#161a22
+23 24 bold=1
+23 25 fg=#a855f7
 23 25 bg=#161a22
+23 25 bold=1
+23 26 fg=#a855f7
 23 26 bg=#161a22
+23 26 bold=1
+23 27 fg=#a855f7
 23 27 bg=#161a22
+23 27 bold=1
+23 28 fg=#a855f7
 23 28 bg=#161a22
+23 28 bold=1
+23 29 fg=#a855f7
 23 29 bg=#161a22
+23 29 bold=1
+23 30 fg=#a855f7
 23 30 bg=#161a22
+23 30 bold=1
+23 31 fg=#a855f7
 23 31 bg=#161a22
-23 32 fg=#4e5c6f
+23 31 bold=1
 23 32 bg=#161a22
 23 33 bg=#161a22
 23 34 bg=#161a22
@@ -4361,15 +4352,10 @@
 24 18 bg=#161a22
 24 19 fg=#e2e8f0
 24 19 bg=#161a22
-24 20 fg=#e2e8f0
 24 20 bg=#161a22
-24 21 fg=#e2e8f0
 24 21 bg=#161a22
-24 22 fg=#e2e8f0
 24 22 bg=#161a22
-24 23 fg=#e2e8f0
 24 23 bg=#161a22
-24 24 fg=#e2e8f0
 24 24 bg=#161a22
 24 25 bg=#161a22
 24 26 bg=#161a22
@@ -4565,12 +4551,19 @@
 25 16 bg=#161a22
 25 17 fg=#e2e8f0
 25 17 bg=#161a22
+25 18 fg=#e2e8f0
 25 18 bg=#161a22
+25 19 fg=#e2e8f0
 25 19 bg=#161a22
+25 20 fg=#e2e8f0
 25 20 bg=#161a22
+25 21 fg=#e2e8f0
 25 21 bg=#161a22
+25 22 fg=#e2e8f0
 25 22 bg=#161a22
+25 23 fg=#e2e8f0
 25 23 bg=#161a22
+25 24 fg=#e2e8f0
 25 24 bg=#161a22
 25 25 bg=#161a22
 25 26 bg=#161a22
@@ -4759,6 +4752,7 @@
 26 15 bg=#161a22
 26 16 fg=#e2e8f0
 26 16 bg=#161a22
+26 17 fg=#e2e8f0
 26 17 bg=#161a22
 26 18 bg=#161a22
 26 19 bg=#161a22
@@ -4898,7 +4892,9 @@
 27 13 bg=#161a22
 27 14 fg=#e2e8f0
 27 14 bg=#161a22
+27 15 fg=#e2e8f0
 27 15 bg=#161a22
+27 16 fg=#e2e8f0
 27 16 bg=#161a22
 27 17 bg=#161a22
 27 18 bg=#161a22
@@ -5058,21 +5054,13 @@
 28 13 bg=#161a22
 28 14 fg=#e2e8f0
 28 14 bg=#161a22
-28 15 fg=#e2e8f0
 28 15 bg=#161a22
-28 16 fg=#e2e8f0
 28 16 bg=#161a22
-28 17 fg=#e2e8f0
 28 17 bg=#161a22
-28 18 fg=#e2e8f0
 28 18 bg=#161a22
-28 19 fg=#e2e8f0
 28 19 bg=#161a22
-28 20 fg=#e2e8f0
 28 20 bg=#161a22
-28 21 fg=#e2e8f0
 28 21 bg=#161a22
-28 22 fg=#e2e8f0
 28 22 bg=#161a22
 28 23 bg=#161a22
 28 24 bg=#161a22
@@ -5082,7 +5070,6 @@
 28 28 bg=#161a22
 28 29 bg=#161a22
 28 30 bg=#161a22
-28 31 fg=#4e5c6f
 28 31 bg=#161a22
 28 32 fg=#4e5c6f
 28 32 bg=#161a22
@@ -5238,9 +5225,7 @@
 29 21 bg=#161a22
 29 22 fg=#e2e8f0
 29 22 bg=#161a22
-29 23 fg=#e2e8f0
 29 23 bg=#161a22
-29 24 fg=#e2e8f0
 29 24 bg=#161a22
 29 25 bg=#161a22
 29 26 bg=#161a22
@@ -5248,6 +5233,7 @@
 29 28 bg=#161a22
 29 29 bg=#161a22
 29 30 bg=#161a22
+29 31 fg=#4e5c6f
 29 31 bg=#161a22
 29 32 fg=#4e5c6f
 29 32 bg=#161a22
@@ -5378,63 +5364,42 @@
 30 7 bg=#050507
 30 8 bg=#161a22
 30 9 bg=#161a22
-30 10 fg=#d000ff
 30 10 bg=#161a22
 30 11 bg=#161a22
-30 12 fg=#a855f7
+30 12 fg=#e2e8f0
 30 12 bg=#161a22
-30 12 bold=1
-30 13 fg=#a855f7
+30 13 fg=#e2e8f0
 30 13 bg=#161a22
-30 13 bold=1
-30 14 fg=#a855f7
+30 14 fg=#e2e8f0
 30 14 bg=#161a22
-30 14 bold=1
-30 15 fg=#a855f7
+30 15 fg=#e2e8f0
 30 15 bg=#161a22
-30 15 bold=1
-30 16 fg=#a855f7
+30 16 fg=#e2e8f0
 30 16 bg=#161a22
-30 16 bold=1
-30 17 fg=#a855f7
+30 17 fg=#e2e8f0
 30 17 bg=#161a22
-30 17 bold=1
-30 18 fg=#a855f7
+30 18 fg=#e2e8f0
 30 18 bg=#161a22
-30 18 bold=1
-30 19 fg=#a855f7
+30 19 fg=#e2e8f0
 30 19 bg=#161a22
-30 19 bold=1
-30 20 fg=#a855f7
+30 20 fg=#e2e8f0
 30 20 bg=#161a22
-30 20 bold=1
-30 21 fg=#a855f7
+30 21 fg=#e2e8f0
 30 21 bg=#161a22
-30 21 bold=1
-30 22 fg=#a855f7
+30 22 fg=#e2e8f0
 30 22 bg=#161a22
-30 22 bold=1
-30 23 fg=#a855f7
+30 23 fg=#e2e8f0
 30 23 bg=#161a22
-30 23 bold=1
-30 24 fg=#a855f7
+30 24 fg=#e2e8f0
 30 24 bg=#161a22
-30 24 bold=1
-30 25 fg=#a855f7
 30 25 bg=#161a22
-30 25 bold=1
-30 26 fg=#a855f7
 30 26 bg=#161a22
-30 26 bold=1
-30 27 fg=#a855f7
 30 27 bg=#161a22
-30 27 bold=1
-30 28 fg=#a855f7
 30 28 bg=#161a22
-30 28 bold=1
 30 29 bg=#161a22
 30 30 bg=#161a22
 30 31 bg=#161a22
+30 32 fg=#4e5c6f
 30 32 bg=#161a22
 30 33 bg=#161a22
 30 34 bg=#161a22
@@ -5569,19 +5534,12 @@
 31 9 bg=#161a22
 31 10 bg=#161a22
 31 11 bg=#161a22
-31 12 fg=#e2e8f0
 31 12 bg=#161a22
-31 13 fg=#e2e8f0
 31 13 bg=#161a22
-31 14 fg=#e2e8f0
 31 14 bg=#161a22
-31 15 fg=#e2e8f0
 31 15 bg=#161a22
-31 16 fg=#e2e8f0
 31 16 bg=#161a22
-31 17 fg=#e2e8f0
 31 17 bg=#161a22
-31 18 fg=#e2e8f0
 31 18 bg=#161a22
 31 19 bg=#161a22
 31 20 bg=#161a22
@@ -5596,7 +5554,6 @@
 31 29 bg=#161a22
 31 30 bg=#161a22
 31 31 bg=#161a22
-31 32 fg=#4e5c6f
 31 32 bg=#161a22
 31 33 bg=#161a22
 31 34 bg=#161a22
@@ -5731,15 +5688,10 @@
 32 9 bg=#161a22
 32 10 bg=#161a22
 32 11 bg=#161a22
-32 12 fg=#e2e8f0
 32 12 bg=#161a22
-32 13 fg=#e2e8f0
 32 13 bg=#161a22
-32 14 fg=#e2e8f0
 32 14 bg=#161a22
-32 15 fg=#e2e8f0
 32 15 bg=#161a22
-32 16 fg=#e2e8f0
 32 16 bg=#161a22
 32 17 bg=#161a22
 32 18 bg=#161a22
@@ -5756,7 +5708,6 @@
 32 29 bg=#161a22
 32 30 bg=#161a22
 32 31 bg=#161a22
-32 32 fg=#4e5c6f
 32 32 bg=#161a22
 32 33 bg=#161a22
 32 34 bg=#161a22

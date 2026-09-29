@@ -3,7 +3,7 @@ import { getProviderIdFromModel } from '../config/provider-model.ts';
 import type { ConversationManager } from '../core/conversation';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHandler } from '../input/handler.ts';
-import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import type { ModelDefinition, ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { describeServingEffort, effortPresentationForModel, publishActiveEffortOptions, requestedEffortLevel, servingEffortForLevel, toEffortModel } from '../providers/reasoning-effort-surface.ts';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
@@ -12,6 +12,7 @@ import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config'
 import type { SecretsManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ServiceInspectionQuery } from '@/runtime/index.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
+import { openModelPickerNow, type ModelPickerOpenDeps } from '../input/model-picker-open.ts';
 import { buildLocalFitRecommendations, buildSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
 import { applyThemeModeSettingChange, applyThemeNameSettingChange, THEME_MODE_CONFIG_KEY, THEME_NAME_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
@@ -185,68 +186,45 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     ];
   };
 
-  commandContext.openModelPicker = () => {
-    // Picker-open re-check: re-verify each provider's live model list (TTL-
-    // respecting) so a freshly-opened picker reflects models the provider
-    // started or stopped serving. Fire-and-forget; a completed refresh re-renders
-    // so the list updates in place without blocking the open. (Same wiring as
-    // the TUI's picker, the fix-everywhere convention for this defect class.)
-    void providerRegistry.refreshLiveModelDiscovery?.().then((reports) => {
-      if (reports.some((report) => report.added.length > 0 || report.removed.length > 0)) render();
-    }).catch(() => {});
-    void (async () => {
-      const catalogModels = providerRegistry.getSelectableModels();
-      const configuredIds = new Set(getConfiguredProviderIds());
-      input.modelPicker.configuredProviders = configuredIds;
-
-      // CRITICAL GATE: inject synthetic local recommendations ONLY when zero
-      // providers are configured. When any real credential exists these must
-      // not be present in the list. The sign-in row is appended last so it
-      // is always reachable but does not displace hardware-fit entries.
-      const models = configuredIds.size === 0
-        ? [...buildLocalFitRecommendations(), buildSignInRow(), ...catalogModels]
-        : catalogModels;
-
-      const providerIds = [...new Set(models.map((m) => m.provider).filter((p) => p !== LOCAL_REC_PROVIDER))];
-      const secretProviderIds = await resolveSecretProviderIds();
-      input.modelPicker.configuredViaMap = buildConfiguredViaMap(providerIds, configuredIds, subscriptionManager, secretProviderIds);
-      void getPinned().then((pinned) => {
-        input.modelPicker.pinnedIds = new Set(pinned);
-      });
-      void input.modelPicker.loadRecentModels().catch(() => {}); // best-effort: prefetch for UI, failure is non-visible
-      input.modalOpened('modelPicker');
-      input.modelPicker.setTargetInfos(buildModelPickerTargets());
-      // Pre-select the best-fit local recommendation when no providers are configured.
-      const preSelectId = configuredIds.size === 0 && models.length > 0
-        ? (models[0]?.registryKey ?? models[0]?.id ?? getCurrentModelForPickerTarget())
-        : getCurrentModelForPickerTarget();
-      input.modelPicker.openAllModels(models, preSelectId);
-      render();
-    })().catch((error: unknown) => {
-      commandContext.print?.(`Model picker failed to open: ${error instanceof Error ? error.message : String(error)}`);
-      render();
-    });
+  // The picker opens at once on the cached catalog; the credential-source
+  // reads and the live model re-check fill in after (input/model-picker-open.ts).
+  // With no provider configured, the list leads with hardware-fit local
+  // recommendations and the sign-in row (reachable, but never displacing them),
+  // and the best-fit recommendation is preselected.
+  const pickerModels = (): ModelDefinition[] => {
+    const catalogModels = providerRegistry.getSelectableModels();
+    return getConfiguredProviderIds().length === 0 ? [...buildLocalFitRecommendations(), buildSignInRow(), ...catalogModels] : catalogModels;
   };
+  const pickerOpenDeps: ModelPickerOpenDeps = {
+    picker: input.modelPicker,
+    modalOpened: () => input.modalOpened('modelPicker'),
+    render,
+    listModels: pickerModels,
+    listProviders: () => [...new Set(providerRegistry.listModels().map((model) => model.provider))],
+    currentModelId: () => {
+      const first = getConfiguredProviderIds().length === 0 ? pickerModels()[0] : undefined;
+      return first ? (first.registryKey ?? first.id) : getCurrentModelForPickerTarget();
+    },
+    currentProviderId: getCurrentProviderForPickerTarget,
+    configuredProviderIds: () => new Set(getConfiguredProviderIds()),
+    buildConfiguredVia: (ids, configured, secretIds) => buildConfiguredViaMap(ids.filter((p) => p !== LOCAL_REC_PROVIDER), new Set(configured), subscriptionManager, secretIds),
+    buildTargets: buildModelPickerTargets,
+    resolveSecretProviderIds,
+    // Picker-open re-check: re-verify each provider's live model list (TTL-respecting) so the open picker reflects models a provider started or stopped serving.
+    refreshLiveModels: async () => ((await providerRegistry.refreshLiveModelDiscovery?.()) ?? []).some((r) => r.added.length > 0 || r.removed.length > 0),
+    prefetch: async () => {
+      input.modelPicker.pinnedIds = new Set(await getPinned());
+      await input.modelPicker.loadRecentModels();
+    },
+    onError: (error) => { commandContext.print?.(`Model picker could not load everything: ${error instanceof Error ? error.message : String(error)}`); render(); },
+  };
+
+  commandContext.openModelPicker = () => { void openModelPickerNow(pickerOpenDeps, 'models'); };
 
   commandContext.openModelPickerWithTarget = (target) => input.openModelPickerWithTarget(target);
   commandContext.openProviderModelPickerWithTarget = (target) => input.openProviderModelPickerWithTarget(target);
 
-  commandContext.openProviderPicker = () => {
-    void (async () => {
-      const providers = [...new Set(providerRegistry.listModels().map((model) => model.provider))];
-      const configuredIds = new Set(getConfiguredProviderIds());
-      input.modelPicker.configuredProviders = configuredIds;
-      const secretProviderIds = await resolveSecretProviderIds();
-      input.modelPicker.configuredViaMap = buildConfiguredViaMap(providers, configuredIds, subscriptionManager, secretProviderIds);
-      input.modalOpened('modelPicker');
-      input.modelPicker.setTargetInfos(buildModelPickerTargets());
-      input.modelPicker.openProviders(providers, getCurrentProviderForPickerTarget());
-      render();
-    })().catch((error: unknown) => {
-      commandContext.print?.(`Provider picker failed to open: ${error instanceof Error ? error.message : String(error)}`);
-      render();
-    });
-  };
+  commandContext.openProviderPicker = () => { void openModelPickerNow(pickerOpenDeps, 'providers'); };
 
   commandContext.openReasoningEffortPicker = () => {
     const currentModel = providerRegistry.getCurrentModel();

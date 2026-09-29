@@ -163,6 +163,7 @@ export function renderModelWorkspacePackageText(): string {
     '<n> of <total>',
     'No models match the search.',
     'No providers match the search.',
+    'loading catalog…',
     ...hintsFor('model').map(([, action]) => action),
     ...hintsFor('provider').map(([, action]) => action),
     ...hintsFor('effort').map(([, action]) => action),
@@ -285,6 +286,9 @@ function capabilityText(model: ModelDefinition): string {
   return [caps.reasoning ? 'reasoning' : '', caps.multimodal ? 'vision' : '', caps.toolCalling ? 'tools' : ''].filter(Boolean).join(' ');
 }
 
+/** The muted row shown while the catalog is still loading behind an open picker. */
+const LOADING_ROW: KitRow = { label: 'loading catalog…', muted: true };
+
 function modelRows(picker: ModelPickerModal): KitRow[] {
   const t = activeTokens();
   const rows: KitRow[] = [];
@@ -385,7 +389,9 @@ export function renderModelWorkspace(picker: ModelPickerModal, screenWidth: numb
     return finishModal(f);
   }
 
-  const rows = picker.mode === 'model' ? modelRows(picker) : picker.mode === 'provider' ? providerRows(picker) : effortRows(picker);
+  const listed = picker.mode === 'model' ? modelRows(picker) : picker.mode === 'provider' ? providerRows(picker) : effortRows(picker);
+  // The picker opens on its cached catalog; the rest fills in while this row shows.
+  const rows = picker.catalogLoading && picker.mode !== 'effort' ? [LOADING_ROW, ...listed] : listed;
   if (rows.length === 0) {
     const message = picker.mode === 'provider' ? 'No providers match the search.' : 'No models match the search.';
     drawTextBlock(f.canvas, split.x0, split.top, split.x1 - split.x0 + 1, [{ text: message, style: { fg: t.textMuted } }], split.bottom);

@@ -170,6 +170,11 @@ export interface CommandShellUiOpeners {
   openSubscriptionPanel?: () => void;
   /** Open the Activity modal (Ctrl+O, /activity). */
   openActivityModal?: () => void;
+  /**
+   * Open an agent or a background process full screen (core/session-focus.ts).
+   * False when it is not known here (the caller keeps its own fallback).
+   */
+  openSessionView?: (target: { readonly kind: 'agent' | 'process'; readonly id: string }) => boolean;
 }
 
 export interface CommandSessionServices {

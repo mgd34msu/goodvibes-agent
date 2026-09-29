@@ -8,13 +8,15 @@
  *
  * Changed rows keep their syntax colors; the change shows as a background
  * tint across the row and a separate tint on the line-number gutter (the
- * theme's diff tokens). Long lines wrap under their own gutter.
+ * theme's diff tokens, pushed further from the panel fill when a theme's tint
+ * sits too close to it; see diff-tint.ts). Long lines wrap under their own gutter.
  */
 
 import { activeDiffTones, activeTokens } from '../theme.ts';
 import { clipText, type SurfaceCanvas } from '../surface-kit.ts';
 import type { KitPanel } from '../surface-kit-parts.ts';
 import { highlightCodeLines } from '../code-block.ts';
+import { diffRowTints } from '../diff-tint.ts';
 import type { SemanticDiff } from '../semantic-diff.ts';
 import { getDisplayWidth } from '../../utils/terminal-width.ts';
 
@@ -198,8 +200,9 @@ export function drawDiffRow(canvas: SurfaceCanvas, p: KitPanel, y: number, row: 
   const line = row.line;
   const gutterEnd = p.l + DIFF_GUTTER - 1;
   if (line.kind === 'add' || line.kind === 'del') {
-    canvas.tint(p.x, y, p.w, line.kind === 'add' ? t.diffAddedBg : t.diffRemovedBg);
-    canvas.tint(p.x, y, gutterEnd - p.x + 2, line.kind === 'add' ? t.diffAddedLineNumberBg : t.diffRemovedLineNumberBg);
+    const tints = diffRowTints(p.bg);
+    canvas.tint(p.x, y, p.w, line.kind === 'add' ? tints.addedRow : tints.removedRow);
+    canvas.tint(p.x, y, gutterEnd - p.x + 2, line.kind === 'add' ? tints.addedGutter : tints.removedGutter);
   }
   if (line.kind === 'note') {
     canvas.put(p.l + DIFF_GUTTER + 3, y, clipText(row.text, p.r - p.l - DIFF_GUTTER - 2), { fg: t.textFaint });

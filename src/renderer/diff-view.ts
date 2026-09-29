@@ -2,11 +2,13 @@ import { type Line, type Cell, createStyledCell } from '@pellux/goodvibes-sdk/pl
 import { UIFactory } from './ui-factory.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { activeTokens } from './theme.ts';
+import { diffRowTints } from './diff-tint.ts';
 
 /**
  * renderDiffView - Render a unified diff string as styled Line[].
  * Colours come from the active theme's diff tokens (diffAdded/diffRemoved/
- * diffHunkHeader, the matching backgrounds and the line-number tokens).
+ * diffHunkHeader, the matching backgrounds and the line-number tokens); the
+ * row tints are kept visibly apart from the diff's own fill (diff-tint.ts).
  */
 /** Columns between the diff's fill edges and its text. */
 const DIFF_PAD = 2;
@@ -15,6 +17,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
   const lines: Line[] = [];
   const p = activeTokens();
   const BG = p.diffContextBg;
+  const tints = diffRowTints(BG);
 
   // Filename header
   if (filename) {
@@ -58,7 +61,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
       newLineNo++;
       const lineLabel = `${String(newLineNo).padStart(4)} `;
       const content = raw.slice(1);
-      lines.push(makeGutterLine('+', lineLabel, content, width, p.diffAdded, p.diffAddedBg, p.diffAddedLineNumberBg));
+      lines.push(makeGutterLine('+', lineLabel, content, width, p.diffAdded, tints.addedRow, tints.addedGutter));
       continue;
     }
 
@@ -67,7 +70,7 @@ export function renderDiffView(diffText: string, width: number, filename?: strin
       oldLineNo++;
       const lineLabel = `${String(oldLineNo).padStart(4)} `;
       const content = raw.slice(1);
-      lines.push(makeGutterLine('-', lineLabel, content, width, p.diffRemoved, p.diffRemovedBg, p.diffRemovedLineNumberBg));
+      lines.push(makeGutterLine('-', lineLabel, content, width, p.diffRemoved, tints.removedRow, tints.removedGutter));
       continue;
     }
 

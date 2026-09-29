@@ -4,9 +4,10 @@
  * what is coming up and the recent activity feed.
  *
  * A kit modal on the surface-modal host: the search row is always live (typed
- * text filters every section), ↑↓ and PgUp/PgDn move, Enter on an agent or
- * process row opens the process monitor. Esc (handled by the host) closes
- * the modal and never stops any work.
+ * text filters every section), ↑↓ and PgUp/PgDn move, Enter on an agent row
+ * opens that agent full screen (its transcript and its own composer), Enter on
+ * the processes row opens the process monitor. Esc (handled by the host)
+ * closes the modal and never stops any work.
  */
 
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
@@ -18,8 +19,10 @@ import { isTextBackspace } from '@pellux/goodvibes-terminal-shell';
 export interface ActivityModalOptions {
   /** The live view, read on every render and key. */
   readonly view: () => ActivityView;
-  /** Opens the process monitor (Enter on an agent or process row). */
+  /** Opens the process monitor (Enter on the processes row, or an agent that cannot open full screen). */
   readonly openProcesses?: () => void;
+  /** Opens an agent full screen (shell/session-views.ts); false when it is not known here. */
+  readonly openSessionView?: (target: { readonly kind: 'agent'; readonly id: string }) => boolean;
 }
 
 export class ActivityModal implements SurfaceModal, ActivityModalView {
@@ -64,7 +67,9 @@ export class ActivityModal implements SurfaceModal, ActivityModalView {
     } else if (key === 'enter') {
       const items = activityItems(this.view, this.query);
       const item = items[Math.max(0, Math.min(this.selectedIndex, items.length - 1))];
-      if (item?.opensProcesses && this.options.openProcesses) {
+      if (item?.agentId && this.options.openSessionView?.({ kind: 'agent', id: item.agentId })) {
+        host.close(this, 'done');
+      } else if (item?.opensProcesses && this.options.openProcesses) {
         host.close(this, 'done');
         this.options.openProcesses();
       }

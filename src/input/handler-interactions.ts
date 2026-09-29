@@ -210,6 +210,7 @@ export function handleEscapeForHandler(handler: InputHandler): void {
       filePicker: handler.filePicker,
       blockActionsMenu: handler.blockActionsMenu,
       surfaceModals: handler.surfaceModals,
+      sessionView: handler.sessionView ?? undefined,
       selectionModal: handler.selectionModal,
       commandMode: handler.commandMode,
       modalStack: handler.modalStack,

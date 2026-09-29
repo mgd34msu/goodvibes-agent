@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import { activeDiffTones, activeTokens } from '../../renderer/theme.ts';
 import { renderDiffView } from '../../renderer/diff-view.ts';
+import { diffRowTints } from '../../renderer/diff-tint.ts';
 import { lineToString } from '../setup.ts';
 
 const WIDTH = 80;
@@ -79,7 +80,7 @@ describe('renderDiffView', () => {
     // Actual added code lines have gutter '+' AND the diffAddedBg fill
     // (file headers with +++ have the context fill and muted fg)
     const addedLines = result.filter((line) =>
-      line[G]?.char === '+' && line[G]?.bg === activeTokens().diffAddedBg
+      line[G]?.char === '+' && line[G]?.bg === diffRowTints(activeTokens().diffContextBg).addedRow
     );
     expect(addedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 42;'),
@@ -92,7 +93,7 @@ describe('renderDiffView', () => {
     // Actual removed code lines have gutter '-' AND the diffRemovedBg fill
     // (file headers with --- have the context fill and muted fg)
     const removedLines = result.filter((line) =>
-      line[G]?.char === '-' && line[G]?.bg === activeTokens().diffRemovedBg
+      line[G]?.char === '-' && line[G]?.bg === diffRowTints(activeTokens().diffContextBg).removedRow
     );
     expect(removedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 2;'),
@@ -120,9 +121,9 @@ describe('renderDiffView', () => {
 
   test('renders content from added lines', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    // Actual added code lines have the diffAddedBg fill (not the +++ header with the context fill)
+    // Actual added code lines have the added-row tint (diff-tint.ts: diffAddedBg kept visible on the diff's fill) (not the +++ header with the context fill)
     const addedLines = result.filter((line) =>
-      line[G]?.char === '+' && line[G]?.bg === activeTokens().diffAddedBg
+      line[G]?.char === '+' && line[G]?.bg === diffRowTints(activeTokens().diffContextBg).addedRow
     );
     expect(addedLines.map(lineText)).toEqual([
       expect.stringContaining('const b = 42;'),
@@ -131,9 +132,9 @@ describe('renderDiffView', () => {
 
   test('renders content from removed lines', () => {
     const result = renderDiffView(SAMPLE_DIFF, WIDTH);
-    // Actual removed code lines have the diffRemovedBg fill (not the --- header with the context fill)
+    // Actual removed code lines have the removed-row tint (diff-tint.ts) (not the --- header with the context fill)
     const removedLines = result.filter((line) =>
-      line[G]?.char === '-' && line[G]?.bg === activeTokens().diffRemovedBg
+      line[G]?.char === '-' && line[G]?.bg === diffRowTints(activeTokens().diffContextBg).removedRow
     );
     // The removed line contains 'const b = 2;'
     expect(removedLines.map(lineText)).toEqual([

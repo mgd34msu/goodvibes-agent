@@ -16,8 +16,11 @@
  *   ✦ recent
  *   · Reminder sent to Telegram                                     09:12
  *
- *   ↑↓ move   ⏎ open process monitor
+ *   ↑↓ move   ⏎ open agent
  *
+ * Enter on an agent this process runs opens it full screen (its transcript,
+ * its own composer; shell/session-views.ts); on the processes row, or an
+ * agent running elsewhere, it opens the process monitor.
  * Every item wraps in full; the search row filters every section at once.
  * Opened with Ctrl+O, /activity, or the Agent workspace's Work area.
  */
@@ -41,6 +44,8 @@ export interface ActivityNow {
    * comparison), rendered as a quiet-duration marker.
    */
   readonly agents: ReadonlyArray<{
+    /** Set on agents this process runs: Enter opens them full screen. */
+    readonly id?: string;
     readonly label: string;
     readonly progress?: string;
     readonly headline?: string;
@@ -92,6 +97,7 @@ export function buildActivityAgentRows(
   const rows: Array<ActivityNow['agents'][number]> = activeAgents.slice(0, ACTIVITY_AGENT_ROWS).map((agent) => {
     const node = nodesById.get(agent.id);
     return {
+      id: agent.id,
       label: agent.label,
       progress: agent.latestProgress?.trim() || undefined,
       headline: node?.headline?.text,
@@ -152,6 +158,8 @@ export interface ActivityItem {
   readonly row: KitRow;
   /** Enter on this item opens the process monitor. */
   readonly opensProcesses?: boolean;
+  /** Enter on this item opens this agent full screen (the process monitor when it cannot). */
+  readonly agentId?: string;
 }
 
 /** Every item of the view, in section order, filtered by the query. */
@@ -172,6 +180,7 @@ export function activityItems(view: ActivityView, query: string): ActivityItem[]
         rightFg: t.warning,
       },
       opensProcesses: true,
+      agentId: agent.id,
     });
   }
   if (view.now.processes > 0) {
@@ -229,6 +238,7 @@ export function renderActivityModalPackageText(): string {
     'Nothing matches "<query>".',
     'move',
     'open process monitor',
+    'open agent',
   ].join('\n');
 }
 
@@ -237,7 +247,8 @@ export function renderActivityModal(modal: ActivityModalView, screenWidth: numbe
   const all = activityItems(modal.view, '');
   const items = activityItems(modal.view, modal.query);
   const selected = items[Math.max(0, Math.min(modal.selectedIndex, items.length - 1))];
-  const hints: KitHint[] = selected?.opensProcesses ? [['↑↓', 'move'], ['⏎', 'open process monitor']] : [['↑↓', 'move']];
+  const hints: KitHint[] = selected?.agentId ? [['↑↓', 'move'], ['⏎', 'open agent']]
+    : selected?.opensProcesses ? [['↑↓', 'move'], ['⏎', 'open process monitor']] : [['↑↓', 'move']];
   const agents = modal.view.now.agents.length;
   const f = beginModal(screenWidth, screenHeight, {
     title: 'Activity',

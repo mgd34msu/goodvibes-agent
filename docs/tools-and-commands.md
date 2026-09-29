@@ -36,6 +36,10 @@ High-signal TUI routes:
 | `/mcp`, `/secrets`, `/settings`, `/config` | Inspect or update Agent-local configuration. |
 | `/delegate` | Hand explicit build/fix/review work to GoodVibes TUI with a confirmed handoff brief. |
 
+An agent or a background process can take over the whole terminal. `Enter` on an agent's lane in the work tree (or on its row in the Activity modal) opens the agent: its work is the spine, its own children branch off it, the header reads `main › researcher` in the agent's color, and the composer steers the agent while main keeps running. `Enter` on a `▶` bead (or a row in the process monitor) opens the process: live output with timestamps, errors in red, follow mode on. The process view takes no input, because the Agent cannot write to a background process's stdin; `/` searches its output and `y` copies it. While more than one session exists, a row of session chips under the header lists them, and `Tab` / `Shift+Tab` switch between them when the composer is empty.
+
+`Esc` in a view goes back up one level (a child agent returns to the agent that started it, then main) and never stops anything. Stopping is `Ctrl+X`: the first press asks, the second stops. The status line always says what the next `Esc` does.
+
 ## Model tools
 
 | Tool | Use |

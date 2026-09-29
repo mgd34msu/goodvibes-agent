@@ -224,6 +224,8 @@ type ProcessRouteState = {
   modalOpened: (name: string) => void;
   requestRender: () => void;
   handleEscape: () => void;
+  /** Open a process's output full screen (shell/session-views.ts); false when it cannot be opened here. */
+  openProcessView?: (processId: string) => boolean;
 };
 
 export function handleProcessModalToken(state: ProcessRouteState, token: InputToken): boolean {
@@ -238,7 +240,9 @@ export function handleProcessModalToken(state: ProcessRouteState, token: InputTo
     else if (token.logicalName === 'down') state.processModal.moveDown();
     else if (token.logicalName === 'enter') {
       const entry = state.processModal.getSelected();
-      if (entry) {
+      // The process opens full screen; the monitor closes behind it the way Esc closes it (one stack level).
+      if (entry && state.openProcessView?.(entry.id)) state.handleEscape();
+      else if (entry) {
         state.modalOpened('liveTail');
         state.processModal.close();
         state.liveTailModal.open(entry);

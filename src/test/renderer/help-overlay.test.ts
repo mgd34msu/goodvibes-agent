@@ -7,7 +7,9 @@ import { renderHelpOverlay, renderShortcutsOverlay } from '../../renderer/help-o
 import type { SlashCommand } from '../../input/command-registry.ts';
 import { KeybindingsManager } from '../../input/keybindings.ts';
 import { OverlayFilter } from '../../input/overlay-filter.ts';
-import { layerTextBlock } from '../helpers/surface-frame.ts';
+import { frameFromLayer, layerText, layerTextBlock } from '../helpers/surface-frame.ts';
+import { auditFrame } from '../helpers/frame-audit.ts';
+import { activeTokens } from '../../renderer/theme.ts';
 import type { SurfaceLayer } from '../../renderer/surface-kit.ts';
 
 const W = 120;
@@ -153,5 +155,32 @@ describe('renderShortcutsOverlay', () => {
     expect(text).toContain('Bookmark block');
     expect(text).not.toContain('Insert newline');
     expect(filter.maxScroll).toBe(0);
+  });
+
+  /** Columns of ✦ group headers below the title row (the title's own ✦ is excluded). */
+  function headerColumns(layer: SurfaceLayer): number[] {
+    const rows = layerText(layer);
+    const title = rows.findIndex((line) => line.includes('Keyboard shortcuts'));
+    return [...new Set(rows.slice(title + 1).flatMap((line) => [...line.matchAll(/✦/g)].map((m) => m.index!)))].sort((a, b) => a - b);
+  }
+
+  test('two columns below 170 screen columns, three from 170 up; the frame passes the layout audit', () => {
+    for (const [width, columns] of [[100, 2], [150, 2], [169, 2], [170, 3], [200, 3]] as const) {
+      const layer = renderShortcutsOverlay(width, 50, KEYBINDINGS, 0, new OverlayFilter());
+      expect(headerColumns(layer).length).toBe(columns);
+      const frame = frameFromLayer(layer, width, 50);
+      expect(auditFrame(frame, width, activeTokens()).map((i) => `${width}: ${i.kind} row ${i.row}: ${i.detail}`)).toEqual([]);
+    }
+  });
+
+  test('at 150 columns an action that fits its column stays on one line', () => {
+    const rows = layerText(renderShortcutsOverlay(150, 120, KEYBINDINGS, 0, new OverlayFilter()));
+    for (const action of [
+      'Scroll conversation or hovered panel',
+      'Open that process\'s live output',
+      'Go up one level; stops nothing',
+      'Next / prev session (empty composer)',
+      'Stop what the view shows (twice)',
+    ]) expect(rows.some((line) => line.includes(action))).toBe(true);
   });
 });

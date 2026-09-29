@@ -66,8 +66,8 @@ describe('activity modal fleet rows', () => {
       ],
     );
     expect(rows).toEqual([
-      { label: 'researcher', progress: 'Turn 3 · Read', headline: 'Map the audit scope', quietForMs: 120_000 },
-      { label: 'builder', progress: undefined, headline: undefined, quietForMs: undefined },
+      { id: 'a-1', label: 'researcher', progress: 'Turn 3 · Read', headline: 'Map the audit scope', quietForMs: 120_000 },
+      { id: 'a-2', label: 'builder', progress: undefined, headline: undefined, quietForMs: undefined },
     ]);
   });
 
@@ -80,7 +80,7 @@ describe('activity modal fleet rows', () => {
       ],
     );
     expect(rows).toEqual([
-      { label: 'researcher', progress: undefined, headline: undefined, quietForMs: undefined },
+      { id: 'a-1', label: 'researcher', progress: undefined, headline: undefined, quietForMs: undefined },
       { label: 'nightly digest (elsewhere)', headline: 'Summarizing inbox', quietForMs: undefined },
     ]);
   });
@@ -146,6 +146,31 @@ describe('activity modal', () => {
     expect(layerTextBlock(modal.render(100, 30))).toContain('⏎  open process monitor');
     host.handleToken({ type: 'key', logicalName: 'enter' } as never);
     expect(opened).toBe(1);
+    expect(host.active).toBe(false);
+  });
+
+  test('Enter on an agent this process runs opens it full screen and closes the modal; the monitor is not opened', () => {
+    const withId = view([], { now: { busy: false, agents: [{ id: 'a-1', label: 'researcher', headline: 'comparing fares' }], processes: 1 } });
+    const targets: Array<{ kind: string; id: string }> = [];
+    let monitor = 0;
+    const modal = new ActivityModal({ view: () => withId, openProcesses: () => { monitor += 1; }, openSessionView: (target) => { targets.push(target); return true; } });
+    const host = new SurfaceModalHost();
+    host.push(modal);
+    expect(layerTextBlock(modal.render(100, 30))).toContain('⏎  open agent');
+    host.handleToken({ type: 'key', logicalName: 'enter' } as never);
+    expect(targets).toEqual([{ kind: 'agent', id: 'a-1' }]);
+    expect(monitor).toBe(0);
+    expect(host.active).toBe(false);
+  });
+
+  test('an agent that cannot open full screen falls back to the process monitor', () => {
+    const withId = view([], { now: { busy: false, agents: [{ id: 'a-1', label: 'researcher' }], processes: 0 } });
+    let monitor = 0;
+    const modal = new ActivityModal({ view: () => withId, openProcesses: () => { monitor += 1; }, openSessionView: () => false });
+    const host = new SurfaceModalHost();
+    host.push(modal);
+    host.handleToken({ type: 'key', logicalName: 'enter' } as never);
+    expect(monitor).toBe(1);
     expect(host.active).toBe(false);
   });
 

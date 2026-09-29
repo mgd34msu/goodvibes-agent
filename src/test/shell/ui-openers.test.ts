@@ -74,6 +74,17 @@ describe('wireShellUiOpeners', () => {
       input = {
         indicatorFocused: false,
         modelPicker: {
+          // The picker opens on the cached catalog, then the slow reads land
+          // through input/model-picker-open.ts; the stub carries what that reads.
+          active: true,
+          mode: 'model',
+          selectedIndex: 0,
+          catalogLoading: false,
+          catalogTicket: 0,
+          models: [],
+          getFilteredModels: () => [],
+          getFilteredProviders: () => [],
+          clearFilteredCaches: () => {},
           target: 'main',
           getSelectedTargetInfo: () => undefined,
           loadRecentModels: mock(async () => {}),
@@ -115,20 +126,18 @@ describe('wireShellUiOpeners', () => {
       expect(refreshLiveModelDiscovery).toHaveBeenCalledTimes(1);
     });
 
-    test('a re-check that changes any provider list re-renders; an unchanged one does not re-render again', async () => {
-      const changed = mock(async () => [{ providerId: 'openai', models: ['a'], source: 'live' as const, added: ['a'], removed: [] }]);
-      wirePickerWithRegistry(changed);
-      (commandContext.openModelPicker as () => void)();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      const rendersAfterChanged = render.mock.calls.length;
-      expect(rendersAfterChanged).toBeGreaterThanOrEqual(2); // picker-open render + refresh re-render
-
-      render.mockClear();
-      const unchanged = mock(async () => [{ providerId: 'openai', models: ['a'], source: 'live' as const, added: [], removed: [] }]);
-      wirePickerWithRegistry(unchanged);
-      (commandContext.openModelPicker as () => void)();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(render.mock.calls.length).toBe(1); // only the picker-open render
+    test('a re-check that changes any provider list re-renders once more than an unchanged one', async () => {
+      const rendersFor = async (added: string[]): Promise<number> => {
+        render.mockClear();
+        wirePickerWithRegistry(mock(async () => [{ providerId: 'openai', models: ['a'], source: 'live' as const, added, removed: [] }]));
+        (commandContext.openModelPicker as () => void)();
+        expect(render.mock.calls.length).toBe(1); // the picker is on screen before any read resolves
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return render.mock.calls.length;
+      };
+      const unchanged = await rendersFor([]);
+      const changed = await rendersFor(['a']);
+      expect(changed).toBe(unchanged + 1); // the refreshed list lands in the open picker
     });
 
     test('a rejecting re-check never breaks the picker open', async () => {

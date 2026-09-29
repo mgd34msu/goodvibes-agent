@@ -1,20 +1,28 @@
 /**
  * renderShortcutsOverlay, the keyboard shortcuts modal (/shortcuts), drawn
- * like the concept's "keys" screen: up to three columns of key / action
- * pairs, keys bold, actions muted, grouped under ✦ headers, with the
- * always-live search row filtering by key or action. Reflects the live
- * keybindings labels (user overrides included). Long keys and actions wrap
+ * like the concept's "keys" screen: columns of key / action pairs, keys bold,
+ * actions muted, grouped under ✦ headers, with the always-live search row
+ * filtering by key or action. Reflects the live keybindings labels (user
+ * overrides included).
+ *
+ * Two columns below a 170-column screen, three from 170 up (one on a narrow
+ * modal). The modal takes 86% of the screen without the usual 124-column cap,
+ * so each description gets room to stay on one line; the key column is as wide
+ * as the longest key (up to 18). Keys and actions that still do not fit wrap
  * inside their column; the grid scrolls when it is taller than the modal.
  */
 
 import type { KeybindingsManager } from '../input/keybindings.ts';
 import type { OverlayFilter } from '../input/overlay-filter.ts';
+import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { activeTokens } from './theme.ts';
 import {
+  NARROW_MODAL_BREAKPOINT,
   beginModal,
   finishModal,
   searchRow,
   scrollCountText,
+  standardModalWidth,
   wrapLines,
   MODAL_MARK_INSET,
   type KitHint,
@@ -67,6 +75,12 @@ export const SHORTCUT_OVERLAY_STATIC_TEXT = [
   'Cycle Agent workspace category forward',
   'Cycle Agent workspace category backward',
   'Config: /keybindings to list and customize',
+  'Sessions',
+  'Open that agent; typing steers it',
+  "Open that process's live output",
+  'Next / prev session (empty composer)',
+  'Go up one level; stops nothing',
+  'Stop what the view shows (twice)',
 ] as const;
 
 /** Every shortcut group, from the live keybindings table (user overrides included). */
@@ -119,6 +133,17 @@ function shortcutGroups(keybindingsManager: KeybindingsManager): ShortcutGroup[]
         [kb('workspace-picker'), 'Open the Agent operator workspace'],
         [kb('workspace-tab-next'), 'Cycle Agent workspace category forward'],
         [kb('workspace-tab-prev'), 'Cycle Agent workspace category backward'],
+      ],
+    },
+    {
+      // Agent and process views (shell/session-views.ts); these keys are fixed.
+      title: 'Sessions',
+      items: [
+        ['Enter on lane', 'Open that agent; typing steers it'],
+        ['Enter on ▶ bead', "Open that process's live output"],
+        ['Tab / Shift+Tab', 'Next / prev session (empty composer)'],
+        ['Esc in a view', 'Go up one level; stops nothing'],
+        ['ctrl+x in view', 'Stop what the view shows (twice)'],
       ],
     },
   ];
@@ -193,6 +218,24 @@ function drawCell(canvas: SurfaceCanvas, x: number, y: number, keyW: number, cel
 
 const HINTS: readonly KitHint[] = [['↑↓', 'scroll'], ['type', 'to filter']];
 const COLUMN_GAP = 4;
+/** Screen width from which the grid has three columns instead of two. */
+const SHORTCUTS_THREE_COLUMN_SCREEN = 170;
+/** Widest key column; longer key lists wrap inside it. */
+const MAX_KEY_WIDTH = 18;
+/** Below this inner width the grid is one column. */
+const ONE_COLUMN_INNER = 60;
+
+/** The shortcuts modal's width: the standard 86% rule without the 124-column cap. */
+function shortcutsModalWidth(screenW: number): number {
+  if (screenW < NARROW_MODAL_BREAKPOINT) return standardModalWidth(screenW);
+  return Math.max(standardModalWidth(screenW), Math.min(screenW - 2, Math.round(screenW * 0.86)));
+}
+
+/** Columns in the grid for a screen width and the modal's inner width. */
+function shortcutsColumnCount(screenW: number, inner: number): number {
+  if (inner < ONE_COLUMN_INNER) return 1;
+  return screenW >= SHORTCUTS_THREE_COLUMN_SCREEN ? 3 : 2;
+}
 
 /**
  * Render the keyboard shortcuts modal as a SurfaceLayer in screen coordinates.
@@ -208,7 +251,7 @@ export function renderShortcutsOverlay(
 ): SurfaceLayer {
   const t = activeTokens();
   const query = filter?.query ?? '';
-  const f = beginModal(screenWidth, screenHeight, { title: 'Keyboard shortcuts', sub: 'customize with /keybindings', hints: HINTS });
+  const f = beginModal(screenWidth, screenHeight, { title: 'Keyboard shortcuts', sub: 'customize with /keybindings', hints: HINTS, width: shortcutsModalWidth(screenWidth) });
   const all = shortcutGroups(keybindingsManager);
   const groups = filterGroups(all, query);
   const totalPairs = all.reduce((n, g) => n + g.items.length, 0);
@@ -223,9 +266,11 @@ export function renderShortcutsOverlay(
     return finishModal(f);
   }
 
-  const n = inner >= 96 ? 3 : inner >= 60 ? 2 : 1;
+  const n = shortcutsColumnCount(screenWidth, inner);
   const colW = Math.max(8, Math.floor((inner - COLUMN_GAP * (n - 1)) / n));
-  const keyW = Math.max(4, Math.min(16, Math.floor(colW * 0.4)));
+  // Measured over every shortcut, not just the filtered ones, so filtering never shifts the columns.
+  const longestKey = all.reduce((w, g) => g.items.reduce((m, [key]) => Math.max(m, getDisplayWidth(key)), w), 0);
+  const keyW = Math.max(4, Math.min(MAX_KEY_WIDTH, longestKey, Math.floor(colW * 0.45)));
   const actionW = Math.max(4, colW - keyW - 2);
   const cols = columnsFor(blocksFor(groups, keyW, actionW), n);
   const gridH = Math.max(...cols.map((c) => c.length));

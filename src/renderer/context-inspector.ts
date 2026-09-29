@@ -7,7 +7,7 @@ import {
   type KitHint,
   type SurfaceLayer,
 } from './surface-kit.ts';
-import { drawList, measureRow, type KitRow } from './surface-kit-list.ts';
+import { drawList, listScrollEnd, type KitRow } from './surface-kit-list.ts';
 import { drawTextBlock, modalHeightFor, modalTextWidth, textBlockHeight, type TextLine } from './surface-kit-extra.ts';
 
 // ─── ContextInspectorModal ────────────────────────────────────────────────────
@@ -172,19 +172,13 @@ export function renderContextInspector(
 
   // Open on the newest messages: find the first row of the tail that fits,
   // then step back by the modal's scroll position.
-  const listCapacity = Math.max(1, listBottom - top + 1);
-  let tailStart = rows.length;
-  let used = 0;
-  while (tailStart > 0 && used + measureRow(rows[tailStart - 1]!, f.l, f.r) <= listCapacity) {
-    tailStart--;
-    used += measureRow(rows[tailStart]!, f.l, f.r);
-  }
+  if (top > listBottom) top = listBottom;
+  const tailStart = listScrollEnd(f.canvas, { rows, top, bottom: listBottom, x0: f.l, x1: f.r });
   if (modal) {
     modal.maxScrollBack = tailStart;
     modal.scrollBack = Math.min(modal.scrollBack, tailStart);
   }
   const scrollStart = Math.max(0, tailStart - (modal?.scrollBack ?? 0));
-  if (top > listBottom) top = listBottom;
   const res = drawList(f.canvas, { rows, top, bottom: listBottom, x0: f.l, x1: f.r, scrollStart });
   f.hintRight = scrollCountText(res.above, res.below);
   return finishModal(f);

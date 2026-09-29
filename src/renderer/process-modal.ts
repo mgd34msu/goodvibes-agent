@@ -2,9 +2,9 @@
  * The process monitor (F2, or Enter on the process indicator): background
  * shell processes drawn with the modal surface kit. One kit row per process
  * (status marker, command, status and elapsed time right-aligned), keycap
- * hints. Enter opens the live tail (a sub-level; Esc comes back here), k
- * stops the selected process. Esc only closes the view: the processes keep
- * running.
+ * hints. Enter opens the process full screen with its timestamped output
+ * (the live tail modal where that view is not wired), k stops the selected
+ * process. Esc only closes the view: the processes keep running.
  */
 
 import { formatDuration } from './modal-utils.ts';

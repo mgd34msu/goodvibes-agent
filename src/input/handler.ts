@@ -136,6 +136,8 @@ export class InputHandler {
   public readonly overlayFilters = new OverlayFilters();
   /** Kit modals: a one-level-Esc stack drawn over everything else (surface-modal-host.ts). */
   public surfaceModals = new SurfaceModalHost();
+  /** Agent and process views (shell/session-views.ts); null until the shell wires them. */
+  public sessionView: import('./handler-session-view-route.ts').SessionViewControls | null = null;
   public bookmarkModal: BookmarkModal;
   public blockActionsMenu = new BlockActionsMenu();
   public settingsModal = new SettingsModal();
@@ -274,6 +276,7 @@ export class InputHandler {
       },
       {
         modalOpened: (name: string) => this.modalOpened(name),
+        getSessionView: () => this.sessionView,
         // Escape cancels a pending concealed prompt FIRST. Falling through to
         // the normal modal-stack escape would leave the request dangling, its
         // onCancel never fires, the caller's chained flow never resumes or

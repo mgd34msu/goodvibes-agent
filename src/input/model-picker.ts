@@ -13,9 +13,7 @@ export type { BenchmarkSort, CapabilityFilter, CategoryFilter, GroupByMode, Mode
 
 /**
  * ModelPickerModal - Multi-step interactive picker for model, provider, and effort.
- * Supports three modes: 'model', 'provider', 'effort'.
- *
- * Stage 5 features:
+ * Supports three modes: 'model', 'provider', 'effort'. Features:
  * - Pricing tier filter: Free / Paid / Subscription / All
  * - Family grouping: GPT, Claude, Gemini, Llama, Qwen, etc.
  * - Capability filters: reasoning, toolUse, multimodal
@@ -77,6 +75,9 @@ export class ModelPickerModal {
   public benchmarkSort: BenchmarkSort = 'none';
   /** Current group-by mode. */
   public groupBy: GroupByMode = 'provider';
+  /** The slower catalog reads are still landing behind the open picker (model-picker-open.ts); the ticket drops overtaken ones. */
+  public catalogLoading = false;
+  public catalogTicket = 0;
 
   private filteredModelsCache: FilteredModelsCache | null = null;
   private filteredProvidersCache: FilteredProvidersCache | null = null;
@@ -263,6 +264,7 @@ export class ModelPickerModal {
 
   /** Close the picker entirely. */
   close(): void {
+    this.catalogLoading = false; this.catalogTicket++; // a load still in flight lands nowhere
     this.active = false;
     this.mode = 'model';
     this.target = 'main';
@@ -281,7 +283,7 @@ export class ModelPickerModal {
     this.query = '';
     this.categoryFilter = 'all';
     this.capabilityFilter = 'none';
-    this.clearCaches();
+    this.clearFilteredCaches();
   }
 
   // ── Search helpers ─────────────────────────────────────────────────────────
@@ -768,15 +770,12 @@ export class ModelPickerModal {
     return this.benchmarkStore.getBenchmarks(model.id) ?? this.benchmarkStore.getBenchmarks(model.displayName);
   }
 
-  private clearFilteredCaches(): void {
+  /** Drop the filtered-list caches (after the models, providers or credential sources change). */
+  clearFilteredCaches(): void {
     this.filteredModelsCache = null;
     this.filteredProvidersCache = null;
     this.modelItemsCache = null;
     this.providerItemsCache = null;
-  }
-
-  private clearCaches(): void {
-    this.clearFilteredCaches();
   }
 }
 
