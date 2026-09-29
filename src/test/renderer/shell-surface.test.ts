@@ -1,6 +1,7 @@
 /**
- * The shell footer: the composer (3 rows at rest, input only) and the one-row
- * status line, checked against the design's Measurements table, plus the
+ * The shell footer: the composer (5 rows at rest: a ▄ cap, padding, text,
+ * padding, a ▀ cap; input only), the throbber while main works, and the
+ * one-row status line, checked against the design's Measurements table, plus the
  * mode chip and the safety chips at the status line's left end that must stay
  * visible whatever else happens.
  */
@@ -41,21 +42,45 @@ function allText(lines: Line[]): string {
   return lines.map(text).join('\n');
 }
 
-const STATUS = 3;
+const STATUS = 5;
 
 describe('shell footer: layout', () => {
-  test('at rest it is 4 rows (composer 3, status line 1), and the estimate agrees', () => {
+  test('at rest it is 6 rows (composer 5, status line 1), and the estimate agrees', () => {
     const result = footer();
-    expect(result.height).toBe(4);
-    expect(estimateShellFooterHeight(1)).toBe(4);
+    expect(result.height).toBe(6);
+    expect(estimateShellFooterHeight(1)).toBe(6);
     const three = footer({ promptText: 'a\nb\nc', promptLineCount: 3 });
     expect(three.height).toBe(estimateShellFooterHeight(3));
-    expect(three.height).toBe(6);
+    expect(three.height).toBe(8);
+  });
+
+  test('half-row caps above and below the fill, with the bar\'s matching halves', () => {
+    const t = activeTokens();
+    const lines = footer().lines;
+    const top = lines[0]!;
+    const bottom = lines[4]!;
+    expect(top[2]!.char).toBe('╻');
+    expect(bottom[2]!.char).toBe('╹');
+    for (let x = 3; x <= 117; x++) {
+      expect(top[x]).toMatchObject({ char: '▄', fg: t.backgroundElement, bg: '' });
+      expect(bottom[x]).toMatchObject({ char: '▀', fg: t.backgroundElement, bg: '' });
+    }
+  });
+
+  test('while main works: one empty row, the throbber, then the composer; the status line keeps session state', () => {
+    const lines = footer({ turnRunning: true, throbber: { spinner: '⠋', frame: 0, activity: { kind: 'tool', tool: 'Running a command', argument: 'bun test', elapsedMs: 3_000 } } }).lines;
+    expect(lines).toHaveLength(8);
+    expect(text(lines[0]).trim()).toBe('');
+    expect(text(lines[1])).toContain('⠋ Running a command · bun test · 3s');
+    expect(text(lines[2]).slice(2, 4)).toBe('╻▄');
+    const status = text(lines[7]);
+    expect(status).not.toContain('Running');
+    expect(status).toMatch(/esc +interrupt/);
   });
 
   test('the composer bar runs every row at column 2 in the mode color, the fill spans 3..width-3, text starts at column 5', () => {
     const lines = footer({ promptText: 'hello there', promptCursorPos: 11 }).lines;
-    const composer = lines.slice(0, 3);
+    const composer = lines.slice(1, 4);
     for (const row of composer) {
       expect(row[2]!.char).toBe('┃');
       expect(row[2]!.fg).toBe(activeTokens().brand);
@@ -70,29 +95,30 @@ describe('shell footer: layout', () => {
 
   test('the composer holds only input: no mode, model, provider or warning inside it', () => {
     const lines = footer({ promptText: 'hello', composerMode: 'plan', dangerMode: true, powerNote: 'sleep disabled', composerFlags: ['attachments'] }).lines;
-    const composer = lines.slice(0, 3).map(text).join('\n');
+    const composer = lines.slice(0, 5).map(text).join('\n');
     expect(composer).toContain('hello');
     for (const word of ['plan', 'balanced', 'claude-opus-4', 'anthropic', 'auto-approve', 'sleep disabled', 'image attached']) expect(composer).not.toContain(word);
   });
 
   test('the bar keeps the mode color: shell accent, command and plan info, delegation remote', () => {
     const t = activeTokens();
-    expect(footer({ composerMode: 'shell' }).lines[0]![2]!.fg).toBe(t.accent);
-    expect(footer({ composerMode: 'command' }).lines[0]![2]!.fg).toBe(t.info);
-    expect(footer({ composerMode: 'plan' }).lines[1]![2]!.fg).toBe(t.info);
-    expect(footer({ composerMode: 'prompt' }).lines[2]![2]!.fg).toBe(t.brand);
+    expect(footer({ composerMode: 'shell' }).lines[1]![2]!.fg).toBe(t.accent);
+    expect(footer({ composerMode: 'command' }).lines[1]![2]!.fg).toBe(t.info);
+    expect(footer({ composerMode: 'plan' }).lines[2]![2]!.fg).toBe(t.info);
+    expect(footer({ composerMode: 'prompt' }).lines[3]![2]!.fg).toBe(t.brand);
+    expect(footer({ composerMode: 'prompt' }).lines[0]![2]!.fg).toBe(t.brand);
   });
 
   test('an empty composer shows the placeholder', () => {
-    expect(text(footer().lines[1])).toContain('Ask anything, or type / for commands and @ for files');
+    expect(text(footer().lines[2])).toContain('Ask anything, or type / for commands and @ for files');
   });
 
   test('multi-line input grows the composer and nothing else moves', () => {
     const lines = footer({ promptText: 'one\ntwo', promptLineCount: 2 }).lines;
-    expect(lines).toHaveLength(5);
-    expect(text(lines[1]).indexOf('one')).toBe(5);
-    expect(text(lines[2]).indexOf('two')).toBe(5);
-    expect(text(lines[3]).trim()).toBe('┃');
+    expect(lines).toHaveLength(7);
+    expect(text(lines[2]).indexOf('one')).toBe(5);
+    expect(text(lines[3]).indexOf('two')).toBe(5);
+    expect(text(lines[4]).trim()).toBe('┃');
   });
 
   test('no row is wider than the screen, even narrow with a long model and every chip', () => {
@@ -130,16 +156,16 @@ describe('shell footer: the status line', () => {
     expect(text(footer({ width: 96 }).lines[STATUS])).not.toContain('/tmp/demo');
   });
 
-  test('a running turn follows the mode chip: the spinner, the phrase, the elapsed time and the esc interrupt keycap', () => {
-    const status = text(footer({ busy: { spinner: '⠋', frame: 0, phrase: 'Thinking', elapsedMs: 12_400 } }).lines[STATUS]);
-    expect(status).toMatch(/balanced {3}⠋ Thinking/);
-    expect(status).toContain('12');
-    expect(status).toContain('esc');
-    expect(status).toContain('interrupt');
+  test('a running turn\'s esc interrupt keycap follows the mode chip; the spinner and phrase are the throbber\'s', () => {
+    const lines = footer({ turnRunning: true, throbber: { spinner: '⠋', frame: 0, activity: { kind: 'model', phrase: 'Thinking', elapsedMs: 12_400 } } }).lines;
+    const status = text(lines[lines.length - 1]);
+    expect(status).toMatch(/balanced {3} ?esc +interrupt/);
+    expect(status).not.toContain('Thinking');
+    expect(text(lines[1])).toContain('⠋ Thinking · 12s');
   });
 
   test('past the warning level the bar turns amber and never disappears', () => {
-    const status = footer({ width: 60, lastInputTokens: 150_000, busy: { spinner: '⠋', frame: 0, phrase: 'A very long waiting phrase that would fill the row', elapsedMs: 1_000 } }).lines[STATUS]!;
+    const status = footer({ width: 60, lastInputTokens: 150_000, turnRunning: true, runningAgentCount: 3, runningAgentProgress: 'a very long progress line that would fill the row' }).lines[STATUS]!;
     expect(text(status)).toContain('75%');
     const pct = text(status).indexOf('75%');
     expect(status[pct]!.fg).toBe(activeTokens().warning);
@@ -151,7 +177,7 @@ describe('shell footer: the status line', () => {
     const focused = footer({ runningAgentCount: 1, indicatorFocused: true });
     expect(text(focused.lines[STATUS])).toContain('open');
     // The composer reads unfocused while the background summary owns the keys.
-    expect(text(focused.lines[1])).toContain('Esc returns to the composer');
+    expect(text(focused.lines[2])).toContain('Esc returns to the composer');
   });
 
   test('the exit guard and the copy receipt follow the safety chips, which stay', () => {
@@ -221,7 +247,7 @@ describe('shell footer: the live microphone', () => {
 
   test('a listening detector is a chip on the status line, costing no extra row', () => {
     const live = footer({ voiceCapture: listening });
-    expect(live.height).toBe(4);
+    expect(live.height).toBe(6);
     const row = text(live.lines[STATUS]);
     // The chip sits right after the mode chip, 2 columns apart (its marker, a space, the words).
     expect(row.indexOf('mic listening')).toBe(3 + 'balanced'.length + 2 + 2);

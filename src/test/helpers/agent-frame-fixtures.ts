@@ -552,7 +552,7 @@ export function frameFixtures(): FrameFixture[] {
     { name: 'home-screen-100x30', width: 100, height: 30, render: () => fixtureHomeScreen(100, 30) },
     { name: 'home-screen-60x24', width: 60, height: 24, render: () => fixtureHomeScreen(60, 24) },
     ...sizes('base-screen', (w, h) => fixtureBaseScreen(w, h)),
-    { name: 'base-screen-busy-120x40', width: 120, height: 40, render: () => fixtureBaseScreen(120, 40, { busy: { spinner: '⠋', frame: 0, phrase: 'Thinking', elapsedMs: 12_400, tokenSpeed: 48 } }) },
+    { name: 'base-screen-busy-120x40', width: 120, height: 40, render: () => fixtureBaseScreen(120, 40, { turnRunning: true, throbber: { spinner: '⠋', frame: 0, activity: { kind: 'model', phrase: 'Thinking', elapsedMs: 12_400, tokenSpeed: 48 } } }) },
     { name: 'base-screen-context-hot-90x24', width: 90, height: 24, render: () => fixtureBaseScreen(90, 24, { lastInputTokens: 870_000, powerNote: 'sleep disabled', runningAgentCount: 1, runningProcessCount: 2 }) },
     ...sizes('selection-modal', (w, h) => fixtureSelectionModal(w, h)),
     ...sizes('session-picker', (w, h) => fixtureSessionPicker(w, h)),

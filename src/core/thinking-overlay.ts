@@ -1,18 +1,19 @@
 /**
- * thinking-overlay.ts, the running turn's busy state for the status line and
- * its honest stall clock, extracted from main.ts's render loop.
+ * thinking-overlay.ts, what main is doing for the throbber (the row above the
+ * input area) and its honest stall clock, extracted from main.ts's render loop.
  *
  * The SDK orchestrator surfaces no lastDeltaAtMs / reconnect signal directly, so
  * ThinkingStallClock derives a per-turn last-delta clock from streaming
  * output-token advances, a real, honest proxy that degrades gracefully with
- * zero new SDK events. buildBusyState turns that into the status line's busy
- * state (spinner, the honest waiting phrase from the SDK presentation
- * contract, elapsed time); buildThinkingOverlay keeps only the opt-in partial
+ * zero new SDK events. buildThrobberState turns that, the running tool call,
+ * a pending approval and a running compaction into the throbber's state
+ * (renderer/throbber.ts); buildThinkingOverlay keeps only the opt-in partial
  * tool preview as a faint row under the transcript.
  */
 
 import { UIFactory, type ThinkingStallInfo } from '../renderer/ui-factory.ts';
-import type { StatusBusyState } from '../renderer/status-line.ts';
+import { resolveThrobberActivity, type ThrobberState, type ThrobberToolCall } from '../renderer/throbber.ts';
+import { trackActiveTool, type ActiveToolCall } from './active-tool-tracker.ts';
 import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import type { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -63,37 +64,94 @@ export interface ThinkingOverlayDeps {
   readonly clock: ThinkingStallClock;
 }
 
+export interface ThrobberDeps extends ThinkingOverlayDeps {
+  /** The permission prompt main's turn is blocked on (not one brokered for a background agent). */
+  readonly pendingApproval: ThrobberToolCall | null;
+  /** The tool call main is running now (active-tool-tracker.ts). */
+  readonly activeTool: ActiveToolCall | null;
+  /** A compaction of the main conversation is running. */
+  readonly compacting: boolean;
+  /** When the running compaction was first seen (epoch ms). */
+  readonly compactingSinceMs?: number;
+}
+
 /**
- * The status line's busy state for a running turn, or null when idle (which
- * resets the stall clock so the next turn re-seeds). The stall and approval
- * signals decide the honest waiting phrase.
+ * The throbber's state while main works (a turn, a compaction), or null at
+ * rest. An idle turn resets the stall clock so the next turn re-seeds. The
+ * stall and approval signals decide the honest waiting phrase.
  */
-export function buildBusyState(deps: ThinkingOverlayDeps): StatusBusyState | null {
-  if (!deps.orchestrator.isThinking) {
-    deps.clock.reset();
-    return null;
-  }
+export function buildThrobberState(deps: ThrobberDeps): ThrobberState | null {
   const now = Date.now();
-  const stallInfo = deps.clock.tick(deps.orchestrator.streamingOutputTokens, !!deps.streamToolPreview, now);
+  const turnActive = deps.orchestrator.isThinking;
+  if (!turnActive) deps.clock.reset();
+  const toolActive = !!deps.streamToolPreview || deps.activeTool !== null;
+  const stallInfo = turnActive ? deps.clock.tick(deps.orchestrator.streamingOutputTokens, toolActive, now) : undefined;
+  const elapsed = turnActive ? deps.clock.elapsed(now) : undefined;
   const showSpeed = deps.configManager.get('display.showTokenSpeed') as boolean;
-  return {
-    spinner: deps.orchestrator.getSpinner(),
-    frame: deps.orchestrator.thinkingFrame,
-    phrase: UIFactory.busyPhrase(deps.orchestrator.thinkingFrame, deps.orchestrator.streamingOutputTokens, stallInfo, deps.approvalPending),
-    elapsedMs: deps.clock.elapsed(now),
+  const activity = resolveThrobberActivity({
+    turnActive,
+    compacting: deps.compacting,
+    compactingSinceMs: deps.compactingSinceMs,
+    pendingApproval: deps.pendingApproval,
+    activeTool: deps.activeTool,
+    modelPhrase: UIFactory.busyPhrase(deps.orchestrator.thinkingFrame, deps.orchestrator.streamingOutputTokens, stallInfo, deps.approvalPending),
+    turnStartMs: elapsed !== undefined ? now - elapsed : undefined,
     tokenSpeed: showSpeed ? deps.streamTokenSpeed : undefined,
-    approvalPending: deps.approvalPending,
-  };
+    now,
+  });
+  return activity ? { spinner: deps.orchestrator.getSpinner(), frame: deps.orchestrator.thinkingFrame, activity } : null;
 }
 
 /**
  * The transcript rows a running turn adds: only the opt-in partial tool
  * preview (display.showToolPreview), faint. [] when idle or when the preview
- * is off; the spinner and phrase live on the status line.
+ * is off; the spinner and phrase are the throbber's.
  */
 export function buildThinkingOverlay(deps: ThinkingOverlayDeps): Line[] {
   if (!deps.orchestrator.isThinking) return [];
   const showPreview = deps.configManager.get('display.showToolPreview') as boolean;
   if (!showPreview || !deps.streamToolPreview) return [];
   return [UIFactory.createToolPreviewRow(deps.width, deps.streamToolPreview)];
+}
+
+/** A permission ask as the throbber reads it. */
+interface PermissionAsk {
+  readonly tool: string;
+  readonly args: Record<string, unknown>;
+  /** Set when the ask was brokered for a background agent (not main's own). */
+  readonly attribution?: unknown;
+}
+
+/** Main's own permission ask, or null (an ask brokered for a background agent is not main's activity). */
+export function mainPermissionAsk<T extends PermissionAsk>(ask: T | null): T | null {
+  return ask && ask.attribution === undefined ? ask : null;
+}
+
+/** The throbber's per-frame source: the running tool call and the compaction clock, kept between frames. */
+export interface ThrobberSource {
+  state(deps: ThinkingOverlayDeps & { readonly pendingApproval: PermissionAsk | null }): ThrobberState | null;
+  readonly unsubs: ReadonlyArray<() => void>;
+}
+
+export function createThrobberSource(tools: Parameters<typeof trackActiveTool>[0], isCompacting: () => boolean): ThrobberSource {
+  const activeTool = trackActiveTool(tools);
+  // When the running compaction was first seen (its elapsed time); undefined while none runs.
+  let compactingSinceMs: number | undefined;
+  return {
+    unsubs: activeTool.unsubs,
+    state: (deps) => {
+      const compacting = isCompacting();
+      if (compacting && compactingSinceMs === undefined) compactingSinceMs = Date.now();
+      else if (!compacting) compactingSinceMs = undefined;
+      if (!deps.orchestrator.isThinking) activeTool.clear();
+      const ask = deps.pendingApproval;
+      return buildThrobberState({
+        ...deps,
+        pendingApproval: ask ? { name: ask.tool, args: ask.args } : null,
+        activeTool: activeTool.current(),
+        compacting,
+        compactingSinceMs,
+      });
+    },
+  };
 }

@@ -20,7 +20,7 @@ import {
   HOSTED_SPINNER_INTERVAL_MS,
   type ThinkingUiState,
 } from '../../shell/hosted-turn-activity.ts';
-import { buildBusyState, ThinkingStallClock } from '../../core/thinking-overlay.ts';
+import { buildThrobberState, ThinkingStallClock } from '../../core/thinking-overlay.ts';
 import { createHostedFrameRenderer } from '../../runtime/client/hosted-frame-render.ts';
 import type { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 
@@ -44,11 +44,11 @@ function overlayOrchestrator(state: ThinkingUiState): Pick<
 }
 
 /**
- * The waiting state the status line draws: the spinner and the phrase, as
+ * The waiting state the throbber draws: the spinner and the phrase, as
  * text. [] when no turn is in flight.
  */
 function overlayLines(state: ThinkingUiState): string[] {
-  const busy = buildBusyState({
+  const throbber = buildThrobberState({
     orchestrator: overlayOrchestrator(state),
     configManager: { get: ((key: string) => (key === 'display.showTokenSpeed' ? true : key === 'display.showToolPreview')) as never },
     streamToolPreview: undefined,
@@ -56,8 +56,11 @@ function overlayLines(state: ThinkingUiState): string[] {
     approvalPending: false,
     width: 80,
     clock: new ThinkingStallClock(),
+    pendingApproval: null,
+    activeTool: null,
+    compacting: false,
   });
-  return busy ? [`${busy.spinner} ${busy.phrase}`] : [];
+  return throbber && throbber.activity.kind === 'model' ? [`${throbber.spinner} ${throbber.activity.phrase}`] : [];
 }
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms); });

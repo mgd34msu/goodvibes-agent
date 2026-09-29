@@ -117,10 +117,10 @@ describe('golden frames : determinism', () => {
     expect(snapshotEncode('a', fixture.render())).toBe(snapshotEncode('a', fixture.render()));
   });
 
-  test('chrome at rest is 5 rows: header 1, composer 3, status line 1', async () => {
+  test('chrome at rest is 7 rows: header 1, input area 5 (caps and padding around the text), status line 1', async () => {
     const { UIFactory } = await import('../../renderer/ui-factory.ts');
     const { fixtureFooter } = await import('../helpers/agent-frame-fixtures.ts');
     expect(UIFactory.createHeader(120, 'claude-opus-4')).toHaveLength(1);
-    expect(fixtureFooter(120)).toHaveLength(4);
+    expect(fixtureFooter(120)).toHaveLength(6);
   });
 });

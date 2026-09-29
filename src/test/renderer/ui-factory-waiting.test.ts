@@ -61,14 +61,19 @@ describe('busyPhrase honest waiting states (the status line\'s phrase)', () => {
     expect(UIFactory.busyPhrase(0)).toContain(THINKING_PHRASES[0]); // frame 0 → 'Thinking...'
   });
 
-  test('the status line never shows tok/s while waiting on an approval', async () => {
+  test('the throbber never shows tok/s while waiting on an approval', async () => {
     const { buildShellFooter } = await import('../../renderer/shell-surface.ts');
-    const status = buildShellFooter({
+    const { resolveThrobberActivity } = await import('../../renderer/throbber.ts');
+    const activity = resolveThrobberActivity({
+      turnActive: true, compacting: false, now: 0, modelPhrase: UIFactory.busyPhrase(0, undefined, undefined, true), tokenSpeed: 42,
+      pendingApproval: { name: 'exec', args: { command: 'ls' } },
+    })!;
+    const throbber = buildShellFooter({
       width: 120, promptText: '', promptLineCount: 1, usage: { up: 0, down: 0 }, showExitNotice: false, lastCopyTime: 0,
       runningAgentCount: 0, runningProcessCount: 0, indicatorFocused: false,
-      busy: { spinner: '-', frame: 0, phrase: UIFactory.busyPhrase(0, undefined, undefined, true), tokenSpeed: 42, approvalPending: true },
-    }).lines.at(-1)!.map((c) => c.char).join('');
-    expect(status).toContain('Waiting for your approval');
-    expect(status).not.toContain('tok/s');
+      throbber: { spinner: '-', frame: 0, activity }, turnRunning: true,
+    }).lines[1]!.map((c) => c.char).join('');
+    expect(throbber).toContain('Waiting for your approval');
+    expect(throbber).not.toContain('tok/s');
   });
 });

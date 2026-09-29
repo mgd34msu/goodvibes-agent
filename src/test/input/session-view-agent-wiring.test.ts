@@ -117,9 +117,8 @@ describe('the status line names the next Esc', () => {
   });
 
   test('on main\'s busy line: interrupt with an empty composer, clear input with text', () => {
-    const busy = { spinner: '◐', frame: 0, phrase: 'Thinking', elapsedMs: 12_000 };
     const row = (promptText: string): string => {
-      const lines = buildShellFooter({ width: 120, promptText, promptLineCount: 1, usage: { up: 0, down: 0 }, showExitNotice: false, lastCopyTime: 0, runningAgentCount: 0, runningProcessCount: 0, indicatorFocused: false, busy }).lines;
+      const lines = buildShellFooter({ width: 120, promptText, promptLineCount: 1, usage: { up: 0, down: 0 }, showExitNotice: false, lastCopyTime: 0, runningAgentCount: 0, runningProcessCount: 0, indicatorFocused: false, turnRunning: true }).lines;
       return lines[lines.length - 1]!.map((c) => c.char).join('');
     };
     expect(row('')).toMatch(/esc +interrupt/);

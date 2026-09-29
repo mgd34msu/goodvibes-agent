@@ -2,7 +2,7 @@
 import { homedir } from 'node:os';
 import { Compositor } from './renderer/compositor.ts';
 import { installStartupThemeProbe } from './renderer/startup-theme-probe.ts';
-import { ThinkingStallClock, buildBusyState, buildThinkingOverlay } from './core/thinking-overlay.ts';
+import { ThinkingStallClock, buildThinkingOverlay, createThrobberSource, mainPermissionAsk } from './core/thinking-overlay.ts';
 import { UIFactory } from './renderer/ui-factory.ts';
 import { Orchestrator } from '@pellux/goodvibes-sdk/platform/core';
 import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
@@ -260,6 +260,7 @@ async function main() {
   // The work tree's live facts: call/turn timings, agent lanes, the call a permission prompt holds, fold persistence (work-tree-wiring.ts).
   const workTreeWiring = wireWorkTree({ conversation, events: uiServices.events, agentManager, listChains: () => ctx.services.wrfcController.listChains(), fleetNodes: () => ctx.services.processRegistry.query().nodes, pendingCallId: () => pendingPermission?.callId, turnActive: () => orchestrator.isThinking, sessionsDir: ctx.services.surface.sessionsDir, sessionId: () => runtime.sessionId, requestRender: () => render() });
   unsubs.push(...workTreeWiring.unsubs, () => sessionViews.dispose());
+  const throbberSource = createThrobberSource(uiServices.events.tools, () => ctx.services.contextAccountingHolder.getSource()?.getCompactionState().isCompacting === true); unsubs.push(...throbberSource.unsubs); // the throbber's running call and compaction clock
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   // sessionId of the offered recovery snapshot, or null when none is pending.
@@ -545,13 +546,12 @@ async function main() {
     const headerLines = viewFrame ? [viewFrame.header] : UIFactory.createHeader(width, currentModel.id, conversation.title || undefined);
     const chipsRow = sessionViews.chips(width); // every session to switch to, when there is more than main
     if (chipsRow) headerLines.push(chipsRow);
-    // A running turn takes the status line's left side: spinner, honest waiting phrase, elapsed, esc.
     const thinkingDeps = {
       orchestrator, configManager, streamTokenSpeed, clock: thinkingClock,
       streamToolPreview: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview,
-      approvalPending: pendingPermission !== null,
+      approvalPending: mainPermissionAsk(pendingPermission) !== null, // a background agent's ask is not main's activity
     };
-    const busy = buildBusyState({ ...thinkingDeps, width });
+    const throbber = throbberSource.state({ ...thinkingDeps, width, pendingApproval: mainPermissionAsk(pendingPermission) }); // what main is doing: the row above the input area
     const runningAgentCount = activeAgents.length;
     const runningProcessCount = processManager.list().filter((p) => !p.done).length;
     const cw = getPromptContentWidth();
@@ -598,7 +598,7 @@ async function main() {
       composerFlags: composerState.flags,
       composerPendingRisk: composerState.pendingRisk,
       voiceCapture: voiceCaptureStatus(),
-      busy,
+      throbber, turnRunning: orchestrator.isThinking,
     }).lines;
 
     const shellHeaderLines = headerLines;

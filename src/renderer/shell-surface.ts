@@ -1,23 +1,35 @@
-import type { Line } from '@pellux/goodvibes-sdk/platform/types';
+import { type Line, createEmptyLine } from '@pellux/goodvibes-sdk/platform/types';
 import { calcSessionCost, isModelPriced } from '@pellux/goodvibes-sdk/platform/providers';
 import { voiceCaptureRowVisible, type VoiceCaptureIndicatorState } from '../core/voice-capture-status.ts';
 import { activeTokens, activeUiTones } from './theme.ts';
 import { renderComposer, COMPOSER_FIXED_ROWS } from './composer.ts';
-import { renderStatusLine, type StatusBusyState, type StatusChip } from './status-line.ts';
+import { renderStatusLine, type StatusChip } from './status-line.ts';
+import { renderThrobberLine, type ThrobberState } from './throbber.ts';
 import { voiceCaptureChip } from './voice-capture-chip.ts';
 
 /**
- * shell-surface.ts, everything under the transcript: the composer, then the
- * one-row status line.
+ * shell-surface.ts, everything under the transcript, top to bottom:
  *
- * At rest that is 4 rows (composer 3 + status 1); with the header, the
- * resting chrome is 5 rows. The composer holds only input. The status line
+ *   blank row     one full empty row under the transcript, drawn only with
+ *                 the throbber (a half row cannot be drawn between two rows
+ *                 of plain text). An agent or process view's body already
+ *                 ends with one, so views skip it.
+ *   throbber      what main is doing right now, only while it works
+ *                 (throbber.ts)
+ *   input area    ▄ cap, padding, text, padding, ▀ cap (composer.ts): the
+ *                 caps are the half rows between the input area and the rows
+ *                 above and below it
+ *   status line   one row of session state
+ *
+ * At rest that is 6 rows (input area 5 + status 1); with the header, the
+ * resting chrome is 7 rows. While main works, 2 more: the blank row and the
+ * throbber. The composer holds only input. The status line
  * opens with the chips that are never dropped for lack of room: the mode
  * (muted; plan in the info color), or "! auto-approve" in the error color
  * while everything is auto-approved, the live microphone and the power note
- * ("sleep disabled" / "held: …"). Then a running turn (spinner, honest
- * phrase, elapsed, `esc` interrupt) or the working directory and any
- * background work, then the cost, the context bar and the `ctrl+p` keycap for
+ * ("sleep disabled" / "held: …"). Then, while a turn runs, the `esc`
+ * interrupt keycap; the working directory and any background work; then the
+ * cost, the context bar and the `ctrl+p` keycap for
  * the Agent workspace. A context window near compaction keeps its bar.
  *
  * Inside an agent or process view (shell/session-views.ts) the composer's bar
@@ -98,8 +110,10 @@ export interface ShellFooterBuildOptions {
   readonly powerNote?: string;
   /** Live microphone state; a visible state renders the microphone chip. */
   readonly voiceCapture?: VoiceCaptureIndicatorState | null;
-  /** A running turn: its spinner, phrase and timer take the status line's left side. */
-  readonly busy?: StatusBusyState | null;
+  /** What main is doing while it works (a turn, a compaction): the throbber row. Null at rest. */
+  readonly throbber?: ThrobberState | null;
+  /** A main turn is running: the status line leads with what Esc does now (interrupt, or clear input). */
+  readonly turnRunning?: boolean;
 }
 
 export interface ShellFooterBuildResult {
@@ -110,9 +124,23 @@ export interface ShellFooterBuildResult {
 /** The status line under the composer. */
 const STATUS_ROWS = 1;
 
-/** Rows the footer takes for this many prompt rows. */
+/**
+ * Real height of the most recently rendered footer. estimateShellFooterHeight
+ * prefers it so the pre-render viewport math accounts for the throbber rows
+ * the static formula cannot see. Null before any footer has rendered.
+ */
+let lastRenderedFooterHeight: number | null = null;
+
+/** Rows the footer takes for this many prompt rows (exact when main is at rest). */
 export function estimateShellFooterHeight(promptLineCount: number): number {
+  if (lastRenderedFooterHeight !== null) return lastRenderedFooterHeight;
   return COMPOSER_FIXED_ROWS + Math.max(1, promptLineCount) + STATUS_ROWS;
+}
+
+function blankRow(width: number): Line {
+  const line = createEmptyLine(width);
+  for (const cell of line) cell.bg = '';
+  return line;
 }
 
 /** The mode's name and the composer bar's color. */
@@ -197,6 +225,12 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
   const focused = options.promptFocused ?? !options.indicatorFocused;
   const mode = composerModeStyle(options);
   const view = options.view ?? null;
+  if (options.throbber) {
+    // A full empty row keeps the throbber off the transcript (a view's body ends with one already).
+    if (!view) lines.push(blankRow(options.width));
+    // Main's activity, led by "main" inside a view.
+    lines.push(renderThrobberLine(options.width, view ? { ...options.throbber, owner: 'main' } : options.throbber));
+  }
   lines.push(...renderComposer({
     width: options.width,
     promptText: options.promptText,
@@ -216,7 +250,7 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
   if (voice && voiceCaptureRowVisible(voice)) chips.push(voiceCaptureChip(voice));
   if (options.powerNote) chips.push({ text: options.powerNote, fg: t.warning, bold: true, keep: true });
   // An attachment changes what the next message carries; the other flags are
-  // already said elsewhere (the mode chip, and the status line's waiting
+  // already said elsewhere (the mode chip, and the throbber's waiting
   // phrase while an approval is pending).
   if ((options.composerFlags ?? []).includes('attachments')) chips.push({ text: 'image attached', fg: t.info });
 
@@ -228,10 +262,12 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
       chips: safetyChips(options),
       notice: options.showExitNotice ? { text: 'Press Ctrl+C again to exit', tone: 'error' } : view.notice ?? (copied ? { text: 'Copied', tone: 'info' } : null),
       keys: view.keys,
-      trail: view.trail ?? null,
+      // While main works its throbber names what it does; the trail would only repeat "working".
+      trail: options.throbber ? null : view.trail ?? null,
       cost: view.noContext ? null : view.cost ?? null,
       context: null,
     }));
+    lastRenderedFooterHeight = lines.length;
     return { lines, height: lines.length };
   }
   lines.push(renderStatusLine({
@@ -241,7 +277,7 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
       ? { text: 'Press Ctrl+C again to exit', tone: 'error' }
       : copied ? { text: 'Copied', tone: 'info' } : null,
     // With text in the composer the next Esc clears it; only an empty composer's Esc interrupts.
-    busy: options.busy ? { ...options.busy, escAction: options.promptText.trim().length > 0 ? 'clear input' : undefined } : null,
+    busy: options.turnRunning ? { escAction: options.promptText.trim().length > 0 ? 'clear input' : undefined } : null,
     keys: options.workTreeFocused ? WORK_TREE_KEYS : null,
     directory: displayDirectory(options.workingDir, options.homeDirectory),
     background: {
@@ -261,5 +297,6 @@ export function buildShellFooter(options: ShellFooterBuildOptions): ShellFooterB
         }
       : null,
   }));
+  lastRenderedFooterHeight = lines.length;
   return { lines, height: lines.length };
 }
