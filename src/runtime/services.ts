@@ -138,7 +138,7 @@ import type { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platfo
 // (wireRuntimePower binds runtimeBus work signals and starts the manager).
 import { createUnavailablePowerSeam, wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
 import { forwardKeepAwakeToAdoptedDaemon } from '@pellux/goodvibes-sdk/platform/power';
-import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
+import { createFixWorkstreamRunner, createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
 import { buildExecPromptAnswerHandler } from '@pellux/goodvibes-sdk/platform/runtime/permissions/exec-prompt-wiring';
 import { AgentDaemonReceiptFeed } from './daemon-receipts.ts';
@@ -1076,6 +1076,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     projectRoot: workingDirectory,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     createWorktree: createDisabledAgentWrfcWorktreeOps,
+    // A chain's fix phase: review findings become a dependency-graph
+    // workstream on the one orchestration engine, composed further down
+    // (createOrchestrationEngine); the runner reads it when a fix cycle starts.
+    fixWorkstreamRunner: createFixWorkstreamRunner({ engine: () => orchestrationEngine }),
   }]) as WrfcController;
   agentManager.setWrfcController(wrfcController);
   // Close the late-bound seam declared above `createWireSessionDispatch`: the

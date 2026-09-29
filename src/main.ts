@@ -685,7 +685,7 @@ async function main() {
         commandRegistry,
         keybindingsManager: ctx.services.keybindingsManager,
         screenWidth: width,
-        screenHeight: height,
+        screenHeight: height, headerRows: shellHeaderLines.length, footerRows: shellFooterLines.length,
         contextWindow: providerRegistry.getKnownContextWindowForModel(currentModel) ?? 0,
         permission: pendingPermission ? PermissionPromptUI.createPromptLayer(width, height, pendingPermission) : null,
       }),

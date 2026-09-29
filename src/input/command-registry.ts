@@ -172,6 +172,8 @@ export interface CommandShellUiOpeners {
   openSubscriptionPanel?: () => void;
   /** Open the Activity modal (Ctrl+O, /activity). */
   openActivityModal?: () => void;
+  /** Open the notification history (/notifications): every system notice in full. */
+  openNotifications?: () => void;
   /**
    * Open an agent or a background process full screen (core/session-focus.ts).
    * False when it is not known here (the caller keeps its own fallback).

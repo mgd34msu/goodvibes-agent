@@ -430,6 +430,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/network-scan` | Turn local-network scanning for model servers on or off, or check its status. Off until explicitly turned on; never scans silently on first run. |
 | `/next-error` | Jump to the next error message in the conversation. |
 | `/notes` | Open Agent-local scratchpad notes in the operator workspace. |
+| `/notifications` | Show every notice and notification in full, newest first (each notice also shows briefly as a toast). |
 | `/notify` | Manage and send configured Agent webhook notifications. |
 | `/paste` | Insert clipboard text or image into the prompt. |
 | `/owner-profile` | Your profile: read what GoodVibes knows about you, show one field, look one person up by name, trace where a fact came from, correct one, or forget one. Here the People section is counted rather than listed, because this output lands in the transcript; the same command at a shell prints the full list. |

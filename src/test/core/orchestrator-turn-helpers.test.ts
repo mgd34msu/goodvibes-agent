@@ -46,10 +46,10 @@ describe('prepareConversationForTurn', () => {
       null,
     );
 
+    // An instruction for the model only: never a conversation message, taken
+    // once by the next model call's system prompt.
     const messages = conversation.getMessageSnapshot();
-    const projectModeMessages = messages.filter((message) => (
-      message.role === 'system' && message.content.includes('[Project mode]')
-    ));
-    expect(projectModeMessages.length).toBeGreaterThan(0);
+    expect(messages.some((message) => message.role === 'system' && message.content.includes('[Project mode]'))).toBe(false);
+    expect(conversation.takeModelInstructions().some((note) => note.includes('[Project mode]'))).toBe(true);
   });
 });

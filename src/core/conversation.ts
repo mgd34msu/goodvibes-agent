@@ -46,6 +46,9 @@ export type { BlockMeta };
 import type { ConversationMessageSnapshot } from '@pellux/goodvibes-sdk/platform/core';
 type Message = ConversationMessageSnapshot;
 
+/** Receives every system notice added to (or restored into) the conversation. */
+export type NoticeSink = (content: string, options: { readonly restored: boolean }) => void;
+
 export class ConversationManager extends SdkConversationManager {
   public history = new InfiniteBuffer();
   private _getWidth: () => number;
@@ -77,6 +80,7 @@ export class ConversationManager extends SdkConversationManager {
   private _displayFromMessageIndex = 0;
 
   public suppressSplash: boolean = false;
+  private noticeSink: NoticeSink | null = null;
   public splashOptions: SplashOptions = {};
   private splashOnScreen = false;
   /** Per-unit rendered-line cache: an unchanged turn or message is never redrawn (conversation-line-cache.ts). */
@@ -148,6 +152,16 @@ export class ConversationManager extends SdkConversationManager {
   public override addSystemMessage(content: string): void {
     super.addSystemMessage(content);
     this.markDirty();
+    this.noticeSink?.(content, { restored: false });
+  }
+
+  /**
+   * Where system notices go (core/notices.ts: a toast and the notification
+   * history). The main transcript does not draw system messages; this sink is
+   * how each one is seen. Wired by the shell; absent in bare test conversations.
+   */
+  public setNoticeSink(sink: NoticeSink | null): void {
+    this.noticeSink = sink;
   }
 
   public override undo(): boolean {
@@ -288,6 +302,8 @@ export class ConversationManager extends SdkConversationManager {
     titleSource?: import('@pellux/goodvibes-sdk/platform/core').ConversationTitleSource;
   }): void {
     super.fromJSON(data);
+    // A restored session's notices go back into the history (not toasted).
+    for (const message of data.messages) if (message.role === 'system') this.noticeSink?.(message.content, { restored: true });
     this.history.clear();
     this.lineCache.clear();
     this.lastRenderedWidth = 0;
@@ -348,8 +364,8 @@ export class ConversationManager extends SdkConversationManager {
     const displayStart = this._displayFromMessageIndex;
     const visibleSnapshot = displayStart > 0 ? renderSnapshot.slice(displayStart) : renderSnapshot;
 
-    // Tool and system messages do not count as visible conversation content
-    // for the splash decision.
+    // Tool and system messages are not transcript content: a system message is
+    // a notice (a toast and the notification history, see core/notices.ts).
     const displayMessages = visibleSnapshot.filter(
       (m) => m.role !== 'tool' && m.role !== 'system',
     );
@@ -408,6 +424,7 @@ export class ConversationManager extends SdkConversationManager {
       errorLineRegistry: this.errorLineRegistry,
       configManager: this._configManager,
       splashOptions: this.splashOptions,
+      systemNotices: 'elsewhere' as const,
       workTreeSources: this.workTreeSources,
       treeGlyphSet: this.treeGlyphSet(),
       focusId: this.workTree.focus,

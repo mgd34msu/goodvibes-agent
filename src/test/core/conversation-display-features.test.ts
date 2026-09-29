@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
 import { ConversationManager } from '../../core/conversation';
+import { appendConversationMessages, isNavigableSystemContent, type ConversationRenderContext } from '../../core/conversation-rendering.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 
 type ConversationManagerTestAccess = {
   messages: Array<{ role: string; content: string; reasoningContent?: string }>;
@@ -206,7 +208,11 @@ describe('code block collapse', () => {
   });
 });
 
-describe('ConversationManager.getErrorLines', () => {
+describe('ConversationManager.getErrorLines: notices leave the transcript', () => {
+  // System notices are toasts and notification-history entries (core/notices.ts,
+  // ui-live-run-5 item 9), so the main transcript draws no row for them and
+  // error navigation has nothing of theirs to land on. The content rule itself
+  // still decides navigability where notices are drawn (an agent view).
   let cm: ConversationManager;
 
   beforeEach(() => {
@@ -220,63 +226,45 @@ describe('ConversationManager.getErrorLines', () => {
     expect(cm.getErrorLines()).toHaveLength(0);
   });
 
-  test('returns line indices for system error messages', () => {
+  test('a notice of any kind registers no transcript error line', () => {
     cm.addUserMessage('run tool');
     cm.addSystemMessage('Error: command not found');
-    cm.getDisplayBlocks();
-
-    const lines = cm.getErrorLines();
-    expect(lines.length).toBeGreaterThan(0);
-  });
-
-  test('detects multiple error messages', () => {
-    cm.addUserMessage('start');
-    cm.addSystemMessage('Error: first failure');
     cm.addUserMessage('retry');
-    cm.addSystemMessage('Error: second failure');
+    cm.addSystemMessage('[Error] Connection refused');
+    cm.addSystemMessage('[Critical] Multiple errors detected (4 in 10s) ...');
     cm.getDisplayBlocks();
-
-    const lines = cm.getErrorLines();
-    expect(lines.length).toBe(2);
-  });
-
-  test('is case-insensitive for error detection', () => {
-    cm.addUserMessage('run');
-    cm.addSystemMessage('error: lowercase error');
-    cm.addUserMessage('run2');
-    cm.addSystemMessage('ERROR! uppercase variant');
-    cm.getDisplayBlocks();
-
-    const lines = cm.getErrorLines();
-    expect(lines.length).toBe(2);
-  });
-
-  test('does not register false-positive substrings as error targets', () => {
-    // "No errors found" and "terror" contain 'error' but do NOT start with [error]/error:/error!
-    cm.addUserMessage('scan');
-    cm.addSystemMessage('No errors found in codebase');
-    cm.addUserMessage('search');
-    cm.addSystemMessage('Scanning... recovered from terror');
-    cm.getDisplayBlocks();
-
     expect(cm.getErrorLines()).toHaveLength(0);
   });
 
-  test('[error] bracket tag is a valid error target', () => {
-    cm.addUserMessage('ping');
-    cm.addSystemMessage('[Error] Connection refused');
-    cm.getDisplayBlocks();
-
-    expect(cm.getErrorLines()).toHaveLength(1);
+  test('the content rule: error:/error!/[error]/[critical] lead-ins are navigable, case-insensitive; substrings are not', () => {
+    expect(isNavigableSystemContent('Error: command not found')).toBe(true);
+    expect(isNavigableSystemContent('error: lowercase error')).toBe(true);
+    expect(isNavigableSystemContent('ERROR! uppercase variant')).toBe(true);
+    expect(isNavigableSystemContent('[Error] Connection refused')).toBe(true);
+    // [Critical] is emitted by the cascading-unhandled-rejection handler in main.ts.
+    expect(isNavigableSystemContent('[Critical] Multiple errors detected (4 in 10s) ...')).toBe(true);
+    expect(isNavigableSystemContent('No errors found in codebase')).toBe(false);
+    expect(isNavigableSystemContent('Scanning... recovered from terror')).toBe(false);
   });
 
-  test('[critical] bracket tag is a valid error target', () => {
-    // [Critical] is emitted by the cascading-unhandled-rejection handler in main.ts
-    // e.g. "[Critical] Multiple errors detected (4 in 10s) ..."
-    cm.addUserMessage('ping');
-    cm.addSystemMessage('[Critical] Multiple errors detected (4 in 10s) ...');
-    cm.getDisplayBlocks();
-
-    expect(cm.getErrorLines()).toHaveLength(1);
+  test('where notices are drawn (a context without systemNotices, as an agent view), error notices register error lines', () => {
+    const lines: Line[] = [];
+    const errorLineRegistry: number[] = [];
+    const context: ConversationRenderContext = {
+      history: { addLine: (l) => { lines.push(l); }, addLines: (ls) => { lines.push(...ls); }, getLineCount: () => lines.length },
+      blockRegistry: [],
+      collapseState: new Map(),
+      errorLineRegistry,
+      configManager: null,
+      splashOptions: {},
+    };
+    appendConversationMessages(context, [
+      { role: 'user', content: 'start' },
+      { role: 'system', content: 'Error: first failure' },
+      { role: 'user', content: 'retry' },
+      { role: 'system', content: 'No errors found in codebase' },
+      { role: 'system', content: '[Critical] second failure' },
+    ], 80, []);
+    expect(errorLineRegistry).toHaveLength(2);
   });
 });

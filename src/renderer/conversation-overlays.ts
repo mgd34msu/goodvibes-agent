@@ -22,6 +22,8 @@ import { renderAgentWorkspace } from './agent-workspace.ts';
 import { renderBlockActionsMenu } from './block-actions-overlay.ts';
 import { overlayViewportBottom } from './conversation-layout.ts';
 import type { SurfaceLayer } from './surface-kit.ts';
+import { renderToasts } from './surface-kit-parts.ts';
+import { getSharedToastCenter } from './toast-center.ts';
 
 export interface ConversationOverlayContext {
   readonly input: InputHandler;
@@ -91,6 +93,10 @@ export interface ConversationLayerContext {
   readonly contextWindow?: number;
   /** The permission dialog, when a request is waiting (drawn above the other modals). */
   readonly permission?: SurfaceLayer | null;
+  /** Rows at the top of the screen held by the header (and the session chips row); toasts start below them. */
+  readonly headerRows?: number;
+  /** Rows at the bottom of the screen held by the composer and status line; toasts stay above them. */
+  readonly footerRows?: number;
 }
 
 /**
@@ -149,5 +155,8 @@ export function buildConversationLayers(context: ConversationLayerContext): Surf
   // Kit modals (the activity modal, ...) stack on top of everything.
   layers.push(...input.surfaceModals.render(w, h));
   if (context.permission) layers.push(context.permission);
+  // Toasts sit above everything and are never dimmed, between the header and the footer.
+  const toasts = renderToasts(w, h, getSharedToastCenter().visible(), { top: context.headerRows ?? 1, bottom: h - (context.footerRows ?? 2) });
+  if (toasts) layers.push(toasts);
   return layers;
 }

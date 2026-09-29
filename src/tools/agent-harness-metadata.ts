@@ -355,6 +355,14 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Opens the Activity view (running work, what needs you, what is coming up, recent activity); it only changes what is on screen.',
     };
   }
+  if (root === 'notifications') {
+    return {
+      effect: 'ui-navigation',
+      confirmation,
+      preferredModelTool: agentHarnessModes('run_command'),
+      boundary: 'Opens the notification history (every system notice in full, newest first); it only changes what is on screen.',
+    };
+  }
   if (root === 'bookmarks' || root === 'expand' || root === 'collapse' || root === 'next-error' || root === 'prev-error') {
     return {
       effect: 'ui-navigation',

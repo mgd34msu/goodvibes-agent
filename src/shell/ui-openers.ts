@@ -15,6 +15,7 @@ import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { openModelPickerNow, type ModelPickerOpenDeps } from '../input/model-picker-open.ts';
 import { buildLocalFitRecommendations, buildSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
+import { wireNotificationSurfaces } from './notification-surfaces.ts';
 import { applyThemeModeSettingChange, applyThemeNameSettingChange, THEME_MODE_CONFIG_KEY, THEME_NAME_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
 
 type WireShellUiOpenersOptions = {
@@ -483,4 +484,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     input.indicatorFocused = false;
     render();
   };
+
+  // System notices: toasts plus the /notifications history (notification-surfaces.ts).
+  wireNotificationSurfaces({ commandContext, input, render });
 }
