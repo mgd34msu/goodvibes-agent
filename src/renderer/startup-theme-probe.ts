@@ -31,6 +31,8 @@ export interface StartupThemeProbeDeps {
    * so every theme or mode change must re-render them on the next paint.
    */
   readonly invalidateTranscript: () => void;
+  /** Where an Esc / Alt+] key held at a palette read's close goes (the input pipeline). */
+  readonly forwardInput?: (bytes: string) => void;
 }
 
 export function installStartupThemeProbe(deps: StartupThemeProbeDeps): ThemeProbeHandle {
@@ -44,8 +46,11 @@ export function installStartupThemeProbe(deps: StartupThemeProbeDeps): ThemeProb
     probePalette: true,
     onTerminalPalette: refreshForTerminalPalette,
     isTTY: Boolean(deps.stdout.isTTY),
-    env: process.env,
     writeQuery: (b) => deps.writeAllowed(() => deps.stdout.write(b)),
     requestRepaint: () => { deps.resetDiff(); deps.render(); },
+    // A palette the terminal did not give at startup (tmux with no client
+    // attached yet) is asked for again on resize, focus-in or input.
+    subscribeResize: (listener) => { deps.stdout.on('resize', listener); },
+    ...(deps.forwardInput ? { forwardInput: deps.forwardInput } : {}),
   });
 }

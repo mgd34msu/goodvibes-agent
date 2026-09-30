@@ -21,10 +21,11 @@
  * is discarded rather than flushed, so partial/garbled bytes never leak into the
  * input pipeline.
  *
- * tmux: when $TMUX is set the query is wrapped in the DCS passthrough envelope so
- * the outer terminal sees it. This only elicits a reply if `allow-passthrough`
- * is enabled; otherwise the query is swallowed and the timeout fallback (dark)
- * covers it silently.
+ * tmux: the query goes out as it is. tmux answers OSC 10 / 11 / 4 itself from
+ * the attached terminal's colours; the DCS passthrough envelope this used to use
+ * is discarded unless allow-passthrough is on (off by default). A query written
+ * while no client is attached is dropped by tmux, which is what the palette
+ * reader's retries are for.
  *
  * Adaptation for this agent: the theme-application coupling is INJECTED rather
  * than imported from theme.ts. R2 owns this module; R4 owns the theme system
@@ -34,21 +35,19 @@
  *
  * Palette (opt-in via `probePalette`):
  *   OSC 10 (foreground) and OSC 4;0..15 ride in the same write, after the OSC 11
- *   query, and the same tmux envelope. This probe's filter runs first and hands
- *   the OSC 11 body to the palette filter (terminal-palette-probe.ts), which
- *   consumes the other 17 replies within a 175 ms window (150 ms + 25 ms margin)
- *   and stores the result via terminal-palette.ts. The `system` theme is
- *   generated from that store; the injected onTerminalPalette hook re-resolves
- *   it. With `probePalette` unset the bytes written and the filtering are
+ *   query. This probe's filter runs first and hands the OSC 11 body to the
+ *   palette reader (terminal-palette-reader.ts), whose round consumes the other
+ *   17 replies within a 175 ms window (150 ms + 25 ms margin) and stores the
+ *   result via terminal-palette.ts. A round with no colours is retried; a late
+ *   palette re-themes (the injected onTerminalPalette hook re-resolves the
+ *   `system` theme) and, in auto mode after a background timeout, settles light
+ *   vs dark. With `probePalette` unset the bytes written and the filtering are
  *   exactly as described above.
  */
 
 import type { ConfigKey, ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import {
-  PALETTE_QUERIES,
-  type PaletteProbeResolution,
-  TerminalPaletteProbe,
-} from './terminal-palette-probe.ts';
+import { PALETTE_QUERIES, type PaletteProbeResolution } from './terminal-palette-probe.ts';
+import { TerminalPaletteReader, type TerminalPaletteReaderOptions } from './terminal-palette-reader.ts';
 import { setTerminalPalette } from './terminal-palette.ts';
 
 /** Resolved appearance mode. R4's theme.ts converges on this literal union. */
@@ -330,13 +329,8 @@ export class TerminalBackgroundProbe {
 }
 
 // ---------------------------------------------------------------------------
-// tmux passthrough + install entry
+// Install entry
 // ---------------------------------------------------------------------------
-
-/** Wrap a control sequence in the tmux DCS passthrough envelope (ESC doubled). */
-export function wrapForTmuxPassthrough(seq: string): string {
-  return `\x1bPtmux;${seq.replace(/\x1b/g, '\x1b\x1b')}\x1b\\`;
-}
 
 /** The stdin filter the caller installs at the front of its data handler. */
 export interface ThemeProbeHandle {
@@ -354,8 +348,6 @@ export interface InstallThemeProbeOptions {
   readonly applyThemeMode: (mode: ThemeMode) => void;
   /** Whether stdout is a real TTY (probe only runs on a TTY in auto mode). */
   readonly isTTY: boolean;
-  /** Process env (only TMUX is read). */
-  readonly env: Record<string, string | undefined>;
   /** Writes the query bytes (caller wraps in its terminal-output guard). */
   readonly writeQuery: (bytes: string) => void;
   /** Called when a light reply wins within the window → repaint once. */
@@ -366,8 +358,9 @@ export interface InstallThemeProbeOptions {
   readonly onResolve?: (result: ProbeResolution) => void;
   /**
    * Also read the terminal palette (OSC 10 + OSC 4;0..15) in the same write as
-   * the OSC 11 query. Runs on a TTY in every appearance mode; the result lands
-   * in the terminal-palette store. Default false (query bytes unchanged).
+   * the OSC 11 query, and keep asking until it arrives (terminal-palette-reader.ts).
+   * Runs on a TTY in every appearance mode; the result lands in the
+   * terminal-palette store. Default false (query bytes unchanged).
    */
   readonly probePalette?: boolean;
   /**
@@ -379,8 +372,14 @@ export interface InstallThemeProbeOptions {
   readonly onTerminalPalette?: () => boolean;
   /** Palette window override (tests). Default PALETTE_PROBE_TIMEOUT_MS. */
   readonly paletteTimeoutMs?: number;
-  /** Optional palette resolution observer (tests / diagnostics). */
+  /** Optional palette round observer (tests / diagnostics). */
   readonly onPaletteResolve?: (result: PaletteProbeResolution) => void;
+  /** Palette retry tuning (tests). */
+  readonly paletteRetry?: Pick<TerminalPaletteReaderOptions, 'retryDelayMs' | 'maxRounds' | 'minRoundSpacingMs' | 'now'>;
+  /** Where an Esc / Alt+] key held at a palette round's close goes (the input pipeline). */
+  readonly forwardInput?: (bytes: string) => void;
+  /** Subscribe to terminal resizes (a client attaching); retries an unanswered palette read. */
+  readonly subscribeResize?: (listener: () => void) => void;
 }
 
 /**
@@ -391,20 +390,29 @@ export interface InstallThemeProbeOptions {
  *   - auto + !TTY → stay dark (headless/piped; probe cannot run).
  * Returns a handle whose filterInput() the caller wires at the front of its
  * stdin data handler. For non-auto and non-TTY cases the filter is a passthrough.
+ *
+ * The queries are always written as they are, never wrapped for tmux
+ * passthrough: tmux answers OSC 10, OSC 11 and OSC 4 itself from the attached
+ * terminal's colours, while a passthrough envelope is discarded unless the
+ * user turned allow-passthrough on (it is off by default), which left every
+ * tmux user without a palette.
  */
 export function installBackgroundThemeProbe(options: InstallThemeProbeOptions): ThemeProbeHandle {
   const pref = resolveConfiguredThemeMode(options.configManager);
-  const palette = options.probePalette === true && options.isTTY ? createPaletteProbe(options) : null;
+  let backgroundTimedOut = false;
+  const palette = options.probePalette === true && options.isTTY
+    ? createPaletteReader(options, pref, () => backgroundTimedOut)
+    : null;
+  if (palette !== null) options.subscribeResize?.(() => palette.noteResize());
 
   if (pref === 'dark' || pref === 'light') {
     options.applyThemeMode(pref);
     if (palette === null) return { filterInput: (chunk) => chunk };
     // Forced mode: no background classification, but the palette batch (which
-    // still carries OSC 11 for the background colour) goes out and its own
-    // filter consumes every reply.
-    writeBatch(options, OSC11_QUERY + PALETTE_QUERIES);
-    palette.startTimeout();
-    return { filterInput: (chunk) => (palette.active ? palette.feed(chunk) : chunk) };
+    // still carries OSC 11 for the background colour) goes out and the
+    // reader's filter consumes every reply.
+    palette.start();
+    return { filterInput: (chunk) => palette.feed(chunk) };
   }
 
   // pref === 'auto'
@@ -417,6 +425,7 @@ export function installBackgroundThemeProbe(options: InstallThemeProbeOptions): 
     timeoutMs: options.timeoutMs,
     onReplySpec: palette === null ? undefined : (spec) => palette.noteBackgroundSpec(spec),
     onResolve: (result) => {
+      backgroundTimedOut = result.reason === 'timeout';
       if (result.mode === 'light') {
         options.applyThemeMode('light');
         options.requestRepaint();
@@ -426,38 +435,51 @@ export function installBackgroundThemeProbe(options: InstallThemeProbeOptions): 
   });
 
   if (palette === null) {
-    writeBatch(options, OSC11_QUERY);
+    options.writeQuery(OSC11_QUERY);
     probe.startTimeout();
     return { filterInput: (chunk) => (probe.active ? probe.feed(chunk) : chunk) };
   }
 
   // One write: OSC 11 first (so the background reply arrives first and the
   // background probe's timing is unchanged), then OSC 10 and OSC 4;0..15.
-  writeBatch(options, OSC11_QUERY + PALETTE_QUERIES);
+  palette.start();
   probe.startTimeout();
-  palette.startTimeout();
   return {
     filterInput: (chunk) => {
       const afterBackground = probe.active ? probe.feed(chunk) : chunk;
-      return palette.active ? palette.feed(afterBackground) : afterBackground;
+      return palette.feed(afterBackground);
     },
   };
 }
 
-/** Write the query batch, wrapped once for tmux passthrough when under tmux. */
-function writeBatch(options: InstallThemeProbeOptions, batch: string): void {
-  options.writeQuery(options.env['TMUX'] ? wrapForTmuxPassthrough(batch) : batch);
-}
-
-/** Palette probe whose result is stored beside the background probe's. */
-function createPaletteProbe(options: InstallThemeProbeOptions): TerminalPaletteProbe {
-  return new TerminalPaletteProbe({
+/**
+ * Palette reader whose result is stored beside the background probe's. In auto
+ * mode a palette that arrives after the background probe timed out (tmux with
+ * no client attached yet) still settles light vs dark from its background.
+ */
+function createPaletteReader(
+  options: InstallThemeProbeOptions,
+  pref: ThemeModeSetting,
+  backgroundTimedOut: () => boolean,
+): TerminalPaletteReader {
+  return new TerminalPaletteReader({
+    ...options.paletteRetry,
     timeoutMs: options.paletteTimeoutMs,
-    onResolve: (result) => {
-      setTerminalPalette(result.palette);
+    writeBatch: () => options.writeQuery(OSC11_QUERY + PALETTE_QUERIES),
+    onFlush: options.forwardInput,
+    onRoundResolve: (result) => options.onPaletteResolve?.(result),
+    onPalette: (result) => {
+      setTerminalPalette(result);
+      let repaint = options.onTerminalPalette?.() === true;
+      if (pref === 'auto' && backgroundTimedOut() && result.background !== undefined) {
+        const rgb = parseColorSpec(result.background);
+        if (rgb !== null && classifyBackgroundLuminance(rgb) === 'light') {
+          options.applyThemeMode('light');
+          repaint = true;
+        }
+      }
       // The system theme is generated from this palette: re-resolve and repaint.
-      if (options.onTerminalPalette?.() === true) options.requestRepaint();
-      options.onPaletteResolve?.(result);
+      if (repaint) options.requestRepaint();
     },
   });
 }

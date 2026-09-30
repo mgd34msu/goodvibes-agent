@@ -118,7 +118,6 @@ describe('installBackgroundThemeProbe wired to setActiveThemeMode (R4 startup pa
       configManager: fakeConfig('light'),
       applyThemeMode: setActiveThemeMode,
       isTTY: false,
-      env: {},
       writeQuery: noop,
       requestRepaint: noop,
     });
@@ -131,7 +130,6 @@ describe('installBackgroundThemeProbe wired to setActiveThemeMode (R4 startup pa
       configManager: fakeConfig('auto'),
       applyThemeMode: setActiveThemeMode,
       isTTY: false,
-      env: {},
       writeQuery: noop,
       requestRepaint: noop,
     });

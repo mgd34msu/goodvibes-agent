@@ -721,7 +721,7 @@ async function main() {
   // Theme + forced dark/light before first paint; auto (TTY) probes + repaints once if light; the palette feeds `system`.
   const themeProbe = installStartupThemeProbe({
     configManager, stdout, writeAllowed: allowTerminalWrite,
-    resetDiff: () => compositor.resetDiff(), render, invalidateTranscript: () => conversation.invalidateRenderedLines(),
+    resetDiff: () => compositor.resetDiff(), render, invalidateTranscript: () => conversation.invalidateRenderedLines(), forwardInput: (b) => routeInput(b),
   });
 
   applyInitialTuiCliState({
@@ -734,10 +734,7 @@ async function main() {
     render,
   });
 
-  stdin.on('data', (raw: string) => {
-    // Strip the terminal probe replies (OSC 11, and OSC 10 / OSC 4 for the palette) before the input pipeline sees them.
-    const data = themeProbe.filterInput(raw);
-    if (data.length === 0) return;
+  const routeInput = (data: string): void => {
     const blocking = handleBlockingShellInput({
       data,
       pendingPermission,
@@ -758,7 +755,9 @@ async function main() {
     }
 
     input.feed(data);
-  });
+  };
+  // Strip the terminal probe replies (OSC 11, and OSC 10 / OSC 4 for the palette) before the input pipeline sees them.
+  stdin.on('data', (raw: string) => { const data = themeProbe.filterInput(raw); if (data.length > 0) routeInput(data); });
   process.on('SIGINT', sigintHandler);
   processFaults.register();
   stdout.on('resize', resizeHandler);
