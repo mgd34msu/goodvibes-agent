@@ -2,6 +2,7 @@ import type { CommandRegistry } from '../command-registry.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import { handleContextWindowSubcommand } from './context-window.ts';
 import {
   countHarnessSettings,
   formatHarnessError,
@@ -158,9 +159,15 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'context',
     aliases: ['ctx'],
-    description: 'Inspect context window usage (token breakdown per message)',
+    description: 'Inspect context window usage (token breakdown per message), or show, set or clear the current model\'s context window',
+    usage: '[window [<size>|clear]]',
+    argsHint: '[window <size|clear>]',
     hidden: true,
-    handler: (_args, ctx) => {
+    handler: (args, ctx) => {
+      if (args[0]?.toLowerCase() === 'window') {
+        handleContextWindowSubcommand(args.slice(1), ctx);
+        return;
+      }
       if (ctx.openContextInspector) {
         ctx.openContextInspector();
       } else {

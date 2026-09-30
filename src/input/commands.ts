@@ -21,6 +21,7 @@ import { registerTasksRuntimeCommands } from './commands/tasks-runtime.ts';
 import { registerLocalProviderRuntimeCommands } from './commands/local-provider-runtime.ts';
 import { registerNetworkScanRuntimeCommands } from './commands/network-scan-runtime.ts';
 import { registerHealthRuntimeCommands } from './commands/health-runtime.ts';
+import { registerStatusRuntimeCommands } from './commands/status-runtime.ts';
 import { registerProviderAccountsRuntimeCommands } from './commands/provider-accounts-runtime.ts';
 import { registerConversationRuntimeCommands } from './commands/conversation-runtime.ts';
 import { registerQrcodeRuntimeCommands } from './commands/qrcode-runtime.ts';
@@ -96,6 +97,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerLocalProviderRuntimeCommands(registry);
   registerNetworkScanRuntimeCommands(registry);
   registerHealthRuntimeCommands(registry);
+  registerStatusRuntimeCommands(registry);
   registerUpdateCommand(registry);
   registerProviderAccountsRuntimeCommands(registry);
   registerConversationRuntimeCommands(registry);

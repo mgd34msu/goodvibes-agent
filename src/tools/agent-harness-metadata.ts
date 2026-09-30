@@ -133,7 +133,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Briefing reads current Agent operator posture and next actions without mutating connected-host state.',
     };
   }
-  if (root === 'health' || root === 'compat' || root === 'context' || root === 'accounts' || root === 'security') {
+  if (root === 'health' || root === 'compat' || root === 'context' || root === 'status' || root === 'accounts' || root === 'security') {
     return {
       effect: 'read-only',
       confirmation,

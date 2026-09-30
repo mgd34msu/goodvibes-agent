@@ -408,7 +408,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/compact` | Summarize the conversation to free context window. |
 | `/compat` | Inspect connected-host compatibility and Agent Knowledge route readiness. |
 | `/config` | Open the fullscreen configuration workspace. |
-| `/context` | Inspect context-window usage and token breakdown. |
+| `/context` | Inspect context-window usage and token breakdown; `/context window [<size>\|clear]` shows where the current model's window came from, or sets or clears a custom window. |
 | `/conversation` | Review conversation structure, transcript hotspots, and composer posture. |
 | `/delegate` | Explicitly delegate build/fix/review work to GoodVibes TUI with reason, success criteria, workspace hint, priority, and explicit review intent. |
 | `/effort` | Show or set reasoning effort level. |
@@ -457,6 +457,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/setup` | Open the Agent workspace; on a fresh Agent home the workspace opens into setup first. |
 | `/shortcuts` | Show keyboard shortcuts. |
 | `/skills` | Manage Agent-local skills and skill bundles. |
+| `/status` | Show the current model and its context window, with where the window came from (its catalog provider, the consensus of catalog providers, a family default, or a user override). |
 | `/subscription` | Manage provider subscription sessions. |
 | `/tasks` | Inspect connected-host tasks without starting or mutating local background work. |
 | `/title` | Show or set the conversation title. |

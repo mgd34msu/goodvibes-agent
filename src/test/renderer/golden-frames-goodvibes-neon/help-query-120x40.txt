@@ -5,7 +5,7 @@
 |                                                                                                                        |
 |            ✦ Help                                                                                     esc              |
 |                                                                                                                        |
-|            remind▏                                                                                 2 of 54             |
+|            remind▏                                                                                 2 of 55             |
 |                                                                                                                        |
 |          ✦ quick start                                                                                                 |
 |            Create confirmed reminders or inspect schedules                                /schedule remind             |
