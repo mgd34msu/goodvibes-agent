@@ -1,8 +1,9 @@
 /**
  * First-start registration prompt (owner-approved design): wireSessionPersistenceAndRecovery
- * decides whether to show the ambient "register this directory?" prompt. This
- * exercises that decision directly, see also src/test/shell/blocking-input.test.ts
- * for the keypress-answering half (register on 'y', decline on everything else).
+ * decides whether to ask the "register this workspace?" question, and records
+ * the answer. The question itself is a selection modal
+ * (shell/workspace-registration-question.ts); here it is a recorder, and the
+ * answer is driven through the callback the modal would call.
  */
 import { describe, expect, test } from 'bun:test';
 import { utimesSync } from 'node:fs';
@@ -12,6 +13,15 @@ import { writeOnboardingCompletionMarker } from '../../runtime/onboarding/index.
 import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 import { wireSessionPersistenceAndRecovery, type SessionPersistenceAndRecoveryDeps } from '../../shell/startup-wiring.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+
+async function pollUntil(check: () => Promise<boolean>, timeoutMs = 2_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await check()) return true;
+    await Bun.sleep(20);
+  }
+  return check();
+}
 
 function makeRoots() {
   const home = makeProjectTempDir('gv-agent-startup-wiring-reg-home');
@@ -27,8 +37,9 @@ function markOnboardingDone(shellPaths: ReturnType<typeof createShellPathService
   writeOnboardingCompletionMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
 }
 
-function makeDeps(overrides: Partial<SessionPersistenceAndRecoveryDeps> & { workingDir: string; homeDirectory: string }): { deps: SessionPersistenceAndRecoveryDeps; messages: string[]; renderCount: () => number } {
+function makeDeps(overrides: Partial<SessionPersistenceAndRecoveryDeps> & { workingDir: string; homeDirectory: string }): { deps: SessionPersistenceAndRecoveryDeps; messages: string[]; renderCount: () => number; asked: Array<{ root: string; answer: (accepted: boolean) => void }> } {
   const messages: string[] = [];
+  const asked: Array<{ root: string; answer: (accepted: boolean) => void }> = [];
   let renders = 0;
   const deps: SessionPersistenceAndRecoveryDeps = {
     buildCurrentSessionSnapshot: () => ({ messages: [], timestamp: Date.now(), title: 'test' }),
@@ -41,24 +52,54 @@ function makeDeps(overrides: Partial<SessionPersistenceAndRecoveryDeps> & { work
     hookDispatcher: { fire: async () => {} } as never,
     surface: makeSurface(overrides.workingDir, overrides.homeDirectory),
     onStreamSpeedUpdate: () => {},
+    askWorkspaceRegistration: (root, answer) => { asked.push({ root, answer }); },
     ...overrides,
   };
-  return { deps, messages, renderCount: () => renders };
+  return { deps, messages, renderCount: () => renders, asked };
 }
 
 describe('wireSessionPersistenceAndRecovery: first-start registration prompt', () => {
-  test('an unknown, non-broad, onboarding-complete workspace triggers the prompt', () => {
+  test('an unknown, non-broad, onboarding-complete workspace is asked about, once, and no message stands in for the question', () => {
     const { work, home, shellPaths } = makeRoots();
     markOnboardingDone(shellPaths);
-    const { deps, messages, renderCount } = makeDeps({ workingDir: work, homeDirectory: home });
+    const { deps, messages, asked } = makeDeps({ workingDir: work, homeDirectory: home });
 
     const result = wireSessionPersistenceAndRecovery(deps);
     clearInterval(result.recoveryInterval);
 
-    expect(result.pendingWorkspaceRegistration).not.toBeNull();
-    expect(result.pendingWorkspaceRegistration?.root).toBe(work);
-    expect(messages.some((m) => m.includes('[Workspace]') && m.includes(work))).toBe(true);
+    expect(result.workspaceRegistrationAsked).toBe(work);
+    expect(asked.map((entry) => entry.root)).toEqual([work]);
+    expect(messages.some((m) => m.includes('[Workspace]'))).toBe(false);
+  });
+
+  test('answering register records the workspace as covered and says so', async () => {
+    const { work, home, shellPaths } = makeRoots();
+    markOnboardingDone(shellPaths);
+    const { deps, messages, asked, renderCount } = makeDeps({ workingDir: work, homeDirectory: home });
+    clearInterval(wireSessionPersistenceAndRecovery(deps).recoveryInterval);
+
+    asked[0]!.answer(true);
+
+    expect(messages.some((m) => m.includes('Registered') && m.includes(work))).toBe(true);
     expect(renderCount()).toBeGreaterThanOrEqual(1);
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    expect(await pollUntil(async () => (await store.resolve(work)).status === 'covered')).toBe(true);
+  });
+
+  test('answering no (or closing the question) records a decline, so it is not asked again', async () => {
+    const { work, home, shellPaths } = makeRoots();
+    markOnboardingDone(shellPaths);
+    const first = makeDeps({ workingDir: work, homeDirectory: home });
+    clearInterval(wireSessionPersistenceAndRecovery(first.deps).recoveryInterval);
+
+    first.asked[0]!.answer(false);
+
+    expect(first.messages.some((m) => m.includes('Not registered'))).toBe(true);
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    expect(await pollUntil(async () => (await store.resolve(work)).status === 'declined')).toBe(true);
+    const second = makeDeps({ workingDir: work, homeDirectory: home });
+    clearInterval(wireSessionPersistenceAndRecovery(second.deps).recoveryInterval);
+    expect(second.asked).toEqual([]);
   });
 
   test('onboarding not yet complete: no prompt (avoids competing with the onboarding wizard)', () => {
@@ -68,7 +109,7 @@ describe('wireSessionPersistenceAndRecovery: first-start registration prompt', (
     const result = wireSessionPersistenceAndRecovery(deps);
     clearInterval(result.recoveryInterval);
 
-    expect(result.pendingWorkspaceRegistration).toBeNull();
+    expect(result.workspaceRegistrationAsked).toBeNull();
     expect(messages.some((m) => m.includes('[Workspace]'))).toBe(false);
   });
 
@@ -81,7 +122,7 @@ describe('wireSessionPersistenceAndRecovery: first-start registration prompt', (
     const result = wireSessionPersistenceAndRecovery(deps);
     clearInterval(result.recoveryInterval);
 
-    expect(result.pendingWorkspaceRegistration).toBeNull();
+    expect(result.workspaceRegistrationAsked).toBeNull();
     expect(messages.some((m) => m.includes('[Workspace]'))).toBe(false);
   });
 
@@ -94,7 +135,7 @@ describe('wireSessionPersistenceAndRecovery: first-start registration prompt', (
     const result = wireSessionPersistenceAndRecovery(deps);
     clearInterval(result.recoveryInterval);
 
-    expect(result.pendingWorkspaceRegistration).toBeNull();
+    expect(result.workspaceRegistrationAsked).toBeNull();
     expect(messages.some((m) => m.includes('[Workspace]'))).toBe(false);
   });
 
@@ -107,7 +148,7 @@ describe('wireSessionPersistenceAndRecovery: first-start registration prompt', (
     const result = wireSessionPersistenceAndRecovery(deps);
     clearInterval(result.recoveryInterval);
 
-    expect(result.pendingWorkspaceRegistration).toBeNull();
+    expect(result.workspaceRegistrationAsked).toBeNull();
     expect(messages.some((m) => m.includes('[Workspace]'))).toBe(false);
   });
 
@@ -132,7 +173,7 @@ describe('wireSessionPersistenceAndRecovery: first-start registration prompt', (
     clearInterval(result.recoveryInterval);
 
     expect(result.recoveryPending).toBe('test-session');
-    expect(result.pendingWorkspaceRegistration).toBeNull();
+    expect(result.workspaceRegistrationAsked).toBeNull();
     expect(messages.some((m) => m.includes('[Workspace]'))).toBe(false);
   });
 });

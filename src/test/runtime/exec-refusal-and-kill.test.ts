@@ -3,11 +3,12 @@
  *
  * A command refused, and a command killed, through the agent's OWN exec
  * pipeline: the runtime graph from createRuntimeServices (this repo's
- * composition root), the tool registry composed the way bootstrap-core.ts
- * composes it (registerAllTools with the agent's owner-terminal posture, then
- * the agent's policy guard, platform-boundary guard and execution-safety
- * wrapper, in that order), the graph's permission manager with the agent's
- * permission safety guard installed on it, and the SDK's executeToolCalls, the
+ * composition root), the tool registry from composeAgentToolRegistry (the one
+ * function bootstrap-core.ts builds the live registry with: the platform tools
+ * with the agent's owner-terminal posture, the agent's own tools, then its
+ * policy guard, platform-boundary guard and execution-safety wrapper, in that
+ * order), the graph's permission manager with the agent's permission safety
+ * guard installed on it, and the SDK's executeToolCalls, the
  * function the live Orchestrator calls for every tool call of a
  * main-conversation turn (permission check, then registry execute, with the
  * per-call cancel signal).
@@ -29,17 +30,15 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { executeToolCalls, type ToolExecutionDeps } from '@pellux/goodvibes-sdk/platform/core';
-import { ToolRegistry, registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
-import type { ToolCall, ToolResult } from '@pellux/goodvibes-sdk/platform/types';
+import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import type { Tool, ToolCall, ToolResult } from '@pellux/goodvibes-sdk/platform/types';
 import { RuntimeEventBus } from '@/runtime/index.ts';
-import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
-import { AGENT_OWNER_TERMINAL_GUARD } from '../../runtime/agent-exec-posture.ts';
+import { composeAgentToolRegistry } from '../../runtime/agent-tool-registry.ts';
+import type { CommandContext } from '../../input/command-registry.ts';
+import { installAgentMcpCallRoute } from '../../tools/agent-mcp-call-route.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { installPermissionManagerSafetyGuard } from '../../runtime/tool-permission-safety.ts';
-import { installAgentPlatformBoundaryGuard } from '../../tools/agent-platform-boundary-policy.ts';
-import { installAgentToolPolicyGuard } from '../../tools/agent-tool-policy-guard.ts';
-import { installToolExecutionSafetyGuard } from '../../tools/tool-execution-safety.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /** What the owner said this turn; the platform-boundary guard reads it. */
@@ -74,45 +73,18 @@ function agentRuntime(prefix: string): { services: RuntimeServices; workspace: s
 }
 
 /**
- * The agent's main-conversation tool pipeline, built in the same order
- * bootstrap-core.ts builds it. `configRouting` is left out on purpose: it
- * routes settings tools to the daemon, which this test must never reach; the
- * exec path does not read it.
+ * The agent's main-conversation tool pipeline, through the same function
+ * bootstrap-core.ts builds the live registry with, plus the permission safety
+ * guard bootstrap-core installs on the graph's permission manager.
  */
 function composeAgentExecPipeline(services: RuntimeServices): ToolRegistry {
-  const toolRegistry = new ToolRegistry();
-  registerAllTools(toolRegistry, {
-    resolveSessionId: () => 'exec-refusal-and-kill',
-    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
-    fileCache: services.fileCache,
-    projectIndex: services.projectIndex,
-    fileUndoManager: services.fileUndoManager,
-    modeManager: services.modeManager,
-    processManager: services.processManager,
-    agentManager: services.agentManager,
-    agentMessageBus: services.agentMessageBus,
-    archetypeLoader: services.archetypeLoader,
-    webSearchService: services.webSearchService,
-    channelRegistry: services.channelPlugins,
-    remoteRunnerRegistry: services.remoteRunnerRegistry,
-    workflowServices: services.workflow,
-    mcpRegistry: services.mcpRegistry,
-    sessionOrchestration: services.sessionOrchestration,
-    sandboxSessionRegistry: services.sandboxSessionRegistry,
-    workingDirectory: services.workingDirectory,
+  const { toolRegistry } = composeAgentToolRegistry({
+    services,
     configManager: services.configManager,
-    providerRegistry: services.providerRegistry,
-    toolLLM: services.toolLLM,
-    featureFlags: services.featureFlags,
-    serviceRegistry: services.serviceRegistry,
-    overflowHandler: services.overflowHandler,
-    changeTracker: services.sessionChangeTracker,
-    contextAccountingHolder: services.contextAccountingHolder,
-    ownerTerminalGuard: AGENT_OWNER_TERMINAL_GUARD,
+    homeDirectory: services.homeDirectory,
+    resolveSessionId: () => 'exec-refusal-and-kill',
+    getLastUserMessage: () => LAST_USER_MESSAGE,
   });
-  installAgentToolPolicyGuard(toolRegistry, { getLastUserMessage: () => LAST_USER_MESSAGE });
-  installAgentPlatformBoundaryGuard(toolRegistry, () => LAST_USER_MESSAGE);
-  installToolExecutionSafetyGuard(toolRegistry);
   installPermissionManagerSafetyGuard(services.permissionManager);
   return toolRegistry;
 }
@@ -333,4 +305,100 @@ describe('a command killed through the agent exec pipeline', () => {
     await Bun.sleep(6_500);
     expect(existsSync(sentinel)).toBe(false);
   }, 30_000);
+});
+
+/**
+ * Every tool's innermost execute, replaced at registration (before any agent
+ * wrapper is installed) by a recorder of the options it was handed. What the
+ * recorder sees is what the platform tool itself would have seen after the
+ * whole agent wrapper chain ran.
+ */
+function composeWithRecorders(services: RuntimeServices): { registry: ToolRegistry; received: Map<string, AbortSignal | undefined> } {
+  const received = new Map<string, AbortSignal | undefined>();
+  const register = ToolRegistry.prototype.register;
+  ToolRegistry.prototype.register = function registerWithRecorder(this: ToolRegistry, tool: Tool): void {
+    const name = tool.definition.name;
+    tool.execute = async (_args, options) => {
+      received.set(name, options?.signal);
+      return { success: true, output: 'recorded' };
+    };
+    register.call(this, tool);
+  };
+  let registry: ToolRegistry;
+  try {
+    registry = composeAgentExecPipeline(services);
+    // The second registration stage (bootstrap-agent-tools.ts) adds tools after
+    // the guards are installed, unwrapped: agent_harness among them, which
+    // goodvibes_context looks up at call time and hands its call to.
+    registry.register({
+      definition: { name: 'agent_harness', description: 'recorder', parameters: { type: 'object', properties: {} } },
+      execute: async () => ({ success: true, output: '{}' }),
+    });
+  } finally {
+    ToolRegistry.prototype.register = register;
+  }
+  // The same stage installs the MCP call route over the already-wrapped mcp tool.
+  expect(installAgentMcpCallRoute(registry, mcpContext(() => new Promise(() => {})))).toBe(true);
+  return { registry, received };
+}
+
+/** A command context whose MCP api has one connected, trusted server and the given callTool. */
+function mcpContext(callTool: (qualifiedName: string, input: Record<string, unknown>) => Promise<unknown>): CommandContext {
+  const mcpApi = {
+    listServerSecurity: () => [{ name: 'fixture', connected: true, trustMode: 'ask-on-risk', role: 'general', schemaFreshness: 'fresh', allowedHosts: [] }],
+    listAllTools: async () => [],
+    callTool,
+  };
+  return { clients: { mcpApi } } as unknown as CommandContext;
+}
+
+/**
+ * Tools whose agent wrapper replaces the platform execute and hands the call to
+ * another registered tool instead: the signal must arrive THERE.
+ */
+const DELEGATES_TO: Readonly<Record<string, string>> = {
+  // goodvibes_context answers every mode but `capabilities` through agent_harness.
+  goodvibes_context: 'agent_harness',
+};
+
+describe('the cancel signal reaches the tool through every agent wrapper chain', () => {
+  test('each registered tool receives the call signal after every agent wrapper ran', async () => {
+    const { services } = agentRuntime('exec-cancel-every-chain');
+    services.configManager.set('permissions.mode', 'allow-all');
+    const { registry, received } = composeWithRecorders(services);
+    const tools = registry.list();
+    expect(tools.length).toBeGreaterThan(20);
+    const dropped: string[] = [];
+    const neverReached: string[] = [];
+    for (const tool of tools) {
+      const name = tool.definition.name;
+      const inner = DELEGATES_TO[name] ?? name;
+      const controller = new AbortController();
+      received.clear();
+      await tool.execute({}, { signal: controller.signal });
+      if (!received.has(inner)) neverReached.push(name);
+      else if (received.get(inner) !== controller.signal) dropped.push(name);
+    }
+    // Every chain reached its platform tool (empty arguments pass every agent
+    // wrapper's validation), and every one delivered the call's own signal.
+    expect(neverReached).toEqual([]);
+    expect(dropped).toEqual([]);
+  }, 60_000);
+
+  test('an MCP call that never answers settles as cancelled as soon as its signal aborts', async () => {
+    const { services } = agentRuntime('exec-cancel-mcp-call');
+    services.configManager.set('permissions.mode', 'allow-all');
+    const { registry } = composeWithRecorders(services);
+    const mcp = registry.list().find((tool) => tool.definition.name === 'mcp');
+    expect(mcp).toBeDefined();
+    const controller = new AbortController();
+    const pending = mcp!.execute({ mode: 'call', qualifiedName: 'mcp:fixture:slow' }, { signal: controller.signal });
+    await Bun.sleep(200);
+    const cancelledAt = Date.now();
+    controller.abort();
+    const result = await pending;
+    expect(Date.now() - cancelledAt).toBeLessThan(1_000);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('was cancelled');
+  }, 20_000);
 });

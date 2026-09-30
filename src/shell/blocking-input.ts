@@ -3,22 +3,10 @@ import type { PermissionRequest } from '@pellux/goodvibes-sdk/platform/permissio
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import { readConversationMessageSnapshots } from '../core/conversation-message-snapshot.ts';
-import { answerWorkspaceRegistrationPrompt, type StoreShellPaths } from '../config/workspace-registration.ts';
 import type { DaemonRepairPrompt } from './daemon-repair-prompt.ts';
 
 export type PendingPermissionState = PermissionRequest & {
   resolve: (approved: boolean, remember?: boolean) => void;
-};
-
-/**
- * First-start registration prompt (owner-approved design): the root that was
- * offered, and the shellPaths needed to answer it (register or decline)
- * against the shared registration store without threading a separate
- * callback through every caller, see answerWorkspaceRegistrationPrompt.
- */
-export type PendingWorkspaceRegistrationState = {
-  readonly root: string;
-  readonly shellPaths: StoreShellPaths;
 };
 
 export type BlockingInputHandlerOptions = {
@@ -33,7 +21,6 @@ export type BlockingInputHandlerOptions = {
    * and the follow-up, so nothing here has to be threaded back out.
    */
   daemonRepairPrompt: DaemonRepairPrompt | null;
-  pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
   abortTurn: () => void;
   conversation: ConversationManager;
   systemMessageRouter: SystemMessageRouter;
@@ -48,7 +35,6 @@ export type BlockingInputHandlerResult = {
   handled: boolean;
   pendingPermission: PendingPermissionState | null;
   recoveryPending: string | null;
-  pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
   // Deliberately no daemonRepairPrompt: the controller owns its own
   // awaiting-answer state, so unlike the fields above there is nothing for the
   // shell to carry back and reassign.
@@ -62,7 +48,6 @@ export function handleBlockingShellInput(
     pendingPermission,
     recoveryPending,
     daemonRepairPrompt,
-    pendingWorkspaceRegistration,
     abortTurn,
     conversation,
     systemMessageRouter,
@@ -78,24 +63,24 @@ export function handleBlockingShellInput(
     if (key === 'y') {
       req.resolve(true, false);
       render();
-      return { handled: true, pendingPermission: null, recoveryPending, pendingWorkspaceRegistration };
+      return { handled: true, pendingPermission: null, recoveryPending };
     }
 
     if (key === 'a') {
       req.resolve(true, true);
       render();
-      return { handled: true, pendingPermission: null, recoveryPending, pendingWorkspaceRegistration };
+      return { handled: true, pendingPermission: null, recoveryPending };
     }
 
     if (key === 'n' || data === '\x1b' || data === '\x03') {
       req.resolve(false, false);
       abortTurn();
       render();
-      return { handled: true, pendingPermission: null, recoveryPending, pendingWorkspaceRegistration };
+      return { handled: true, pendingPermission: null, recoveryPending };
     }
 
     render();
-    return { handled: true, pendingPermission, recoveryPending, pendingWorkspaceRegistration };
+    return { handled: true, pendingPermission, recoveryPending };
   }
 
   if (recoveryPending) {
@@ -111,20 +96,20 @@ export function handleBlockingShellInput(
         systemMessageRouter.high('[Recovery] Failed to restore saved data.');
       }
       render();
-      return { handled: true, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
+      return { handled: true, pendingPermission: null, recoveryPending: null };
     }
 
     if (data === '\x1b' || data === '\x03') {
       systemMessageRouter.high('[Recovery] Discarded recovery data.');
       removeRecoveryPoint();
       render();
-      return { handled: true, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
+      return { handled: true, pendingPermission: null, recoveryPending: null };
     }
 
     systemMessageRouter.high('[Recovery] Ignored saved session; starting a new prompt.');
     removeRecoveryPoint();
     render();
-    return { handled: false, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
+    return { handled: false, pendingPermission: null, recoveryPending: null };
   }
 
   // One-touch daemon repair: 'y' repairs, EVERY other key declines, default
@@ -133,23 +118,11 @@ export function handleBlockingShellInput(
   // session, so the question is asked once and never turn after turn.
   if (daemonRepairPrompt?.pending()) {
     daemonRepairPrompt.answer(data);
-    return { handled: true, pendingPermission: null, recoveryPending, pendingWorkspaceRegistration };
+    return { handled: true, pendingPermission: null, recoveryPending };
   }
 
-  // First-start registration prompt: 'y' registers, EVERY other key (Escape,
-  // Enter-through, Ctrl+C, any stray key) declines, default no, matching the
-  // owner-approved design. Subtree-scoped: never asks again at this root
-  // either way, since both add() and decline() are recorded against it.
-  if (pendingWorkspaceRegistration) {
-    const { root, shellPaths } = pendingWorkspaceRegistration;
-    const accepted = data.toLowerCase().trim() === 'y';
-    answerWorkspaceRegistrationPrompt(shellPaths, root, accepted);
-    systemMessageRouter.high(accepted
-      ? `[Workspace] Registered ${root}, automatic checkpoints are now allowed here.`
-      : `[Workspace] Not registered, automatic checkpoints stay off here (won't ask again for this location).`);
-    render();
-    return { handled: true, pendingPermission: null, recoveryPending, pendingWorkspaceRegistration: null };
-  }
-
-  return { handled: false, pendingPermission, recoveryPending, pendingWorkspaceRegistration };
+  // The first-start workspace question is a selection modal now
+  // (shell/workspace-registration-question.ts): it receives only the keys aimed
+  // at it, so nothing here waits on a question the screen does not show.
+  return { handled: false, pendingPermission, recoveryPending };
 }

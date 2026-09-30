@@ -43,11 +43,11 @@ export const AGENT_FIND_POLICY_DENIAL_MESSAGE = FIND_POLICY_DENIAL;
 export function wrapFindToolForAgentPolicy(tool: Tool): void {
   narrowFindToolDefinitionForAgentPolicy(tool);
   const originalExecute = tool.execute.bind(tool);
-  tool.execute = async (args) => {
+  tool.execute = async (args, options) => {
     const findArgs = args as FindToolArgs;
     const denial = validateFindToolInvocationForAgentPolicy(findArgs);
     if (denial) return { success: false, error: denial };
-    return originalExecute(normalizeFindToolInvocationForAgentPolicy(findArgs) as Parameters<Tool['execute']>[0]);
+    return originalExecute(normalizeFindToolInvocationForAgentPolicy(findArgs) as Parameters<Tool['execute']>[0], options);
   };
 }
 

@@ -97,6 +97,21 @@ function advertiseCallMode(tool: Tool): void {
  * telling the truth about what can be invoked instead of offering a mode that
  * returns "unknown mode" when used.
  */
+const CANCELLED: unique symbol = Symbol('mcp-call-cancelled');
+
+/** `work`, or CANCELLED as soon as `signal` aborts, whichever comes first. */
+function raceAbort<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T | typeof CANCELLED> {
+  if (!signal) return work;
+  return new Promise((resolve, reject) => {
+    const onAbort = () => resolve(CANCELLED);
+    signal.addEventListener('abort', onAbort, { once: true });
+    work.then(
+      (value) => { signal.removeEventListener('abort', onAbort); resolve(value); },
+      (error: unknown) => { signal.removeEventListener('abort', onAbort); reject(error); },
+    );
+  });
+}
+
 export function installAgentMcpCallRoute(registry: ToolRegistry, context: CommandContext): boolean {
   const tool = registry.list().find((candidate) => candidate.definition.name === 'mcp');
   if (!tool) return false;
@@ -107,9 +122,9 @@ export function installAgentMcpCallRoute(registry: ToolRegistry, context: Comman
   const originalExecute = tool.execute.bind(tool);
   tool.definition.sideEffects = [...new Set<ToolSideEffect>([...(tool.definition.sideEffects ?? []), 'network', 'state'])];
 
-  tool.execute = async (args) => {
+  tool.execute = async (args, options) => {
     const input = args as McpCallArgs;
-    if (readString(input.mode) !== AGENT_MCP_CALL_MODE) return originalExecute(args);
+    if (readString(input.mode) !== AGENT_MCP_CALL_MODE) return originalExecute(args, options);
 
     const qualifiedName = readString(input.qualifiedName);
     if (!qualifiedName) {
@@ -145,8 +160,14 @@ export function installAgentMcpCallRoute(registry: ToolRegistry, context: Comman
       };
     }
 
+    const signal = options?.signal;
+    if (signal?.aborted) return { success: false, error: `mcp call ${qualifiedName} was cancelled before it started.` };
     try {
-      const result = await callTool(qualifiedName, readInput(input.input));
+      // The platform's MCP callTool takes no abort signal, so a cancelled call
+      // cannot recall the request it already sent; it stops waiting for it and
+      // reports the cancellation instead of holding the turn open.
+      const result = await raceAbort(callTool(qualifiedName, readInput(input.input)), signal);
+      if (result === CANCELLED) return { success: false, error: `mcp call ${qualifiedName} was cancelled.` };
       return { success: true, output: stringifyResult(result) };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

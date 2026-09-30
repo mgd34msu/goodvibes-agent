@@ -121,7 +121,7 @@ jobs:
           path: dist/
       - name: Restore executable bit
         run: chmod +x dist/goodvibes-agent-linux-x64
-      - name: Startup and first turn against the built binary
+      - name: Startup, first turn and the first-start workspace question against the built binary
         env:
           GOODVIBES_E2E_BINARY: dist/goodvibes-agent-linux-x64
         run: bun run test:e2e:fast

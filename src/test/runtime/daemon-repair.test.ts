@@ -356,7 +356,6 @@ describe('handleBlockingShellInput (daemon repair offer)', () => {
         pendingPermission: null,
         recoveryPending: null,
         daemonRepairPrompt,
-        pendingWorkspaceRegistration: null,
         abortTurn: () => {},
         conversation: {} as unknown as ConversationManager,
         systemMessageRouter: router as unknown as SystemMessageRouter,

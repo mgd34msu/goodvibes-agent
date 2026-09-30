@@ -4,34 +4,17 @@ import {
   checkRecoveryFile,
   consumeRecovery,
   createSessionSurface,
-  createShellPathService,
   removeRecoveryPoint,
   writeRecoveryFile,
 } from '@/runtime/index.ts';
-import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 
 import { handleBlockingShellInput, type PendingPermissionState } from '../../shell/blocking-input.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
-
-function makeWorkspaceRegistrationShellPaths() {
-  const home = makeProjectTempDir('gv-agent-blocking-input');
-  const work = makeProjectTempDir('gv-agent-blocking-input-work');
-  return { shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }), work };
-}
 
 function makeRecoverySurface() {
   const home = makeProjectTempDir('gv-agent-blocking-input-recovery-home');
   const work = makeProjectTempDir('gv-agent-blocking-input-recovery-work');
   return createSessionSurface({ surfaceRoot: 'agent', workingDirectory: work, homeDirectory: home });
-}
-
-async function pollUntil(predicate: () => Promise<boolean>, timeoutMs = 5000, intervalMs = 25): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (await predicate()) return true;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  return false;
 }
 
 function makeConversation() {
@@ -78,7 +61,6 @@ describe('shell/blocking-input', () => {
       pendingPermission,
       recoveryPending: null,
       daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: null,
       abortTurn: () => { aborted++; },
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -115,7 +97,6 @@ describe('shell/blocking-input', () => {
       pendingPermission,
       recoveryPending: null,
       daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: null,
       abortTurn: () => { aborted++; },
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -142,7 +123,6 @@ describe('shell/blocking-input', () => {
       pendingPermission: null,
       recoveryPending: 'recovery-session-1',
       daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -175,7 +155,6 @@ describe('shell/blocking-input', () => {
       pendingPermission: null,
       recoveryPending: 'recovery-session-1',
       daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -205,7 +184,6 @@ describe('shell/blocking-input', () => {
       pendingPermission: null,
       recoveryPending: 'recovery-session-1',
       daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -224,65 +202,6 @@ describe('shell/blocking-input', () => {
     expect(rendered).toBe(1);
   });
 
-  test('registers the workspace on y and clears the pending prompt', async () => {
-    const { conversation } = makeConversation();
-    const { router, messages } = makeRouter();
-    const { shellPaths, work } = makeWorkspaceRegistrationShellPaths();
-    let rendered = 0;
-
-    const result = handleBlockingShellInput({
-      data: 'y',
-      pendingPermission: null,
-      recoveryPending: null,
-      daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: { root: work, shellPaths },
-      abortTurn: () => {},
-      conversation: conversation as never,
-      systemMessageRouter: router as never,
-      render: () => { rendered++; },
-      consumeRecovery: () => null,
-      removeRecoveryPoint: () => {},
-    });
-
-    expect(result.handled).toBe(true);
-    expect(result.pendingWorkspaceRegistration).toBeNull();
-    expect(messages.some((m) => m.includes('Registered') && m.includes(work))).toBe(true);
-    expect(rendered).toBe(1);
-
-    const store = createWorkspaceRegistrationStore(shellPaths);
-    const registered = await pollUntil(async () => (await store.resolve(work)).status === 'covered');
-    expect(registered).toBe(true);
-  });
-
-  test('declines the workspace on any key other than y (default no), including Escape', async () => {
-    const { conversation } = makeConversation();
-    const { router, messages } = makeRouter();
-    const { shellPaths, work } = makeWorkspaceRegistrationShellPaths();
-    let rendered = 0;
-
-    const result = handleBlockingShellInput({
-      data: '\x1b',
-      pendingPermission: null,
-      recoveryPending: null,
-      daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: { root: work, shellPaths },
-      abortTurn: () => {},
-      conversation: conversation as never,
-      systemMessageRouter: router as never,
-      render: () => { rendered++; },
-      consumeRecovery: () => null,
-      removeRecoveryPoint: () => {},
-    });
-
-    expect(result.handled).toBe(true);
-    expect(result.pendingWorkspaceRegistration).toBeNull();
-    expect(messages.some((m) => m.includes('Not registered'))).toBe(true);
-    expect(rendered).toBe(1);
-
-    const store = createWorkspaceRegistrationStore(shellPaths);
-    const declined = await pollUntil(async () => (await store.resolve(work)).status === 'declined');
-    expect(declined).toBe(true);
-  });
 });
 
 // ── Real-SDK regression: recovery targets exactly the OFFERED snapshot ──────
@@ -323,7 +242,6 @@ describe('shell/blocking-input: recovery targets exactly the offered snapshot', 
       pendingPermission: null,
       recoveryPending: offered!.sessionId,
       daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -353,7 +271,6 @@ describe('shell/blocking-input: recovery targets exactly the offered snapshot', 
       pendingPermission: null,
       recoveryPending: offered!.sessionId,
       daemonRepairPrompt: null,
-      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,

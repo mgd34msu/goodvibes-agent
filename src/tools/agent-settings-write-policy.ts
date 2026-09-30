@@ -224,9 +224,9 @@ export function wrapSettingsToolForAgentPolicy(tool: Tool): void {
   }
 
   const originalExecute = tool.execute.bind(tool);
-  tool.execute = async (args) => {
+  tool.execute = async (args, options) => {
     const denial = validateSettingsToolInvocationForAgentPolicy(args as SettingsToolArgs);
     if (denial) return { success: false, error: denial };
-    return originalExecute(args);
+    return originalExecute(args, options);
   };
 }

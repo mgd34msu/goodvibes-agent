@@ -41,7 +41,8 @@ import {
   removeRecoveryPoint,
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
-import { handleBlockingShellInput, type PendingPermissionState, type PendingWorkspaceRegistrationState } from './shell/blocking-input.ts';
+import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
+import { createWorkspaceRegistrationQuestion } from './shell/workspace-registration-question.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
 import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
@@ -258,7 +259,7 @@ async function main() {
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   // sessionId of the offered recovery snapshot, or null when none is pending.
-  let recoveryPending: string | null = null, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null, daemonRepairPrompt: DaemonRepairPrompt | null = null;
+  let recoveryPending: string | null = null, daemonRepairPrompt: DaemonRepairPrompt | null = null;
   // The window in which this app owns the screen: opened by the enter sequence below, closed by exitApp before the terminal-restore write. render() paints only inside it, see shell/terminal-paint-window.ts for what the early frames did to the boot surface and to the shell's screen.
   const paintWindow = createTerminalPaintWindow({ enter: () => allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write(buildEnterSequence(cli.flags.noAltScreen)); }), discardCompositorState: () => compositor.resetDiff() });
 
@@ -739,7 +740,6 @@ async function main() {
       data,
       pendingPermission,
       recoveryPending, daemonRepairPrompt,
-      pendingWorkspaceRegistration,
       abortTurn: () => orchestrator.abort(),
       conversation,
       systemMessageRouter,
@@ -749,7 +749,7 @@ async function main() {
       consumeRecovery: () => consumeRecovery(ctx.services.surface, recoveryPending ?? undefined).snapshot,
       removeRecoveryPoint: () => { removeRecoveryPoint(ctx.services.surface, recoveryPending ?? undefined); },
     });
-    ({ pendingPermission, recoveryPending, pendingWorkspaceRegistration } = blocking);
+    ({ pendingPermission, recoveryPending } = blocking);
     if (blocking.handled) {
       return;
     }
@@ -764,10 +764,10 @@ async function main() {
 
   conversation.rebuildHistory();
   render();
-  ({ recoveryInterval, recoveryPending, pendingWorkspaceRegistration, daemonRepairPrompt } = startFirstRenderFollowups({
+  ({ recoveryInterval, recoveryPending, daemonRepairPrompt } = startFirstRenderFollowups({
     shellPaths: ctx.services.shellPaths,
     providerRegistry,
-    commandContext, daemonRepair: { config: configManager },
+    commandContext, daemonRepair: { config: configManager }, askWorkspaceRegistration: createWorkspaceRegistrationQuestion(input),
     autonomy,
     buildCurrentSessionSnapshot,
     runtime,

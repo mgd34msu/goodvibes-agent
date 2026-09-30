@@ -183,13 +183,13 @@ export function wrapToolForPlatformBoundary(
   getLastUserMessage: () => string | null,
 ): void {
   const originalExecute = tool.execute.bind(tool);
-  tool.execute = async (args) => {
+  tool.execute = async (args, options) => {
     const denial = validatePlatformBoundaryForAgentPolicy({
       paths: readPathsFromToolArgs(args, listKey),
       lastUserMessage: getLastUserMessage(),
     });
     if (denial) return { success: false, error: denial };
-    return originalExecute(args);
+    return originalExecute(args, options);
   };
 }
 

@@ -68,7 +68,7 @@ export function wrapAgentContextToolForAgentPolicy(tool: Tool, registry?: ToolRe
     },
     additionalProperties: false,
   };
-  tool.execute = async (rawArgs) => {
+  tool.execute = async (rawArgs, options) => {
     const args = rawArgs as AgentContextArgs;
     const mode = readAgentContextMode(args.mode);
     if (mode === 'capabilities') return ok(buildAgentCapabilitiesContract(registry));
@@ -98,7 +98,7 @@ export function wrapAgentContextToolForAgentPolicy(tool: Tool, registry?: ToolRe
       includeParameters: args.includeParameters,
       limit: args.limit,
     };
-    const result = await harnessTool.execute(dropUndefined(harnessArgs));
+    const result = await harnessTool.execute(dropUndefined(harnessArgs), options);
     if (!result.success) return result;
     return ok({
       source: 'agent_harness',

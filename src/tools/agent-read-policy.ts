@@ -96,11 +96,11 @@ export const AGENT_READ_POLICY_DENIAL_MESSAGE = READ_POLICY_DENIAL;
 export function wrapReadToolForAgentPolicy(tool: Tool): void {
   narrowReadToolDefinitionForAgentPolicy(tool);
   const originalExecute = tool.execute.bind(tool);
-  tool.execute = async (args) => {
+  tool.execute = async (args, options) => {
     const readArgs = args as ReadToolArgs;
     const denial = validateReadToolInvocationForAgentPolicy(readArgs);
     if (denial) return { success: false, error: denial };
-    return originalExecute(args);
+    return originalExecute(args, options);
   };
 }
 

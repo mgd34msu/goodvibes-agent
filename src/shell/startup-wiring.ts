@@ -14,8 +14,8 @@ import {
 } from '../runtime/onboarding/index.ts';
 import { deriveOnboardingState } from '../runtime/onboarding/onboarding-state.ts';
 import { buildSetupIncompleteHint } from '../core/setup-incomplete-hint.ts';
-import { isBroadWorkspaceRoot, normalizeWorkspaceRoot, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
-import type { PendingWorkspaceRegistrationState } from './blocking-input.ts';
+import { answerWorkspaceRegistrationPrompt, isBroadWorkspaceRoot, normalizeWorkspaceRoot, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
+import type { AskWorkspaceRegistration } from './workspace-registration-question.ts';
 import { createDaemonRepairPrompt, type DaemonRepairPrompt } from './daemon-repair-prompt.ts';
 import { createDaemonRepairSessionMemory, diagnoseDaemonRepair, type DaemonRepairConfig, type DaemonRepairSessionMemory } from '../runtime/daemon-repair.ts';
 import type { DaemonCliRunner } from '../runtime/daemon-cli-service.ts';
@@ -54,6 +54,12 @@ export interface SessionPersistenceAndRecoveryDeps {
     /** Injectable repair, so a test drives accept without touching a service manager. */
     readonly repair?: Parameters<typeof createDaemonRepairPrompt>[0]['repair'];
   } | undefined;
+  /**
+   * Asks the first-start workspace question where the owner can see it (the
+   * shell passes a selection modal, workspace-registration-question.ts).
+   * Absent, the question is not asked this launch.
+   */
+  readonly askWorkspaceRegistration?: AskWorkspaceRegistration | undefined;
 }
 
 export interface SessionPersistenceAndRecoveryResult {
@@ -67,8 +73,8 @@ export interface SessionPersistenceAndRecoveryResult {
    * snapshot exists on disk, see checkRecoveryFile's RecoveryFileInfo.sessionId.
    */
   recoveryPending: string | null;
-  /** Set when the first-start registration prompt was shown this launch (see below). */
-  pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
+  /** The workspace root the first-start question was asked about this launch, null when it was not asked. */
+  workspaceRegistrationAsked: string | null;
   /**
    * The one-touch daemon repair controller when this launch offered a repair,
    * null otherwise. Handed straight to handleBlockingShellInput; it owns its
@@ -211,17 +217,23 @@ export function wireSessionPersistenceAndRecovery(
     }
   }
 
-  let pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
-  if (!recoveryPending && !daemonRepairPrompt && onboardingDone) {
+  let workspaceRegistrationAsked: string | null = null;
+  if (!recoveryPending && !daemonRepairPrompt && onboardingDone && deps.askWorkspaceRegistration) {
     const resolution = resolveWorkspaceRegistrationSync(shellPaths, workingDir);
     if (resolution.status === 'unknown' && !isBroadWorkspaceRoot(shellPaths, workingDir)) {
-      systemMessageRouter.high(`[Workspace] "${workingDir}" is not a registered workspace, so automatic (turn-end) checkpoints are off here. Register it? Press "y" to register, any other key to decline (won't ask again for this location).`);
-      render();
-      pendingWorkspaceRegistration = { root: normalizeWorkspaceRoot(workingDir), shellPaths };
+      const root = normalizeWorkspaceRoot(workingDir);
+      workspaceRegistrationAsked = root;
+      deps.askWorkspaceRegistration(root, (accepted) => {
+        answerWorkspaceRegistrationPrompt(shellPaths, root, accepted);
+        systemMessageRouter.high(accepted
+          ? `[Workspace] Registered ${root}, automatic checkpoints are now allowed here.`
+          : `[Workspace] Not registered, automatic checkpoints stay off here (won't ask again for this location).`);
+        render();
+      });
     }
   }
 
-  return { recoveryInterval, recoveryPending, pendingWorkspaceRegistration, daemonRepairPrompt };
+  return { recoveryInterval, recoveryPending, workspaceRegistrationAsked, daemonRepairPrompt };
 }
 
 /**

@@ -14,7 +14,7 @@
  * in this test process (startStubModel).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -284,9 +284,9 @@ function mergeJson(path: string, key: string, value: unknown): void {
 
 /**
  * A fresh home with the scripted model registered as a custom provider and
- * selected, onboarding and the first-start workspace question already answered
- * (a real owner's second launch), launch self-update off, and the daemon port
- * pinned to an unused port.
+ * selected, onboarding already finished, launch self-update off, and the daemon
+ * port pinned to an unused port. The scratch workspace is new to this home, so
+ * the first-start workspace question is asked (see answerWorkspaceQuestion).
  */
 export async function makeHome(model: StubModel): Promise<E2EHome> {
   const root = mkdtempSync(join(tmpdir(), 'gv-agent-e2e-'));
@@ -319,15 +319,6 @@ export async function makeHome(model: StubModel): Promise<E2EHome> {
   }, null, 2));
   const now = Date.now();
   writeFileSync(join(agentDir, 'onboarding-complete.json'), JSON.stringify({ version: 1, checkedAt: now, updatedAt: now, source: 'wizard' }));
-  // This owner already answered the first-start "register this workspace?"
-  // question for the scratch workspace (declined), as on any second launch.
-  mkdirSync(join(home, '.goodvibes', 'shared'), { recursive: true });
-  writeFileSync(join(home, '.goodvibes', 'shared', 'workspace-registrations.json'), JSON.stringify({
-    version: 1,
-    workspaces: [],
-    declines: [{ root: realpathSync(workspace), declinedAt: new Date(now).toISOString() }],
-  }));
-
   const daemonPort = await freePort();
   const settingsPath = join(agentDir, 'settings.json');
   const e2eHome: E2EHome = {
@@ -430,6 +421,22 @@ function shellQuote(value: string): string {
 /** The input area is on screen: its placeholder text. */
 export function inputAreaVisible(screen: string): boolean {
   return screen.includes('Ask anything, or type / for commands');
+}
+
+/** The first-start question, as it is drawn: a modal titled with the question. */
+export const WORKSPACE_QUESTION = 'Register this workspace for automatic checkpoints?';
+
+/**
+ * Wait for the first-start workspace question and answer it: Enter on the
+ * preselected "Not here", or move up and Enter for "Register". Returns once the
+ * modal is gone and the input area is back.
+ */
+export async function answerWorkspaceQuestion(session: AgentSession, answer: 'decline' | 'register'): Promise<string> {
+  const asked = await session.waitForScreen('the workspace question', (s) => screenText(s).includes(WORKSPACE_QUESTION), 30_000);
+  if (answer === 'register') session.key('Up');
+  session.key('Enter');
+  await session.waitForScreen('the question answered', (s) => !screenText(s).includes(WORKSPACE_QUESTION) && inputAreaVisible(s), 15_000);
+  return asked;
 }
 
 /** Words of the screen joined across wraps, for assertions on text that may wrap. */

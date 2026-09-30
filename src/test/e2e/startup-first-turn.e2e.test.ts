@@ -12,6 +12,7 @@
  */
 import { afterAll, describe, expect, test } from 'bun:test';
 import {
+  answerWorkspaceQuestion,
   binaryVersion,
   inputAreaVisible,
   lastUserText,
@@ -39,7 +40,9 @@ describe('main screen and first turn', () => {
     home = await makeHome(model);
     agent = launchAgent(home, { cols: 100, rows: 30 });
 
-    const screen = await agent.waitForScreen('the main screen', (s) => inputAreaVisible(s) && /context/.test(s), 45_000);
+    await agent.waitForScreen('the main screen', (s) => inputAreaVisible(s) && /context/.test(s), 45_000);
+    // A workspace this home has never seen: the first-start question comes first.
+    const screen = await answerWorkspaceQuestion(agent, 'decline').then(() => agent!.screen());
     const lines = screen.split('\n');
     expect(lines[0]).toContain(`GoodVibes Agent v${binaryVersion()}`);
     expect(lines[0]).toContain('stub-model');

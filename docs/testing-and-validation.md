@@ -22,7 +22,7 @@ bun run typecheck:test                      # src/ (tests included), scripts/ an
 bun run architecture:check                  # import cycles and layer boundaries
 
 bun run build                               # the binary the end-to-end tests drive
-bun run test:e2e:fast                       # main screen and a first turn
+bun run test:e2e:fast                       # main screen, first turn, first-start question
 bun run test:e2e                            # every end-to-end scenario
 ```
 
@@ -63,6 +63,7 @@ the CI `test` job runs; you rarely need it locally.
 | Scenario | File | Runs |
 |----------|------|------|
 | startup draws the main screen (header with this build and the model, splash, input area, status line with the model's context window) and a typed prompt is answered on it | `startup-first-turn.e2e.test.ts` | every push |
+| first start in a new workspace: the register-this-workspace question is drawn as a modal, and after it is answered the first typed prompt reaches the model whole and the decline is recorded | `first-start-workspace.e2e.test.ts` | every push |
 | the Agent adopts a running daemon, notices it go, and adopts the new one that comes back on the same port | `daemon-readoption.e2e.test.ts` | release gates |
 
 Each scenario was checked against a broken build: breaking the behavior in
@@ -86,7 +87,7 @@ test, break the behavior it covers and watch it fail.
 | `typecheck` | `bun run typecheck:test`, `bun run architecture:check`, `bun run workflows:check` | tsc over everything; no new runtime import cycles and no forbidden layer edges; every workflow parses and no job hides behind `continue-on-error` |
 | `test` | `bun run test` | The suite, once |
 | `build` | `bun run build:linux-x64`, `scripts/post-build-smoke.ts` | The binary and the toolchain banner smoke; uploaded for `e2e-smoke` and the release gates |
-| `e2e-smoke` | `bun run test:e2e:fast` | The main screen and a first turn on the built binary |
+| `e2e-smoke` | `bun run test:e2e:fast` | The main screen, a first turn, and the first-start workspace question on the built binary |
 | `package-gate` | `bun run publish:check`, `bun run package:install-check` | SDK pin, installed version and lockfile agree; package.json has the shape a publish needs; the npm tarball holds the files an install needs and none it must not; the packed tarball installs with `bun add -g` and the installed command runs and launches |
 | `release-intent` | `git ls-remote` | Pushes to `main` only: does this version still need a tag? |
 | `release-gates` | `release-gates.yml` | Only when `release-intent` says the push releases |
