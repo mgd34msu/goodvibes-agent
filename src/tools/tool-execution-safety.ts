@@ -28,9 +28,9 @@ export function wrapToolExecutionSafety(tool: Tool): void {
   marked[TOOL_SAFETY_MARKER] = true;
 
   const originalExecute = tool.execute.bind(tool);
-  tool.execute = async (args) => {
+  tool.execute = async (args, options) => {
     try {
-      return await originalExecute(args);
+      return await originalExecute(args, options);
     } catch (error) {
       return {
         success: false,

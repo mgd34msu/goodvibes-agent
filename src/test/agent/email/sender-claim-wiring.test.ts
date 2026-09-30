@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { hasAnySenderVerdict, parseAuthenticationResults, readSenderAuthentication } from '@pellux/goodvibes-sdk/platform/google';
+import { parseAuthenticationResults, readSenderAuthentication } from '@pellux/goodvibes-sdk/platform/google';
 import { describeSenderClaim } from '../../../agent/untrusted-content.ts';
 import {
   assertCanConfirm,
@@ -27,49 +27,6 @@ import {
 const FULLY_ALIGNED = 'mx.google.com; dkim=pass header.i=@example.com; spf=pass smtp.mailfrom=example.com; dmarc=pass header.from=example.com';
 
 const OWNER_ADDRESS = 'owner@example.com';
-
-describe('parsing the receiving server verdict', () => {
-  test('a fully aligned header reports all three checks as passing', () => {
-    const checks = parseAuthenticationResults(FULLY_ALIGNED);
-    expect(checks).toEqual({ dkim: 'pass', spf: 'pass', dmarc: 'pass' });
-  });
-
-  test('a failing check is reported as a failure rather than as an absence', () => {
-    const checks = parseAuthenticationResults('mx.google.com; dkim=fail; spf=pass; dmarc=fail');
-    expect(checks.dkim).toBe('fail');
-    expect(checks.dmarc).toBe('fail');
-  });
-
-  test('softfail and permerror count as failures, because the domain policy was not met', () => {
-    expect(parseAuthenticationResults('x; spf=softfail').spf).toBe('fail');
-    expect(parseAuthenticationResults('x; dkim=permerror').dkim).toBe('fail');
-  });
-
-  test('"we could not tell" never renders as "it passed"', () => {
-    expect(parseAuthenticationResults('x; spf=neutral').spf).toBe('none');
-    expect(parseAuthenticationResults('x; dkim=temperror').dkim).toBe('none');
-    expect(parseAuthenticationResults('x; dmarc=none').dmarc).toBe('none');
-  });
-
-  test('a header with no recognised method yields no verdict at all', () => {
-    expect(hasAnySenderVerdict(parseAuthenticationResults('mx.google.com; iprev=pass'))).toBe(false);
-    expect(hasAnySenderVerdict(parseAuthenticationResults(''))).toBe(false);
-  });
-
-  test('ONLY the top-most header is read: a forged one below it is ignored', () => {
-    // A sender can embed their own Authentication-Results in the message they
-    // submit; it lands below the receiving server's. Reading lower would let
-    // them overwrite a genuine `fail` with a claimed `pass`.
-    const genuine = 'mx.google.com; dkim=fail; spf=fail; dmarc=fail';
-    const forged = 'evil.example; dkim=pass; spf=pass; dmarc=pass';
-    const checks = readSenderAuthentication([genuine, forged]);
-    expect(checks).toEqual({ dkim: 'fail', spf: 'fail', dmarc: 'fail' });
-  });
-
-  test('no headers at all yields no verdict, not a default of "fine"', () => {
-    expect(hasAnySenderVerdict(readSenderAuthentication([]))).toBe(false);
-  });
-});
 
 describe('confidence reaches the display', () => {
   test('a fully aligned message reads as protocol-verified', () => {

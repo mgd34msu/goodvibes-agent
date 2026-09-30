@@ -2,9 +2,7 @@
  * Delete-key policy unit tests.
  *
  * Covers:
- *   1. Policy predicate contracts (isTextBackspace, isTextForwardDelete),
- *      byte-identical to the TUI's own predicate tests.
- *   2. Selection modal: 'delete' is a no-op in the end-anchored search filter
+ *   Selection modal: 'delete' is a no-op in the end-anchored search filter
  *      (no cursor to forward-delete from); 'backspace' removes the last char.
  *      This agent has no `panels/` directory (fleet-only in the TUI, excluded
  *      per the parity matrix as INTENTIONALLY-DIFFERENT / fleet-lessness), so
@@ -12,42 +10,8 @@
  *      groups have no equivalent surface here and are not ported.
  */
 import { describe, expect, test } from 'bun:test';
-import { isTextBackspace, isTextForwardDelete } from '@pellux/goodvibes-terminal-shell';
 import { handleSelectionModalToken } from '../../input/handler-modal-routes.ts';
 import { SelectionModal } from '../../input/selection-modal.ts';
-
-// ---------------------------------------------------------------------------
-// 1. Policy predicates
-// ---------------------------------------------------------------------------
-
-describe('delete-key policy predicates', () => {
-  test('isTextBackspace: backspace returns true', () => {
-    expect(isTextBackspace('backspace')).toBe(true);
-  });
-
-  test('isTextBackspace: delete returns false', () => {
-    expect(isTextBackspace('delete')).toBe(false);
-  });
-
-  test('isTextBackspace: other keys return false', () => {
-    expect(isTextBackspace('a')).toBe(false);
-    expect(isTextBackspace('escape')).toBe(false);
-    expect(isTextBackspace('')).toBe(false);
-  });
-
-  test('isTextForwardDelete: delete returns true', () => {
-    expect(isTextForwardDelete('delete')).toBe(true);
-  });
-
-  test('isTextForwardDelete: backspace returns false', () => {
-    expect(isTextForwardDelete('backspace')).toBe(false);
-  });
-
-  test('isTextForwardDelete: other keys return false', () => {
-    expect(isTextForwardDelete('a')).toBe(false);
-    expect(isTextForwardDelete('escape')).toBe(false);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // 2. Selection modal: delete-key policy in the end-anchored search filter

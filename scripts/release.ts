@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { insertChangelogSection, nextVersion as toolchainNextVersion } from '@pellux/goodvibes-toolchain';
-import { packageDocPaths, verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
+import { packageDocPaths, verifyPackageFacingText, verifyReleaseMetadata, verifyReleaseStamps } from '../src/cli/package-verification.ts';
 
 /**
  * Release script, bumps version, updates CHANGELOG, creates git tag.
@@ -17,9 +17,9 @@ import { packageDocPaths, verifyPackageFacingText, verifyReleaseMetadata } from 
  *   bun run scripts/release.ts --dry-run    # preview without writing
  *
  * What it does:
- *   1. Pre-release validation (typecheck, architecture, performance, build, package/publish smoke, ledger, diff hygiene)
+ *   1. Release evidence text hygiene (CI already validated the commit)
  *   2. Bump package.json version
- *   3. Update src/version.ts fallback via prebuild script
+ *   3. Regenerate every version stamp and pin (scripts/release-prepare.ts --no-bump --no-changelog)
  *   4. Prepend new section to CHANGELOG.md
  *   5. Verify release metadata and generated diff hygiene
  *   6. Stage changes, commit, create annotated git tag
@@ -70,6 +70,7 @@ export function releaseMetadataPaths(root = process.cwd()): readonly string[] {
     'src/version.ts',
     'README.md',
     'CHANGELOG.md',
+    '.github/workflows',
     ...releaseEvidenceInputPaths(),
     ...packageDocPaths(root),
   ];
@@ -207,6 +208,7 @@ function assertReleasePackagePolicy(label: string, root: string): void {
   const issues = [
     ...verifyReleaseMetadata(root),
     ...verifyPackageFacingText(root).failures,
+    ...verifyReleaseStamps(root),
   ];
   if (issues.length === 0) return;
   console.error(`Error: ${label} failed.`);
@@ -291,8 +293,8 @@ export function main(argv = process.argv.slice(2), root = process.cwd()): void {
   // exactly once, on the release commit's push-CI run (per-job green); the tag
   // is cut from that already-green tree and verified by-reference downstream
   // (release.yml → reusable-release-verify). The old local [1/5] gate re-run
-  // (typecheck/architecture/perf/build/publish:check/package:install-check/
-  // ledger/pack/diff) is intentionally gone. This step only prepares, bumps,
+  // (typecheck/architecture/build/publish:check/package:install-check/pack/diff)
+  // is intentionally gone. This step only prepares, bumps,
   // updates the changelog, and tags.
 
   // --- Bump package.json ---
@@ -305,8 +307,8 @@ export function main(argv = process.argv.slice(2), root = process.cwd()): void {
 
   // --- Update src/version.ts via prebuild script ---
 
-  console.log('\n[3/5] Syncing src/version.ts via prebuild...');
-  run('bun run scripts/prebuild.ts', options, root);
+  console.log('\n[3/5] Regenerating version stamps and pins via release:prepare...');
+  run('bun run scripts/release-prepare.ts --no-bump --no-changelog --no-install --no-live', options, root);
 
   // --- Update CHANGELOG.md ---
 

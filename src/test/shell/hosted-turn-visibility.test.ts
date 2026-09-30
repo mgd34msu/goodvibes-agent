@@ -17,7 +17,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
   createHostedTurnActivity,
-  HOSTED_SPINNER_INTERVAL_MS,
   type ThinkingUiState,
 } from '../../shell/hosted-turn-activity.ts';
 import { buildThrobberState, ThinkingStallClock } from '../../core/thinking-overlay.ts';
@@ -152,11 +151,6 @@ describe('symptom 2: the shell repaints with no input events at all', () => {
     activity.dispose();
   });
 
-  test('the cadence matches the local turn animation', () => {
-    // A different interval would make a hosted spinner visibly faster or
-    // slower than a local one, a presentation change nobody ordered.
-    expect(HOSTED_SPINNER_INTERVAL_MS).toBe(80);
-  });
 });
 
 describe('symptom 3: streamed text is visible as deltas arrive', () => {

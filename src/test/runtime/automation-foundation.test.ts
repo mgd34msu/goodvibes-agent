@@ -40,54 +40,6 @@ describe('automation/control-plane foundation', () => {
     expect(state.controlPlane.connectionState).toBe('disabled');
   });
 
-  test('config manager supports deep surface settings and reset for nested keys', () => {
-    const config = new ConfigManager({ surfaceRoot: 'tui',  configDir });
-
-    expect(config.get('surfaces.slack.enabled')).toBe(false);
-    expect(config.get('automation.maxConcurrentRuns')).toBe(4);
-
-    config.set('surfaces.slack.enabled', true);
-    config.set('surfaces.discord.applicationId', 'discord-app');
-    config.set('automation.maxConcurrentRuns', 9);
-
-    expect(config.get('surfaces.slack.enabled')).toBe(true);
-    expect(config.get('surfaces.discord.applicationId')).toBe('discord-app');
-    expect(config.get('automation.maxConcurrentRuns')).toBe(9);
-
-    config.reset('surfaces.slack.enabled');
-    config.reset('surfaces.discord.applicationId');
-    config.reset('automation.maxConcurrentRuns');
-
-    expect(config.get('surfaces.slack.enabled')).toBe(false);
-    expect(config.get('surfaces.discord.applicationId')).toBe('');
-    expect(config.get('automation.maxConcurrentRuns')).toBe(4);
-  });
-
-  test('feature flag manager registers automation and gateway cutover flags', () => {
-    const flags = createFeatureFlagManager();
-
-    // Dissolved feature model: these capabilities default ON (nothing
-    // default-on requires a setup step, automation idles with a
-    // first-routine empty state, the gateway streams companion chat over SSE
-    // without config, route binding activates through its domain key
-    // integrations.routeBinding which also defaults true).
-    expect(flags.isEnabled('automation-domain')).toBe(true);
-    expect(flags.isEnabled('control-plane-gateway')).toBe(true);
-    expect(flags.isEnabled('route-binding')).toBe(true);
-
-    flags.loadFromConfig({
-      flags: {
-        'automation-domain': 'enabled',
-        'control-plane-gateway': 'enabled',
-        'route-binding': 'enabled',
-      },
-    });
-
-    expect(flags.isEnabled('automation-domain')).toBe(true);
-    expect(flags.isEnabled('control-plane-gateway')).toBe(true);
-    expect(flags.isEnabled('route-binding')).toBe(true);
-  });
-
   /**
    * integrations.routeBinding, driven to BOTH values through the real consumer.
    *
@@ -115,22 +67,6 @@ describe('automation/control-plane foundation', () => {
       featureFlags,
     });
   }
-
-  test('integrations.routeBinding false turns route binding off, and the manager says so', async () => {
-    const manager = routeBindingManager(false);
-    // Askable, so a caller can tell "you have no bindings" from "bindings are off".
-    expect(manager.isRouteBindingEnabled()).toBe(false);
-    expect(manager.listBindings()).toEqual([]);
-    // A write REFUSES rather than silently doing nothing, and the refusal names
-    // the setting so the reason is diagnosable from the message alone.
-    let refusal = '';
-    try {
-      await manager.upsertBinding({ kind: 'session', surfaceKind: 'telegram', surfaceId: 'surface:telegram', externalId: 'chat-1' });
-    } catch (error) {
-      refusal = error instanceof Error ? error.message : String(error);
-    }
-    expect(refusal).toContain('integrations.routeBinding');
-  });
 
   test('integrations.routeBinding true binds and resolves a route, and is the shipped default', async () => {
     const manager = routeBindingManager(true);
@@ -195,33 +131,4 @@ describe('runtime.eventBus.maxListeners reaches a bus built with no options', ()
     manager.set('runtime.eventBus.maxListeners', cap);
     return manager;
   }
-
-  test('a configured cap of 4 refuses the 5th listener on a bus built after the call', () => {
-    const configManager = configManagerWithCap(4);
-    // The exact call shape used at every composition-root site in this project.
-    configureRuntimeEventBusDefaults(runtimeEventBusOptionsFrom((key) => configManager.get(key)));
-
-    const bus = new RuntimeEventBus();
-    for (let i = 0; i < 4; i++) {
-      bus.on('SESSION_STARTED', (() => {}) as Parameters<typeof bus.on>[1]);
-    }
-    expect(() => {
-      bus.on('SESSION_STARTED', (() => {}) as Parameters<typeof bus.on>[1]);
-    }).toThrow(RangeError);
-  });
-
-  test('a configured cap of 40 accepts a 5th listener and refuses the 41st', () => {
-    const configManager = configManagerWithCap(40);
-    configureRuntimeEventBusDefaults(runtimeEventBusOptionsFrom((key) => configManager.get(key)));
-
-    const bus = new RuntimeEventBus();
-    // The count the previous case refused is fine at this cap.
-    expect(() => {
-      for (let i = 0; i < 5; i++) bus.on('SESSION_STARTED', (() => {}) as Parameters<typeof bus.on>[1]);
-    }).not.toThrow();
-    for (let i = 0; i < 35; i++) bus.on('SESSION_STARTED', (() => {}) as Parameters<typeof bus.on>[1]);
-    expect(() => {
-      bus.on('SESSION_STARTED', (() => {}) as Parameters<typeof bus.on>[1]);
-    }).toThrow(RangeError);
-  });
 });

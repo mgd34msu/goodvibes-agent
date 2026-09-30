@@ -145,23 +145,6 @@ describe('renderContextInspector', () => {
 
   // ── Estimator unification regression (TASK-054) ─────────────────────────────────
 
-  test('estimator unification: SDK estimateConversationTokens agrees with per-message SDK estimateTokens sum', () => {
-    // Prove the two SDK functions agree, same formula, consistent output.
-    const messages = [
-      { role: 'user' as const, content: 'Hello world, this is the first message.' },
-      { role: 'assistant' as const, content: 'I understand your message completely.' },
-      { role: 'user' as const, content: 'A'.repeat(200) },
-    ];
-    const conversationTotal = estimateConversationTokens(messages);
-    const perMessageSum = messages.reduce((sum, m) => {
-      const text = typeof m.content === 'string' ? m.content : '';
-      return sum + estimateTokens(text);
-    }, 0);
-    // Both estimators must agree exactly, single formula, no divergence.
-    expect(conversationTotal).toBe(perMessageSum);
-    expect(conversationTotal).toBeGreaterThan(0);
-  });
-
   test('estimator unification: inspector total matches estimateConversationTokens for same messages', () => {
     const conv = makeConversation();
     const content = 'Testing token estimator unification across all surfaces.';

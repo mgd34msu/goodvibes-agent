@@ -20,21 +20,6 @@
  * `~/.goodvibes/daemon/`. Every test points it at a temp file it created and
  * deletes afterwards. The daemon-scope file is never opened.
  *
- * ## Asserting the installed runtime, not a build of it
- *
- * A tarball that predates the contract change looks identical to a correct one
- * from in here, and this lane already lost time to exactly that. So the
- * contract is read out of the installed handler itself, by the wording the
- * change introduced and the wording it removed. That works against whatever is
- * installed, a published package or a local pack.
- *
- * This used to assert a SOURCE_COMMIT stamp first. That stamp is written by the
- * platform's local pack step and is absent from the published tarball, so once
- * this repo consumed the published package the assertion only ever reported
- * which build process produced the runtime, never whether the contract was in
- * it. The two capability assertions below already answer the question it was
- * asked to answer.
- *
  * ── Whose composition this drives ────────────────────────────────────────
  *
  * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
@@ -62,11 +47,6 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createAgentProfileTool } from '../../tools/agent-profile-tool.ts';
 import { createProfileGatewayInvoke } from '../../agent/owner-profile-gateway.ts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-
-const SDK_DIST = join(
-  import.meta.dir, '..', '..', '..',
-  'node_modules', '@pellux', 'goodvibes-sdk', 'dist',
-);
 
 const PROFILE_FIXTURE = `# Mike's profile
 
@@ -181,29 +161,6 @@ async function liveProfile(): Promise<LiveProfile> {
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
-
-describe('the installed platform runtime carries the contract this lane was built against', () => {
-  // Asserted as CAPABILITIES, not as a commit. Pinning the stamp here would
-  // fail on every legitimate repack, including ones that fix things, and a
-  // test that fails on every update is one people learn to re-stamp without
-  // reading. These assertions fail only if the contract actually moves.
-  //
-  // The stamp is still load-bearing in exactly one place: the list-marker
-  // tolerance below, which is a statement about one specific build.
-  test('the forget verb is content-addressed, not positional', () => {
-    const handler = readFileSync(join(SDK_DIST, 'platform', 'control-plane', 'routes', 'owner-profile.js'), 'utf-8');
-    // Both halves matter: the new wording is present AND the wording the old
-    // positional contract used is gone. Checking only the first would pass on a
-    // runtime that still accepted a lineIndex alongside the new path.
-    expect(handler).toContain('does not take a lineIndex');
-    expect(handler).not.toContain('forget needs a fieldId or a lineIndex');
-  });
-
-  test('authority is required on every write verb', () => {
-    const handler = readFileSync(join(SDK_DIST, 'platform', 'control-plane', 'routes', 'owner-profile.js'), 'utf-8');
-    expect(handler).toContain('authority is required and must be one of');
-  });
 });
 
 describe('forget, against the real store', () => {

@@ -170,7 +170,7 @@ export function fixtureSplash(width: number): Line[] {
       addLines: (more: Line[]) => { lines.push(...more); },
       getLineCount: () => lines.length,
     },
-    splashOptions: { workingDir: '/workspace/assistant', model: 'claude-opus-4', provider: 'anthropic', toolCount: 42 },
+    splashOptions: { workingDir: '/workspace/assistant', model: 'claude-opus-4', provider: 'anthropic', toolCount: 42, version: FIXTURE_VERSION },
   } as unknown as ConversationRenderContext;
   addConversationSplashScreen(context, width);
   return lines;

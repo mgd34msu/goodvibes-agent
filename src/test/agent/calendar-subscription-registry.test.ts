@@ -9,8 +9,7 @@
  * merged views are read-only + source-labeled, and unsubscribe clears the secret.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FeedFetcher, FeedFetchResult } from '@pellux/goodvibes-sdk/platform/calendar';
 import { CalendarSubscriptionRegistry, type SubscriptionSecretStore } from '../../agent/calendar-subscription-registry.ts';
@@ -277,5 +276,3 @@ describe('CalendarSubscriptionRegistry: concurrent-mutation safety (F2)', () => 
   });
 });
 
-// Keep the tmp-dir guard referenced so lint does not flag the import.
-test('tmp helper is wired', () => { expect(existsSync(tmpdir())).toBe(true); });

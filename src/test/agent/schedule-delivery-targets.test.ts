@@ -5,8 +5,6 @@
  * derived from it, and every command parsing through the same functions.
  */
 import { describe, expect, test } from 'bun:test';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { parseAutonomyScheduleArgs } from '../../agent/autonomy-schedule.ts';
 import { parseReminderScheduleArgs } from '../../agent/reminder-schedule.ts';
 import { parseRoutineSchedulePromotionArgs } from '../../agent/routine-schedule-args.ts';
@@ -17,21 +15,7 @@ import {
   validateDeliveryTargets,
 } from '../../agent/schedule-delivery-targets.ts';
 
-const AGENT_SRC = join(import.meta.dir, '..', '..', 'agent');
-
 describe('the delivery-surface list has exactly one definition', () => {
-  test('no module outside schedule-delivery-targets.ts spells out the list', () => {
-    const offenders = readdirSync(AGENT_SRC)
-      .filter((entry) => entry.endsWith('.ts') && entry !== 'schedule-delivery-targets.ts')
-      .filter((entry) => {
-        const text = readFileSync(join(AGENT_SRC, entry), 'utf-8');
-        // The three least-guessable members together: any second copy of the
-        // list carries all of them, no unrelated file carries any.
-        return text.includes("'bluebubbles'") && text.includes("'google-chat'") && text.includes("'mattermost'");
-      });
-    expect(offenders).toEqual([]);
-  });
-
   test('the surface-kind type is derived from the runtime list, so the two cannot disagree', () => {
     // A type error here (not a runtime failure) is the point: adding a member
     // to the list widens the type automatically.

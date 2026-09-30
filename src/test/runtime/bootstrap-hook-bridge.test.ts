@@ -8,24 +8,6 @@ import type { SharedSessionRecord } from '@pellux/goodvibes-sdk/platform/control
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('bootstrap hook bridge session resume', () => {
-  test('stays independent from panel manager restore paths', () => {
-    const source = readFileSync(join(import.meta.dir, '../../runtime/bootstrap-hook-bridge.ts'), 'utf-8');
-
-    expect(source).not.toContain('PanelManager');
-    expect(source).not.toContain('panelManager');
-  });
-
-  test('session resume sources carry no pane-era state handling', () => {
-    const source = readFileSync(join(import.meta.dir, '../../input/commands/session-workflow.ts'), 'utf-8');
-    const bridge = readFileSync(join(import.meta.dir, '../../runtime/bootstrap-hook-bridge.ts'), 'utf-8');
-
-    for (const text of [source, bridge]) {
-      expect(text).not.toContain('openPanels');
-      expect(text).not.toContain('Open panels');
-      expect(text).not.toContain('panel state');
-    }
-  });
-
   test('resumes a session saved with an open-panels list without printing anything about panes', async () => {
     const logs: string[] = [];
     const tmpDir = makeProjectTempDir('gv-resume-legacy-panels');

@@ -387,7 +387,7 @@
       "capability": "Package metadata, docs, Bun-only install, runtime build, compiled binary smoke, committed performance snapshot fixture evaluation, publish checks, install checks, and release workflows are guarded by shared release metadata verification.",
       "owner": "release",
       "status": "covered",
-      "evidence": "release/performance-snapshot.json; src/cli/package-verification.ts; scripts/release.ts; scripts/perf-check.ts; scripts/publish-check.ts; scripts/package-install-check.ts; .github/workflows/ci.yml",
+      "evidence": "release/performance-snapshot.json; src/cli/package-verification.ts; scripts/release.ts; scripts/publish-check.ts; scripts/package-install-check.ts; .github/workflows/ci.yml",
       "action": "Keep release validation centralized and package-facing docs aligned with Agent product boundaries.",
       "quality": {
         "capabilityCoverage": "Covers package identity, Bun-only install, runtime build, package docs, compact model tool and harness metadata policy, searchable harness mode discovery, command/CLI/tool route metadata, keyboard route metadata, operator/audit route metadata, stripped registered schema descriptions, compiled binary smoke, pack/install smoke, publish checks, performance checks, and tarball policy.",

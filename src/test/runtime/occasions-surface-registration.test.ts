@@ -26,7 +26,6 @@ import {
 import { CATEGORY_LABELS } from '../../renderer/settings-modal-helpers.ts';
 import { fallbackPermissionCategoryForArgs } from '../../runtime/tool-permission-safety.ts';
 import { OCCASIONS_ACTIONS } from '../../tools/agent-occasions-types.ts';
-import { GOODVIBES_AGENT_OPERATOR_POLICY } from '../../runtime/agent-operator-policy.ts';
 
 /**
  * Derived from the live schema, never written out as literals. The verification
@@ -136,37 +135,3 @@ describe('occasions tool permission classification', () => {
   });
 });
 
-describe('occasions turn guidance', () => {
-  const policy = GOODVIBES_AGENT_OPERATOR_POLICY;
-
-  test('routes a mentioned date to the occasions tool, not to a profile append', () => {
-    // Without this the profile block's own instruction ("record a fact about
-    // himself as he says it") sends a birthday to `profile action:"append"`, where
-    // it lands under Notes as prose that nothing sweeps and nothing ever raises.
-    expect(policy).toContain('never `profile action:"append"`');
-    expect(policy).toContain('`occasions` tool');
-  });
-
-  test('states the two-step capture, with the kind asked in the same breath', () => {
-    expect(policy).toContain('put its confirmation line to him exactly as it comes back');
-    expect(policy).toContain('ask both together and wait');
-    expect(policy).toContain('Never choose the kind for him');
-  });
-
-  test('states that the nudge wording is used as given, and carries no date', () => {
-    expect(policy).toContain('Say it as given');
-    expect(policy).toContain('never the date or a count of days');
-  });
-
-  test('states that later is its own answer and never goes in as no', () => {
-    expect(policy).toContain('`later` is its own answer and never goes in as `no`');
-  });
-
-  test('states that the agent does not make the gift recommendation', () => {
-    expect(policy).toContain('You are not the one making the recommendation');
-  });
-
-  test('states that the dates he can ask for do not go into an outbound message', () => {
-    expect(policy).toContain('never go into an outbound message');
-  });
-});

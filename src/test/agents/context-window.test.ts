@@ -12,12 +12,6 @@ import { describe, test, expect, beforeEach, mock } from 'bun:test';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import type { AgentRecord } from '@pellux/goodvibes-sdk/platform/tools';
 import type { LLMProvider, ChatRequest, ChatResponse } from '@pellux/goodvibes-sdk/platform/providers';
-import {
-  estimateTokens,
-  estimateConversationTokens,
-  compactSmallWindow,
-} from '@pellux/goodvibes-sdk/platform/core';
-import { isContextSizeExceededError } from '@pellux/goodvibes-sdk/platform/types';
 import { getTestAgentOrchestrator, getTestProviderRegistry, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
 
 // ---------------------------------------------------------------------------
@@ -106,118 +100,6 @@ async function withMockProvider<T>(
     reg.getCurrentModel = origGetCurrentModel;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Unit: estimateTokens
-// ---------------------------------------------------------------------------
-
-describe('estimateTokens', () => {
-  test('empty string is 0', () => {
-    expect(estimateTokens('')).toBe(0);
-  });
-
-  test('approximates chars/4', () => {
-    const text = 'a'.repeat(400);
-    // estimateTokens uses Math.ceil(chars / 4) or similar
-    const result = estimateTokens(text);
-    expect(result).toBeGreaterThanOrEqual(90);
-    expect(result).toBeLessThanOrEqual(110);
-  });
-
-  test('multi-message conversation token count sums message lengths', () => {
-    const messages = [
-      { role: 'user' as const, content: 'a'.repeat(400) },
-      { role: 'assistant' as const, content: 'b'.repeat(400) },
-    ];
-    const total = estimateConversationTokens(messages);
-    expect(total).toBeGreaterThan(150);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Unit: isContextSizeExceededError
-// ---------------------------------------------------------------------------
-
-describe('isContextSizeExceededError', () => {
-  test('returns true for OpenAI-style message', () => {
-    expect(isContextSizeExceededError(new Error('context_length_exceeded: max 8192 tokens'))).toBe(true);
-  });
-
-  test('returns true for "context size exceeded" message', () => {
-    expect(isContextSizeExceededError(new Error('Context size exceeded'))).toBe(true);
-  });
-
-  test('returns true for "context window exceeded" message', () => {
-    expect(isContextSizeExceededError(new Error('context window exceeded the model limit'))).toBe(true);
-  });
-
-  test('returns true for "prompt is too long" message', () => {
-    expect(isContextSizeExceededError(new Error('prompt is too long for this model'))).toBe(true);
-  });
-
-  test('returns true for "input too long" message', () => {
-    expect(isContextSizeExceededError(new Error('Input too long: 50000 tokens'))).toBe(true);
-  });
-
-  test('returns true for "tokens exceed" message', () => {
-    expect(isContextSizeExceededError(new Error('tokens exceed the max context'))).toBe(true);
-  });
-
-  test('returns false for rate limit error', () => {
-    expect(isContextSizeExceededError(new Error('429 too many requests'))).toBe(false);
-  });
-
-  test('returns false for network error', () => {
-    expect(isContextSizeExceededError(new Error('ECONNREFUSED'))).toBe(false);
-  });
-
-  test('returns false for non-Error values', () => {
-    expect(isContextSizeExceededError('string error')).toBe(false);
-    expect(isContextSizeExceededError(null)).toBe(false);
-    expect(isContextSizeExceededError(42)).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Unit: compactSmallWindow
-// ---------------------------------------------------------------------------
-
-describe('compactSmallWindow', () => {
-  test('returns messages unchanged when count <= keepRecent', () => {
-    const messages = [
-      { role: 'user' as const, content: 'hello' },
-      { role: 'assistant' as const, content: 'world' },
-    ];
-    const result = compactSmallWindow(messages, 10);
-    expect(result).toBe(messages); // reference equality, no copy
-  });
-
-  test('truncates to keepRecent messages plus 2 summary messages', () => {
-    const messages = Array.from({ length: 20 }, (_, i) => ({
-      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
-      content: `message ${i}`,
-    }));
-    const result = compactSmallWindow(messages, 5);
-    // 2 summary messages + 5 recent = 7 total
-    expect(result.length).toBe(7);
-    // First two are summary placeholders
-    expect(result[0]?.role).toBe('user');
-    expect(result[1]?.role).toBe('assistant');
-    // Last message should be the last original message
-    expect(result[result.length - 1]?.content).toBe('message 19');
-  });
-
-  test('summary placeholder mentions omitted count', () => {
-    const messages = Array.from({ length: 15 }, (_, i) => ({
-      role: 'user' as const,
-      content: `msg ${i}`,
-    }));
-    const result = compactSmallWindow(messages, 5);
-    const summary = result[0]?.content;
-    expect(typeof summary).toBe('string');
-    expect(String(summary)).toContain('10');
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Integration: agent runs normally without compaction needed

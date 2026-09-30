@@ -1,6 +1,6 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -52,13 +52,6 @@ describe('Agent user-first autonomy policy', () => {
     expect(AGENT_READ_ONLY_TOOL_MODES).toContain('wait');
     expect(validateAgentToolInvocationForAgentPolicy({ mode: 'spawn' })).toBeNull();
     expect(validateAgentToolInvocationForAgentPolicy({ mode: 'cancel' })).toBeNull();
-  });
-
-  test('main footer reads active agents instead of hardcoding zero', () => {
-    const mainSource = readFileSync(join(import.meta.dir, '../../main.ts'), 'utf8');
-    expect(mainSource).toContain('uiServices.readModels.agents.getSnapshot()');
-    expect(mainSource).toContain('runningAgentCount = activeAgents.length');
-    expect(mainSource).not.toContain('runningAgentCount = 0');
   });
 
   test('a continuation arriving from the connected host spawns a visible tracked agent', async () => {

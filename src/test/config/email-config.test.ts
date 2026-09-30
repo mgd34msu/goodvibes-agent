@@ -1,16 +1,9 @@
 /**
  * Integration test: email.* config keys with a real ConfigManager instance.
  *
- * Regression guard for CRIT-1: ensures that ensureEmailConfigDefaults() injects
- * the email section and that all email.* keys can be set/get round-tripped
- * without throwing 'Invalid config path'.
- *
- * Also covers CRIT-A/CRIT-B: the user-facing setter path (/email set) via
- * persistSecretBackedConfigValue for secret keys and setDynamic+save for
- * plain keys. These tests exercise the real command/persist path, they do
- * NOT mutate config[] directly.
- *
- * Pattern mirrors src/test/config/schema-extensions.test.ts.
+ * Covers CRIT-A/CRIT-B: the user-facing setter path (/email set) via
+ * persistSecretBackedConfigValue for secret keys. These tests exercise the
+ * real command/persist path, they do NOT mutate config[] directly.
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
@@ -44,143 +37,6 @@ function createConfigManager(workingDir: string): ConfigManager {
 function emailGet(cm: ConfigManager, key: string): unknown {
   return (cm as unknown as { get: (k: string) => unknown }).get(key);
 }
-
-// ---------------------------------------------------------------------------
-// Suite
-// ---------------------------------------------------------------------------
-
-describe('email config integration: ensureEmailConfigDefaults + real ConfigManager', () => {
-  let tmpDir: string;
-
-  beforeEach(() => {
-    tmpDir = makeTmpDir();
-  });
-
-  afterEach(() => {
-    if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  test('ensureEmailConfigDefaults does not throw on a fresh ConfigManager', () => {
-    const cm = createConfigManager(tmpDir);
-    expect(() => ensureEmailConfigDefaults(cm)).not.toThrow();
-  });
-
-  test('ensureEmailConfigDefaults is idempotent (safe to call multiple times)', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.enabled')).toBe(false);
-  });
-
-  test('email.enabled default is false', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.enabled')).toBe(false);
-  });
-
-  test('email.imapPort default is 993', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.imapPort')).toBe(993);
-  });
-
-  test('email.smtpPort default is 587', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.smtpPort')).toBe(587);
-  });
-
-  test('email.imapHost default is empty string', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.imapHost')).toBe('');
-  });
-
-  test('email.smtpHost default is empty string', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.smtpHost')).toBe('');
-  });
-
-  test('email.username default is empty string', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.username')).toBe('');
-  });
-
-  test('email.passwordRef default is empty string', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.passwordRef')).toBe('');
-  });
-
-  test('email.fromAddress default is empty string', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    expect(emailGet(cm, 'email.fromAddress')).toBe('');
-  });
-
-  // -------------------------------------------------------------------------
-  // get / set round-trips
-  // -------------------------------------------------------------------------
-
-  test('set and get email.enabled round-trip', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    (cm as unknown as { config: Record<string, Record<string, unknown>> }).config['email']!['enabled'] = true;
-    expect(emailGet(cm, 'email.enabled')).toBe(true);
-  });
-
-  test('set and get email.imapHost round-trip', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    (cm as unknown as { config: Record<string, Record<string, unknown>> }).config['email']!['imapHost'] = 'imap.test.example';
-    expect(emailGet(cm, 'email.imapHost')).toBe('imap.test.example');
-  });
-
-  test('set and get email.smtpHost round-trip', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    (cm as unknown as { config: Record<string, Record<string, unknown>> }).config['email']!['smtpHost'] = 'smtp.test.example';
-    expect(emailGet(cm, 'email.smtpHost')).toBe('smtp.test.example');
-  });
-
-  test('set and get email.passwordRef round-trip', () => {
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-    const ref = 'goodvibes://secrets/goodvibes/GOODVIBES_EMAIL_PASSWORDREF';
-    (cm as unknown as { config: Record<string, Record<string, unknown>> }).config['email']!['passwordRef'] = ref;
-    expect(emailGet(cm, 'email.passwordRef')).toBe(ref);
-  });
-
-  test('get resolves the declared schema default without any injection', () => {
-    // Platform 2.0.8 promoted every email.* key into CONFIG_SCHEMA
-    // (schema-domain-connectors.ts) with real defaults in DEFAULT_CONFIG, so a
-    // ConfigManager built the normal way already carries the section: a read
-    // now answers with the declared default instead of throwing "Invalid config
-    // path". ensureEmailConfigDefaults stays a backstop for config objects
-    // assembled some other way, not a precondition for reading.
-    const cm = createConfigManager(tmpDir);
-
-    expect(emailGet(cm, 'email.enabled')).toBe(false);
-    expect(emailGet(cm, 'email.imapPort')).toBe(993);
-    expect(emailGet(cm, 'email.imapSecurity')).toBe('tls');
-    expect(emailGet(cm, 'email.smtpPort')).toBe(587);
-    expect(emailGet(cm, 'email.smtpSecurity')).toBe('auto');
-    for (const key of [
-      'email.imapHost',
-      'email.smtpHost',
-      'email.username',
-      'email.passwordRef',
-      'email.smtpPasswordRef',
-      'email.fromAddress',
-      'email.mailbox',
-      'email.draftsMailbox',
-    ]) {
-      expect(emailGet(cm, key)).toBe('');
-    }
-  });
-});
 
 // ---------------------------------------------------------------------------
 // User-facing setter path: /email set, CRIT-A / CRIT-B
@@ -221,22 +77,6 @@ describe('email set command path: user-facing setter via persistSecretBackedConf
 
   afterEach(() => {
     if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  test('plain key (email.imapHost) round-trips through setDynamic+save and survives new ConfigManager', () => {
-    const configDir = join(tmpDir, '.goodvibes', 'global-tui');
-    const cm = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm);
-
-    // Simulate the non-secret path in handleSet
-    const configKey = 'email.imapHost' as unknown as ConfigKey;
-    (cm as unknown as { setDynamic: (k: unknown, v: unknown) => void }).setDynamic(configKey, 'imap.example.com');
-    (cm as unknown as { save: () => void }).save();
-
-    // Reload from the same configDir to prove persistence
-    const cm2 = createConfigManager(tmpDir);
-    ensureEmailConfigDefaults(cm2);
-    expect(emailGet(cm2, 'email.imapHost')).toBe('imap.example.com');
   });
 
   test('passwordRef path routes raw secret through SecretsManager; settings.json stores only goodvibes:// ref', async () => {

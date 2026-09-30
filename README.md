@@ -83,7 +83,8 @@ Each row links to the page that documents it. The workspace's own `/` search and
 | Knowledge, artifacts, and multimodal | Isolated Agent Knowledge, document/image/media artifacts, ingest and review routes | [knowledge-artifacts-and-multimodal.md](docs/knowledge-artifacts-and-multimodal.md) |
 | Channels, remote access, and API | Slack, Discord, Telegram, Matrix, webhook, and other configured channels; setup/triage/delivery; companion pairing; the operator method catalog | [channels-remote-and-api.md](docs/channels-remote-and-api.md) |
 | Voice and live TTS | Spoken playback, TTS/STT provider setup | [voice-and-live-tts.md](docs/voice-and-live-tts.md) |
-| Release and publishing | Package identity, release asset layout, the publish-check text and metadata gates | [release-and-publishing.md](docs/release-and-publishing.md) |
+| Release and publishing | Package identity, release asset layout, the package gate | [release-and-publishing.md](docs/release-and-publishing.md) |
+| Testing and validation | What runs locally, on every push, before a release, and at the version bump | [testing-and-validation.md](docs/testing-and-validation.md) |
 | Google setup | The generated step-by-step runbook for connecting Gmail and Google Calendar, plus which OAuth scopes the integration requests and why | [google-setup-runbook.md](docs/google-setup-runbook.md), [google-scope-strategy.md](docs/google-scope-strategy.md) |
 
 Full index: [docs/README.md](docs/README.md).

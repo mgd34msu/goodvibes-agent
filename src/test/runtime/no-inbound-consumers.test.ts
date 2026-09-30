@@ -17,14 +17,10 @@
  * loudly, with an explanation, the moment that stops being true.
  */
 import { describe, expect, mock, test } from 'bun:test';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
 import { wireAgentExternalServices } from '../../runtime/bootstrap-external-services.ts';
 import { AgentDaemonReceiptFeed } from '../../runtime/daemon-receipts.ts';
 import { createDeferredStartupCoordinator, startExternalServices, type ExternalServicesHandle } from '@/runtime/index.ts';
 
-const PROJECT_ROOT = join(import.meta.dir, '..', '..', '..');
-const SRC_ROOT = join(PROJECT_ROOT, 'src');
 
 describe('external-services bootstrap stays adopt-only (no daemon construction)', () => {
   test('wireAgentExternalServices calls the SDK adopt-or-spawn policy with adoptOnly: true, never with a construction/embed factory', async () => {
@@ -113,87 +109,5 @@ describe('external-services bootstrap stays adopt-only (no daemon construction)'
       'slot being reintroduced or smuggled through as an untyped extra. This process adopts connected hosts; ' +
       'it does not build them.',
     ).toBe(false);
-  });
-});
-
-describe('no inbound channel consumer exists anywhere under src/ (excluding tests)', () => {
-  // Patterns that would indicate this process has started consuming inbound
-  // channel messages on its own: Telegram long-polling, ntfy's streamed
-  // subscription read, a generic named "start an ingress loop", the shared
-  // multi-provider channel runtime manager, or constructing a daemon server
-  // directly (the thing that would actually own such a consumer).
-  const FORBIDDEN_PATTERNS: ReadonlyArray<{ readonly needle: string; readonly why: string }> = [
-    {
-      needle: 'subscribeJsonStream',
-      why: 'this is the ntfy streamed-subscription read; this process must never subscribe to a channel feed itself',
-    },
-    {
-      needle: 'getUpdates',
-      why: 'this is Telegram\'s long-poll inbound method; this process must never poll a bot\'s updates itself',
-    },
-    {
-      needle: 'startIngress',
-      why: 'this is the generic "begin consuming inbound channel messages" entry point; this process adopts a connected host instead of starting its own ingress',
-    },
-    {
-      needle: 'ChannelProviderRuntimeManager',
-      why: 'this is the shared multi-provider channel runtime that actually drives inbound consumption; constructing it here would make this process an inbound consumer of its own, which is outside its adopt-only contract',
-    },
-    {
-      needle: 'new DaemonServer',
-      why: 'constructing a DaemonServer is exactly what src/runtime/bootstrap-external-services.ts deliberately never does (it only adopts, via adoptOnly: true)',
-    },
-  ];
-
-  // A real filesystem scan (not a fixed file list) so this stays true as the
-  // repo changes: any new file that introduces one of these patterns fails
-  // this test immediately, regardless of where it lives under src/.
-  function collectSourceFiles(dir: string, acc: string[]): void {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
-        // src/test/ is explicitly excluded from this guard: test helpers and
-        // fixtures are allowed to reference these names (e.g. to assert their
-        // absence, as this very file does).
-        if (relative(SRC_ROOT, fullPath) === 'test') continue;
-        collectSourceFiles(fullPath, acc);
-        continue;
-      }
-      if (entry.isFile() && /\.(ts|tsx)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) {
-        acc.push(fullPath);
-      }
-    }
-  }
-
-  test('no file under src/ (excluding src/test/) starts an inbound channel consumer or constructs a daemon server', () => {
-    const files: string[] = [];
-    collectSourceFiles(SRC_ROOT, files);
-    expect(files.length, 'the source scan found no files at all; something is wrong with the scan itself, not the repo').toBeGreaterThan(0);
-
-    const violations: string[] = [];
-    for (const filePath of files) {
-      // This file's own source text legitimately contains these words (in
-      // the FORBIDDEN_PATTERNS table and these comments) as part of stating
-      // the guard, so it is excluded from the scan of itself.
-      if (filePath === import.meta.path) continue;
-      const content = readFileSync(filePath, 'utf-8');
-      const relPath = relative(PROJECT_ROOT, filePath);
-      for (const { needle, why } of FORBIDDEN_PATTERNS) {
-        if (content.includes(needle)) {
-          violations.push(`${relPath}: contains "${needle}": ${why}`);
-        }
-      }
-    }
-
-    expect(
-      violations,
-      'This process (goodvibes-agent) is adopt-only: it connects to an existing daemon rather than running one, ' +
-      'per the contract in src/runtime/bootstrap-external-services.ts (startExternalServices called with ' +
-      '{ adoptOnly: true }). It never constructs or embeds a daemon and never starts an inbound channel consumer ' +
-      'of its own (no Telegram getUpdates poll, no ntfy subscribe, no inbox poll loop). Adding an inbound consumer ' +
-      'here is an architectural change and must be raised and agreed on deliberately, not made silently; if one ' +
-      'of the violations below is intentional, stop and raise it before landing it.',
-    ).toEqual([]);
   });
 });

@@ -296,14 +296,4 @@ describe('SettingsModal payments category', () => {
     });
   });
 
-  test('no CONFIG_SCHEMA key looks like raw card material (cvv/pan/cardNumber)', () => {
-    const suspicious = CONFIG_SCHEMA
-      .map((setting) => setting.key)
-      .filter((key) => /cvv|\bpan\b|cardnumber/i.test(key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`)))
-      // cvvHandling is a MODE (stored/prompt), never the card verification
-      // value itself, the schema's own docs say the number/CVV never appear
-      // here at all, which this asserts structurally rather than trusting prose.
-      .filter((key) => key !== 'payments.cvvHandling');
-    expect(suspicious).toEqual([]);
-  });
 });

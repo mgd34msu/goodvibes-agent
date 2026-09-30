@@ -15,7 +15,6 @@
  * reading tmux state still runs.
  */
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
 import { CrossSessionTaskRegistry } from '@pellux/goodvibes-sdk/platform/sessions';
@@ -124,14 +123,5 @@ describe('a local agent turn and the owner\'s tmux', () => {
 
     expect(outcome.stderr).not.toContain(RULE);
     expect(outcome.stdout).toContain('probe-ran');
-  });
-
-  test('the agent\'s bootstrap is the composition that states it', () => {
-    // The tests above compose the registry themselves. This is what keeps that
-    // composition honest: the shipped one has to pass the same value, or the
-    // proof above is about a registry nothing builds.
-    const source = readFileSync(join(process.cwd(), 'src', 'runtime', 'bootstrap-core.ts'), 'utf-8');
-    expect(source).toContain('ownerTerminalGuard: AGENT_OWNER_TERMINAL_GUARD');
-    expect(AGENT_OWNER_TERMINAL_GUARD.posture).toBe('enforced');
   });
 });

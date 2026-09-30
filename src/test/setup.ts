@@ -85,15 +85,6 @@ export async function makeTempDir(): Promise<{ dir: string; cleanup: () => Promi
   };
 }
 
-/**
- * Write a file into a temp directory and return the full path.
- */
-export async function writeTempFile(dir: string, name: string, content: string): Promise<string> {
-  const path = join(dir, name);
-  await Bun.write(path, content);
-  return path;
-}
-
 // ---------------------------------------------------------------------------
 // Line helpers for renderer tests
 // ---------------------------------------------------------------------------

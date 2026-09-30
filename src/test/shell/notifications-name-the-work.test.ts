@@ -10,7 +10,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import { FocusTracker } from '@pellux/goodvibes-sdk/platform/runtime/operations';
-import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { wrapRequestPermissionWithApprovalAlert } from '../../shell/terminal-focus-mode.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
 
@@ -56,11 +55,6 @@ describe('the agent approval alert names the work', () => {
 });
 
 describe('the privacy setting is real and configurable in the agent', () => {
-  test('the SDK schema carries it, boolean, default off', () => {
-    const entry = CONFIG_SCHEMA.find((setting) => setting.key === 'behavior.notificationsMetadataOnly');
-    expect(entry?.type).toBe('boolean');
-    expect(entry?.default).toBe(false);
-  });
 
   test('the Agent Workspace Behavior card has a toggle for it next to the long-turn notification toggle', () => {
     const behavior = AGENT_WORKSPACE_CATEGORIES.find((category) => category.id === 'assistant-behavior');

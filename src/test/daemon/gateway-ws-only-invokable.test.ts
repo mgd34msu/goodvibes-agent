@@ -98,11 +98,6 @@ describe('this process serves no gateway verb', () => {
 describe('the catalog is kept for the consumers that are actually live', () => {
   const services = getTestRuntimeServices();
 
-  test('the graph still carries it, because the plugin manager is handed it at boot', () => {
-    expect(services.gatewayMethods).toBeTruthy();
-    expect(typeof services.gatewayMethods.hasHandler).toBe('function');
-  });
-
   test('occasions and profile verbs are unhandled here, so those tools use the connected host', () => {
     // The daemon owns the owner-profile Markdown file. One file, one writer:
     // the daemon's. Both invokers probe `hasHandler` first and fall back, so

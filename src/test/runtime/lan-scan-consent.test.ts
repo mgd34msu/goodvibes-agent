@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { execSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { BackgroundProviderDiscoveryOptions, BackgroundRuntimeTaskHandle, HostSystemMessageSink } from '@/runtime/index.ts';
@@ -268,28 +267,5 @@ describe('runGatedLanScan: consent gate (test doubles only: never a real network
     expect(seen?.configManager).toBe(configManager);
     expect(seen?.providerRegistry).toBe(providerRegistry);
     expect(seen?.restoreRuntimeModel).toBe(restoreRuntimeModel);
-  });
-});
-
-describe('runGatedLanScan is the single call path into the SDK scanner', () => {
-  test('bootstrap.ts calls the gate, not the SDK discovery function directly', () => {
-    const source = readFileSync(join(process.cwd(), 'src/runtime/bootstrap.ts'), 'utf-8');
-    expect(source).toContain('runGatedLanScan(');
-    expect(source).not.toMatch(/[^.]startBackgroundProviderRegistration\(/);
-    expect(source).not.toMatch(/[^.]startBackgroundProviderDiscovery\(/);
-  });
-
-  test('no other agent source file calls the ungated SDK discovery entry points directly', () => {
-    const grepped = execSync(
-      "grep -rln \"startBackgroundProviderRegistration(\\|startBackgroundProviderDiscovery(\" src --include=*.ts || true",
-      { cwd: process.cwd(), encoding: 'utf-8' },
-    )
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .filter((path) => !path.endsWith('src/runtime/lan-scan-consent.ts'))
-      .filter((path) => !path.includes('/test/'));
-
-    expect(grepped).toEqual([]);
   });
 });

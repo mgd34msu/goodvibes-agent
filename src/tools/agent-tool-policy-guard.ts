@@ -278,10 +278,12 @@ export function wrapBlockedMainConversationToolForAgentPolicy(tool: Tool): void 
 export function wrapExecToolForAgentPolicy(tool: Tool): void {
   narrowExecToolDefinitionForAgentPolicy(tool);
   const originalExecute = tool.execute.bind(tool);
-  tool.execute = async (args) => {
+  // The second argument carries the call's abort signal: forwarding it is
+  // what lets a cancelled call stop the running command.
+  tool.execute = async (args, options) => {
     const denial = validateExecToolInvocationForAgentPolicy(args as ExecToolArgs);
     if (denial) return { success: false, error: denial };
-    return originalExecute(args);
+    return originalExecute(args, options);
   };
 }
 

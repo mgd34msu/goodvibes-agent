@@ -112,11 +112,6 @@ for (const set of SETS) {
 }
 
 describe('golden frames : determinism', () => {
-  test('rendering a fixture twice gives the same snapshot', () => {
-    const fixture = frameFixtures().find((f) => f.name === 'base-screen-120x40')!;
-    expect(snapshotEncode('a', fixture.render())).toBe(snapshotEncode('a', fixture.render()));
-  });
-
   test('chrome at rest is 7 rows: header 1, input area 5 (caps and padding around the text), status line 1', async () => {
     const { UIFactory } = await import('../../renderer/ui-factory.ts');
     const { fixtureFooter } = await import('../helpers/agent-frame-fixtures.ts');

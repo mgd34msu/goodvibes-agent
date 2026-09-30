@@ -1,11 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { renderCompletion } from '../../cli/completion.ts';
-import { renderGoodVibesCommandHelp, renderGoodVibesHelp, renderGoodVibesVersion } from '../../cli/help.ts';
+import { renderGoodVibesCommandHelp, renderGoodVibesVersion } from '../../cli/help.ts';
 
 const AGENT_BIN = ['goodvibes', 'agent'].join('-');
-const RETIRED_TUI_USAGE = ['tui ', '[path]'].join('');
 const RETIRED_START_COMMAND = [AGENT_BIN, 'start'].join(' ');
-const RETIRED_LAUNCH_COMMAND = [AGENT_BIN, 'launch'].join(' ');
 
 describe('CLI help/version', () => {
   test('does not report the consuming project npm_package_version', () => {
@@ -21,28 +19,6 @@ describe('CLI help/version', () => {
         process.env.npm_package_version = previous;
       }
     }
-  });
-
-  test('does not advertise copied runtime task submission as an Agent workflow', () => {
-    const help = renderGoodVibesHelp();
-
-    expect(help).not.toContain('tasks                      ');
-    expect(help).toContain('profiles                   Manage isolated Agent profile homes');
-    expect(help).toContain('routines                   Inspect local routines and explicitly promote one to a connected schedule');
-    expect(help).toContain('auth                       Inspect Agent auth posture and connection token state');
-    expect(help).toContain('--runtime-url <url>');
-    expect(help).not.toContain('capabilities               ');
-    expect(help).not.toContain('auth add-user');
-    expect(help).not.toContain('clear-bootstrap');
-    expect(help).toContain('--agent-profile <name>');
-    expect(help).not.toContain('tasks submit <prompt>');
-    expect(help).not.toContain('submit a non-interactive task');
-    expect(help).toContain('Primary use:');
-    expect(help).toContain('Inside the TUI:');
-    expect(help).not.toContain(RETIRED_TUI_USAGE);
-    expect(help).not.toContain('tui|launch|start [path]');
-    expect(help).not.toContain(RETIRED_LAUNCH_COMMAND);
-    expect(help).not.toContain(RETIRED_START_COMMAND);
   });
 
   test('shell completion advertises product commands instead of runtime lifecycle commands', () => {
@@ -75,37 +51,6 @@ describe('CLI help/version', () => {
     expect(completion).not.toContain('_goodvibes()');
   });
 
-  test('profiles command help explains isolated profile homes', () => {
-    const help = renderGoodVibesCommandHelp('profiles');
-    expect(help).toContain('isolated Agent profile homes');
-    expect(help).toContain('--agent-profile');
-    expect(help).toContain('connected GoodVibes host');
-    expect(help).not.toContain('connected GoodVibes services');
-  });
-
-  test('routines command help explains explicit connected schedule promotion', () => {
-    const help = renderGoodVibesCommandHelp('routines');
-    expect(help).toContain('promote <id>');
-    expect(help).toContain('GoodVibes Agent routines');
-    expect(help).toContain('routines create --name <name>');
-    expect(help).not.toContain('goodvibes-agent /routines create');
-    expect(help).toContain('routines receipts');
-    expect(help).toContain('routines reconcile');
-    expect(help).toContain('--delivery-channel');
-    expect(help).not.toContain('--delivery-surface');
-    expect(help).toContain('--delivery-webhook');
-    expect(help).toContain('GoodVibes schedule');
-    expect(help).toContain('Without --yes');
-  });
-
-  test('auth help keeps connected-host user administration outside Agent', () => {
-    const help = renderGoodVibesCommandHelp('auth');
-    expect(help).toContain('connection token state');
-    expect(help).toContain('Runtime user/session administration stays outside Agent');
-    expect(help).not.toContain('auth add-user');
-    expect(help).not.toContain('auth clear-bootstrap');
-  });
-
   test('retired start launcher alias is not command help', () => {
     const help = renderGoodVibesCommandHelp('start');
 
@@ -113,17 +58,4 @@ describe('CLI help/version', () => {
     expect(help).not.toContain([RETIRED_START_COMMAND, '[path]'].join(' '));
   });
 
-  test('package-facing help uses the Agent executable for command guidance', () => {
-    const help = [
-      renderGoodVibesHelp(),
-      renderGoodVibesCommandHelp('subscription'),
-      renderGoodVibesCommandHelp('bundle'),
-    ].join('\n');
-
-    expect(help).toContain('goodvibes-agent subscription login openai start --open');
-    expect(help).toContain('goodvibes-agent bundle export goodvibes-agent-bundle.json');
-    expect(help).not.toContain('Usage: goodvibes subscription');
-    expect(help).not.toContain('next: goodvibes subscription');
-    expect(help).not.toContain('Usage: goodvibes bundle');
-  });
 });

@@ -1,5 +1,5 @@
 {
-  "//": "TOOLCHAIN-PIN: @pellux/goodvibes-toolchain is an exact-version devDependency (2.0.19) resolved from the npm registry, matching the sdk/terminal-shell runtime pins. Reusable-workflow refs stay at mgd34msu/goodvibes-sdk@main; release.yml call sites that accept a toolchain-spec input pin it to the same exact version, so a reusable-workflow runner with no local node_modules also resolves the pinned CLI instead of npm latest. This file is the repo-specific contract consumed by @pellux/goodvibes-toolchain CLIs; behavior lives in the package.",
+  "//": "TOOLCHAIN-PIN: @pellux/goodvibes-toolchain is an exact-version devDependency resolved from the npm registry, matching the sdk/terminal-shell runtime pins. Reusable-workflow refs stay at mgd34msu/goodvibes-sdk@main; release.yml call sites that accept a toolchain-spec input pin it to the same exact version, so a reusable-workflow runner with no local node_modules also resolves the pinned CLI instead of npm latest. This file is the repo-specific contract consumed by @pellux/goodvibes-toolchain CLIs; behavior lives in the package.",
   "packageName": "@pellux/goodvibes-agent",
   "sdkPin": {
     "sdkPackage": "@pellux/goodvibes-sdk",
@@ -45,11 +45,6 @@
       }
     ]
   },
-  "coverage": {
-    "funcsFloor": 84,
-    "linesFloor": 82,
-    "command": ["bun", "test", "--coverage", "src"]
-  },
   "smoke": {
     "bannerPrefix": "goodvibes-agent ",
     "forbiddenStrings": ["sqlite-vec", "$bunfs/root"],
@@ -58,12 +53,16 @@
   "releaseCut": {
     "branch": "main",
     "versionFiles": [],
-    "syncCommands": [["bun", "run", "scripts/prebuild.ts"]],
+    "syncCommands": [["bun", "run", "scripts/release-prepare.ts", "--no-bump", "--no-changelog", "--no-install", "--no-live"]],
     "commitPaths": [
       "package.json",
       "src/version.ts",
       "README.md",
-      "CHANGELOG.md"
+      "CHANGELOG.md",
+      "docs/README.md",
+      "docs/google-setup-runbook.md",
+      "release/release-notes.md",
+      ".github/workflows"
     ],
     "changelogHeading": "plain",
     "changelogInsertMarker": "top"

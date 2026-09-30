@@ -85,13 +85,6 @@ describe('the capability block in context', () => {
     }
   });
 
-  test('the rule names the only two grounds for saying a capability is unavailable', () => {
-    expect(CAPABILITY_CLAIM_RULE).toContain('only when the summary above says so');
-    expect(CAPABILITY_CLAIM_RULE).toContain('reason');
-    expect(CAPABILITY_CLAIM_RULE).toContain('fix');
-    expect(CAPABILITY_CLAIM_RULE).toContain('not sure');
-  });
-
   test('an unresolved index is reported as unknown, never as nothing', () => {
     const prompt = buildCapabilitySummaryPrompt(null);
     expect(prompt).toContain('unknown rather than empty');

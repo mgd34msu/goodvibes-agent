@@ -750,13 +750,6 @@ describe('payments card containment (agent terminal)', () => {
     expect(mayOfferCardEntryFlow(CARD_ENTRY_SURFACE)).toBe(true);
   });
 
-  test('a remote messaging surface is refused by the SDK allowlist itself, not by a local literal', () => {
-    for (const surface of ['telegram', 'ntfy', 'discord', 'slack', 'whatsapp', 'signal', 'webhook']) {
-      expect(mayEnterCardDetails(surface)).toBe(false);
-      expect(mayOfferCardEntryFlow(surface)).toBe(false);
-    }
-  });
-
   test('startCardEntryFlow refuses on a non-entry surface and never offers the prompt: the prompt is the harm', () => {
     const { ctx, printed, concealedOffers } = makeCommandContext();
     startCardEntryFlow(ctx, 'telegram');

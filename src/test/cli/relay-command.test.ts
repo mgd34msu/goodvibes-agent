@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
@@ -70,19 +69,4 @@ describe('relay CLI command', () => {
     expect(output).toContain('Unknown relay subcommand');
   });
 
-  test('the relay-connect feature is present in the SDK feature settings surface', () => {
-    // Pin for "relay-connect flows through this fork's features surface": the
-    // dissolved feature model derives every gate from FEATURE_SETTINGS, so any
-    // SDK-described feature, including relay-connect, is automatically part
-    // of this fork's features surface with no per-feature repo change needed.
-    // This test pins that the feature genuinely exists in the linked SDK so a
-    // future SDK downgrade or rename would fail loudly here instead of
-    // silently dropping relay-connect from Settings > Feature Controls.
-    const feature = FEATURE_SETTINGS.find((entry) => entry.id === 'relay-connect');
-    expect(feature).toBeTruthy();
-    // Default-on with announce-once receipts; enabled through relay.enabled.
-    expect(feature?.defaultEnabled).toBe(true);
-    expect(feature?.enablement.key).toBe('relay.enabled');
-    expect(feature?.restartRequired).toBe(false);
-  });
 });

@@ -13,6 +13,7 @@ These are the package-facing docs for the GoodVibes Agent `2.1.x` release line.
 - [Providers and routing](providers-and-routing.md)
 - [Voice and live TTS](voice-and-live-tts.md)
 - [Release and publishing](release-and-publishing.md)
+- [Testing and validation](testing-and-validation.md)
 - [Google setup runbook](google-setup-runbook.md)
 - [Google scope strategy](google-scope-strategy.md)
 

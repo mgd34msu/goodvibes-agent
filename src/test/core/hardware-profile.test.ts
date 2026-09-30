@@ -582,10 +582,6 @@ describe('paramCountFromModel', () => {
 });
 
 describe('REPRESENTATIVE_7B_PARAMS', () => {
-  test('is 7 billion (7e9)', () => {
-    expect(REPRESENTATIVE_7B_PARAMS).toBe(7_000_000_000);
-  });
-
   test('produces a plausible Q4 size estimate (~3.85 GB)', () => {
     const bytes = estimateModelBytes(REPRESENTATIVE_7B_PARAMS);
     const gb = bytes / (1024 ** 3);

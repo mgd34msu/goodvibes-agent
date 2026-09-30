@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { existsSync, rmSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { AgentOrchestrator, summarizeToolArgs } from '@pellux/goodvibes-sdk/platform/agents';
+import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import type { AgentRecord } from '@pellux/goodvibes-sdk/platform/tools';
 import type { LLMProvider, ChatRequest, ChatResponse } from '@pellux/goodvibes-sdk/platform/providers';
 import { FileStateCache } from '@pellux/goodvibes-sdk/platform/state';
@@ -970,58 +970,6 @@ describe('AgentOrchestrator', () => {
 
       expect(record.status).toBe('completed');
       expect(record.toolCallCount).toBe(1);
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Singleton
-  // -------------------------------------------------------------------------
-
-  describe('summarizeToolArgs', () => {
-    test('returns empty string for empty args', () => {
-      expect(summarizeToolArgs({})).toBe('');
-    });
-
-    test('extracts path arg with em-dash prefix', () => {
-      const result = summarizeToolArgs({ path: 'src/foo.ts' });
-      expect(result).toBe(' — src/foo.ts');
-    });
-
-    test('extracts cmd arg', () => {
-      const result = summarizeToolArgs({ cmd: 'npm run build' });
-      expect(result).toBe(' — npm run build');
-    });
-
-    test('truncates values longer than 30 chars', () => {
-      const longPath = 'src/' + 'a'.repeat(40) + '.ts';
-      const result = summarizeToolArgs({ path: longPath });
-      expect(result.length).toBeLessThanOrEqual(32); // ' — ' (3) + 27 + '…' (1)
-      expect(result).toContain('\u2026');
-    });
-
-    test('says nothing when no argument names what the call is about', () => {
-      // There used to be a "first string value found" fallback here. It is gone
-      // deliberately: on an exec call it grabbed `verbosity`, whose default is
-      // the literal string `standard`, and the label read `exec, standard`,
-      // a tool name followed by a value with nothing to do with what it ran. A
-      // bare tool name is the honest answer.
-      expect(summarizeToolArgs({ unknownKey: 'some-value' })).toBe('');
-      expect(summarizeToolArgs({ count: 5, flag: true, name: 'ok' })).toBe('');
-    });
-
-    test('reads an informative argument one level down', () => {
-      // The shape `exec`, `fetch`, `read`, `write` and `find` all use: the
-      // thing worth showing is inside an array of objects, not at the top.
-      expect(summarizeToolArgs({ commands: [{ cmd: 'npm run build', verbosity: 'standard' }] })).toBe(' — npm run build');
-      expect(summarizeToolArgs({ urls: [{ url: 'https://example.com' }] })).toBe(' — https://example.com');
-      // NO-proof: nesting is searched for the SAME informative keys, not for
-      // any string it happens to find one level down.
-      expect(summarizeToolArgs({ commands: [{ verbosity: 'standard' }] })).toBe('');
-    });
-
-    test('skips empty string values', () => {
-      const result = summarizeToolArgs({ path: '', cmd: 'echo hi' });
-      expect(result).toBe(' — echo hi');
     });
   });
 

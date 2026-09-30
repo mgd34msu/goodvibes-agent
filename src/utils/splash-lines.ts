@@ -28,13 +28,17 @@ const TAGLINE = '[ ｇｏｏｄ ｖｉｂｅｓ ・ Ａ Ｉ ・ いい雰囲気 
  */
 export const SPLASH_GRADIENT = Object.freeze({ start: '#00ffff', end: '#d000ff' } as const);
 
-const VERSION_LINE = `　✦　v${VERSION}　█　terminal AI assistant　█　自動ｺｰﾄﾞ 　✦`;
+function versionLine(version: string): string {
+  return `　✦　v${version}　█　terminal AI assistant　█　自動ｺｰﾄﾞ 　✦`;
+}
 
 export interface SplashOptions {
   workingDir?: string;
   model?: string;
   provider?: string;
   toolCount?: number;
+  /** Defaults to the live build VERSION; golden-frame fixtures pin one so frames do not change at a version bump. */
+  version?: string;
 }
 
 export function getSplashLines(columns: number, opts: SplashOptions = {}): string[] {
@@ -44,7 +48,7 @@ export function getSplashLines(columns: number, opts: SplashOptions = {}): strin
     ...ART_LINES.map((line) => center(line, columns)),
     center(SEPARATOR, columns),
     center(TAGLINE, columns),
-    center(VERSION_LINE, columns),
+    center(versionLine(opts.version ?? VERSION), columns),
     '',
   ];
 

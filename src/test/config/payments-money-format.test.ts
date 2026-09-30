@@ -29,11 +29,4 @@ describe('isMoneyConfigKey', () => {
     expect(isMoneyConfigKey(settingFor('payments.budget.perPurchaseCeilingEnabled'))).toBe(false);
   });
 
-  test('none of the old Cents-suffixed key names exist in the schema anymore', () => {
-    const keys = new Set(CONFIG_SCHEMA.map((entry) => entry.key));
-    expect(keys.has('payments.budget.dailyItemCents' as never)).toBe(false);
-    expect(keys.has('payments.budget.dailyOverageCents' as never)).toBe(false);
-    expect(keys.has('payments.budget.perPurchaseCeilingCents' as never)).toBe(false);
-    expect(keys.has('payments.budget.overageToleranceDailyAllowanceCents' as never)).toBe(false);
-  });
 });

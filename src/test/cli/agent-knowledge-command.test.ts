@@ -1,6 +1,6 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
@@ -56,15 +56,6 @@ afterEach(() => {
 });
 
 describe('Agent Knowledge CLI route isolation', () => {
-  test('implementation does not invoke default knowledge ingest operator method from the CLI', () => {
-    const commandSource = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-command.ts'), 'utf-8');
-    const runtimeSource = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-runtime.ts'), 'utf-8');
-    const methodsSource = readFileSync(join(process.cwd(), 'src/cli/agent-knowledge-methods.ts'), 'utf-8');
-    expect(runtimeSource).toContain("@pellux/goodvibes-sdk/browser/agent");
-    expect(`${commandSource}\n${runtimeSource}`).not.toContain("operator.invoke('knowledge.ingest.url'");
-    expect(methodsSource).toContain('/api/goodvibes-agent/knowledge/ingest/url');
-  });
-
   test('ingest-url uses the Agent Knowledge route and never the default knowledge path', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;

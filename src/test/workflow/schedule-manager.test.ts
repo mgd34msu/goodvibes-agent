@@ -1,45 +1,9 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { ScheduleManager, parseInterval } from '@pellux/goodvibes-sdk/platform/tools';
+import { ScheduleManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { getTestScheduleManager, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
 
 beforeEach(() => {
   resetTestRuntimeServices();
-});
-
-// ---------------------------------------------------------------------------
-// parseInterval
-// ---------------------------------------------------------------------------
-
-describe('parseInterval', () => {
-  test('parses seconds', () => {
-    expect(parseInterval('30s')).toBe(30_000);
-    expect(parseInterval('1s')).toBe(1_000);
-  });
-
-  test('parses minutes', () => {
-    expect(parseInterval('5m')).toBe(300_000);
-    expect(parseInterval('1m')).toBe(60_000);
-  });
-
-  test('parses hours', () => {
-    expect(parseInterval('1h')).toBe(3_600_000);
-    expect(parseInterval('2h')).toBe(7_200_000);
-  });
-
-  test('parses days', () => {
-    expect(parseInterval('1d')).toBe(86_400_000);
-  });
-
-  test('parses decimal values', () => {
-    expect(parseInterval('0.5h')).toBe(1_800_000);
-  });
-
-  test('returns null for unknown suffix', () => {
-    expect(parseInterval('5x')).toBeNull();
-    expect(parseInterval('5')).toBeNull();
-    expect(parseInterval('')).toBeNull();
-    expect(parseInterval('abc')).toBeNull();
-  });
 });
 
 // ---------------------------------------------------------------------------

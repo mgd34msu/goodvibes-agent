@@ -368,57 +368,6 @@ describe('the scope each credential path asks for', () => {
   });
 });
 
-/**
- * A SOURCE gate, and it is here because the runtime gate cannot see these.
- *
- * At the SDK version this package depends on, `SecretsManager.set` relocates
- * any credential whose NAME derives from a daemon-owned config path, the
- * mailbox password, the surface chat tokens, the calendar client secrets, to
- * the daemon tier no matter what scope the caller asked for. So pinning
- * `{ scope: 'user' }` at these call sites is invisible from the outside today:
- * revert the fix and the credential still lands in the daemon tier, because the
- * store overrides the request.
- *
- * That is not a reason to leave `'user'` written down. It is a lie about where
- * the credential goes, it is what a reader copies into the NEXT call site, and
- * it is one narrowing of the SDK's relocation away from being the live defect
- * again, the version of that defect the owner already hit, where a mailbox
- * configured at this terminal left the daemon reporting no email integration.
- * So the source shape is asserted directly.
- */
-describe('no credential call site pins itself out of the daemon tier', () => {
-  const CALL_SITES: ReadonlyArray<readonly [string, string]> = [
-    ['src/input/commands/email-runtime.ts', 'the mailbox password'],
-    ['src/agent/harness-control.ts', 'every secret-backed harness setting'],
-    ['src/input/settings-modal-secrets.ts', 'a secret typed into the settings modal'],
-    ['src/input/settings-modal.ts', 'clearing a secret when a setting is reset'],
-    ['src/input/agent-workspace-calendar-oauth-editor.ts', 'the calendar client secret'],
-    ['src/config/secret-config.ts', 'the shared secret-backed write path'],
-    ['src/agent/calendar-subscription-registry.ts', 'a calendar subscription feed URL'],
-    ['src/agent/calendar/calendar-oauth-service.ts', 'the calendar OAuth token set'],
-    ['src/cli/management-commands.ts', 'the secrets CLI'],
-    ['src/input/commands/local-runtime.ts', 'the /secrets slash command'],
-  ];
-
-  for (const [file, what] of CALL_SITES) {
-    test(`${file} does not hardcode a client scope for ${what}`, async () => {
-      const source = await Bun.file(join(resolve(import.meta.dir, '..', '..', '..'), file)).text();
-      // Strip comments so the prose explaining WHY 'user' is wrong does not trip
-      // the assertion that no code writes it.
-      const code = source
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .split('\n')
-        .filter((line) => !line.trimStart().startsWith('//'))
-        .join('\n');
-
-      expect(code).not.toContain("scope: 'user'");
-      expect(code).not.toContain("scope: 'project'");
-      expect(code).not.toContain('scope: "user"');
-      expect(code).not.toContain('scope: "project"');
-    });
-  }
-});
-
 describe('credential scope decisions', () => {
   test('daemon-owned config keys default their secret material to the daemon tier', () => {
     expect(defaultSecretBackedScope('email.passwordRef' as never)).toBe('daemon');

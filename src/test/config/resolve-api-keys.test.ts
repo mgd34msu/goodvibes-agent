@@ -206,11 +206,6 @@ describe('resolveApiKeys', () => {
       }
     });
 
-    test('resolveApiKeys returns empty when no env vars and no stored secrets', async () => {
-      const keys = await resolveWithEmptySecrets();
-      expect(typeof keys).toBe('object');
-    });
-
     test('multiple providers can be resolved simultaneously', async () => {
       process.env['OPENAI_API_KEY'] = 'oai';
       process.env['ANTHROPIC_API_KEY'] = 'ant';

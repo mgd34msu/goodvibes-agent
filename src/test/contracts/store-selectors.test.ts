@@ -21,14 +21,12 @@ import {
   selectIntelligence,
   selectUiPerf,
   // Derived selectors
-  selectActiveModel,
   selectRunningTasks,
   selectRunningAgents,
   selectDomainHealth,
   selectSystemHealth,
   selectPermissionMode,
   selectAnyOverlayVisible,
-  selectTurnState,
   selectStreamToolPreview,
   selectIsTurnActive,
   selectIsSessionReady,
@@ -134,14 +132,6 @@ describe('store-selectors contract', () => {
   });
 
   describe('derived selectors: correct types from initial state', () => {
-    test('selectActiveModel returns ActiveModelSummary with string fields', () => {
-      const summary = selectActiveModel(state);
-
-      expect(typeof summary.providerId).toBe('string');
-      expect(typeof summary.modelId).toBe('string');
-      expect(typeof summary.displayName).toBe('string');
-    });
-
     test('selectRunningTasks returns empty array from initial state', () => {
       const tasks = selectRunningTasks(state);
 
@@ -162,11 +152,6 @@ describe('store-selectors contract', () => {
     test('selectAnyOverlayVisible returns false from initial state', () => {
       const visible = selectAnyOverlayVisible(state);
       expect(visible).toBe(false);
-    });
-
-    test('selectTurnState returns a string', () => {
-      const turnState = selectTurnState(state);
-      expect(typeof turnState).toBe('string');
     });
 
     test('selectStreamToolPreview returns undefined from initial state', () => {

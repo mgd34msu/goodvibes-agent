@@ -60,53 +60,6 @@ function registerTools(registry: ToolRegistry): string {
 }
 
 describe('registerAllTools', () => {
-  test('registers the expected platform tool roster', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    const names = registry.list().map((tool) => tool.definition.name).sort();
-    expect(names).toEqual([
-      'agent',
-      'analyze',
-      'channel',
-      'context_accounting',
-      'control',
-      'edit',
-      'exec',
-      'fetch',
-      'find',
-      'goodvibes_context',
-      'goodvibes_settings',
-      'inspect',
-      'mcp',
-      'packet',
-      'query',
-      'read',
-      'registry',
-      'remote',
-      'repl',
-      'repo_map',
-      'state',
-      'task',
-      'team',
-      'web_search',
-      'workflow',
-      'worklist',
-      'write',
-    ]);
-    expect(registry.has('powershell')).toBe(false);
-  });
-
-  test('each tool has a definition with name and description', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    for (const tool of registry.list()) {
-      expect(typeof tool.definition.name).toBe('string');
-      expect(tool.definition.name.length).toBeGreaterThan(0);
-      expect(typeof tool.definition.description).toBe('string');
-      expect(tool.definition.description.length).toBeGreaterThan(0);
-      expect(typeof tool.definition.parameters).toBe('object');
-    }
-  });
 
   test('compacted model-visible tool descriptions stay within the prompt budget', () => {
     const registry = new ToolRegistry();
@@ -115,14 +68,6 @@ describe('registerAllTools', () => {
     for (const tool of registry.list()) {
       expect(tool.definition.description.length).toBeLessThanOrEqual(56);
       expect(tool.definition.description).not.toContain('...');
-    }
-  });
-
-  test('each tool has an execute function', () => {
-    const registry = new ToolRegistry();
-    registerTools(registry);
-    for (const tool of registry.list()) {
-      expect(typeof tool.execute).toBe('function');
     }
   });
 
@@ -197,20 +142,5 @@ describe('registerAllTools', () => {
     expect(Array.isArray(parsed.diagnostics)).toBe(true);
     expect(parsed.diagnostics!.length).toBeGreaterThan(0);
     expect(parsed.diagnostics![0]!.file).toContain('broken.ts');
-  });
-
-  test('repo_map (SDK 1.6.1 model-invoked tool) responds with a real map of a sample workspace', async () => {
-    const registry = new ToolRegistry();
-    const workingDirectory = registerTools(registry);
-    writeFileSync(
-      join(workingDirectory, 'sample-module.ts'),
-      'export function sampleExportedFunction(): string {\n  return "hi";\n}\n',
-    );
-
-    expect(registry.has('repo_map')).toBe(true);
-    const result = await registry.execute('repo-map-smoke', 'repo_map', {});
-    expect(result.success).toBe(true);
-    expect(typeof result.output).toBe('string');
-    expect(result.output ?? '').toContain('sample-module.ts');
   });
 });

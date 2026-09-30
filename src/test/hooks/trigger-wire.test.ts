@@ -16,20 +16,6 @@ describe('HookDispatcher trigger wiring', () => {
     dispatcher.setTriggerManager(null);
   });
 
-  test('fire() without triggerManager set does not throw', async () => {
-    const dispatcher = new HookDispatcher();
-    const result = await dispatcher.fire({
-      path: 'Post:tool:read',
-      phase: 'Post',
-      category: 'tool',
-      specific: 'read',
-      sessionId: 'trigger-wire-test',
-      timestamp: Date.now(),
-      payload: {},
-    });
-    expect(result.ok).toBe(true);
-  });
-
   test('fire() with triggerManager fires matching triggers (no hooks registered)', async () => {
     const dispatcher = new HookDispatcher();
     const tm = getTestTriggerManager();

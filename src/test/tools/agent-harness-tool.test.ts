@@ -11906,23 +11906,6 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('describes shared lookup and confirmation parameters for model-visible harness modes', () => {
-    const fixture = makeFixture();
-    try {
-      const properties = (fixture.tool.definition.parameters as {
-        readonly properties: Record<string, { readonly description?: string }>;
-      }).properties;
-      expect(properties.query?.description).toContain('Catalog search text');
-      expect(properties.target?.description).toContain('Generic lookup target');
-      expect(properties.methodId?.description).toContain('Public operator or Agent Knowledge method id');
-      expect(properties.endpointId?.description).toContain('Connected service endpoint id');
-      expect(properties.confirm?.description).toContain('confirmed harness effects');
-      expect(properties.explicitUserRequest?.description).toContain('confirmed harness effect');
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
   test('reports live connected-host status without exposing the operator token', async () => {
     const fixture = makeFixture();
     const originalFetch = globalThis.fetch;

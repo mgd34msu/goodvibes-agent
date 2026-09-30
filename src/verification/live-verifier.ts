@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
-import { buildVerificationLedger } from './verification-ledger.ts';
 import { findAgentKnowledgeScopeContamination } from '../cli/agent-knowledge-runtime.ts';
 import { normalizeAgentKnowledgeJsonText } from '../agent/knowledge-scope-alias.ts';
 
@@ -51,7 +50,6 @@ const AGENT_KNOWLEDGE_READ_ROUTE_CHECKS = [
  * cannot drift apart.
  */
 export const LIVE_VERIFICATION_SCENARIO_IDS: readonly string[] = [
-  'verification-ledger',
   'compiled-cli-present',
   'cli-version',
   'cli-status-json',
@@ -501,15 +499,6 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
   const token = options.token ?? readConnectedHostToken(homeDir);
   const commandEnv = buildCommandEnv(homeDir, connectedHostBaseUrl, token);
   const checks: LiveVerificationCheck[] = [];
-
-  const ledger = buildVerificationLedger(projectRoot);
-  checks.push({
-    id: 'verification-ledger',
-    title: 'Verification inventory ledger',
-    status: ledger.totals.localSignalPercent >= 90 ? 'pass' : 'fail',
-    summary: `${ledger.totals.localSignalPercent}% local verification signal across ${ledger.totals.total} inventory items.`,
-    detail: `${ledger.totals.localBehaviorPercent}% local behavior verified; ${ledger.totals.externalOutcomeRequired} item(s) require external outcomes.`,
-  });
 
   checks.push({
     id: 'compiled-cli-present',

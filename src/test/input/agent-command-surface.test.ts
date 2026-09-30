@@ -1,11 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
-
-const ROOT = join(import.meta.dir, '../../..');
 
 const hiddenCopiedCommands = [
   'bootstrap',
@@ -198,41 +194,6 @@ describe('Agent command interface', () => {
     expect(redo?.description).toBe('Redo the last undone conversation turn');
     expect(`${undo?.description ?? ''} ${undo?.usage ?? ''} ${undo?.argsHint ?? ''}`).not.toContain('file');
     expect(`${redo?.description ?? ''} ${redo?.usage ?? ''} ${redo?.argsHint ?? ''}`).not.toContain('file');
-  });
-
-  test('visible Agent guidance does not advertise hidden copied TUI lifecycle commands', () => {
-    const visibleGuidanceFiles = [
-      'src/input/agent-workspace-setup.ts',
-      'src/input/commands/health-runtime.ts',
-      'src/input/commands/mcp-runtime.ts',
-      'src/input/commands/session-workflow.ts',
-      'src/runtime/provider-account-snapshot.ts',
-      'src/renderer/help-overlay.ts',
-      'src/renderer/settings-modal.ts',
-      'src/runtime/bootstrap-hook-bridge.ts',
-    ] as const;
-    const forbiddenGuidance = [
-      ['slash /status', /(^|[\s`'"([])\/status\b/],
-      ['slash /compat', /(^|[\s`'"([])\/compat\b/],
-      ['slash /automation jobs', /(^|[\s`'"([])\/automation jobs\b/],
-      ['slash /remote supervisor', /(^|[\s`'"([])\/remote supervisor\b/],
-      ['slash /remote recover', /(^|[\s`'"([])\/remote recover\b/],
-      ['slash /remote setup', /(^|[\s`'"([])\/remote setup\b/],
-      ['slash /services doctor', /(^|[\s`'"([])\/services doctor\b/],
-      ['slash /services auth-review', /(^|[\s`'"([])\/services auth-review\b/],
-      ['slash /settingssync', /(^|[\s`'"([])\/settingssync\b/],
-      ['slash /managed staged', /(^|[\s`'"([])\/managed staged\b/],
-      ['slash /panel tokens', /(^|[\s`'"([])\/panel tokens\b/],
-      ['slash /setup onboarding', /(^|[\s`'"([])\/setup onboarding\b/],
-      ['slash /providers', /(^|[\s`'"([])\/providers\b/],
-    ] as const;
-
-    for (const path of visibleGuidanceFiles) {
-      const source = readFileSync(join(ROOT, path), 'utf-8');
-      for (const [label, pattern] of forbiddenGuidance) {
-        expect(pattern.test(source), `${path} should not advertise ${label}`).toBe(false);
-      }
-    }
   });
 
   test('visible Agent command metadata does not advertise copied panel entrypoints', () => {

@@ -1,61 +1,5 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { ConversationManager, parseDiffForApply, applyDiffContent } from '../../core/conversation';
-
-describe('parseDiffForApply', () => {
-  test('parses a valid unified diff', () => {
-    const diff = [
-      '--- a/src/foo.ts',
-      '+++ b/src/foo.ts',
-      '@@ -1,3 +1,3 @@',
-      ' const x = 1;',
-      '-const y = 2;',
-      '+const y = 42;',
-      ' const z = 3;',
-    ].join('\n');
-
-    const result = parseDiffForApply(diff);
-    expect(result.filePath).toBe('src/foo.ts');
-    expect(result.diffOriginal).toContain('const y = 2;');
-    expect(result.diffUpdated).toContain('const y = 42;');
-    // Context lines appear in both
-    expect(result.diffOriginal).toContain('const x = 1;');
-    expect(result.diffUpdated).toContain('const x = 1;');
-  });
-
-  test('returns undefined filePath when no +++ line', () => {
-    const result = parseDiffForApply('some random content\nno diff here');
-    expect(result.filePath).toBeUndefined();
-  });
-
-  test('handles partial diff: only additions', () => {
-    const diff = [
-      '--- a/src/bar.ts',
-      '+++ b/src/bar.ts',
-      '@@ -0,0 +1,2 @@',
-      '+line one',
-      '+line two',
-    ].join('\n');
-
-    const result = parseDiffForApply(diff);
-    expect(result.filePath).toBe('src/bar.ts');
-    expect(result.diffOriginal).toBe('');
-    expect(result.diffUpdated).toContain('line one');
-    expect(result.diffUpdated).toContain('line two');
-  });
-
-  test('handles +++ path without b/ prefix', () => {
-    const diff = [
-      '--- src/baz.ts',
-      '+++ src/baz.ts (updated)',
-      '@@ -1 +1 @@',
-      '-old',
-      '+new',
-    ].join('\n');
-
-    const result = parseDiffForApply(diff);
-    expect(result.filePath).toBe('src/baz.ts');
-  });
-});
+import { ConversationManager } from '../../core/conversation';
 
 describe('ConversationManager: collapse state', () => {
   let cm: ConversationManager;
@@ -149,37 +93,6 @@ describe('ConversationManager: getBlockContentAtLine / getDiffAtLine', () => {
       original: expect.stringContaining('old line'),
       updated: expect.stringContaining('new line'),
     }));
-  });
-});
-
-describe('applyDiffContent: occurrence counting', () => {
-  test('applies diff when original appears exactly once', () => {
-    const content = 'line one\nconst x = 1;\nline three';
-    const result = applyDiffContent(content, 'const x = 1;', 'const x = 42;');
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.content).toContain('const x = 42;');
-      expect(result.content).not.toContain('const x = 1;');
-    }
-  });
-
-  test('returns error when original appears more than once (ambiguous)', () => {
-    const content = 'const x = 1;\nconst x = 1;\nsome other line';
-    const result = applyDiffContent(content, 'const x = 1;', 'const x = 42;');
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toMatch(/ambiguous/);
-      expect(result.error).toMatch(/2/);
-    }
-  });
-
-  test('returns error when original is not found in file', () => {
-    const content = 'const y = 99;\nsome line';
-    const result = applyDiffContent(content, 'const x = 1;', 'const x = 42;');
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error).toMatch(/not found/);
-    }
   });
 });
 

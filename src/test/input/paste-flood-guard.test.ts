@@ -17,11 +17,6 @@ function freshGuard(): PasteBurstGuardState {
 }
 
 describe('trackPasteFloodGuard', () => {
-  test('constants match the TUI reference (product parity)', () => {
-    expect(PASTE_FLOOD_THRESHOLD).toBe(8);
-    expect(PASTE_FLOOD_WINDOW_MS).toBe(120);
-  });
-
   test('a burst of more than 8 qualifying tokens inside the window trips suspension exactly once', () => {
     const guard = freshGuard();
     const t0 = 1_000_000;

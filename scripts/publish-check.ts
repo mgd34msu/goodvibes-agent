@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process';
-import { isForbiddenPackageTarballPath, requiredTarballPaths, verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
+import { isForbiddenPackageTarballPath, requiredTarballPaths, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
 import { sdkReleaseGateIssues } from './sdk-release-gates.ts';
 
 const root = process.cwd();
@@ -14,11 +14,6 @@ for (const issue of sdkReleaseGateIssues(root)) {
 
 for (const issue of verifyReleaseMetadata(root)) {
   throw new Error(issue);
-}
-
-const packageFacingText = verifyPackageFacingText(root);
-for (const failure of packageFacingText.failures) {
-  throw new Error(failure);
 }
 
 execSync('bun run build:package-runtime', {

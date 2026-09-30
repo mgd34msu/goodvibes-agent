@@ -41,33 +41,9 @@ const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
  * `makeProjectTempDir` helper (which places everything under the in-repo
  * `.test-tmp/`, itself swept unconditionally by `sweepProjectTestTmpRoot`).
  *
- * One entry is load-bearing and still created today, by design:
- *   - `gv-agent-identifier-gate-norepo-`
- *     (src/test/scripts/internal-identifier-gate.test.ts): needs a
- *     directory that is guaranteed NOT inside any git repository, AND
- *     guaranteed to bypass the TMPDIR/TMP/TEMP redirection
- *     `scripts/run-tests.ts` sets for the child test process (which points
- *     inside this repo), an `os.tmpdir()`-based directory would silently
- *     resolve back inside this git tree during a normal suite run,
- *     defeating the "non-repo root" premise the test checks. See the
- *     comment at that call site. (`src/test/git/service.test.ts`'s
- *     `makeExternalDir` needs the same "not inside any repo" guarantee, but
- *     for exactly the same TMPDIR-redirection reason it deliberately does
- *     NOT use `os.tmpdir()` either, it targets the parent of this repo's
- *     own directory instead, so it never creates anything here. Its OTHER
- *     helper, `makeTempPath` for git-created bare/clone/worktree targets,
- *     doesn't need to sit outside the repo at all, git accepts an
- *     already-existing empty directory anywhere as those targets, so it
- *     routes through `makeProjectTempDir` like an ordinary scratch
- *     directory and never creates anything under real `os.tmpdir()`
- *     either.)
- *   - `gv-agent-replay-` (src/test/core/replay-engine.test.ts): the SDK's
- *     `DeterministicReplayEngine.export()` path-traversal guard explicitly
- *     recognizes real `os.tmpdir()` as a second allowed root alongside the
- *     project root, and one test exists specifically to exercise that
- *     branch by exporting a real JSON file there. It's cleaned up
- *     immediately in a `finally` block on every normal run; this prefix is
- *     the backstop for a killed run.
+ *   - `gv-agent-identifier-gate-norepo-` and `gv-agent-replay-`: their tests
+ *     were removed in the 2026-09 testing overhaul; the prefixes stay so
+ *     leftovers from earlier killed runs are still reclaimed.
  *   - `gv-agent-test-run-` (src/test/helpers/preload.ts): the per-process
  *     sandbox the whole suite's `tmpdir()` is redirected into. It is created
  *     under the INHERITED temp directory by definition, that is what makes it

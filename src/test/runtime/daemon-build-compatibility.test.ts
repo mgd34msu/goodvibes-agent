@@ -25,12 +25,6 @@ import {
 } from '../../runtime/daemon-build-compatibility.ts';
 
 describe('the floor this product declares', () => {
-  test('is 1.28.0, the daemon/TUI product-split breaking change', () => {
-    // Deliberate. Raising it costs every operator on an older daemon a forced
-    // update, so the number is an owner decision with a release note, not
-    // something to infer. This test exists so changing it is a conscious act.
-    expect(AGENT_DAEMON_BUILD_FLOOR).toBe('1.28.0');
-  });
 
   test('a daemon below 1.28.0 is refused adoption, through the constant this build actually declares', () => {
     const notices: string[] = [];

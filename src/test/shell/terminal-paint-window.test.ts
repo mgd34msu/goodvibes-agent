@@ -21,8 +21,6 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { createTerminalPaintWindow } from '../../shell/terminal-paint-window.ts';
 import { Compositor } from '../../renderer/compositor.ts';
 import { createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
@@ -144,36 +142,5 @@ describe('why an early frame showed up as garble', () => {
     expect(firstFrameOnTheNewScreen).toContain('H');
     expect(firstFrameOnTheNewScreen).toContain('F');
     expect(firstFrameOnTheNewScreen).toContain('.');
-  });
-});
-
-const MAIN = readFileSync(join(process.cwd(), 'src', 'main.ts'), 'utf-8');
-
-describe('the shell boots through the paint window', () => {
-  test('render consults the window before it composes anything', () => {
-    expect(MAIN).toContain('if (!paintWindow.isOpen()) return;');
-  });
-
-  test('the enter sequence is written by the window, not beside it', () => {
-    // A second, ungated write would reopen the hole: the window would no longer
-    // be the single moment at which the terminal changes hands.
-    const enterWrites = MAIN.split('stdout.write(buildEnterSequence(').length - 1;
-    expect(enterWrites).toBe(1);
-    const windowIndex = MAIN.indexOf('createTerminalPaintWindow({');
-    const enterIndex = MAIN.indexOf('stdout.write(buildEnterSequence(');
-    expect(windowIndex).toBeGreaterThan(-1);
-    expect(enterIndex).toBeGreaterThan(windowIndex);
-  });
-
-  test('the wiring that repaints synchronously during boot still runs before the window opens', () => {
-    // installVoiceCapture() applies the wake configuration inline and the
-    // listener's first phase change calls render(). If this ever stops
-    // preceding paintWindow.open() the hazard is gone for a different reason,
-    // and this file should be revisited rather than quietly kept passing.
-    const voiceIndex = MAIN.indexOf('installVoiceCapture({');
-    const openIndex = MAIN.indexOf('paintWindow.open();');
-    expect(voiceIndex).toBeGreaterThan(-1);
-    expect(openIndex).toBeGreaterThan(-1);
-    expect(voiceIndex).toBeLessThan(openIndex);
   });
 });

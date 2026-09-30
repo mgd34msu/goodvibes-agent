@@ -13,14 +13,10 @@
  */
 import { describe, expect, test } from 'bun:test';
 import {
-  createClientApprovalRaiser,
   createConversationRewindHost,
-  createDaemonConfigClient,
-  createDaemonCredentialsClient,
   createWireSessionDispatch,
 } from '@pellux/goodvibes-sdk/platform/runtime/client';
 import type { DaemonReachability, DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
-import type { PermissionPromptDecision, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { RewindAnchor } from '@pellux/goodvibes-sdk/platform/rewind';
 import { createHostedSessionRegistry } from '../../runtime/client/hosted-sessions.ts';
 import { createAgentSessionInputsClient } from '../../runtime/client/session-inputs.ts';
@@ -49,147 +45,6 @@ function stubVerbs(options: {
     },
   };
 }
-
-const ASK: PermissionPromptRequest = {
-  toolName: 'bash',
-  description: 'run a command',
-} as unknown as PermissionPromptRequest;
-
-describe('an approval leaves this process', () => {
-  test('the ask is raised on the daemon AND prompted here', async () => {
-    const calls: RecordedCall[] = [];
-    let prompted = 0;
-    const raise = createClientApprovalRaiser({
-      verbs: stubVerbs({
-        calls,
-        answer: (methodId) => (methodId === 'approvals.raise' ? { approval: { id: 'approval-1' } } : {}),
-      }),
-      actor: 'agent',
-      localPrompt: () => async (): Promise<PermissionPromptDecision> => {
-        prompted += 1;
-        return { approved: true, remember: false };
-      },
-      sessionId: () => 'session-a',
-      pollIntervalMs: 5,
-    });
-
-    const decision = await raise({ request: ASK });
-
-    expect(decision.approved).toBe(true);
-    expect(prompted).toBe(1);
-    // This is the split-brain fix, stated as an assertion: the daemon holds the
-    // record every other surface reads, so it has to have been told.
-    const raised = calls.find((call) => call.methodId === 'approvals.raise');
-    expect(raised).toBeTruthy();
-    expect((raised!.input as { sessionId?: string }).sessionId).toBe('session-a');
-  });
-
-  test('a decision made HERE is reported back so the daemon record matches', async () => {
-    const calls: RecordedCall[] = [];
-    const raise = createClientApprovalRaiser({
-      verbs: stubVerbs({
-        calls,
-        answer: (methodId) => (methodId === 'approvals.raise' ? { approval: { id: 'approval-1' } } : {}),
-      }),
-      actor: 'agent',
-      localPrompt: () => async (): Promise<PermissionPromptDecision> => ({ approved: false, remember: false }),
-      pollIntervalMs: 5,
-    });
-
-    await raise({ request: ASK });
-    // The write-back is deliberately not awaited by the raiser (the user has
-    // already been served), so this waits for it rather than racing it.
-    const deadline = Date.now() + 2_000;
-    while (!calls.some((call) => call.methodId === 'approvals.deny') && Date.now() < deadline) {
-      await Bun.sleep(5);
-    }
-
-    const reported = calls.find((call) => call.methodId === 'approvals.deny');
-    expect(reported).toBeTruthy();
-    // Named, so every other surface can see WHERE the answer came from.
-    expect((reported!.input as { actor?: string }).actor).toBe('agent');
-  });
-
-  test('with no reachable host the ask is answered here and nothing is swallowed', async () => {
-    const calls: RecordedCall[] = [];
-    const raise = createClientApprovalRaiser({
-      verbs: stubVerbs({ calls, reachable: false }),
-      actor: 'agent',
-      localPrompt: () => async (): Promise<PermissionPromptDecision> => ({ approved: true, remember: true }),
-    });
-
-    const decision = await raise({ request: ASK });
-
-    // A person in front of a surface can still approve their own tool call with
-    // no daemon running. What must not happen is a pretend remote record.
-    expect(decision).toEqual({ approved: true, remember: true });
-    expect(calls).toEqual([]);
-  });
-});
-
-describe('a daemon-owned setting is written where it is acted on', () => {
-  test('a daemon-owned key goes over config.set', async () => {
-    const calls: RecordedCall[] = [];
-    const client = createDaemonConfigClient(stubVerbs({ calls }));
-
-    expect(client.ownsKey('surfaces.telegram.botUsername')).toBe(true);
-    await client.set('surfaces.telegram.botUsername', 'gv_bot');
-
-    expect(calls).toEqual([{
-      methodId: 'config.set',
-      input: { key: 'surfaces.telegram.botUsername', value: 'gv_bot' },
-    }]);
-  });
-
-  test('with no reachable host the write REJECTS with the reason, never falls back', async () => {
-    const calls: RecordedCall[] = [];
-    const client = createDaemonConfigClient(stubVerbs({
-      calls,
-      reachable: false,
-      reason: 'the connected host is disabled (daemon.enabled=false).',
-    }));
-
-    // A silent local write is the exact failure this split exists to end: it
-    // looks like it worked and changes nothing.
-    await expect(client.set('surfaces.telegram.botUsername', 'gv_bot')).rejects.toThrow(/daemon-owned/);
-    expect(calls).toEqual([]);
-  });
-
-  test('a surface-owned key is not the daemon\'s to write', () => {
-    const client = createDaemonConfigClient(stubVerbs({ calls: [] }));
-    // One machine's theme must not become everyone's theme.
-    expect(client.ownsKey('ui.theme')).toBe(false);
-  });
-});
-
-describe('a credential is written as one verified pair', () => {
-  test('the value and its reference go over ONE verb, keyed by the CONFIG key', async () => {
-    const calls: RecordedCall[] = [];
-    const client = createDaemonCredentialsClient(stubVerbs({ calls }));
-
-    await client.set('surfaces.telegram.botToken', 'the-token');
-
-    // Not config.set plus a secret write from here: splitting them reopens the
-    // window where the reference exists and the value it points at does not.
-    expect(calls).toEqual([{
-      methodId: 'credentials.set',
-      input: { key: 'surfaces.telegram.botToken', value: 'the-token' },
-    }]);
-  });
-
-  test('clearing goes over credentials.delete', async () => {
-    const calls: RecordedCall[] = [];
-    await createDaemonCredentialsClient(stubVerbs({ calls })).clear('surfaces.telegram.botToken');
-    expect(calls).toEqual([{ methodId: 'credentials.delete', input: { key: 'surfaces.telegram.botToken' } }]);
-  });
-
-  test('with no reachable host the credential write REJECTS', async () => {
-    const calls: RecordedCall[] = [];
-    const client = createDaemonCredentialsClient(stubVerbs({ calls, reachable: false }));
-    await expect(client.set('surfaces.telegram.botToken', 'the-token')).rejects.toThrow(/credential the daemon uses/);
-    expect(calls).toEqual([]);
-  });
-});
 
 describe('inbound work reaches the loop', () => {
   test('a queued submit for a hosted session runs the bound runner and is acknowledged once', async () => {

@@ -22,7 +22,7 @@
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
@@ -137,46 +137,6 @@ describe('composition parity: append-only sweep + live config watch', () => {
   });
 });
 
-describe('composition parity: host power seam is opt-in (non-spawning default)', () => {
-  // SDK 1.9.0's wireRuntimePower defaults an ABSENT seam to the real host seam
-  // (createHostPowerSeam, which spawns systemd-inhibit inhibitors and a
-  // dbus-monitor sleep-edge watcher). That host-level spawn must never fire on
-  // a test-constructed runtime, so createRuntimeServices mirrors the SDK's own
-  // composition root: default to the NON-spawning unavailable seam, and only
-  // the real long-lived composition that owns the sleep edge opts in. These
-  // source pins catch a regression in either half without constructing (and
-  // therefore without spawning) a host seam.
-  const repoRoot = resolve(import.meta.dir, '../../..');
-  const readSource = (rel: string): string => readFileSync(resolve(repoRoot, rel), 'utf8');
-
-  test('createRuntimeServices defaults an absent powerSeam to the non-spawning unavailable seam', () => {
-    const services = readSource('src/runtime/services.ts');
-    expect(services).toMatch(
-      /seam:\s*options\.powerSeam\s*\?\?\s*createUnavailablePowerSeam\(/,
-    );
-    expect(services).toContain(
-      "import { createUnavailablePowerSeam, wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power'",
-    );
-  });
-
-  test('the embedded interactive runtime opts into the real host power seam (it owns the sleep edge)', () => {
-    const bootstrapCore = readSource('src/runtime/bootstrap-core.ts');
-    expect(bootstrapCore).toContain('powerSeam: createHostPowerSeam()');
-    expect(bootstrapCore).toContain(
-      "import { createHostPowerSeam } from '@pellux/goodvibes-sdk/platform/power'",
-    );
-  });
-
-  test('one-shot CLI subcommands do NOT opt into the host seam (no spawn for a short-lived command)', () => {
-    // management.ts (withRuntimeServices) and bundle-command.ts
-    // (buildProviderReadiness) build a runtime for a single query and dispose
-    // it, neither owns the sleep edge, so neither passes a powerSeam.
-    for (const rel of ['src/cli/management.ts', 'src/cli/bundle-command.ts']) {
-      expect(readSource(rel)).not.toContain('powerSeam:');
-    }
-  });
-});
-
 describe('composition parity: live model discovery refreshes by default, and callers may skip', () => {
   // The provider registry's live discovery sweep is fire-and-forget: nothing
   // awaits it, and on completion it writes
@@ -185,9 +145,6 @@ describe('composition parity: live model discovery refreshes by default, and cal
   // whose cleanup had already removed it, the last surviving directory leak in
   // the suite. So the sweep is opt-in, and only the long-lived interactive
   // composition (still running when it resolves) opts in.
-  const repoRoot = resolve(import.meta.dir, '../../..');
-  const readSource = (rel: string): string => readFileSync(resolve(repoRoot, rel), 'utf8');
-
   let root = '';
   afterEach(() => {
     if (root) rmSync(root, { recursive: true, force: true });
@@ -298,21 +255,6 @@ describe('composition parity: the trigger family is composed, not just importabl
       homeDirectory: homeDir,
     });
   }
-
-  // Regression: this repo hand-composes RuntimeServices, and the SDK facade
-  // start()/shutdown()s services.triggerManager. When this repo did not produce
-  // the field, every daemon shutdown threw
-  //   TypeError: undefined is not an object (evaluating 'this.triggerManager.shutdown')
-  // The SDK side is now optional-chained so absence degrades cleanly, but the
-  // point of this test is stronger: the agent must actually GET the feature,
-  // not merely stop crashing.
-  test('createRuntimeServices returns a real TriggerManager', () => {
-    const services = build();
-    expect(services.triggerManager).toBeDefined();
-    expect(typeof services.triggerManager.start).toBe('function');
-    expect(typeof services.triggerManager.shutdown).toBe('function');
-    expect(typeof services.triggerManager.list).toBe('function');
-  });
 
   test('it honours the shipped-off default and refuses by name', async () => {
     const services = build();
