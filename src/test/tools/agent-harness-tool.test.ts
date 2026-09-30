@@ -12295,6 +12295,10 @@ describe('agent_harness tool', () => {
       effect: 'ui-navigation',
       preferredModelTool: expect.stringContaining('workspace_actions'),
     });
+    // /context window <size> writes a persisted override: never labelled read-only.
+    expect(describeCommandPolicy('context')).toMatchObject({ effect: 'mixed' });
+    expect(describeCommandPolicy('context').boundary).toContain('/context window <size> writes');
+    expect(describeCommandPolicy('status').effect).toBe('read-only');
     expect(describeCommandPolicy('brief')).toMatchObject({
       effect: 'read-only',
       preferredModelTool: 'agent_operator_briefing',

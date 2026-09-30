@@ -16,6 +16,7 @@ import {
 } from './conversation-rendering.ts';
 import { renderMarkdown } from '../renderer/markdown.ts';
 import type { BlockMeta } from './conversation-types.ts';
+import { DisplayOnlyOutput } from './conversation-display-only.ts';
 import { MessageLineCache } from './conversation-line-cache.ts';
 import type { WorkTreeSources } from './work-tree-sources.ts';
 import { renderStreamingContinuation } from './work-tree-render.ts';
@@ -51,6 +52,8 @@ export type NoticeSink = (content: string, options: { readonly restored: boolean
 
 export class ConversationManager extends SdkConversationManager {
   public history = new InfiniteBuffer();
+  /** Display-only output kept for redraw (conversation-display-only.ts). */
+  private readonly displayOnly = new DisplayOnlyOutput();
   private _getWidth: () => number;
   /** Tracks the rendered width; a change invalidates the full history. */
   private lastRenderedWidth = 0;
@@ -203,7 +206,8 @@ export class ConversationManager extends SdkConversationManager {
     // rebuild later in the stream does.
     this.streamingStartLine = 0;
     this.flushHistory();
-    this.streamingStartLine = this.history.getLineCount();
+    // The streamed text starts above any display-only draws kept below it.
+    this.streamingStartLine = this.history.getLineCount() - this.displayOnly.trailingLineCount;
     this._streamWidth = this._getWidth();
   }
 
@@ -224,6 +228,7 @@ export class ConversationManager extends SdkConversationManager {
       const width = this._getWidth();
       this.history.truncateToLine(this.streamingStartLine);
       this.history.addLines(this.streamingLines(content, width));
+      this.displayOnly.drawTrailing(width, () => this.history.getLineCount());
     }
   }
 
@@ -234,6 +239,7 @@ export class ConversationManager extends SdkConversationManager {
   public override finalizeStreamingBlock(): void {
     super.finalizeStreamingBlock();
     this.streamingStartLine = -1;
+    this.displayOnly.resetTrailing();
     this._streamWidth = -1;
     this.markDirty();
   }
@@ -256,6 +262,7 @@ export class ConversationManager extends SdkConversationManager {
     this.messageLineRegistry = [];
     this.errorLineRegistry = [];
     this.streamingStartLine = -1;
+    this.displayOnly.drop();
     this.lineCache.clear();
     this.workTree.reset();
     this._displayFromMessageIndex = 0; // full reset, show everything on next render
@@ -304,6 +311,8 @@ export class ConversationManager extends SdkConversationManager {
     super.fromJSON(data);
     // A restored session's notices go back into the history (not toasted).
     for (const message of data.messages) if (message.role === 'system') this.noticeSink?.(message.content, { restored: true });
+    // Output printed over the conversation this one replaces is not about it.
+    this.displayOnly.drop();
     this.history.clear();
     this.lineCache.clear();
     this.lastRenderedWidth = 0;
@@ -347,6 +356,7 @@ export class ConversationManager extends SdkConversationManager {
     this.lastRenderedWidth = width;
     this.dirty = false;
     this.builtWhileActive = this.workTreeSources.turnActive?.() ?? false;
+    this.displayOnly.resetTrailing();
 
     const snapshot = this.getMessageSnapshot();
     // During streaming, the in-progress placeholder (always the last message) is
@@ -370,14 +380,22 @@ export class ConversationManager extends SdkConversationManager {
       (m) => m.role !== 'tool' && m.role !== 'system',
     );
 
-    if (displayMessages.length === 0 && displayStart === 0 && !this.suppressSplash) {
+    // Printed output (a command run before the first message) replaces the
+    // splash, or the next rebuild would draw the splash over it.
+    if (displayMessages.length === 0 && displayStart === 0 && !this.suppressSplash && this.displayOnly.count === 0) {
       this.splashOnScreen = true;
       this.addSplashScreen(width);
       return;
     }
 
     this.splashOnScreen = false;
-    this.lineCache.renderInto(this.renderingContext(), visibleSnapshot, width, this.messageLineRegistry, displayStart, isStreaming ? snapshot.length - 1 : -1);
+    // Display-only draws go back where they were printed: after the unit that
+    // holds the last message that existed then. The turn still streaming is
+    // last and its text continues below it, so what follows it waits.
+    const kept = this.displayOnly.cursor(width);
+    kept.through(displayStart - 1);
+    this.lineCache.renderInto(this.renderingContext(), visibleSnapshot, width, this.messageLineRegistry, displayStart, isStreaming ? snapshot.length - 1 : -1, (last, streaming) => { if (!streaming) kept.through(last); });
+    if (!isStreaming) kept.through(Number.POSITIVE_INFINITY);
 
     if (isStreaming) {
       // Re-anchor the streaming block to the freshly rebuilt buffer and redraw
@@ -388,8 +406,21 @@ export class ConversationManager extends SdkConversationManager {
       if (typeof streamingContent === 'string' && streamingContent.length > 0) {
         this.history.addLines(this.streamingLines(streamingContent, width));
       }
+      kept.trailStreamed(() => this.history.getLineCount()); // printed this turn: below the streamed text
     }
   }
+
+  /** Keep a display-only draw and draw it now (below streamed text while streaming; over the splash, the next frame rebuilds without it). */
+  private recordDisplayOnly(draw: (width: number) => void): void {
+    const seq = this.displayOnly.keep(this.getMessageSnapshot().length, draw);
+    if (this.splashOnScreen) return this.markDirty();
+    const before = this.history.getLineCount();
+    draw(this._getWidth());
+    this.displayOnly.noteDrawn(seq, this.history.getLineCount() - before, this.streamingStartLine >= 0);
+  }
+
+  /** Display-only draws kept for redraw (bounded; for memory-hygiene assertions). */
+  public getDisplayOnlyCount(): number { return this.displayOnly.count; }
 
   /**
    * flushHistory - Rebuilds the full buffer when dirty or when the terminal width has changed.
@@ -686,8 +717,9 @@ export class ConversationManager extends SdkConversationManager {
     return conversationTextToLines(text, width, style);
   }
 
+  /** Print display-only text into the transcript (never a message); it survives every rebuild. */
   public log(text: string, style: Partial<Cell> = {}, indent = '      '): void {
-    logConversationText(this.renderingContext(), this._getWidth(), text, style, indent);
+    this.recordDisplayOnly((width) => logConversationText(this.renderingContext(), width, text, style, indent));
   }
 
   /**
@@ -703,6 +735,7 @@ export class ConversationManager extends SdkConversationManager {
    */
   public clearDisplay(): void {
     this.history.clear();
+    this.displayOnly.drop();
     this.blockRegistry = [];
     this.messageLineRegistry = [];
     this.errorLineRegistry = [];

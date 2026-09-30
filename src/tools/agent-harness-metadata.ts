@@ -133,7 +133,15 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Briefing reads current Agent operator posture and next actions without mutating connected-host state.',
     };
   }
-  if (root === 'health' || root === 'compat' || root === 'context' || root === 'status' || root === 'accounts' || root === 'security') {
+  if (root === 'context') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: agentHarnessModes('open_ui_surface', 'run_command'),
+      boundary: '/context (the usage breakdown) and /context window (the current model\'s window) only read. /context window <size> writes a context window override for the current model and /context window clear removes it and any learned limit; both change the model registry\'s persisted override file in the local config directory and need explicit user intent.',
+    };
+  }
+  if (root === 'health' || root === 'compat' || root === 'status' || root === 'accounts' || root === 'security') {
     return {
       effect: 'read-only',
       confirmation,

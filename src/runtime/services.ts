@@ -1075,6 +1075,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
     projectRoot: workingDirectory,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    // In a git repository every chain works in its own worktree and lands
+    // through the SDK (wrfc-chain-workspace); these legacy in-place commit and
+    // merge ops are never reached there, and refuse if anything ever tries.
     createWorktree: createDisabledAgentWrfcWorktreeOps,
     // A chain's fix phase: review findings become a dependency-graph
     // workstream on the one orchestration engine, composed further down
@@ -1681,9 +1684,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // The Agent is delegation-only: it does not own local build/worktree work.
   // These are constructed as real-but-inert SDK services purely to satisfy the
   // RuntimeServices contract, none auto-start:
-  //   • orchestrationEngine , never .start()ed here (delegation goes through
-  //                            /delegate to the TUI); worktree isolation is
-  //                            omitted so any accidental run degrades to shared.
+  //   • orchestrationEngine , never .start()ed here for build work (delegation
+  //                            goes through /delegate to the TUI). It does run
+  //                            the fix steps of a WRFC chain this Agent starts:
+  //                            the daemon has no verb that accepts a chain or
+  //                            its fix workstream (POST /task only spawns a
+  //                            plain agent in the daemon's own directory), so
+  //                            the chain runs locally in its own isolated git
+  //                            worktree and its fix workstream is rooted there
+  //                            in `worktree` isolation mode. Nothing is written
+  //                            to the shared directory until the chain passes,
+  //                            and nothing waits on a person to start it.
   //   • codeIndexStore      , constructed but neither schema-initialized nor
   //                            auto-built; the Agent runs no repo source-tree
   //                            code index (inert unless explicitly invoked).

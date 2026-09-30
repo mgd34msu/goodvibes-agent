@@ -155,6 +155,74 @@ describe('ConversationManager', () => {
     });
   });
 
+  describe('display-only command output survives rebuilds', () => {
+    const text = (c: ConversationManager): string => c.getDisplayBlocks().map((line) => line.map((cell) => cell.char).join('')).join('\n');
+
+    test('printed output stays through a resize, in place (live defect: /context window output vanished on resize)', () => {
+      let width = 120;
+      const c = new ConversationManager(() => width);
+      c.addUserMessage('first question');
+      c.addAssistantMessage('first answer', { model: 'm1' });
+      c.getDisplayBlocks();
+      c.log('Context window for Free Models Router: 200,000 tokens');
+      c.addUserMessage('second question');
+      expect(text(c)).toContain('Context window for Free Models Router: 200,000 tokens');
+
+      width = 90;
+      const after = text(c);
+      expect(after).toContain('Context window for Free Models Router: 200,000 tokens');
+      expect(after.indexOf('first answer')).toBeLessThan(after.indexOf('Context window for Free Models Router'));
+      expect(after.indexOf('Context window for Free Models Router')).toBeLessThan(after.indexOf('second question'));
+      width = 120;
+      expect(text(c).split('Context window for Free Models Router').length - 1).toBe(1);
+    });
+
+    test('printed before the first message, it replaces the splash and stays through a resize', () => {
+      let width = 120;
+      const c = new ConversationManager(() => width);
+      expect(text(c)).toContain('██████╗');
+      c.log('Context window for Free Models Router: 200,000 tokens');
+      let shown = text(c);
+      expect(shown).toContain('Context window for Free Models Router: 200,000 tokens');
+      expect(shown).not.toContain('██████╗');
+      width = 90;
+      shown = text(c);
+      expect(shown).toContain('Context window for Free Models Router: 200,000 tokens');
+      expect(shown).not.toContain('██████╗');
+    });
+
+    test('output printed while a reply streams stays below the streamed text across deltas and a resize', () => {
+      let width = 120;
+      const c = new ConversationManager(() => width);
+      c.addUserMessage('question');
+      c.getDisplayBlocks();
+      c.startStreamingBlock();
+      c.updateStreamingBlock('partial answer');
+      c.log('printed mid-turn');
+      c.updateStreamingBlock('partial answer grows');
+      let shown = text(c);
+      expect(shown).toContain('printed mid-turn');
+      expect(shown.indexOf('partial answer grows')).toBeLessThan(shown.indexOf('printed mid-turn'));
+      width = 100;
+      c.updateStreamingBlock('partial answer grows more');
+      shown = text(c);
+      expect(shown.split('printed mid-turn').length - 1).toBe(1);
+      expect(shown.indexOf('partial answer grows more')).toBeLessThan(shown.indexOf('printed mid-turn'));
+    });
+
+    test('clearing the display drops kept display-only output', () => {
+      let width = 120;
+      const c = new ConversationManager(() => width);
+      c.addUserMessage('q');
+      c.getDisplayBlocks();
+      c.log('old receipt');
+      c.clearDisplay();
+      width = 100;
+      expect(text(c)).not.toContain('old receipt');
+      expect(c.getDisplayOnlyCount()).toBe(0);
+    });
+  });
+
   describe('clearDisplay', () => {
     test('clearDisplay zeros getDisplayBlocks', () => {
       cm.addUserMessage('hello');
