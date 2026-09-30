@@ -6,7 +6,8 @@
  *   then    the version (faint) and the session title (muted)
  *   right   the serving model, ending at width-2
  *
- * No rule row under it. The header is the one place for session identity:
+ * No rule row under it; on the main screen one empty row (withHeaderGap)
+ * keeps the output off it. The header is the one place for session identity:
  * title and model (the composer holds only input). Inside an agent or process
  * view the title gives way to the breadcrumb (main › researcher, the last name
  * in its own color) and the right side names that session: the agent's model,
@@ -112,3 +113,18 @@ function renderViewHeader(line: Line, width: number, versionText: string, view: 
   if (right) put(line, rightX, end, { text: right, fg: view.rightFg ?? t.text });
   return line;
 }
+
+/**
+ * The main screen's header block with its gap: the header row (and the
+ * session chips row, when it shows), then one empty row, so output never
+ * touches the header. An agent or process view's body starts with its own
+ * empty row, so a view does not take this one.
+ */
+export function withHeaderGap(header: readonly Line[], width: number): Line[] {
+  const gap = createEmptyLine(width);
+  for (const cell of gap) cell.bg = '';
+  return [...header, gap];
+}
+
+/** Rows the gap under the main screen's header adds. */
+export const HEADER_GAP_ROWS = 1;

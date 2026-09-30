@@ -211,6 +211,7 @@ export function handleEscapeForHandler(handler: InputHandler): void {
       blockActionsMenu: handler.blockActionsMenu,
       surfaceModals: handler.surfaceModals,
       sessionView: handler.sessionView ?? undefined,
+      transcriptScroll: handler.transcriptScroll ?? undefined,
       selectionModal: handler.selectionModal,
       commandMode: handler.commandMode,
       modalStack: handler.modalStack,

@@ -23,6 +23,8 @@ import { InputHistory } from './input/input-history.ts';
 import { ShellPassthrough, SHELL_USAGE_HINT } from './input/shell-passthrough.ts';
 import { getTierPromptSupplement, getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
 import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-surface.ts';
+import { HEADER_GAP_ROWS, withHeaderGap } from './renderer/header-line.ts';
+import { TranscriptScroll, mainBackToBottom, transcriptEscape } from './shell/transcript-scroll.ts';
 import { buildConversationViewport, centerViewportContent } from './renderer/conversation-layout.ts';
 import { applyConversationOverlays, buildConversationLayers } from './renderer/conversation-overlays.ts';
 import { buildActivityAgentRows, type ActivityView } from './renderer/activity-modal.ts';
@@ -186,8 +188,8 @@ async function main() {
 
   const thinkingClock = new ThinkingStallClock(); // thinking-indicator stall clock
 
-  let scrollTop = 0;
-  let scrollLocked = true;
+  // Where the main transcript is scrolled to; each frame's clamp is fed back (shell/transcript-scroll.ts).
+  const transcript = new TranscriptScroll();
 
   const shellPassthrough = new ShellPassthrough();
 
@@ -237,24 +239,16 @@ async function main() {
   // Agents and background processes opened full screen: Enter on a lane or ▶ bead, the Activity modal, the process monitor (shell/session-views.ts).
   const sessionViews = new SessionViews({ conversation, agentManager, processManager, fleetNodes: () => ctx.services.processRegistry.query().nodes, steer: (id, text) => ctx.services.processRegistry.steer(id, text), killAgent: (id) => ctx.services.processRegistry.kill(id, { cascade: true }), mainBusy: () => orchestrator.isThinking, mainModel: () => providerRegistry.getCurrentModel().id, promptText: () => input.prompt, requestRender: () => render() });
   commandContext.openSessionView = (target) => sessionViews.open(target);
-  const getViewportHeight = (): number => {
-    const { height } = getTerminalSize(stdout);
-    const promptLines: number = input.getVisiblePromptLineCount(getPromptContentWidth());
-    return height - sessionViews.headerRows() - estimateShellFooterHeight(promptLines); // the header row (+ the session chips)
-  };
+  const getViewportHeight = (): number => // less the header row (+ chips) and, on the main screen, the empty row under them (a view's body brings its own)
+    getTerminalSize(stdout).height - sessionViews.headerRows() - (sessionViews.active ? 0 : HEADER_GAP_ROWS) - estimateShellFooterHeight(input.getVisiblePromptLineCount(getPromptContentWidth()));
 
   const scroll = (delta: number) => {
     if (sessionViews.active) { sessionViews.scroll(-delta); return; } // a view scrolls its own lines (up is positive there)
-    const vHeight = getViewportHeight();
-    const maxScroll = Math.max(0, conversation.history.getLineCount() - vHeight);
-    scrollTop = Math.max(0, Math.min(scrollTop + delta, maxScroll));
-    // Re-lock if user scrolled to bottom, otherwise unlock
-    scrollLocked = scrollTop >= maxScroll;
+    transcript.scrollBy(delta, () => Math.max(0, conversation.history.getLineCount() - getViewportHeight()));
   };
 
-  const scrollToEnd = (vHeight: number) => {
-    scrollTop = Math.max(0, conversation.history.getLineCount() - vHeight);
-  };
+  // Only follow the tail while parked at the bottom (a manual scroll-up stays); submitInput re-locks.
+  const scrollToEnd = (vHeight: number) => transcript.followTail(conversation.history.getLineCount(), vHeight);
 
   const unsubs: Array<() => void> = [];
   // The work tree's live facts: call/turn timings, agent lanes, the call a permission prompt holds, fold persistence (work-tree-wiring.ts).
@@ -352,7 +346,7 @@ async function main() {
 
   const submitInput = (text: string, content?: ContentPart[], options: { readonly spokenOutput?: boolean } = {}) => {
     input.clearModalStack();
-    scrollLocked = true; // Re-lock on user input
+    transcript.toBottom(); // Re-lock on user input
     let processedText = applyAtModelSwitches(text, {
       providerRegistry,
       configManager,
@@ -415,7 +409,7 @@ async function main() {
   const { jumpToBookmark, scrollToLine } = createTranscriptNavigators({
     conversation,
     getViewportHeight,
-    setScrollTop: (line) => { scrollLocked = false; scrollTop = line; },
+    setScrollTop: (line) => { transcript.jumpTo(line); },
     render: () => render(),
     notify: (message) => systemMessageRouter.high(message),
   });
@@ -452,7 +446,7 @@ async function main() {
   const input: InputHandler = new InputHandler(
     () => render(),
     selection,
-    () => scrollTop,
+    () => transcript.top,
     getViewportHeight,
     () => conversation.history,
     scroll,
@@ -507,6 +501,7 @@ async function main() {
   input.filePicker.setOnUpdate(() => render());
   input.processModal.setOnRefresh(() => render());
   input.surfaceModals.onChange = () => render(); input.sessionView = sessionViews;
+  input.transcriptScroll = transcriptEscape(transcript, () => sessionViews.active, () => render()); // Esc while scrolled back returns to the bottom, never interrupts
 
   // Model picker callback is handled in bootstrap.ts, do not duplicate here.
   input.setHistory(inputHistory);
@@ -546,6 +541,9 @@ async function main() {
     const headerLines = viewFrame ? [viewFrame.header] : UIFactory.createHeader(width, currentModel.id, conversation.title || undefined);
     const chipsRow = sessionViews.chips(width); // every session to switch to, when there is more than main
     if (chipsRow) headerLines.push(chipsRow);
+    const backToBottom = viewFrame
+      ? (sessionViews.scrolledBack() ? { escKey: sessionViews.escGoesToBottom() } : null)
+      : mainBackToBottom(transcript, { splash: conversation.isSplashShowing(), keysInInput: input.prompt.length === 0 && !input.commandMode && !conversation.workTree.focused && !input.indicatorFocused });
     const thinkingDeps = {
       orchestrator, configManager, streamTokenSpeed, clock: thinkingClock,
       streamToolPreview: remoteConversation.hostedToolPreview() ?? sessionSnapshot.streamToolPreview,
@@ -598,10 +596,11 @@ async function main() {
       composerFlags: composerState.flags,
       composerPendingRisk: composerState.pendingRisk,
       voiceCapture: voiceCaptureStatus(),
-      throbber, turnRunning: orchestrator.isThinking,
+      throbber, turnRunning: orchestrator.isThinking, backToBottom,
     }).lines;
 
-    const shellHeaderLines = headerLines;
+    const shellHeaderLines = viewFrame ? headerLines : withHeaderGap(headerLines, width); // a view's body starts with its own empty row
+    input.bodyTopRow = shellHeaderLines.length; // mouse rows map to transcript rows from here
     const shellFooterLines = footerLines;
     const shellLayout = createShellLayout({
       width,
@@ -637,11 +636,12 @@ async function main() {
       conversation,
       width: conversationWidth,
       viewportHeight: vHeight,
-      scrollTop,
-      scrollLocked,
+      scrollTop: transcript.top,
+      scrollLocked: transcript.locked,
       overlayRows,
     });
-    scrollTop = conversationViewport.nextScrollTop;
+    if (transcript.settle(conversationViewport.nextScrollTop, conversationViewport.maxScroll) && backToBottom && !viewFrame) render(); // unlocked at the bottom re-locks: repaint without the pill
+    const scrollTop = transcript.top;
     // The home splash sits in the middle of the conversation area, never clipped.
     let viewport = viewFrame ? viewFrame.body(vHeight) : conversation.isSplashShowing()
       ? centerViewportContent(conversationViewport.viewport, conversationViewport.effectiveHeight, conversationWidth)

@@ -10,7 +10,8 @@ import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
 import type { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
-import { Notifier, WebhookNotifier } from '@pellux/goodvibes-sdk/platform/integrations';
+import { createRuntimeNotifier } from './bootstrap-notifier.ts';
+import { WebhookNotifier } from '@pellux/goodvibes-sdk/platform/integrations';
 
 import { Compositor } from '../renderer/compositor.ts';
 import type { PermissionRequestHandler, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
@@ -604,7 +605,7 @@ export async function initializeBootstrapCore(
     }, 'bootstrap.webhooks');
   }
 
-  const notifier = await Notifier.fromConfig(services.serviceRegistry);
+  const notifier = await createRuntimeNotifier(services.serviceRegistry, (key) => configManager.get(key as Parameters<typeof configManager.get>[0]));
   const queueStatuses = notifier.getQueueStatus();
   if (queueStatuses.length > 0) {
     notifier.attachToRuntimeBus(runtimeBus);

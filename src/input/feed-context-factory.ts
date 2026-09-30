@@ -166,6 +166,8 @@ export interface FeedContextClosures {
   getWrappedPromptInfo: (contentWidth: number) => WrappedPromptInfo;
   moveCursorVertical: (direction: -1 | 1) => boolean;
   handlePathCompletion: () => boolean;
+  /** Screen rows above the transcript (the header, the chips, the gap under them). */
+  bodyTopRow: () => number;
   handleBlockToggle: () => void;
   findMarkerAtPos: (pos: number) => { start: number; end: number } | null;
   cleanupMarkerRegistry: (text: string) => void;

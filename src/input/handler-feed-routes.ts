@@ -424,6 +424,8 @@ export type MouseRouteState = {
   requestRender: () => void;
   handlePaste: () => void;
   handleCopy: () => void;
+  /** Screen rows above the transcript (the header, the chips, the gap under them); 2 when not given. */
+  bodyTopRow?: () => number;
 };
 
 export function handleMouseToken(state: MouseRouteState, token: InputToken): {
@@ -437,8 +439,8 @@ export function handleMouseToken(state: MouseRouteState, token: InputToken): {
     return { handled: false, mouseDownRow, mouseDownCol };
   }
 
-  const headerH = 2;
-  const viewportRow = token.row - headerH;
+  // Mouse rows are 1-based; the transcript's first row is the one after the header block.
+  const viewportRow = token.row - 1 - (state.bodyTopRow?.() ?? 2);
 
   if (token.button === 64) {
     state.scroll(-3);

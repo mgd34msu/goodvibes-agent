@@ -179,6 +179,7 @@ export interface InputFeedContext {
   readonly getWrappedPromptInfo: (contentWidth: number) => WrappedPromptInfo;
   readonly moveCursorVertical: (direction: -1 | 1) => boolean;
   readonly handlePathCompletion: () => boolean;
+  readonly bodyTopRow: () => number;
   readonly handleBlockToggle: () => void;
   readonly findMarkerAtPos: (pos: number) => { start: number; end: number } | null;
   readonly cleanupMarkerRegistry: (text: string) => void;
@@ -224,6 +225,15 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       continue;
     }
 
+    // The route works on a snapshot; a branch that acts through the handler
+    // (Esc closing the help overlay, Esc clearing the composer) writes its
+    // result into `context` directly. Only fields the action left alone take
+    // the route's snapshot back (as goodvibes-tui's feed does).
+    const before = {
+      helpOverlayActive: context.helpOverlayActive, helpScrollOffset: context.helpScrollOffset,
+      shortcutsOverlayActive: context.shortcutsOverlayActive, shortcutsScrollOffset: context.shortcutsScrollOffset,
+      prompt: context.prompt, cursorPos: context.cursorPos,
+    };
     const modalRoute = handleModalTokenRoutes({
       history,
       searchShortcutMatch: token.type === 'key' && keybindings.matches('search', token),
@@ -276,12 +286,12 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       onModelPickerCommit: context.onModelPickerCommit,
     }, token);
     context.selectionCallback = modalRoute.selectionCallback;
-    context.helpOverlayActive = modalRoute.helpOverlayActive;
-    context.helpScrollOffset = modalRoute.helpScrollOffset;
-    context.shortcutsOverlayActive = modalRoute.shortcutsOverlayActive;
-    context.shortcutsScrollOffset = modalRoute.shortcutsScrollOffset;
-    context.prompt = modalRoute.prompt;
-    context.cursorPos = modalRoute.cursorPos;
+    if (context.helpOverlayActive === before.helpOverlayActive) context.helpOverlayActive = modalRoute.helpOverlayActive;
+    if (context.helpScrollOffset === before.helpScrollOffset) context.helpScrollOffset = modalRoute.helpScrollOffset;
+    if (context.shortcutsOverlayActive === before.shortcutsOverlayActive) context.shortcutsOverlayActive = modalRoute.shortcutsOverlayActive;
+    if (context.shortcutsScrollOffset === before.shortcutsScrollOffset) context.shortcutsScrollOffset = modalRoute.shortcutsScrollOffset;
+    if (context.prompt === before.prompt) context.prompt = modalRoute.prompt;
+    if (context.cursorPos === before.cursorPos) context.cursorPos = modalRoute.cursorPos;
     context.nextImageId = modalRoute.nextImageId;
     if (modalRoute.handled) {
       continue;
@@ -350,10 +360,20 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         dismissAgentWorkspace: context.dismissAgentWorkspace,
         keybindingsManager: context.keybindingsManager,
       };
+      const promptBefore = context.prompt;
+      const cursorPosBefore = context.cursorPos;
+      const commandModeBefore = context.commandMode;
       if (handleGlobalShortcutToken(shortcutState, token, viewportHeight)) {
-        context.prompt = shortcutState.prompt;
-        context.cursorPos = shortcutState.cursorPos;
-        context.commandMode = shortcutState.commandMode;
+        // Some branches (handleEscape, handleCtrlC) mutate handler state directly
+        // and sync it into this same `context` (syncFeedContextMutableFields):
+        // Esc clearing the composer sets context.prompt to ''. `shortcutState` is
+        // a snapshot taken BEFORE that call, so applying it unconditionally would
+        // stomp the live update back to its stale pre-action value (Esc would
+        // never clear typed text). Only apply the snapshot for a field the
+        // dispatched action did not already change (as goodvibes-tui does).
+        context.prompt = context.prompt === promptBefore ? shortcutState.prompt : context.prompt;
+        context.cursorPos = context.cursorPos === cursorPosBefore ? shortcutState.cursorPos : context.cursorPos;
+        context.commandMode = context.commandMode === commandModeBefore ? shortcutState.commandMode : context.commandMode;
         continue;
       }
     }
@@ -531,6 +551,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         requestRender: context.requestRender,
         handlePaste: context.handlePaste,
         handleCopy: context.handleCopy,
+        bodyTopRow: context.bodyTopRow,
       }, token);
       context.mouseDownRow = mouseRoute.mouseDownRow;
       context.mouseDownCol = mouseRoute.mouseDownCol;

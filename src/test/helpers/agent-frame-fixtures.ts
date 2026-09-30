@@ -20,6 +20,7 @@ import { ConfigManager, ServiceRegistry, SubscriptionManager } from '@pellux/goo
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { UIFactory } from '../../renderer/ui-factory.ts';
+import { withHeaderGap } from '../../renderer/header-line.ts';
 import { buildShellFooter, type ShellFooterBuildOptions } from '../../renderer/shell-surface.ts';
 import { renderMarkdown } from '../../renderer/markdown.ts';
 import { renderCodeBlock } from '../../renderer/code-block.ts';
@@ -156,7 +157,7 @@ export function fixtureTranscript(width: number): Line[] {
 }
 
 export function fixtureBaseScreen(width: number, height: number, footerOverrides: Partial<ShellFooterBuildOptions> = {}): Line[] {
-  const header = UIFactory.createHeader(width, 'claude-opus-4', 'Lisbon trip', FIXTURE_VERSION);
+  const header = withHeaderGap(UIFactory.createHeader(width, 'claude-opus-4', 'Lisbon trip', FIXTURE_VERSION), width);
   return screenFrame(width, height, header, fixtureTranscript(width), fixtureFooter(width, { dangerMode: true, ...footerOverrides }));
 }
 
@@ -176,7 +177,7 @@ export function fixtureSplash(width: number): Line[] {
 }
 
 export function fixtureHomeScreen(width: number, height: number): Line[] {
-  const header = UIFactory.createHeader(width, 'claude-opus-4', undefined, FIXTURE_VERSION);
+  const header = withHeaderGap(UIFactory.createHeader(width, 'claude-opus-4', undefined, FIXTURE_VERSION), width);
   const footer = fixtureFooter(width);
   const room = height - header.length - footer.length;
   return [...header, ...centerViewportContent(fixtureSplash(width), room, width), ...footer];
@@ -458,7 +459,7 @@ export function fixtureStacked(width: number, height: number): Line[] {
 // ---------------------------------------------------------------------------
 
 function dock(width: number, height: number, popup: Line[]): Line[] {
-  const header = UIFactory.createHeader(width, 'claude-opus-4', 'Lisbon trip', FIXTURE_VERSION);
+  const header = withHeaderGap(UIFactory.createHeader(width, 'claude-opus-4', 'Lisbon trip', FIXTURE_VERSION), width);
   const footer = fixtureFooter(width, { promptText: '/', composerMode: 'command' });
   const room = height - header.length - footer.length;
   // The assistant's answer (from its ◆ marker row down) sits behind the popup.

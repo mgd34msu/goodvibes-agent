@@ -138,6 +138,10 @@ export class InputHandler {
   public surfaceModals = new SurfaceModalHost();
   /** Agent and process views (shell/session-views.ts); null until the shell wires them. */
   public sessionView: import('./handler-session-view-route.ts').SessionViewControls | null = null;
+  /** The main transcript's scroll, for Esc while scrolled back (handler-modal-stack.ts); null until the shell wires it. */
+  public transcriptScroll: import('./handler-modal-stack.ts').TranscriptScrollControls | null = null;
+  /** Screen rows above the transcript, set each frame by the shell: the header, the chips, the gap under them. */
+  public bodyTopRow = 2;
   public bookmarkModal: BookmarkModal;
   public blockActionsMenu = new BlockActionsMenu();
   public settingsModal = new SettingsModal();
@@ -303,6 +307,7 @@ export class InputHandler {
         getWrappedPromptInfo: (contentWidth: number) => this.getWrappedPromptInfo(contentWidth),
         moveCursorVertical: (direction: -1 | 1) => this.moveCursorVertical(direction),
         handlePathCompletion: () => this.handlePathCompletion(),
+        bodyTopRow: () => this.bodyTopRow,
         handleBlockToggle: () => this.handleBlockToggle(),
         findMarkerAtPos: (pos: number) => this.findMarkerAtPos(pos),
         cleanupMarkerRegistry: (text: string) => this.cleanupMarkerRegistry(text),
