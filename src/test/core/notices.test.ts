@@ -8,7 +8,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ConversationManager } from '../../core/conversation.ts';
 import { noticeParts, publishNotice } from '../../core/notices.ts';
-import { PanelNotificationFeed, getSharedNotificationFeed } from '../../core/notifications-feed.ts';
+import { NotificationFeed, getSharedNotificationFeed } from '../../core/notifications-feed.ts';
 import { bridgeNotificationFeedToToasts, getSharedToastCenter, ToastCenter } from '../../renderer/toast-center.ts';
 import { renderToasts } from '../../renderer/surface-kit-parts.ts';
 import { renderNotificationsModal } from '../../renderer/notifications-modal.ts';
@@ -30,7 +30,7 @@ const flat = (s: string): string => s.replace(/\s+/g, ' ');
 
 function wired() {
   const conversation = new ConversationManager(() => 100);
-  const feed = new PanelNotificationFeed();
+  const feed = new NotificationFeed();
   const toasts = new ToastCenter(() => 0, () => {});
   bridgeNotificationFeedToToasts(feed, toasts);
   conversation.setNoticeSink((content, { restored }) => publishNotice(feed, content, { restored, now: () => 1_000 }));
@@ -47,11 +47,15 @@ describe('system notices become toasts and history entries', () => {
 
     const entries = feed.list();
     expect(entries).toHaveLength(2);
-    expect(entries[1]!.title).toBe(FAILED);
-    expect(entries[1]!.level).toBe('critical');
+    // An agent or chain event line is kept under the event's plain title, its full text in the body.
+    expect(entries[1]!.title).toBe('Agent failed');
+    expect(entries[1]!.body).toBe(FAILED.replace('[Agents] ✗ ', ''));
+    expect(entries[1]!.level).toBe('warning');
     expect(entries[1]!.subject).toBe('agents');
-    expect(toasts.visible().map((t) => t.title)).toEqual([entries[0]!.title, FAILED]);
-    expect(toasts.visible()[1]!.tone).toBe('error');
+    expect(entries[0]!.title).toBe('Review chain failed');
+    expect(entries[0]!.body).toContain('(setFixWorkstreamRunner was never called)');
+    expect(toasts.visible().map((t) => t.title)).toEqual(['Review chain failed', 'Agent failed']);
+    expect(toasts.visible()[1]!.tone).toBe('warning');
 
     const frame = text(conversation.getDisplayBlocks());
     expect(frame).toContain('Starting a reviewer.');
@@ -117,7 +121,7 @@ describe('notices show their full text, wrapped', () => {
   });
 
   test('the history modal shows the whole notice', () => {
-    const feed = new PanelNotificationFeed();
+    const feed = new NotificationFeed();
     publishNotice(feed, FAILED, { now: () => Date.now() });
     const layer = renderNotificationsModal({ entries: feed.list(), selectedIndex: 0, unread: 1, isUnread: () => true, status: null, now: Date.now() }, 120, 40);
     expect(flat(text(layer.lines))).toContain('(setFixWorkstreamRunner was never called)');
@@ -183,10 +187,21 @@ describe('the notification history is reachable', () => {
 
     const modal = host.top();
     expect(modal).toBeInstanceOf(NotificationsModal);
-    expect((modal as NotificationsModal).entries.map((e) => e.title)).toEqual([FAILED]);
+    expect((modal as NotificationsModal).entries.map((e) => e.title)).toEqual(['Agent failed']);
+    expect((modal as NotificationsModal).entries[0]!.body).toContain('(setFixWorkstreamRunner was never called)');
     expect(feed.unreadCount()).toBe(0);
     host.close(modal!, 'done');
     feed.clear();
+  });
+});
+
+describe('a multi-line body in the history', () => {
+  test('its lines stay apart in the row, never run together', () => {
+    const feed = new NotificationFeed();
+    publishNotice(feed, "[Delegated task] 2 running\n  aaaa1111 reading src/retry.ts\n  bbbb2222 running tests", { now: () => Date.now() });
+    const layer = renderNotificationsModal({ entries: feed.list(), selectedIndex: 0, unread: 1, isUnread: () => true, status: null, now: Date.now() }, 160, 40);
+    const shown = flat(text(layer.lines));
+    expect(shown).toContain('aaaa1111 reading src/retry.ts \u00b7 bbbb2222 running tests');
   });
 });
 

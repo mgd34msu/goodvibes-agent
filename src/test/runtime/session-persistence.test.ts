@@ -67,7 +67,6 @@ describe('runtime/session-persistence', () => {
           blockedTasks: 1,
           remoteContracts: 1,
           worktreeCount: 3,
-          openPanels: ['remote', 'approval'],
           lines: ['Activity: user prompt queued', 'Status: awaiting response'],
         },
       },
@@ -89,7 +88,7 @@ describe('runtime/session-persistence', () => {
     expect(meta.titleSource).toBe('user');
     expect(meta.returnContext?.statusLabel).toBe('awaiting response');
     expect(meta.returnContext?.worktreeCount).toBe(3);
-    expect(meta.returnContext?.openPanels).toEqual(['remote', 'approval']);
+    expect(meta.returnContext).not.toHaveProperty('openPanels');
     expect(messages).toEqual([{ role: 'user', content: 'hello' }]);
   });
 
@@ -152,7 +151,6 @@ describe('runtime/session-persistence', () => {
           blockedTasks: 1,
           remoteContracts: 1,
           worktreeCount: 2,
-          openPanels: ['remote', 'approval'],
           lines: ['Activity: assistant replied', 'Status: ready for next turn'],
         },
         messages: [
@@ -173,6 +171,70 @@ describe('runtime/session-persistence', () => {
     expect(loaded?.titleSource).toBe('system');
     expect(loaded?.returnContext?.statusLabel).toBe('ready for next turn');
     expect(loaded?.returnContext?.remoteContracts).toBe(1);
-    expect(loaded?.returnContext?.openPanels).toEqual(['remote', 'approval']);
+    expect(loaded?.returnContext).not.toHaveProperty('openPanels');
+  });
+
+  describe('legacy open-panels list in a saved return context', () => {
+    const legacyContext = {
+      activityLabel: 'assistant replied',
+      statusLabel: 'ready for next turn',
+      pendingApprovals: 0,
+      toolCallCount: 0,
+      toolResultCount: 0,
+      assistantTurnCount: 1,
+      userTurnCount: 1,
+      openPanels: ['remote', 'approval'],
+      lines: ['Activity: assistant replied', 'Open panels: remote, approval', 'Status: ready for next turn'],
+    };
+
+    test('a legacy session file loads without it and persistConversation never writes it back', () => {
+      const sessionsDir = join(cwdDir, '.goodvibes', 'tui', 'sessions');
+      mkdirSync(sessionsDir, { recursive: true });
+      const legacyPath = join(sessionsDir, 'legacy.jsonl');
+      writeFileSync(legacyPath, [
+        JSON.stringify({ type: 'meta', schemaVersion: 1, timestamp: 1_700_000_000_000, title: 'Legacy', model: 'gpt-test', provider: 'openai', titleSource: 'user', returnContext: legacyContext }),
+        JSON.stringify({ type: 'message', role: 'user', content: 'hello' }),
+      ].join('\n') + '\n');
+      expect(readFileSync(legacyPath, 'utf-8')).toContain('openPanels');
+
+      const { meta, messages } = sessionManager.load('legacy');
+      const snapshotMessages = messages as Array<Record<string, unknown>>;
+      expect(meta.returnContext).toBeDefined();
+      expect(meta.returnContext).not.toHaveProperty('openPanels');
+      expect(meta.returnContext?.lines.join('\n')).not.toContain('Open panels');
+
+      persistConversation(
+        'legacy-again',
+        { messages: snapshotMessages, timestamp: 1_700_000_000_001, titleSource: 'user', returnContext: meta.returnContext },
+        'gpt-test',
+        'openai',
+        'Legacy',
+        { workingDirectory: cwdDir, homeDirectory: homeDir, sessionManager, surfaceRoot: 'tui' },
+      );
+
+      const rewritten = readFileSync(join(sessionsDir, 'legacy-again.jsonl'), 'utf-8');
+      expect(rewritten).not.toContain('openPanels');
+      expect(rewritten).not.toContain('Open panels');
+    });
+
+    test('a legacy recovery file loads without it', () => {
+      writeRecoveryFile(
+        {
+          titleSource: 'system',
+          returnContext: legacyContext as never,
+          messages: [{ role: 'user', content: 'recover me' }],
+        },
+        'legacy-recovery',
+        'Recovered Session',
+        { workingDirectory: cwdDir, homeDirectory: homeDir, surfaceRoot: 'tui' },
+      );
+      agePastLiveWindow(join(homeDir, '.goodvibes', 'tui', 'recovery', 'recovery-legacy-recovery.jsonl'));
+
+      const info = checkRecoveryFile({ workingDirectory: cwdDir, homeDirectory: homeDir, surfaceRoot: 'tui' });
+      expect(info?.returnContext).not.toHaveProperty('openPanels');
+      const loaded = loadRecoveryConversation({ homeDirectory: homeDir, surfaceRoot: 'tui' });
+      expect(loaded?.returnContext).not.toHaveProperty('openPanels');
+      expect(loaded?.returnContext?.lines.join('\n')).not.toContain('Open panels');
+    });
   });
 });

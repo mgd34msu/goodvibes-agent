@@ -12,7 +12,6 @@ export interface AgentHarnessUiSurfaceArgs {
   readonly prefix?: unknown;
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
-  readonly pane?: unknown;
 }
 
 export interface UiSurfaceDefinition {

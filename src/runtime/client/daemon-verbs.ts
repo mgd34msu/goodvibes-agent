@@ -116,7 +116,7 @@ function resolveConnection(options: AgentDaemonVerbCallerOptions): ResolvedConne
  *
  * A stream is not a verb, it is a long-lived GET on the control plane's event
  * endpoint, so it cannot go through `invoke`. It must still reach exactly the
- * host `invoke` reaches, with exactly the token `invoke` sends, or the panel
+ * host `invoke` reaches, with exactly the token `invoke` sends, or the approvals list
  * would end up polling one daemon and streaming from another. Exporting the
  * resolution (rather than duplicating it) is what guarantees that.
  *

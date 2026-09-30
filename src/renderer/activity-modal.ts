@@ -1,6 +1,6 @@
 /**
  * activity-modal.ts, what the assistant is doing and what happened, as a
- * kit modal (it replaces the right-hand activity sidebar pane).
+ * kit modal.
  *
  *   ✦ Activity  2 agents running                                      esc
  *

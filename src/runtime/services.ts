@@ -482,7 +482,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    * holds, and the honest reason when the daemon's record could not be read.
    *
    * The broker above is not the whole list and must not be rendered as though
-   * it were, an ask raised here is recorded on the daemon, so a panel fed from
+   * it were, an ask raised here is recorded on the daemon, so a list fed from
    * the broker alone shows "nothing pending" while three asks wait.
    * See client/approvals-view.ts.
    */
@@ -1093,36 +1093,36 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   //
   // A tool running in this loop asks for permission here, and the on-screen card
   // resolves it here (permissions/broker-approval.ts calls resolveApproval on
-  // this instance); the shell's approvals panel opens off this broker's
+  // this instance); the shell's approvals card opens off this broker's
   // subscribe(); and the distributed-runtime handover records its asks against
   // it. All three are answers a person gives at THIS terminal, which no wire
   // call can stand in for.
   //
   // What it is NOT is the record of record. Every ask is also raised on the
-  // daemon (`requestApproval` above), the panel RENDERS the union of both halves
+  // daemon (`requestApproval` above), the approvals list RENDERS the union of both halves
   // (`approvalsView` below), and a phone answering over the daemon's verbs wins
   // the race just as a keystroke here does.
   const approvalBroker = new ApprovalBroker({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'approvals.json'),
   });
-  // The panel's source. The broker above holds only what the distributed-runtime
+  // The approvals list's source. The broker above holds only what the distributed-runtime
   // bridge still hands this process in-process; the asks THIS surface raises are
   // recorded on the daemon, and so are every other surface's. One list, read
   // over `approvals.list`, unioned with the broker's, with the honest reason
   // when the daemon cannot be read. Started by the interactive bootstrap (a
-  // one-shot subcommand has nobody to show a panel to); `refresh()` works
+  // one-shot subcommand has nobody to show the list to); `refresh()` works
   // without `start()` for a single read.
   const approvalsView = createApprovalsView({
     verbs: daemonVerbs,
     localBroker: approvalBroker,
     // Push replaces the 15s wait, not the read. An ask raised on a phone shows
-    // on this panel the moment the daemon records it, and a decision made
+    // in the list the moment the daemon records it, and a decision made
     // elsewhere clears it just as fast; when the stream cannot be opened or
     // drops, the periodic re-read is still there and the snapshot says so.
     subscribe: async ({ onUpdate, onTerminate }) => {
       const resolved = resolveConnectedHostConnection(connectedHostAccess);
       if ('reason' in resolved) {
-        logger.debug('[approvals] no connected host for the approval-update stream; the panel keeps re-reading', {
+        logger.debug('[approvals] no connected host for the approval-update stream; the list keeps re-reading', {
           reason: resolved.reason,
         });
         return null;
@@ -1585,7 +1585,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // hidden file (see tools/agent-read-policy.ts).
   const detachSessionWriteLedger = attachAgentSessionWriteLedger(options.runtimeBus);
   // The SDK's foundation/integration contracts still expect a panel manager;
-  // the Agent shell has no panel UI (the Activity modal replaced it), so we
+  // the Agent shell has no panel UI (modals replaced it), so we
   // satisfy those contracts with a no-op implementation.
   const NOOP_PANEL_MANAGER = (() => {
     const emptyPane = { panels: [], activeIndex: 0 } as const;

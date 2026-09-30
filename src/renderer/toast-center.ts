@@ -13,7 +13,7 @@
  * shows in full.
  */
 
-import type { PanelFeedEntry, PanelNotificationFeed } from '../core/notifications-feed.ts';
+import type { NotificationFeedEntry, NotificationFeed } from '../core/notifications-feed.ts';
 import type { ToastSpec, ToastTone } from './surface-kit-parts.ts';
 
 /** How long a toast stays up. */
@@ -81,14 +81,14 @@ export function getSharedToastCenter(): ToastCenter {
   return shared;
 }
 
-function toneForLevel(level: PanelFeedEntry['level']): ToastTone | null {
+function toneForLevel(level: NotificationFeedEntry['level']): ToastTone | null {
   if (level === 'critical') return 'error';
   if (level === 'warning') return 'warning';
   return null;
 }
 
 /** A system notice always toasts; its level picks the bar color. */
-function toneForNotice(level: PanelFeedEntry['level']): ToastTone {
+function toneForNotice(level: NotificationFeedEntry['level']): ToastTone {
   return toneForLevel(level) ?? 'info';
 }
 
@@ -97,7 +97,7 @@ function toneForNotice(level: PanelFeedEntry['level']): ToastTone {
  * collapsed burst toasts once per growth of its running count, with the count
  * in the title. Returns an unsubscribe function.
  */
-export function bridgeNotificationFeedToToasts(feed: PanelNotificationFeed, toasts: ToastCenter): () => void {
+export function bridgeNotificationFeedToToasts(feed: NotificationFeed, toasts: ToastCenter): () => void {
   const seen = new Map<string, number>();
   for (const entry of feed.list()) seen.set(entry.key, entry.collapsedCount);
   return feed.subscribe(() => {

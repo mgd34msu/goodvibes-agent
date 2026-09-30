@@ -131,8 +131,6 @@ const rules: readonly Rule[] = [
       'src/main.ts',
       'src/runtime/bootstrap-command-context.ts',
       'src/runtime/bootstrap-runtime-events.ts',
-      'src/panels/control-plane-panel.ts',
-      'src/panels/schedule-panel.ts',
       'src/channels/builtin-runtime.ts',
       'src/channels/builtin/rendering.ts',
     ]),
@@ -154,7 +152,7 @@ const rules: readonly Rule[] = [
       'src/hooks/hook-api.ts',
       'src/mcp/mcp-api.ts',
     ]),
-    pattern: /from ['"][.\/]+(?:\.\.\/)*(?:daemon|input|panels|renderer)(?:\/|\.ts['"])/,
+    pattern: /from ['"][.\/]+(?:\.\.\/)*(?:daemon|input|renderer)(?:\/|\.ts['"])/,
     message: 'future foundation/client surfaces must not depend on daemon or shell modules',
   },
   {
@@ -163,7 +161,7 @@ const rules: readonly Rule[] = [
       'src/daemon',
       'src/control-plane/routes',
     ]),
-    pattern: /from ['"][.\/]+(?:\.\.\/)*(?:input|panels|renderer)(?:\/|\.ts['"])/,
+    pattern: /from ['"][.\/]+(?:\.\.\/)*(?:input|renderer)(?:\/|\.ts['"])/,
     message: 'future server surfaces must not depend on TUI shell modules',
   },
   {

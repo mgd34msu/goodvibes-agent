@@ -43,7 +43,7 @@ import type { PromptEdit } from './handler-shortcuts.ts';
 import { SelectionManager } from '@pellux/goodvibes-terminal-shell';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
-import { trackPanelPasteFloodGuard, type PanelBurstGuardState } from './panel-paste-flood-guard.ts';
+import { trackPasteFloodGuard, type PasteBurstGuardState } from './paste-flood-guard.ts';
 import type { FocusTracker } from '@/runtime/index.ts';
 
 /**
@@ -70,9 +70,9 @@ import type { FocusTracker } from '@/runtime/index.ts';
  *   - `inputHistory`, `conversationManager`, late-wired service handles; synced at
  *     feed() entry only since no in-feed action rewires them
  *   - `pasteRegistry`, `imageRegistry`, owned Maps, never replaced
- *   - `burstGuard` (ported from goodvibes-tui's panel-paste-flood-guard.ts), the
+ *   - `burstGuard` (see paste-flood-guard.ts), the
  *     unbracketed-paste-flood guard's sliding-window state, mutated in place
- *     across tokens by trackPanelPasteFloodGuard (see panel-paste-flood-guard.ts).
+ *     across tokens by trackPasteFloodGuard (see paste-flood-guard.ts).
  *     Never reallocated. `burstSuppressedCount` is this wiring layer's own
  *     bookkeeping (not part of the ported module) for the honest resolution
  *     notice, see feedInputTokens below.
@@ -112,7 +112,7 @@ export interface InputFeedContext {
   readonly pasteRegistry: Map<string, string>;
   readonly imageRegistry: Map<string, { data: string; mediaType: string }>;
   /** Ported from goodvibes-tui's paste-flood guard, mutated in place, never reallocated. */
-  readonly burstGuard: PanelBurstGuardState;
+  readonly burstGuard: PasteBurstGuardState;
   /** Wiring-layer bookkeeping (not part of the ported module) for the honest suppressed-count notice. */
   burstSuppressedCount: number;
   /** OS-level terminal focus, fed from the 'focus' tokens below. */
@@ -378,32 +378,25 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       }
     }
 
-    // Ported from goodvibes-tui's panel-paste-flood-guard.ts: guards
+    // Paste-flood guard (paste-flood-guard.ts): guards
     // command-mode's key-driven dispatch (handleCommandModeToken,
     // below) from an unbracketed-paste-replay or control-character-injection
     // burst.
     //
-    // SCOPE, 'key' tokens, and only while commandMode is active: the TUI's
-    // own guard exempts any "capturing" text surface entirely (its own test
-    // asserts a capturing panel "receives the full burst untouched by the
-    // flood guard", see panel-focus-route.test.ts) and never touches its own
-    // non-panel-focused composer's key handling at all. This agent's plain
-    // composer (commandMode false) is exactly that kind of capturing/untouched
-    // surface, handlePromptTextToken absorbs pasted/typed text of any length
+    // SCOPE, 'key' tokens, and only while commandMode is active: the plain
+    // composer (commandMode false) is a capturing surface that stays
+    // untouched. handlePromptTextToken absorbs pasted/typed text of any length
     // by plain insertion, and handlePromptKeyToken's arrow/backspace/enter
-    // handling is the same shape as the TUI's own unguarded composer key
-    // route. Guarding those would falsely trip on ordinary fast/bulk delivery
-    // (a single feed() call carrying many characters/keys shares one `now`,
-    // indistinguishable from a real flood under this millisecond-resolution
-    // model, confirmed by a regression in this repo's own
+    // handling is ordinary editing. Guarding those would falsely trip on
+    // ordinary fast/bulk delivery (a single feed() call carrying many
+    // characters/keys shares one `now`, indistinguishable from a real flood
+    // under this millisecond-resolution model, confirmed by a regression in
     // command-modal-handoff.test.ts when an earlier version of this guard
-    // covered all 'key'/'text' tokens unconditionally) and would add new,
-    // product-inconsistent friction (e.g. held-arrow-key auto-repeat) to the
-    // agent's default interaction mode that the TUI's own users don't have.
+    // covered all 'key'/'text' tokens unconditionally) and would add friction
+    // (e.g. held-arrow-key auto-repeat) to the default interaction mode.
     //
-    // commandMode's key dispatch is the genuine analog of a TUI panel's
-    // per-character hotkey dispatch, matching the R1 matrix's own adaptation
-    // note, "the burst instead becomes command/keybinding dispatch": once
+    // commandMode's key dispatch is where a burst becomes
+    // command/keybinding dispatch: once
     // commandMode is armed (state.prompt starts with '/'), Enter EXECUTES a
     // slash command (handler-command-route.ts), Tab completes, up/down
     // navigate, real state-changing single-key actions. An unbracketed
@@ -419,7 +412,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
     // keystrokes it suppressed once the burst quiets down.
     if (token.type === 'key' && context.commandMode) {
       const wasSuspended = context.burstGuard.suspended;
-      const guard = trackPanelPasteFloodGuard(context.burstGuard, now);
+      const guard = trackPasteFloodGuard(context.burstGuard, now);
       if (!guard.dispatch) {
         context.burstSuppressedCount++;
         if (guard.showHintNow) {

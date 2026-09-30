@@ -128,12 +128,12 @@ export type BootstrapContext = RuntimeContext & {
   /** Command registry used by InputHandler. main.ts needs this to wire input. */
   commandRegistry: import('../input/command-registry.ts').CommandRegistry;
   /**
-   * System message router instantiated at startup, wired to conversation and panel manager.
+   * System message router instantiated at startup, wired to the conversation and the activity feed.
    *
    * @remarks
    * Route operational messages through this rather than calling
    * conversation.addSystemMessage() directly so that low-priority messages
-   * stay out of the main conversation and go to the SystemMessagesPanel instead.
+   * stay out of the main conversation and go to the activity feed instead.
    */
   systemMessageRouter: SystemMessageRouter;
 };
@@ -155,7 +155,7 @@ export type BootstrapContext = RuntimeContext & {
  *   4. Runtime bus subscriptions (delegation, subagent, hook route)
  *   5. Providers, webhooks, PermissionManager, HookDispatcher
  *   6. Orchestrator and Agent-local task read models
- *   7. MCP auto-connect + workspace/panel manager
+ *   7. MCP auto-connect + workspace
  *   8. Command registry + plugin init + CommandContext
  *   9. Input handler wiring
  *  10. Input history, splash options

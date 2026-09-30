@@ -1,8 +1,9 @@
 import { describe, expect, mock, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import { createResumeSessionHandler } from '../../runtime/bootstrap-hook-bridge.ts';
-import { buildLocalReturnContextSummary, createSessionSurface, readLastSessionPointer, writeLastSessionPointer } from '@/runtime/index.ts';
+import { createSessionSurface, readLastSessionPointer, writeLastSessionPointer } from '@/runtime/index.ts';
 import type { SharedSessionRecord } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
@@ -14,24 +15,47 @@ describe('bootstrap hook bridge session resume', () => {
     expect(source).not.toContain('panelManager');
   });
 
-  test('session resume command names saved panel state as ignored, not reopened', () => {
+  test('session resume sources carry no pane-era state handling', () => {
     const source = readFileSync(join(import.meta.dir, '../../input/commands/session-workflow.ts'), 'utf-8');
+    const bridge = readFileSync(join(import.meta.dir, '../../runtime/bootstrap-hook-bridge.ts'), 'utf-8');
 
-    expect(source).toContain('printIgnoredPanelsFromReturnContext');
-    expect(source).toContain('Saved panel state ignored');
-    expect(source).not.toContain('reopenPanelsFromReturnContext');
-    expect(source).not.toContain('Reopened panels');
+    for (const text of [source, bridge]) {
+      expect(text).not.toContain('openPanels');
+      expect(text).not.toContain('Open panels');
+      expect(text).not.toContain('panel state');
+    }
   });
 
-  test('ignores saved panel state instead of reopening copied panels in Agent', async () => {
+  test('resumes a session saved with an open-panels list without printing anything about panes', async () => {
     const logs: string[] = [];
-    const returnContext = buildLocalReturnContextSummary([
-      { role: 'user', content: 'Review my pending work.' },
-      { role: 'assistant', content: 'You have approvals waiting.' },
-    ], {
-      openPanels: ['approval', 'tasks'],
-      pendingApprovals: 1,
-    });
+    const tmpDir = makeProjectTempDir('gv-resume-legacy-panels');
+    const sessionsDir = join(tmpDir, '.goodvibes', 'agent', 'sessions');
+    mkdirSync(sessionsDir, { recursive: true });
+    writeFileSync(join(sessionsDir, 'saved-session.jsonl'), [
+      JSON.stringify({
+        type: 'meta',
+        schemaVersion: 1,
+        timestamp: 1_700_000_000_000,
+        title: 'Pending work',
+        model: 'gpt-5.4',
+        provider: 'openai',
+        titleSource: 'user',
+        returnContext: {
+          activityLabel: 'assistant replied',
+          statusLabel: 'ready for next turn',
+          pendingApprovals: 1,
+          toolCallCount: 0,
+          toolResultCount: 0,
+          assistantTurnCount: 1,
+          userTurnCount: 1,
+          openPanels: ['approval', 'tasks'],
+          lines: ['Activity: assistant replied', 'Status: ready for next turn', 'Open panels: approval, tasks'],
+        },
+      }),
+      JSON.stringify({ type: 'message', role: 'user', content: 'Review my pending work.' }),
+      JSON.stringify({ type: 'message', role: 'assistant', content: 'You have approvals waiting.' }),
+    ].join('\n') + '\n');
+    const sessionManager = new SessionManager(tmpDir, { surfaceRoot: 'agent' });
     const resume = createResumeSessionHandler({
       runtimeBus: { emit: () => {} } as never,
       runtime: {
@@ -56,21 +80,7 @@ describe('bootstrap hook bridge session resume', () => {
       hookDispatcher: {
         fire: mock(async () => {}),
       } as never,
-      sessionManager: {
-        load: mock(() => ({
-          messages: [
-            { role: 'user', content: 'Review my pending work.' },
-            { role: 'assistant', content: 'You have approvals waiting.' },
-          ],
-          meta: {
-            title: 'Pending work',
-            titleSource: 'manual',
-            model: 'gpt-5.4',
-            provider: 'openai',
-            returnContext,
-          },
-        })),
-      } as never,
+      sessionManager: sessionManager as never,
       configManager: {
         get: (key: string) => key === 'behavior.returnContextMode' ? 'summary' : undefined,
         getCategory: () => ({}),
@@ -81,8 +91,15 @@ describe('bootstrap hook bridge session resume', () => {
     resume('saved-session');
     await Promise.resolve();
 
-    expect(logs.filter((line) => line.includes('Resume: Open panels:'))).toEqual([]);
-    expect(logs).toContain('Resume: Saved panel state ignored: approval, tasks. Open the Agent workspace for current operator controls.');
+    try {
+      expect(logs).toContain('Resume: Status: ready for next turn');
+      expect(logs.join('\n')).not.toMatch(/panel|\bpanes?\b/i);
+      const loaded = sessionManager.load('saved-session').meta.returnContext as Record<string, unknown> | undefined;
+      expect(loaded).toBeDefined();
+      expect(loaded).not.toHaveProperty('openPanels');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   // Regression test for the arity-bug class: bootstrap.ts used to hand

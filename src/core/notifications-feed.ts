@@ -1,5 +1,5 @@
 /**
- * PanelNotificationFeed, the notification history behind /notifications.
+ * NotificationFeed, the notification history behind /notifications.
  *
  * Two kinds of entry land here:
  *   - every conversation system notice ([WRFC] …, [Agents] …, a compaction
@@ -17,7 +17,7 @@
  */
 import type { Notification, RoutingDecision } from '@/runtime/index.ts';
 
-export interface PanelFeedEntry {
+export interface NotificationFeedEntry {
   readonly key: string;
   readonly domain: string;
   readonly level: Notification['level'];
@@ -80,8 +80,8 @@ const COLLAPSING_REASON_CODES: ReadonlySet<RoutingDecision['reasonCode']> = new 
   'batch_window_collapsed',
 ]);
 
-export class PanelNotificationFeed {
-  private readonly entries = new Map<string, PanelFeedEntry>();
+export class NotificationFeed {
+  private readonly entries = new Map<string, NotificationFeedEntry>();
   /** Insertion order of `entries` keys (oldest first), for bounded eviction. */
   private order: string[] = [];
   private readonly listeners = new Set<() => void>();
@@ -102,7 +102,7 @@ export class PanelNotificationFeed {
     const key = collapsing ? `group:${decision.batchKey}` : `single:${notification.id}`;
     const previousCount = collapsing ? (this.entries.get(key)?.collapsedCount ?? 0) : 0;
 
-    const entry: PanelFeedEntry = {
+    const entry: NotificationFeedEntry = {
       key,
       domain: notification.domain,
       level: notification.level,
@@ -122,9 +122,9 @@ export class PanelNotificationFeed {
    * receipt): its full text, one entry per notice. It toasts unless it was
    * restored from a saved session, which also counts as already seen.
    */
-  recordNotice(input: NoticeInput): PanelFeedEntry {
+  recordNotice(input: NoticeInput): NotificationFeedEntry {
     const key = `notice:${this.nextNoticeId++}`;
-    const entry: PanelFeedEntry = {
+    const entry: NotificationFeedEntry = {
       key,
       domain: input.domain,
       level: input.level,
@@ -141,7 +141,7 @@ export class PanelNotificationFeed {
     return entry;
   }
 
-  private store(key: string, entry: PanelFeedEntry): void {
+  private store(key: string, entry: NotificationFeedEntry): void {
     if (!this.entries.has(key)) {
       this.order.push(key);
       if (this.order.length > MAX_ENTRIES) {
@@ -154,8 +154,8 @@ export class PanelNotificationFeed {
   }
 
   /** Every entry, most recently updated first. */
-  list(): readonly PanelFeedEntry[] {
-    const items: PanelFeedEntry[] = [];
+  list(): readonly NotificationFeedEntry[] {
+    const items: NotificationFeedEntry[] = [];
     for (const key of this.order) {
       const entry = this.entries.get(key);
       if (entry) items.push(entry);
@@ -185,7 +185,7 @@ export class PanelNotificationFeed {
   }
 
   /** Whether an entry was updated since the user last looked. */
-  isUnread(entry: PanelFeedEntry): boolean {
+  isUnread(entry: NotificationFeedEntry): boolean {
     return entry.timestamp > this.seenThrough;
   }
 
@@ -205,15 +205,15 @@ export class PanelNotificationFeed {
   }
 }
 
-let sharedFeed: PanelNotificationFeed | null = null;
+let sharedFeed: NotificationFeed | null = null;
 
 /**
  * The process-wide `panel_only` feed. Lazily created so the running app has
  * exactly one feed that every caller and the Notifications modal agree
- * on, while tests construct their own isolated `PanelNotificationFeed`
+ * on, while tests construct their own isolated `NotificationFeed`
  * instance instead of reaching for this one.
  */
-export function getSharedNotificationFeed(): PanelNotificationFeed {
-  if (!sharedFeed) sharedFeed = new PanelNotificationFeed();
+export function getSharedNotificationFeed(): NotificationFeed {
+  if (!sharedFeed) sharedFeed = new NotificationFeed();
   return sharedFeed;
 }

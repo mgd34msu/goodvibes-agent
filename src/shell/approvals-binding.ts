@@ -1,8 +1,8 @@
 /**
- * approvals-panel.ts, the two things an interactive session does with
+ * approvals-binding.ts, the two things an interactive session does with
  * approvals, in one place, because they used to be one and are no longer.
  *
- * ── Two sources, one panel ─────────────────────────────────────────────────
+ * ── Two sources, one list ─────────────────────────────────────────────────
  *
  * A permission ask raised on this surface is posted to the adopted daemon and
  * prompted here; the daemon's record is what every surface reads. Separately,
@@ -17,7 +17,7 @@
  *  • the APPROVALS VIEW drives the LIST (what is waiting, across every
  *    surface, including the asks that never touched this process).
  *
- * Binding only the first is what made the panel read "nothing pending" while
+ * Binding only the first is what made the list read "nothing pending" while
  * the owner had three asks waiting on the daemon.
  */
 import type { SharedApprovalRecord } from '@pellux/goodvibes-sdk/platform/control-plane';
@@ -26,7 +26,7 @@ import { handleBrokerApprovalChange } from '../permissions/broker-approval.ts';
 import type { PendingPermissionState } from './blocking-input.ts';
 import { describeApprovalsUnavailable, type ApprovalsView } from '../runtime/client/approvals-view.ts';
 
-export interface ApprovalsPanelBindingOptions {
+export interface ApprovalsBindingOptions {
   readonly broker: ApprovalBroker;
   readonly approvalsView: ApprovalsView;
   readonly render: () => void;
@@ -34,7 +34,7 @@ export interface ApprovalsPanelBindingOptions {
   readonly setPending: (next: PendingPermissionState | null) => void;
 }
 
-export interface ApprovalsPanelBinding {
+export interface ApprovalsBinding {
   /** Every ask waiting for this owner: the daemon's record plus this process's. */
   readonly listApprovals: () => readonly SharedApprovalRecord[];
   /**
@@ -45,7 +45,7 @@ export interface ApprovalsPanelBinding {
   readonly describeApprovalsUnavailable: () => string | null;
 }
 
-export function bindApprovalsPanel(options: ApprovalsPanelBindingOptions): ApprovalsPanelBinding {
+export function bindApprovals(options: ApprovalsBindingOptions): ApprovalsBinding {
   // Clears our own resolved card and opens one for a broker-originated ask no
   // local prompt is handling, see permissions/broker-approval.ts.
   options.broker.subscribe((approval) => handleBrokerApprovalChange({

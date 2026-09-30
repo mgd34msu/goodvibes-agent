@@ -178,9 +178,9 @@ export function createBootstrapCommandActions(
   | 'openMcpWorkspace'
   | 'openAgentWorkspace'
   | 'dismissAgentWorkspace'
-  | 'openSecurityPanel'
-  | 'openKnowledgePanel'
-  | 'openSubscriptionPanel'
+  | 'openSecurityWorkspace'
+  | 'openKnowledgeWorkspace'
+  | 'openSubscriptionWorkspace'
 > {
   const {
     providerRegistry,
@@ -287,13 +287,13 @@ export function createBootstrapCommandActions(
     openMcpWorkspace: () => unwiredShellAction('openMcpWorkspace'),
     openAgentWorkspace: () => unwiredShellAction('openAgentWorkspace'),
     dismissAgentWorkspace: () => unwiredShellAction('dismissAgentWorkspace'),
-    openSecurityPanel: () => {
+    openSecurityWorkspace: () => {
       pointToWorkspace('Security review');
     },
-    openKnowledgePanel: () => {
+    openKnowledgeWorkspace: () => {
       pointToWorkspace('Knowledge');
     },
-    openSubscriptionPanel: () => {
+    openSubscriptionWorkspace: () => {
       pointToWorkspace('Provider subscriptions');
     },
   };

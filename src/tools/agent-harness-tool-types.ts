@@ -38,7 +38,6 @@ export interface AgentHarnessToolArgs {
   readonly sessionId?: unknown;
   readonly session_id?: unknown;
   readonly categoryId?: unknown;
-  readonly panelId?: unknown;
   readonly actionId?: unknown;
   readonly recordId?: unknown;
   readonly knowledgeSpaceId?: unknown;
@@ -71,7 +70,6 @@ export interface AgentHarnessToolArgs {
   readonly includeHidden?: unknown;
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
-  readonly pane?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
   readonly peerId?: unknown;

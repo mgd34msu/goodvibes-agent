@@ -79,7 +79,7 @@ import { feedInputTokens } from './handler-feed.ts';
 import { buildInitialFeedContext, syncFeedContextMutableFields } from './feed-context-factory.ts';
 import type { UiRuntimeServices } from '../runtime/ui-services.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
-import type { PanelBurstGuardState } from './panel-paste-flood-guard.ts';
+import type { PasteBurstGuardState } from './paste-flood-guard.ts';
 
 type SelectionModalCallback = (result: SelectionResult | null) => void;
 
@@ -121,7 +121,7 @@ export class InputHandler {
   public nextPasteId = 1;
   public lastCtrlCTime = 0;
   /** Ported from goodvibes-tui, unbracketed-paste-flood guard state, mutated in place. */
-  public burstGuard: PanelBurstGuardState = { timestamps: [], suspended: false, hintShown: false };
+  public burstGuard: PasteBurstGuardState = { timestamps: [], suspended: false, hintShown: false };
   /** Long-lived feed context, reused across every feed() call to avoid per-keystroke allocation. */
   public feedContext!: import('./handler-feed.ts').InputFeedContext;
   public commandRegistry: CommandRegistry | null = null;

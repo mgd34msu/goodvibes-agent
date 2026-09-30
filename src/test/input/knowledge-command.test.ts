@@ -136,7 +136,7 @@ describe('knowledgeCommand', () => {
     const context = {
       print: (text: string) => { printed.push(text); },
       openAgentWorkspace: (categoryId?: string) => { opened.push(categoryId ?? ''); },
-      openKnowledgePanel: () => {
+      openKnowledgeWorkspace: () => {
         throw new Error('copied knowledge panel must not open');
       },
       clients: {

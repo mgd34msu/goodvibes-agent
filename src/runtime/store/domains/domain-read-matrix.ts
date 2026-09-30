@@ -1,9 +1,8 @@
 /**
- * Domain slice files local to this repo's runtime store. Both prior entries
- * (panels, ui-perf) now source their state and types from
- * @pellux/goodvibes-sdk/platform/runtime/store; this repo carries no local
- * domain slice file for either, so the boundary-contract scan below covers
- * an empty set.
+ * Domain slice files local to this repo's runtime store. The ui-perf slice
+ * sources its state and types from @pellux/goodvibes-sdk/platform/runtime/store;
+ * this repo carries no local domain slice file, so the boundary-contract scan
+ * below covers an empty set.
  */
 export const DOMAINS = [] as const;
 

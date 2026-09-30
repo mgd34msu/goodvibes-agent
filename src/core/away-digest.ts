@@ -201,7 +201,7 @@ export function buildAwayDigest(input: AwayDigestInput): AwayDigest | null {
   }
 
   // Nothing to report at all: stay silent. An unreadable approval record is not
-  // by itself news, the panel and /health approvals are where that is asked
+  // by itself news, the Activity modal and /health approvals are where that is asked
   // and answered, and announcing it at every launch of an agent with no host
   // configured would be noise, not honesty.
   if (lines.length === 0) return null;

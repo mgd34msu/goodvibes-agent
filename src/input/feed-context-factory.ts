@@ -38,7 +38,7 @@ import type { ProfilePickerModal } from './profile-picker-modal.ts';
 import type { WrappedPromptInfo } from './handler-prompt-buffer.ts';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
-import type { PanelBurstGuardState } from './panel-paste-flood-guard.ts';
+import type { PasteBurstGuardState } from './paste-flood-guard.ts';
 import type { FocusTracker } from '@/runtime/index.ts';
 
 /**
@@ -99,7 +99,7 @@ export interface FeedContextStableRefs {
   pasteRegistry: Map<string, string>;
   imageRegistry: Map<string, { data: string; mediaType: string }>;
   /** Ported from goodvibes-tui's unbracketed-paste-flood guard; mutated in place, never reallocated. */
-  burstGuard: PanelBurstGuardState;
+  burstGuard: PasteBurstGuardState;
   /** OS-level terminal focus tracker (SDK platform/runtime). */
   focusTracker: FocusTracker;
   projectRoot: string;
@@ -201,7 +201,7 @@ export function buildInitialFeedContext(
     // --- requestRender: placeholder, swapped per-feed to buffered version ---
     requestRender: noop,
     // Wiring-layer-only bookkeeping for the paste-flood guard's honest
-    // resolution notice (not part of the ported panel-paste-flood-guard.ts
+    // resolution notice (not part of the paste-flood-guard.ts
     // module itself; see handler-feed.ts's feedInputTokens).
     burstSuppressedCount: 0,
     // --- stable refs ---

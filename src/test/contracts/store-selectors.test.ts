@@ -1,13 +1,11 @@
 import { describe, test, expect } from 'bun:test';
 import { createInitialRuntimeState } from '../../runtime/store/state.ts';
-import type { PanelDomainState } from '@pellux/goodvibes-sdk/platform/runtime/store';
 import {
   // Primary domain selectors
   selectSession,
   selectModel,
   selectConversation,
   selectOverlays,
-  selectPanels,
   selectPermissions,
   selectTasks,
   selectAgents,
@@ -29,8 +27,6 @@ import {
   selectDomainHealth,
   selectSystemHealth,
   selectPermissionMode,
-  selectActivePanels,
-  selectFocusedPanel,
   selectAnyOverlayVisible,
   selectTurnState,
   selectStreamToolPreview,
@@ -42,7 +38,7 @@ import {
 describe('store-selectors contract', () => {
   const state = createInitialRuntimeState();
 
-  describe('primary domain selectors: all 19 return correct domain slice', () => {
+  describe('primary domain selectors: each returns its domain slice', () => {
     test('selectSession returns session domain', () => {
       const session = selectSession(state);
       expect(session).toBe(state.session);
@@ -63,12 +59,6 @@ describe('store-selectors contract', () => {
     test('selectOverlays returns overlays domain', () => {
       const overlays = selectOverlays(state);
       expect(overlays).toBe(state.overlays);
-    });
-
-    test('selectPanels returns panels domain', () => {
-      const panels = selectPanels(state);
-      // panels selector returns Record<string, unknown>; runtime value is PanelDomainState.
-      expect(panels === (state.panels as unknown)).toBe(true);
     });
 
     test('selectPermissions returns permissions domain', () => {
@@ -167,17 +157,6 @@ describe('store-selectors contract', () => {
     test('selectPermissionMode returns the initial permission mode', () => {
       const mode = selectPermissionMode(state);
       expect(mode).toBe(state.permissions.mode);
-    });
-
-    test('selectActivePanels returns the default main conversation panel from initial state', () => {
-      const panels = selectActivePanels(state);
-      expect(panels.map((panel) => panel.id)).toEqual(['main_conversation']);
-    });
-
-    test('selectFocusedPanel returns the default focused main conversation panel', () => {
-      const focused = selectFocusedPanel(state);
-      expect(focused?.id).toBe('main_conversation');
-      expect(focused?.focused).toBe(true);
     });
 
     test('selectAnyOverlayVisible returns false from initial state', () => {

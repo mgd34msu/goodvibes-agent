@@ -413,14 +413,6 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         confirmation: 'No model operation is exposed.',
         note: 'This shortcut mutates live prompt-buffer cursor/edit state that is not part of the model tool contract.',
       };
-    case 'replay-panel':
-      return {
-        supported: false,
-        effect: 'reserved',
-        preferredMode: 'direct-user-interaction',
-        confirmation: 'No model operation is exposed.',
-        note: 'This shortcut is reserved and has no current Agent operation route.',
-      };
     case 'focus-work-tree':
       return {
         supported: false,

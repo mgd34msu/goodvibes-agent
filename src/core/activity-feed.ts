@@ -1,8 +1,7 @@
 /**
  * ActivityFeed, the single ambient record of what the assistant has been doing.
  *
- * Replaces the old multi-panel system's SystemMessagesPanel as the sink for
- * operational traffic (model switches, provider discovery, delivery results,
+ * The sink for operational traffic (model switches, provider discovery, delivery results,
  * background work updates). The Activity modal renders the most recent
  * entries; high-priority messages additionally land in the conversation via
  * SystemMessageRouter.

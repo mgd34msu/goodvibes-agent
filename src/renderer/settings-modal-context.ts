@@ -105,14 +105,14 @@ export const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     plaintext_allowed: 'Allow plaintext fallback when secure storage is unavailable.',
   },
   'ui.systemMessages': {
-    panel: 'Show system messages in panels only.',
+    panel: 'Show system messages in the activity feed only.',
     conversation: 'Show system messages inline in the transcript.',
-    both: 'Show system messages in both panels and the transcript.',
+    both: 'Show system messages in both the activity feed and the transcript.',
   },
   'ui.operationalMessages': {
-    panel: 'Show operational messages in panels only.',
+    panel: 'Show operational messages in the activity feed only.',
     conversation: 'Show operational messages inline in the transcript.',
-    both: 'Show operational messages in both panels and the transcript.',
+    both: 'Show operational messages in both the activity feed and the transcript.',
   },
   'surfaces.telegram.mode': {
     webhook: 'Receive Telegram updates through externally hosted delivery.',

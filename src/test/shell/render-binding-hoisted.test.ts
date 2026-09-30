@@ -7,7 +7,7 @@
  *
  * as an UNHANDLED REJECTION. `render` was `const render = () => {…}` roughly
  * three hundred lines below the wiring that captures it, and
- * `bindApprovalsPanel()` calls `approvalsView.start()`, which fires an
+ * `bindApprovals()` calls `approvalsView.start()`, which fires an
  * unawaited `refresh()` and an unawaited `openStream()`. When either resolved
  * before the declaration was reached, its repaint hit the temporal dead zone.
  *
@@ -39,7 +39,7 @@ describe('the shell render binding cannot be reached before it exists', () => {
   test('the wiring that starts unawaited work still precedes the declaration', () => {
     // If this ever stops being true the hazard is gone for a different reason,
     // and this file should be revisited rather than silently kept passing.
-    const bindIndex = MAIN.indexOf('bindApprovalsPanel({');
+    const bindIndex = MAIN.indexOf('bindApprovals({');
     const declIndex = MAIN.indexOf('function render(): void {');
     expect(bindIndex).toBeGreaterThan(-1);
     expect(declIndex).toBeGreaterThan(-1);

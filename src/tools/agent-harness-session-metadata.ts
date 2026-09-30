@@ -32,7 +32,6 @@ interface SessionInfoLike {
     readonly activeTasks?: number;
     readonly blockedTasks?: number;
     readonly pendingApprovals?: number;
-    readonly openPanels?: readonly string[];
     readonly remoteRunners?: readonly unknown[];
     readonly worktreePaths?: readonly string[];
   } | undefined;
@@ -78,7 +77,6 @@ function returnContextSummary(session: SessionInfoLike): Record<string, unknown>
     activeTasks: context.activeTasks ?? 0,
     blockedTasks: context.blockedTasks ?? 0,
     pendingApprovals: context.pendingApprovals ?? 0,
-    savedOpenPanelsIgnored: context.openPanels?.length ?? 0,
     remoteRunners: context.remoteRunners?.length ?? 0,
     worktreePaths: context.worktreePaths?.length ?? 0,
   };

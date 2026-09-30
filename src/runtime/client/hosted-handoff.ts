@@ -33,7 +33,7 @@
  * conversation opens no chain to gate: it is the ordinary conversation loop,
  * answering the owner. What its tools may do is decided by the daemon's own
  * permission manager, which raises asks the same way, onto the shared record
- * every surface reads, including this one's approvals panel.
+ * every surface reads, including this one's approvals list.
  *
  * So promotion moves where the conversation is answered. It does not move a
  * decision about whether work was authorized, because the thing that decision

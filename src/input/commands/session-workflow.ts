@@ -87,21 +87,6 @@ function buildTranscriptReviewLines(
   ];
 }
 
-function printIgnoredPanelsFromReturnContext(ctx: CommandContext, summary: SessionReturnContextSummary | undefined): void {
-  if (!summary?.openPanels || summary.openPanels.length === 0) return;
-  ctx.print(`  Saved panel state ignored: ${summary.openPanels.slice(0, 4).join(', ')}. Open the Agent workspace for current operator controls.`);
-}
-
-function formatAgentReturnContextForDisplay(summary: SessionReturnContextSummary): string[] {
-  const ignoredPanels = summary.openPanels?.slice(0, 4) ?? [];
-  return [
-    ...formatReturnContextForDisplay(summary).filter((line) => !line.startsWith('Open panels:')),
-    ...(ignoredPanels.length > 0
-      ? [`Saved panel state ignored: ${ignoredPanels.join(', ')}. Open the Agent workspace for current operator controls.`]
-      : []),
-  ];
-}
-
 function printSessionExport(
   ctx: { print: (text: string) => void },
   sessionId: string,
@@ -198,12 +183,11 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       const model = session.model ? ` [${session.model}]` : '';
       const active = session.name === ctx.session.runtime.sessionId ? ' ●' : '  ';
       lines.push(`${active} ${session.name.padEnd(28)} ${name.slice(0, 22).padEnd(22)} ${date}  ${session.messageCount} msgs${model}`);
-      if (session.returnContext?.activeTasks || session.returnContext?.blockedTasks || session.returnContext?.pendingApprovals || session.returnContext?.openPanels?.length) {
+      if (session.returnContext?.activeTasks || session.returnContext?.blockedTasks || session.returnContext?.pendingApprovals) {
         const posture = [
           session.returnContext.activeTasks ? `active ${session.returnContext.activeTasks}` : null,
           session.returnContext.blockedTasks ? `blocked ${session.returnContext.blockedTasks}` : null,
           session.returnContext.pendingApprovals ? `approvals ${session.returnContext.pendingApprovals}` : null,
-          session.returnContext.openPanels?.length ? `saved panels ignored ${session.returnContext.openPanels.slice(0, 3).join(',')}` : null,
         ].filter(Boolean).join('  ');
         if (posture) lines.push(`     posture ${posture}`);
       }
@@ -300,11 +284,9 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
           ? [`  rewind points ${restoredAnchorCount} restored from before the resume`]
           : []),
       ].join('\n'));
-      printIgnoredPanelsFromReturnContext(ctx, meta.returnContext);
       const returnContextMode = getReturnContextMode(ctx.platform.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {
-          if (line.startsWith('Open panels:')) continue;
           ctx.print(`  ${line}`);
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
@@ -411,7 +393,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       `  date ${date}`,
       `  messages ${found.messageCount}`,
       `  file ${found.filePath}`,
-      ...(found.returnContext ? formatAgentReturnContextForDisplay(found.returnContext).map((line) => `  ${line}`) : []),
+      ...(found.returnContext ? formatReturnContextForDisplay(found.returnContext).map((line) => `  ${line}`) : []),
     ].join('\n'));
     return true;
   }

@@ -64,7 +64,6 @@ export type KeyAction =
   | 'undo'
   | 'redo'
   | 'paste'
-  | 'replay-panel'
   | 'focus-work-tree';
 
 /** Human-readable description for each action (used in /keybindings display). */
@@ -91,7 +90,6 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'undo':                  'Undo last prompt edit',
   'redo':                  'Redo last undone edit',
   'paste':                 'Paste from clipboard (image priority)',
-  'replay-panel':          'Reserved replay workspace shortcut',
   'focus-work-tree':       'Move the keyboard onto the conversation work tree (arrows move and fold, Enter opens, y copies, Esc returns)',
 };
 
@@ -132,7 +130,6 @@ export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'undo':                  [{ key: 'z', ctrl: true }],
   'redo':                  [{ key: 'z', ctrl: true, shift: true }],
   'paste':                 [{ key: 'v', ctrl: true }],
-  'replay-panel':          [],  // intentionally unbound until replay-panel is implemented
   // Alt+Up and Ctrl+Up: into the work tree from the composer (plain Up keeps input history).
   'focus-work-tree':       [{ key: 'up', alt: true }, { key: 'up', ctrl: true }],
 };

@@ -64,7 +64,7 @@ import { allowTerminalWrite, createShellLayout, installFullScreenTerminalOutputG
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProposer } from './shell/autonomy-surfacing.ts';
-import { bindApprovalsPanel } from './shell/approvals-panel.ts';
+import { bindApprovals } from './shell/approvals-binding.ts';
 import { buildListAutomationRunsSince } from './agent/automation-runs-source.ts';
 import { startHardwareProbe } from './core/hardware-profile.ts';
 import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
@@ -174,7 +174,7 @@ async function main() {
   };
 
   let pendingPermission: PendingPermissionState | null = null;
-  const approvalsPanel = bindApprovalsPanel({
+  const approvalsBinding = bindApprovals({
     broker: approvalBroker,
     approvalsView: ctx.services.approvalsView,
     // Deferred: `render` is declared further down, and the binding only ever
@@ -198,8 +198,8 @@ async function main() {
     shellPaths: ctx.services.shellPaths,
     listAutomationJobs: () => ctx.services.automationManager.listJobs(),
     listAutomationRunsSince: buildListAutomationRunsSince(configManager, homeDirectory),
-    listApprovals: approvalsPanel.listApprovals,
-    describeApprovalsUnavailable: approvalsPanel.describeApprovalsUnavailable,
+    listApprovals: approvalsBinding.listApprovals,
+    describeApprovalsUnavailable: approvalsBinding.describeApprovalsUnavailable,
     getTasksSnapshot: () => uiServices.readModels.tasks.getSnapshot().tasks,
     router: {
       high: (message) => systemMessageRouter.high(message),
@@ -431,7 +431,7 @@ async function main() {
     setPendingPermission: (pending) => { pendingPermission = pending; },
   });
   commandContext.clearScreen = commandUi.clearScreen;
-  // The Activity modal (Ctrl+O, /activity): what the pane-era sidebar showed, as a kit modal.
+  // The Activity modal (Ctrl+O, /activity): what is running and what happened, as a kit modal.
   commandContext.openActivityModal = () => {
     input.surfaceModals.push(new ActivityModal({
       view: () => activityView(),
@@ -517,7 +517,7 @@ async function main() {
   };
 
   // A hoisted DECLARATION, not `const`: callbacks wired above fire before this
-  // line (bindApprovalsPanel starts an unawaited refresh + stream that repaint).
+  // line (bindApprovals starts an unawaited refresh + stream that repaint).
   // Under a `const` they hit the temporal dead zone, every boot logged "Cannot
   // access 'render' before initialization" as an unhandled rejection, which killed
   // that wiring, so the surface never repainted from any async source again.

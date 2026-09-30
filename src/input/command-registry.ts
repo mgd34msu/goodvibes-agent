@@ -167,9 +167,9 @@ export interface CommandShellUiOpeners {
   openMcpWorkspace?: () => void;
   openAgentWorkspace?: (categoryId?: string) => void;
   dismissAgentWorkspace?: () => boolean;
-  openSecurityPanel?: () => void;
-  openKnowledgePanel?: () => void;
-  openSubscriptionPanel?: () => void;
+  openSecurityWorkspace?: () => void;
+  openKnowledgeWorkspace?: () => void;
+  openSubscriptionWorkspace?: () => void;
   /** Open the Activity modal (Ctrl+O, /activity). */
   openActivityModal?: () => void;
   /** Open the notification history (/notifications): every system notice in full. */
@@ -260,7 +260,7 @@ export interface CommandOpsServices
   extends CommandOpsShellServices {
   readonly executionLedger?: AgentExecutionLedger;
   /**
-   * The approvals panel's source: the daemon's record over `approvals.list`
+   * The approvals list's source: the daemon's record over `approvals.list`
    * unioned with the asks this process still holds, plus the honest reason
    * when the daemon's record could not be read. Optional because a narrow
    * command context (a one-shot subcommand, a test double) may carry no

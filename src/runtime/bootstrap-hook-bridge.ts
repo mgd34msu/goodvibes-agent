@@ -61,15 +61,8 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
       options.conversation.log(`Resumed session: ${sessionId}`, { fg: activeTokens().secondary });
       const returnContextMode = getReturnContextMode(options.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
-        // N1 fix: compute ignoredPanels inside the guard so it is only evaluated
-        // when returnContext is present and the mode is not 'off'.
-        const ignoredPanels = meta.returnContext.openPanels?.slice(0, 4) ?? [];
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {
-          if (line.startsWith('Open panels:')) continue;
           options.conversation.log(`Resume: ${line}`, { fg: activeTokens().textMuted });
-        }
-        if (ignoredPanels.length > 0) {
-          options.conversation.log(`Resume: Saved panel state ignored: ${ignoredPanels.join(', ')}. Open the Agent workspace for current operator controls.`, { fg: activeTokens().textMuted });
         }
         if ((meta.returnContext.remoteRunners?.length ?? 0) > 0) {
           options.conversation.log('Resume: Remote build-host recovery belongs outside Agent; delegate explicit build/fix/review recovery from Agent.', { fg: activeTokens().textMuted });

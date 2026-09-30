@@ -6,7 +6,7 @@ import { registerSecurityRuntimeCommands } from '../../input/commands/security-r
 function makeSubscriptionContext(out: string[], opened: string[]): CommandContext {
   return {
     print: (text: string) => { out.push(text); },
-    openSubscriptionPanel: () => { opened.push('subscription'); },
+    openSubscriptionWorkspace: () => { opened.push('subscription'); },
     platform: {
       subscriptionManager: {
         list: () => [],
@@ -21,7 +21,7 @@ function makeSubscriptionContext(out: string[], opened: string[]): CommandContex
 function makeSecurityContext(out: string[], opened: string[]): CommandContext {
   return {
     print: (text: string) => { out.push(text); },
-    openSecurityPanel: () => { opened.push('security'); },
+    openSecurityWorkspace: () => { opened.push('security'); },
     platform: {
       readModels: {
         security: {

@@ -1,5 +1,5 @@
 /**
- * The Activity modal (it replaced the activity sidebar pane): fleet honesty
+ * The Activity modal: fleet honesty
  * on its agent rows (the fleet read-model's per-node headline, replaced in
  * place, never a feed, and the stall tell as a quiet-duration marker), its
  * sections, its live search row and its keys.
